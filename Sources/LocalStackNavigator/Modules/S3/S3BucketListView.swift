@@ -78,11 +78,10 @@ struct S3BucketListView: View {
                     }
                     .disabled(isLoading)
 
-                    if !appState.isReadOnly {
-                        Button { showCreateSheet = true } label: {
-                            Image(systemName: "plus")
-                        }
+                    Button { showCreateSheet = true } label: {
+                        Image(systemName: "plus")
                     }
+                    .disabled(appState.isReadOnly)
                 }
             }
         }

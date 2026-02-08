@@ -2,6 +2,7 @@ import SwiftUI
 
 struct S3CreateBucketView: View {
     @ObservedObject var service: S3Service
+    @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
     @State private var bucketName = ""
     @State private var errorMessage: String?
@@ -14,6 +15,14 @@ struct S3CreateBucketView: View {
 
             TextField("Bucket name", text: $bucketName)
                 .textFieldStyle(.roundedBorder)
+
+            HStack {
+                Text("Region")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(appState.region)
+                    .foregroundStyle(.secondary)
+            }
 
             if let errorMessage {
                 Text(errorMessage)
