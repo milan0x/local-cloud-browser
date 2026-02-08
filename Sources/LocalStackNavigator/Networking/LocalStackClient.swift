@@ -37,6 +37,20 @@ final class LocalStackClient: ObservableObject {
 
     var baseURL: String { appState.endpoint }
 
+    /// S3 base URL using LocalStack's virtual-hosted-style routing.
+    /// Rewrites `http://localhost:4566` → `http://s3.localhost.localstack.cloud:4566`.
+    var s3BaseURL: String {
+        guard let components = URLComponents(string: appState.endpoint),
+              let host = components.host?.lowercased() else {
+            return appState.endpoint
+        }
+        let isLocal = host == "localhost" || host == "127.0.0.1" || host == "::1"
+        guard isLocal else { return appState.endpoint }
+        var s3Components = components
+        s3Components.host = "s3.localhost.localstack.cloud"
+        return s3Components.string ?? appState.endpoint
+    }
+
     func get(path: String) async throws -> Data {
         try await request(method: "GET", path: path)
     }
@@ -97,20 +111,55 @@ final class LocalStackClient: ObservableObject {
         )
     }
 
+    // MARK: - S3 (virtual-hosted-style routing)
+
+    func s3Request(
+        method: String,
+        path: String,
+        queryParams: [String: String] = [:],
+        body: Data? = nil,
+        contentType: String? = nil
+    ) async throws -> Data {
+        let response = try await executeRequest(
+            method: method,
+            path: path,
+            queryParams: queryParams,
+            body: body,
+            contentType: contentType,
+            baseURLOverride: s3BaseURL
+        )
+        return response.data
+    }
+
+    func s3Head(path: String) async throws -> [String: String] {
+        let response = try await executeRequest(
+            method: "HEAD",
+            path: path,
+            queryParams: [:],
+            body: nil,
+            contentType: nil,
+            baseURLOverride: s3BaseURL
+        )
+        return response.headers
+    }
+
     private func executeRequest(
         method: String,
         path: String,
         queryParams: [String: String],
         body: Data?,
-        contentType: String?
+        contentType: String?,
+        baseURLOverride: String? = nil
     ) async throws -> HTTPResponse {
+        let effectiveBase = baseURLOverride ?? baseURL
+
         guard ReadOnlyInterceptor.allowsRequest(method: method, isReadOnly: appState.isReadOnly) else {
             Log.warn("Blocked \(method) \(path) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: method)
         }
 
-        guard var components = URLComponents(string: baseURL + path) else {
-            Log.error("Invalid URL: \(baseURL + path)", category: "HTTP")
+        guard var components = URLComponents(string: effectiveBase + path) else {
+            Log.error("Invalid URL: \(effectiveBase + path)", category: "HTTP")
             throw LocalStackClientError.invalidURL
         }
 
