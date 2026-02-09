@@ -338,6 +338,10 @@ struct S3ObjectBrowserView: View {
                         }
                     }
                     .disabled(appState.isReadOnly)
+                    if let obj = objects.first(where: { $0.key == item.fullKey }) {
+                        moveToMenu(for: [obj])
+                            .disabled(appState.isReadOnly)
+                    }
                     Divider()
                     Button("Delete", role: .destructive) {
                         objectsToDelete = objects.filter { $0.key == item.fullKey }
@@ -347,13 +351,16 @@ struct S3ObjectBrowserView: View {
             } else {
                 let movableItems = items.filter { $0.id != Self.parentRowID && !$0.isFolder }
                 if !movableItems.isEmpty {
+                    let movableObjs = movableItems.compactMap { item in
+                        objects.first { $0.key == item.fullKey }
+                    }
                     Button("Move \(movableItems.count) Items...") {
-                        objectsToMove = movableItems.compactMap { item in
-                            objects.first { $0.key == item.fullKey }
-                        }
+                        objectsToMove = movableObjs
                         moveDestination = currentPrefix
                     }
                     .disabled(appState.isReadOnly)
+                    moveToMenu(for: movableObjs)
+                        .disabled(appState.isReadOnly)
                     Button("Delete \(movableItems.count) Items", role: .destructive) {
                         objectsToDelete = movableItems.compactMap { item in
                             objects.first { $0.key == item.fullKey }
@@ -433,6 +440,37 @@ struct S3ObjectBrowserView: View {
                 .buttonStyle(.borderless)
                 .help("Delete")
                 .disabled(appState.isReadOnly)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func moveToMenu(for objs: [S3Object]) -> some View {
+        let hasParent = !pathComponents.isEmpty
+        let hasFolders = !prefixes.isEmpty
+        Menu("Move to") {
+            if hasParent {
+                Button("..") {
+                    let parent = Array(pathComponents.dropLast())
+                    let dest = parent.isEmpty ? "" : parent.joined(separator: "/") + "/"
+                    objectsToMove = objs
+                    moveDestination = dest
+                    performMove()
+                }
+                if hasFolders { Divider() }
+            }
+            if hasFolders {
+                ForEach(prefixes) { prefix in
+                    Button(prefix.displayName) {
+                        objectsToMove = objs
+                        moveDestination = prefix.prefix
+                        performMove()
+                    }
+                }
+            }
+            if !hasParent && !hasFolders {
+                Button("No folders") {}
+                    .disabled(true)
             }
         }
     }
