@@ -34,5 +34,9 @@ struct LocalStackNavigatorApp: App {
                     NSApplication.shared.activate(ignoringOtherApps: true)
                 }
         }
+
+        Settings {
+            SettingsView()
+        }
     }
 }
