@@ -9,6 +9,7 @@ struct S3ObjectMetadataView: View {
     @State private var detail: S3ObjectDetail?
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var showCopied = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -44,7 +45,34 @@ struct S3ObjectMetadataView: View {
                         }
                         LabeledContent("Content-Type", value: detail.contentType)
                         LabeledContent("Last Modified", value: detail.lastModified)
-                        LabeledContent("ETag", value: detail.etag)
+                        LabeledContent("ETag") {
+                            HStack(spacing: 4) {
+                                Text(detail.etag)
+                                    .fixedSize()
+                                Button {
+                                    let clean = detail.etag.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString(clean, forType: .string)
+                                    showCopied = true
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                        showCopied = false
+                                    }
+                                } label: {
+                                    ZStack {
+                                        Image(systemName: "doc.on.doc")
+                                            .opacity(showCopied ? 0 : 1)
+                                        Image(systemName: "checkmark")
+                                            .foregroundStyle(.green)
+                                            .opacity(showCopied ? 1 : 0)
+                                    }
+                                    .font(.caption)
+                                    .frame(width: 14, height: 14)
+                                    .animation(.easeInOut(duration: 0.15), value: showCopied)
+                                }
+                                .buttonStyle(.borderless)
+                                .help("Copy ETag")
+                            }
+                        }
                     }
 
                     if !detail.metadata.isEmpty {

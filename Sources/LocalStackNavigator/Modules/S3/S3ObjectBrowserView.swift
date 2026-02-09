@@ -13,7 +13,6 @@ struct S3ObjectBrowserView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var selectedObject: S3Object?
-    @State private var showMetadata = false
     @State private var showPolicyEditor = false
     @State private var objectToDelete: S3Object?
     @State private var viewMode: S3BrowserViewMode = .list
@@ -72,10 +71,8 @@ struct S3ObjectBrowserView: View {
                 }
             }
         }
-        .sheet(isPresented: $showMetadata) {
-            if let obj = selectedObject {
-                S3ObjectMetadataView(service: service, bucket: bucket.name, objectKey: obj.key)
-            }
+        .sheet(item: $selectedObject) { obj in
+            S3ObjectMetadataView(service: service, bucket: bucket.name, objectKey: obj.key)
         }
         .sheet(isPresented: $showPolicyEditor) {
             S3BucketPolicyView(service: service, bucket: bucket.name)
@@ -191,7 +188,7 @@ struct S3ObjectBrowserView: View {
                         onDownload: { downloadObject(key: $0) },
                         onShowMetadata: { key in
                             selectedObject = objects.first { $0.key == key }
-                            showMetadata = true
+
                         },
                         onDelete: { key in
                             objectToDelete = objects.first { $0.key == key }
@@ -205,7 +202,7 @@ struct S3ObjectBrowserView: View {
                         onDownload: { downloadObject(key: $0) },
                         onShowMetadata: { key in
                             selectedObject = objects.first { $0.key == key }
-                            showMetadata = true
+
                         },
                         onDelete: { key in
                             objectToDelete = objects.first { $0.key == key }
@@ -326,7 +323,6 @@ struct S3ObjectBrowserView: View {
                     Button("Download") { downloadObject(key: item.fullKey) }
                     Button("Metadata") {
                         selectedObject = objects.first { $0.key == item.fullKey }
-                        showMetadata = true
                     }
                     Divider()
                     Button("Delete", role: .destructive) {
@@ -341,7 +337,6 @@ struct S3ObjectBrowserView: View {
                 navigateToPrefix(item.fullKey)
             } else {
                 selectedObject = objects.first { $0.key == item.fullKey }
-                showMetadata = true
             }
         }
     }
@@ -367,7 +362,6 @@ struct S3ObjectBrowserView: View {
 
                 Button {
                     selectedObject = objects.first { $0.key == item.fullKey }
-                    showMetadata = true
                 } label: {
                     Image(systemName: "info.circle")
                 }

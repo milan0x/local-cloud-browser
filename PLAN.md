@@ -33,6 +33,9 @@
 - [x] List view: double-click navigates folders / opens file metadata
 - [x] List view: right-click context menu (Download, Metadata, Delete)
 - [x] Pagination support for object listing (next/previous page, status bar)
+- [x] Fix metadata sheet: use `.sheet(item:)` instead of `.sheet(isPresented:)` for reliable object binding
+- [x] Read-only mode defaults to OFF — writes allowed on launch
+- [x] ETag copy-to-clipboard button in metadata view (strips quotes, checkmark feedback)
 
 ## Phase 3: SQS Module
 - [ ] List queues view

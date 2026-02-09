@@ -4,7 +4,7 @@
 A native macOS application that provides a graphical interface for managing LocalStack AWS environments. The app prioritizes safety (preventing accidental operations on real AWS), discoverability, and a native macOS experience.
 
 ## Core Principles
-1. **Safety First** — Default to read-only mode; validate endpoints are local; warn on non-local connections
+1. **Safety First** — Read-only mode available via lock icon; validate endpoints are local; warn on non-local connections
 2. **Native Experience** — SwiftUI with NavigationSplitView; follows macOS HIG
 3. **Modular Architecture** — Each AWS service is an independent module conforming to a shared protocol
 4. **Progressive Disclosure** — Start simple, reveal complexity as needed
@@ -47,6 +47,7 @@ protocol LocalStackModule {
 - Visual drop-target feedback: dashed accent border with tint overlay when dragging files over
 - Pagination with continuation tokens for large buckets
 - Breadcrumb navigation bar for folder hierarchy
+- Object metadata sheet: displays key, size, content type, last modified, ETag (with copy button), and custom `x-amz-meta-*` headers
 
 ## Supported Services (Phase 1)
 - **S3** — Bucket browsing, object management
