@@ -12,11 +12,21 @@ enum LocalStackClientError: Error, LocalizedError {
             "Invalid URL"
         case .readOnlyBlocked(let method):
             "Blocked \(method) request — read-only mode is enabled"
-        case .httpError(let statusCode, _):
-            "HTTP error \(statusCode)"
+        case .httpError(let statusCode, let data):
+            if let parsed = ServiceError.parse(from: data) {
+                "\(parsed.code): \(parsed.message)"
+            } else {
+                "HTTP error \(statusCode)"
+            }
         case .networkError(let underlying):
             "Network error: \(underlying.localizedDescription)"
         }
+    }
+
+    /// Extracts a structured `ServiceError` from the XML body of an HTTP error response.
+    var serviceError: ServiceError? {
+        guard case .httpError(_, let data) = self else { return nil }
+        return ServiceError.parse(from: data)
     }
 }
 
