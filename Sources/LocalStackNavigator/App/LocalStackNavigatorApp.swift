@@ -35,6 +35,14 @@ struct LocalStackNavigatorApp: App {
                 }
         }
 
+        WindowGroup(id: "s3-browser", for: S3BrowserTarget.self) { $target in
+            if let target {
+                S3BrowserWindow(target: target)
+                    .environmentObject(appState)
+                    .environmentObject(client)
+            }
+        }
+
         Settings {
             SettingsView()
         }

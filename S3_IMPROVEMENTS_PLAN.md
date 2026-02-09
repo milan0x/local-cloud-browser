@@ -12,7 +12,7 @@
 - [x] Parent directory row: `..` pinned at top of list when inside subfolders, works in empty folders
 - [x] Default sort: date descending (newest first)
 - [x] Fix: all navigation uses `force: true` to bypass 2s debounce
-- [x] Fix: removed `.draggable`/`.dropDestination` from table cells (was stealing click/select gestures)
+- [x] Removed internal drag-and-drop (incompatible with AppKit-backed SwiftUI Table)
 
 ---
 

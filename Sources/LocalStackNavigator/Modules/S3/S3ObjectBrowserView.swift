@@ -5,7 +5,10 @@ import UniformTypeIdentifiers
 struct S3ObjectBrowserView: View {
     @ObservedObject var service: S3Service
     @EnvironmentObject private var appState: AppState
+    @Environment(\.openWindow) private var openWindow
     let bucket: S3Bucket
+    var paneID: String = "main"
+    var onOpenInSplit: ((S3Bucket, String?) -> Void)?
 
     @State private var objects: [S3Object] = []
     @State private var prefixes: [S3Prefix] = []
@@ -187,7 +190,7 @@ struct S3ObjectBrowserView: View {
             navigationHistory = [[]]
             historyIndex = 0
             resetPagination()
-            loadObjects()
+            loadObjects(force: true)
         }
     }
 
@@ -360,6 +363,14 @@ struct S3ObjectBrowserView: View {
                 } else if item.isFolder {
                     Button("Open") { navigateToPrefix(item.fullKey) }
                     Button("Folder Info") { selectedFolderPrefix = item.fullKey }
+                    if let onOpenInSplit {
+                        Button("Open in Split View") {
+                            onOpenInSplit(bucket, item.fullKey)
+                        }
+                    }
+                    Button("Open in New Window") {
+                        openWindow(value: S3BrowserTarget(bucket: bucket.name, prefix: item.fullKey))
+                    }
                     Divider()
                     Button("Delete Folder", role: .destructive) {
                         requestFolderDeletion(prefixes: [item.fullKey])
