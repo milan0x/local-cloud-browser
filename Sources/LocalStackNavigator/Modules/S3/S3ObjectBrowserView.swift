@@ -27,7 +27,8 @@ struct S3ObjectBrowserView: View {
     @State private var isMovingObjects = false
     @State private var moveDestination = ""
 
-    // Folder deletion
+    // Folder info & deletion
+    @State private var selectedFolderPrefix: String?
     @State private var folderDeleteItems: [FolderDeleteInfo] = []
     @State private var standaloneObjectsToDelete: [S3Object] = []
     @State private var isFetchingFolderDetails = false
@@ -124,6 +125,14 @@ struct S3ObjectBrowserView: View {
         }
         .sheet(item: $selectedObject) { obj in
             S3ObjectMetadataView(service: service, bucket: bucket.name, objectKey: obj.key)
+        }
+        .sheet(isPresented: Binding(
+            get: { selectedFolderPrefix != nil },
+            set: { if !$0 { selectedFolderPrefix = nil } }
+        )) {
+            if let prefix = selectedFolderPrefix {
+                S3FolderMetadataView(service: service, bucket: bucket.name, prefix: prefix)
+            }
         }
         .sheet(isPresented: $showPolicyEditor) {
             S3BucketPolicyView(service: service, bucket: bucket.name)
@@ -350,6 +359,7 @@ struct S3ObjectBrowserView: View {
                     Button("Go to Parent") { navigateToParent() }
                 } else if item.isFolder {
                     Button("Open") { navigateToPrefix(item.fullKey) }
+                    Button("Folder Info") { selectedFolderPrefix = item.fullKey }
                     Divider()
                     Button("Delete Folder", role: .destructive) {
                         requestFolderDeletion(prefixes: [item.fullKey])
@@ -454,10 +464,29 @@ struct S3ObjectBrowserView: View {
             }
             .buttonStyle(.borderless)
         } else if item.isFolder {
-            Button { navigateToPrefix(item.fullKey) } label: {
-                Image(systemName: "arrow.right")
+            HStack(spacing: 8) {
+                Button { navigateToPrefix(item.fullKey) } label: {
+                    Image(systemName: "arrow.right")
+                }
+                .buttonStyle(.borderless)
+                .help("Open")
+
+                Button { selectedFolderPrefix = item.fullKey } label: {
+                    Image(systemName: "info.circle")
+                }
+                .buttonStyle(.borderless)
+                .help("Folder Info")
+
+                Button(role: .destructive) {
+                    requestFolderDeletion(prefixes: [item.fullKey])
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundStyle(appState.isReadOnly ? .gray : .red)
+                }
+                .buttonStyle(.borderless)
+                .help("Delete Folder")
+                .disabled(appState.isReadOnly)
             }
-            .buttonStyle(.borderless)
         } else {
             HStack(spacing: 8) {
                 Button { downloadObject(key: item.fullKey) } label: {
