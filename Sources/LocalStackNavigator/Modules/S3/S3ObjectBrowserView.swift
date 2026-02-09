@@ -305,7 +305,7 @@ struct S3ObjectBrowserView: View {
                 Text(item.kind)
                     .foregroundStyle(.secondary)
             }
-            .width(min: 80, ideal: 120)
+            .width(min: 60, ideal: 90)
             TableColumn("Size", value: \.sizeBytes) { item in
                 Text(item.size)
             }
@@ -313,7 +313,7 @@ struct S3ObjectBrowserView: View {
             TableColumn("Date Added", value: \.dateValue) { item in
                 Text(item.lastModified)
             }
-            .width(min: 120, ideal: 160)
+            .width(min: 100, ideal: 130)
             TableColumn("Actions") { item in
                 actionsForRow(item)
             }
