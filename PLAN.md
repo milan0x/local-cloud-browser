@@ -36,6 +36,12 @@
 - [x] Fix metadata sheet: use `.sheet(item:)` instead of `.sheet(isPresented:)` for reliable object binding
 - [x] Read-only mode defaults to OFF — writes allowed on launch
 - [x] ETag copy-to-clipboard button in metadata view (strips quotes, checkmark feedback)
+- [x] Create folder (zero-byte `/`-suffixed keys) via toolbar button + sheet
+- [x] Filter folder marker objects from object listing
+- [x] Move objects between folders (`S3Service.moveObject` + context menu "Move..." sheet)
+- [x] Back/forward navigation with history stack + toolbar buttons
+- [x] Parent directory `..` row pinned at top when inside subfolders
+- [x] Default sort order: date descending (newest first)
 
 ## Phase 3: SQS Module
 - [ ] List queues view
