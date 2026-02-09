@@ -14,11 +14,12 @@ struct S3ObjectBrowserView: View {
     @State private var errorMessage: String?
     @State private var selectedObject: S3Object?
     @State private var showPolicyEditor = false
-    @State private var objectToDelete: S3Object?
+    @State private var objectsToDelete: [S3Object] = []
+    @State private var isDeletingObjects = false
     @State private var lastLoadTime: Date?
     @State private var sortOrder: [KeyPathComparator<RowItem>] = [KeyPathComparator(\RowItem.dateValue, order: .reverse)]
     @State private var isDropTargeted = false
-    @State private var selectedRowID: RowItem.ID?
+    @State private var selectedRowIDs: Set<RowItem.ID> = []
     @State private var serviceError: ServiceError?
     @State private var showCreateFolder = false
     @State private var newFolderName = ""
@@ -92,6 +93,17 @@ struct S3ObjectBrowserView: View {
                     }
                     .help("Upload File")
                     .disabled(appState.isReadOnly)
+
+                    Button {
+                        let deletable = deletableSelectedObjects
+                        if !deletable.isEmpty {
+                            objectsToDelete = deletable
+                        }
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .help("Delete Selected")
+                    .disabled(appState.isReadOnly || deletableSelectedObjects.isEmpty || isDeletingObjects)
                 }
             }
         }
@@ -108,18 +120,29 @@ struct S3ObjectBrowserView: View {
             moveSheet(for: obj)
         }
         .confirmationDialog(
-            "Delete Object",
+            objectsToDelete.count == 1
+                ? "Delete Object"
+                : "Delete \(objectsToDelete.count) Objects",
             isPresented: Binding(
-                get: { objectToDelete != nil },
-                set: { if !$0 { objectToDelete = nil } }
-            ),
-            presenting: objectToDelete
-        ) { obj in
-            Button("Delete \"\(obj.displayName)\"", role: .destructive) {
-                deleteObject(obj)
+                get: { !objectsToDelete.isEmpty },
+                set: { if !$0 { objectsToDelete = [] } }
+            )
+        ) {
+            if objectsToDelete.count == 1, let obj = objectsToDelete.first {
+                Button("Delete \"\(obj.displayName)\"", role: .destructive) {
+                    deleteObjects(objectsToDelete)
+                }
+            } else {
+                Button("Delete \(objectsToDelete.count) Objects", role: .destructive) {
+                    deleteObjects(objectsToDelete)
+                }
             }
-        } message: { obj in
-            Text("Are you sure you want to delete \"\(obj.displayName)\"?")
+        } message: {
+            if objectsToDelete.count == 1, let obj = objectsToDelete.first {
+                Text("Are you sure you want to delete \"\(obj.displayName)\"?")
+            } else {
+                Text("Are you sure you want to delete \(objectsToDelete.count) objects?")
+            }
         }
         .serviceErrorAlert(error: $serviceError)
         .task(id: bucket.id) {
@@ -266,7 +289,7 @@ struct S3ObjectBrowserView: View {
     }
 
     private var listView: some View {
-        Table(sortedRowItems, selection: $selectedRowID, sortOrder: $sortOrder) {
+        Table(sortedRowItems, selection: $selectedRowIDs, sortOrder: $sortOrder) {
             TableColumn("Name", value: \.name) { item in
                 HStack(spacing: 6) {
                     Image(systemName: item.icon)
@@ -293,7 +316,8 @@ struct S3ObjectBrowserView: View {
             .width(min: 60, ideal: 80)
         }
         .contextMenu(forSelectionType: RowItem.ID.self) { ids in
-            if let id = ids.first, let item = sortedRowItems.first(where: { $0.id == id }) {
+            let items = ids.compactMap { id in sortedRowItems.first(where: { $0.id == id }) }
+            if items.count == 1, let item = items.first {
                 if item.id == Self.parentRowID {
                     Button("Go to Parent") { navigateToParent() }
                 } else if item.isFolder {
@@ -310,13 +334,25 @@ struct S3ObjectBrowserView: View {
                     .disabled(appState.isReadOnly)
                     Divider()
                     Button("Delete", role: .destructive) {
-                        objectToDelete = objects.first { $0.key == item.fullKey }
+                        objectsToDelete = objects.filter { $0.key == item.fullKey }
+                    }
+                    .disabled(appState.isReadOnly)
+                }
+            } else {
+                let deletableItems = items.filter { $0.id != Self.parentRowID && !$0.isFolder }
+                if !deletableItems.isEmpty {
+                    Button("Delete \(deletableItems.count) Items", role: .destructive) {
+                        objectsToDelete = deletableItems.compactMap { item in
+                            objects.first { $0.key == item.fullKey }
+                        }
                     }
                     .disabled(appState.isReadOnly)
                 }
             }
         } primaryAction: { ids in
-            guard let id = ids.first, let item = sortedRowItems.first(where: { $0.id == id }) else { return }
+            guard ids.count == 1,
+                  let id = ids.first,
+                  let item = sortedRowItems.first(where: { $0.id == id }) else { return }
             if item.id == Self.parentRowID {
                 navigateToParent()
             } else if item.isFolder {
@@ -376,7 +412,7 @@ struct S3ObjectBrowserView: View {
                 .help("Metadata")
 
                 Button(role: .destructive) {
-                    objectToDelete = objects.first { $0.key == item.fullKey }
+                    objectsToDelete = objects.filter { $0.key == item.fullKey }
                 } label: {
                     Image(systemName: "trash")
                         .foregroundStyle(appState.isReadOnly ? .gray : .red)
@@ -714,7 +750,7 @@ struct S3ObjectBrowserView: View {
                 let contentType = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
                     ?? "application/octet-stream"
                 try await service.putObject(bucket: bucket.name, key: key, data: data, contentType: contentType)
-                loadObjects()
+                loadObjects(force: true)
             } catch {
                 if let clientError = error as? LocalStackClientError,
                    let parsed = clientError.serviceError {
@@ -736,7 +772,7 @@ struct S3ObjectBrowserView: View {
                     ?? "application/octet-stream"
                 try await service.putObject(bucket: bucket.name, key: key, data: data, contentType: contentType)
             }
-            loadObjects()
+            loadObjects(force: true)
         } catch {
             if let clientError = error as? LocalStackClientError,
                let parsed = clientError.serviceError {
@@ -747,11 +783,23 @@ struct S3ObjectBrowserView: View {
         }
     }
 
-    private func deleteObject(_ obj: S3Object) {
+    private var deletableSelectedObjects: [S3Object] {
+        let deletableIDs = selectedRowIDs.filter { id in
+            guard id != Self.parentRowID else { return false }
+            guard let item = sortedRowItems.first(where: { $0.id == id }) else { return false }
+            return !item.isFolder
+        }
+        return deletableIDs.compactMap { id in objects.first { $0.key == id } }
+    }
+
+    private func deleteObjects(_ objs: [S3Object]) {
+        guard !objs.isEmpty else { return }
+        isDeletingObjects = true
         Task {
             do {
-                try await service.deleteObject(bucket: bucket.name, key: obj.key)
-                loadObjects()
+                let keys = objs.map(\.key)
+                _ = try await service.deleteObjects(bucket: bucket.name, keys: keys)
+                loadObjects(force: true)
             } catch {
                 if let clientError = error as? LocalStackClientError,
                    let parsed = clientError.serviceError {
@@ -760,6 +808,7 @@ struct S3ObjectBrowserView: View {
                     errorMessage = error.localizedDescription
                 }
             }
+            isDeletingObjects = false
         }
     }
 }
