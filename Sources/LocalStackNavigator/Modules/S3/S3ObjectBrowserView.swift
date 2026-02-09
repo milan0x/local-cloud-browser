@@ -27,9 +27,9 @@ struct S3ObjectBrowserView: View {
     @State private var showCreateFolder = false
     @State private var newFolderName = ""
     @State private var objectsToMove: [S3Object] = []
+    @State private var foldersToMove: [String] = []
     @State private var isMovingObjects = false
     @State private var moveDestination = ""
-
     // Folder info & deletion
     @State private var selectedFolderPrefix: String?
     @State private var folderDeleteItems: [FolderDeleteInfo] = []
@@ -144,8 +144,8 @@ struct S3ObjectBrowserView: View {
             createFolderSheet
         }
         .sheet(isPresented: Binding(
-            get: { !objectsToMove.isEmpty },
-            set: { if !$0 { objectsToMove = []; moveDestination = "" } }
+            get: { !objectsToMove.isEmpty || !foldersToMove.isEmpty },
+            set: { if !$0 { objectsToMove = []; foldersToMove = []; moveDestination = "" } }
         )) {
             moveSheet
         }
@@ -372,6 +372,14 @@ struct S3ObjectBrowserView: View {
                         openWindow(value: S3BrowserTarget(bucket: bucket.name, prefix: item.fullKey))
                     }
                     Divider()
+                    Button("Move...") {
+                        foldersToMove = [item.fullKey]
+                        moveDestination = currentPrefix
+                    }
+                    .disabled(appState.isReadOnly)
+                    folderMoveToMenu(for: [item.fullKey])
+                        .disabled(appState.isReadOnly)
+                    Divider()
                     Button("Delete Folder", role: .destructive) {
                         requestFolderDeletion(prefixes: [item.fullKey])
                     }
@@ -403,16 +411,19 @@ struct S3ObjectBrowserView: View {
                 let folderItems = selectedItems.filter { $0.isFolder }
                 let fileItems = selectedItems.filter { !$0.isFolder }
 
-                if !fileItems.isEmpty {
+                if !selectedItems.isEmpty {
                     let movableObjs = fileItems.compactMap { item in
                         objects.first { $0.key == item.fullKey }
                     }
-                    Button("Move \(fileItems.count) Items...") {
+                    let movableFolders = folderItems.map(\.fullKey)
+                    let moveCount = movableObjs.count + movableFolders.count
+                    Button("Move \(moveCount) Items...") {
                         objectsToMove = movableObjs
+                        foldersToMove = movableFolders
                         moveDestination = currentPrefix
                     }
                     .disabled(appState.isReadOnly)
-                    moveToMenu(for: movableObjs)
+                    mixedMoveToMenu(objects: movableObjs, folders: movableFolders)
                         .disabled(appState.isReadOnly)
                 }
 
@@ -558,6 +569,72 @@ struct S3ObjectBrowserView: View {
         }
     }
 
+    @ViewBuilder
+    private func folderMoveToMenu(for folders: [String]) -> some View {
+        let hasParent = !pathComponents.isEmpty
+        let otherFolders = prefixes.filter { p in !folders.contains(p.prefix) }
+        let hasFolders = !otherFolders.isEmpty
+        Menu("Move to") {
+            if hasParent {
+                Button("..") {
+                    let parent = Array(pathComponents.dropLast())
+                    let dest = parent.isEmpty ? "" : parent.joined(separator: "/") + "/"
+                    foldersToMove = folders
+                    moveDestination = dest
+                    performMove()
+                }
+                if hasFolders { Divider() }
+            }
+            if hasFolders {
+                ForEach(otherFolders) { prefix in
+                    Button(prefix.displayName) {
+                        foldersToMove = folders
+                        moveDestination = prefix.prefix
+                        performMove()
+                    }
+                }
+            }
+            if !hasParent && !hasFolders {
+                Button("No folders") {}
+                    .disabled(true)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func mixedMoveToMenu(objects objs: [S3Object], folders: [String]) -> some View {
+        let hasParent = !pathComponents.isEmpty
+        let otherFolders = prefixes.filter { p in !folders.contains(p.prefix) }
+        let hasFolders = !otherFolders.isEmpty
+        Menu("Move to") {
+            if hasParent {
+                Button("..") {
+                    let parent = Array(pathComponents.dropLast())
+                    let dest = parent.isEmpty ? "" : parent.joined(separator: "/") + "/"
+                    objectsToMove = objs
+                    foldersToMove = folders
+                    moveDestination = dest
+                    performMove()
+                }
+                if hasFolders { Divider() }
+            }
+            if hasFolders {
+                ForEach(otherFolders) { prefix in
+                    Button(prefix.displayName) {
+                        objectsToMove = objs
+                        foldersToMove = folders
+                        moveDestination = prefix.prefix
+                        performMove()
+                    }
+                }
+            }
+            if !hasParent && !hasFolders {
+                Button("No folders") {}
+                    .disabled(true)
+            }
+        }
+    }
+
     // MARK: - Row Model
 
     struct RowItem: Identifiable {
@@ -669,24 +746,28 @@ struct S3ObjectBrowserView: View {
     // MARK: - Move Sheet
 
     private var moveSheet: some View {
-        let isSingle = objectsToMove.count == 1
-        let title = isSingle ? "Move Object" : "Move \(objectsToMove.count) Objects"
-        let subtitle: String = {
-            if isSingle, let obj = objectsToMove.first {
-                return obj.key.components(separatedBy: "/").last ?? obj.key
+        let totalCount = objectsToMove.count + foldersToMove.count
+        let isSingle = totalCount == 1
+        let title: String = {
+            if isSingle {
+                return foldersToMove.isEmpty ? "Move Object" : "Move Folder"
             }
-            return "\(objectsToMove.count) files"
+            return "Move \(totalCount) Items"
         }()
-        let currentFolder: String? = {
-            if isSingle, let obj = objectsToMove.first {
-                let filename = obj.key.components(separatedBy: "/").last ?? obj.key
-                return String(obj.key.dropLast(filename.count))
+        let subtitle: String = {
+            if isSingle {
+                if let obj = objectsToMove.first {
+                    return obj.key.components(separatedBy: "/").last ?? obj.key
+                }
+                if let folder = foldersToMove.first {
+                    return String(folder.dropLast()).components(separatedBy: "/").last ?? folder
+                }
             }
-            return nil
+            return "\(totalCount) items"
         }()
         let isMoveDisabled: Bool = {
             if moveDestination.isEmpty { return true }
-            if let currentFolder { return moveDestination == currentFolder }
+            if moveDestination == currentPrefix { return true }
             return false
         }()
 
@@ -723,12 +804,13 @@ struct S3ObjectBrowserView: View {
                 }
             }
 
-            if !prefixes.isEmpty {
+            let availablePrefixes = prefixes.filter { p in !foldersToMove.contains(p.prefix) }
+            if !availablePrefixes.isEmpty {
                 HStack(spacing: 8) {
                     Text("Subfolders:")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    ForEach(prefixes.prefix(4)) { prefix in
+                    ForEach(availablePrefixes.prefix(4)) { prefix in
                         Button(prefix.displayName) {
                             moveDestination = prefix.prefix
                         }
@@ -742,6 +824,7 @@ struct S3ObjectBrowserView: View {
             HStack {
                 Button("Cancel") {
                     objectsToMove = []
+                    foldersToMove = []
                     moveDestination = ""
                 }
                 .keyboardShortcut(.cancelAction)
@@ -762,19 +845,30 @@ struct S3ObjectBrowserView: View {
 
     private func performMove() {
         let objs = objectsToMove
+        let folders = foldersToMove
         let destination = moveDestination
         objectsToMove = []
+        foldersToMove = []
         moveDestination = ""
         isMovingObjects = true
         Task {
             do {
-                if objs.count == 1, let obj = objs.first {
-                    let filename = obj.key.components(separatedBy: "/").last ?? obj.key
-                    let destinationKey = destination + filename
-                    try await service.moveObject(bucket: bucket.name, sourceKey: obj.key, destinationKey: destinationKey)
-                } else {
-                    let keys = objs.map(\.key)
-                    try await service.moveObjects(bucket: bucket.name, sourceKeys: keys, destinationPrefix: destination)
+                // Move files
+                if !objs.isEmpty {
+                    if objs.count == 1, let obj = objs.first {
+                        let filename = obj.key.components(separatedBy: "/").last ?? obj.key
+                        let destinationKey = destination + filename
+                        try await service.moveObject(bucket: bucket.name, sourceKey: obj.key, destinationKey: destinationKey)
+                    } else {
+                        let keys = objs.map(\.key)
+                        try await service.moveObjects(bucket: bucket.name, sourceKeys: keys, destinationPrefix: destination)
+                    }
+                }
+                // Move folders
+                for folder in folders {
+                    let folderName = String(folder.dropLast()).components(separatedBy: "/").last ?? folder
+                    let destPrefix = destination + folderName + "/"
+                    try await service.moveFolder(bucket: bucket.name, sourcePrefix: folder, destinationPrefix: destPrefix)
                 }
                 loadObjects(force: true)
             } catch {
