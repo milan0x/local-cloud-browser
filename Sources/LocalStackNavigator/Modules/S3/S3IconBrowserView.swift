@@ -53,10 +53,9 @@ struct S3IconBrowserView: View {
             } else {
                 Button("Download") { onDownload(item.fullKey) }
                 Button("Metadata") { onShowMetadata(item.fullKey) }
-                if !isReadOnly {
-                    Divider()
-                    Button("Delete", role: .destructive) { onDelete(item.fullKey) }
-                }
+                Divider()
+                Button("Delete", role: .destructive) { onDelete(item.fullKey) }
+                    .disabled(isReadOnly)
             }
         }
     }

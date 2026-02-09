@@ -3,7 +3,7 @@ import SwiftUI
 @MainActor
 final class AppState: ObservableObject {
     @Published var isConnected: Bool = false
-    @Published var isReadOnly: Bool = true
+    @Published var isReadOnly: Bool = false
     @Published var endpoint: String = "http://localhost:4566"
     @Published var selectedRoute: Route? = nil
     @Published var region: String = "us-east-1"

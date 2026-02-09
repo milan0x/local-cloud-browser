@@ -14,7 +14,7 @@ struct S3ModuleView: View {
     var body: some View {
         HSplitView {
             S3BucketListView(service: service, selectedBucket: $selectedBucket)
-                .frame(minWidth: 200, idealWidth: 260)
+                .frame(minWidth: 200, idealWidth: 260, maxWidth: 360)
 
             Group {
                 if let bucket = selectedBucket {

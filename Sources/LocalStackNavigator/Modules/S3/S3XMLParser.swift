@@ -77,6 +77,8 @@ struct S3ObjectListResult {
     let commonPrefixes: [S3Prefix]
     let isTruncated: Bool
     let nextContinuationToken: String?
+    let keyCount: Int
+    let maxKeys: Int
 }
 
 final class S3ObjectListParser: NSObject, XMLParserDelegate {
@@ -88,6 +90,8 @@ final class S3ObjectListParser: NSObject, XMLParserDelegate {
     private var inCommonPrefixes = false
     private var isTruncated = false
     private var nextContinuationToken: String?
+    private var keyCount: Int = 0
+    private var maxKeys: Int = 1000
 
     private var objKey = ""
     private var objSize: Int64 = 0
@@ -111,7 +115,9 @@ final class S3ObjectListParser: NSObject, XMLParserDelegate {
             objects: objects,
             commonPrefixes: prefixes,
             isTruncated: isTruncated,
-            nextContinuationToken: nextContinuationToken
+            nextContinuationToken: nextContinuationToken,
+            keyCount: keyCount,
+            maxKeys: maxKeys
         )
     }
 
@@ -169,6 +175,10 @@ final class S3ObjectListParser: NSObject, XMLParserDelegate {
                 isTruncated = text.lowercased() == "true"
             case "NextContinuationToken":
                 nextContinuationToken = text
+            case "KeyCount":
+                keyCount = Int(text) ?? 0
+            case "MaxKeys":
+                maxKeys = Int(text) ?? 1000
             default: break
             }
         }

@@ -25,10 +25,13 @@ final class S3Service: ObservableObject {
         _ = try await client.s3Request(method: "DELETE", path: "/\(name)")
     }
 
-    func listObjects(bucket: String, prefix: String = "") async throws -> S3ObjectListResult {
+    func listObjects(bucket: String, prefix: String = "", continuationToken: String? = nil) async throws -> S3ObjectListResult {
         var params: [String: String] = ["list-type": "2", "delimiter": "/"]
         if !prefix.isEmpty {
             params["prefix"] = prefix
+        }
+        if let continuationToken {
+            params["continuation-token"] = continuationToken
         }
         let data = try await client.s3Request(
             method: "GET",

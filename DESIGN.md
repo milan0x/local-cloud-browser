@@ -31,11 +31,22 @@ protocol LocalStackModule {
 - `SafetyGuard` validates endpoints against localhost/127.0.0.1/.local
 - `ReadOnlyInterceptor` blocks mutating HTTP methods when read-only is enabled
 - Visual indicators: connection status dot, non-local warning banner, lock icon for read-only
+- Read-only mode disables (grays out) mutating actions — never hides them
 
 ### Networking
 - `LocalStackClient` wraps URLSession with async/await
 - Configurable base URL from AppState
 - All requests pass through read-only check
+- S3 uses virtual-hosted-style routing via `s3BaseURL` (`s3.localhost.localstack.cloud:<port>`) — required by LocalStack v4+
+- `s3Request()` / `s3Head()` convenience methods route through the S3 base URL
+
+### S3 Object Browser
+- Three view modes: list, icon, column (`S3BrowserViewMode`)
+- List view supports row selection, sortable columns, double-click (open folder / view metadata), and right-click context menu
+- Drag-and-drop upload: `.onDrop(of: [.fileURL])` on content area — works across all view modes, respects read-only mode
+- Visual drop-target feedback: dashed accent border with tint overlay when dragging files over
+- Pagination with continuation tokens for large buckets
+- Breadcrumb navigation bar for folder hierarchy
 
 ## Supported Services (Phase 1)
 - **S3** — Bucket browsing, object management
