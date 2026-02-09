@@ -1,18 +1,18 @@
 # S3 Improvements Plan — 6 Phases
 
-## Phase 1: Create Folder
+## Phase 1: Create Folder + Folder UX ✅
 
-**Goal:** Allow users to create "folders" (zero-byte keys ending in `/`) in the current prefix.
+**Goal:** Allow users to create "folders" (zero-byte keys ending in `/`) in the current prefix, with full file-browser navigation.
 
-**Files:**
-- `S3ObjectBrowserView.swift` — Add `@State showCreateFolder`, a toolbar button (folder.badge.plus icon) next to the upload button, and a sheet or popover with a text field + Create button
-- `S3Service.swift` — Add `createFolder(bucket:prefix:name:)` that PUTs a zero-byte object with key `<prefix><name>/`
-
-**Details:**
-- Text field validates: non-empty, no `/` in name, no spaces-only
-- Disabled in read-only mode
-- On success: reload objects list
-- Error handling: use `serviceError` alert pattern
+**Completed:**
+- [x] Create folder: toolbar button (folder.badge.plus), sheet with validation, `S3Service.createFolder()`
+- [x] Filter folder marker objects: zero-byte keys matching `currentPrefix` hidden from object list
+- [x] Move objects: `S3Service.moveObject()` (GET→PUT→DELETE), context menu "Move..." with sheet (destination field, quick parent/subfolder buttons)
+- [x] Back/forward navigation: history stack with toolbar chevron buttons, all nav paths go through `navigate(to:)`
+- [x] Parent directory row: `..` pinned at top of list when inside subfolders, works in empty folders
+- [x] Default sort: date descending (newest first)
+- [x] Fix: all navigation uses `force: true` to bypass 2s debounce
+- [x] Fix: removed `.draggable`/`.dropDestination` from table cells (was stealing click/select gestures)
 
 ---
 
@@ -112,7 +112,7 @@
 ## Implementation Order
 
 Phases are independent and ordered by complexity (simplest first):
-1. Create Folder — small, self-contained
+1. ~~Create Folder~~ ✅ (also includes move, back/forward, parent row)
 2. Multi-Select Delete — changes Table selection type
 3. Copy Object Key — trivial addition
 4. Inline Text Preview — extends existing metadata sheet
