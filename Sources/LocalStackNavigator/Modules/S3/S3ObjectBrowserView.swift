@@ -175,7 +175,7 @@ struct S3ObjectBrowserView: View {
                 Button("Retry") { loadObjects() }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if rowItems.isEmpty {
+        } else if rowItems.isEmpty && pathComponents.isEmpty {
             VStack(spacing: 8) {
                 Image(systemName: "folder")
                     .font(.title)
@@ -294,7 +294,9 @@ struct S3ObjectBrowserView: View {
         }
         .contextMenu(forSelectionType: RowItem.ID.self) { ids in
             if let id = ids.first, let item = sortedRowItems.first(where: { $0.id == id }) {
-                if item.isFolder {
+                if item.id == Self.parentRowID {
+                    Button("Go to Parent") { navigateToParent() }
+                } else if item.isFolder {
                     Button("Open") { navigateToPrefix(item.fullKey) }
                 } else {
                     Button("Download") { downloadObject(key: item.fullKey) }
@@ -315,7 +317,9 @@ struct S3ObjectBrowserView: View {
             }
         } primaryAction: { ids in
             guard let id = ids.first, let item = sortedRowItems.first(where: { $0.id == id }) else { return }
-            if item.isFolder {
+            if item.id == Self.parentRowID {
+                navigateToParent()
+            } else if item.isFolder {
                 navigateToPrefix(item.fullKey)
             } else {
                 selectedObject = objects.first { $0.key == item.fullKey }
@@ -323,13 +327,34 @@ struct S3ObjectBrowserView: View {
         }
     }
 
+    private static let parentRowID = ".."
+
     private var sortedRowItems: [RowItem] {
-        rowItems.sorted(using: sortOrder)
+        let sorted = rowItems.sorted(using: sortOrder)
+        guard !pathComponents.isEmpty else { return sorted }
+        let parentRow = RowItem(
+            id: Self.parentRowID,
+            name: "..",
+            fullKey: Self.parentRowID,
+            kind: "Parent Folder",
+            size: "--",
+            sizeBytes: -1,
+            lastModified: "--",
+            dateValue: .distantFuture,
+            isFolder: true,
+            icon: "arrow.up.doc"
+        )
+        return [parentRow] + sorted
     }
 
     @ViewBuilder
     private func actionsForRow(_ item: RowItem) -> some View {
-        if item.isFolder {
+        if item.id == Self.parentRowID {
+            Button { navigateToParent() } label: {
+                Image(systemName: "arrow.up")
+            }
+            .buttonStyle(.borderless)
+        } else if item.isFolder {
             Button { navigateToPrefix(item.fullKey) } label: {
                 Image(systemName: "arrow.right")
             }
@@ -583,6 +608,11 @@ struct S3ObjectBrowserView: View {
     }
 
     // MARK: - Actions
+
+    private func navigateToParent() {
+        guard !pathComponents.isEmpty else { return }
+        navigate(to: Array(pathComponents.dropLast()))
+    }
 
     private func navigateToPrefix(_ prefix: String) {
         let trimmed = prefix.hasSuffix("/") ? String(prefix.dropLast()) : prefix
