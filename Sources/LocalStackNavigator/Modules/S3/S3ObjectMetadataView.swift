@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct S3ObjectMetadataView: View {
     @ObservedObject var service: S3Service
@@ -10,6 +11,9 @@ struct S3ObjectMetadataView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var showCopied = false
+    @State private var showS3URICopied = false
+
+    private var s3URI: String { "s3://\(bucket)/\(objectKey)" }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -71,6 +75,36 @@ struct S3ObjectMetadataView: View {
                                 }
                                 .buttonStyle(.borderless)
                                 .help("Copy ETag")
+                            }
+                        }
+                        LabeledContent("S3 URI") {
+                            HStack(spacing: 4) {
+                                Text(s3URI)
+                                    .font(.system(.body, design: .monospaced))
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                    .textSelection(.enabled)
+                                Button {
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString(s3URI, forType: .string)
+                                    showS3URICopied = true
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                        showS3URICopied = false
+                                    }
+                                } label: {
+                                    ZStack {
+                                        Image(systemName: "doc.on.doc")
+                                            .opacity(showS3URICopied ? 0 : 1)
+                                        Image(systemName: "checkmark")
+                                            .foregroundStyle(.green)
+                                            .opacity(showS3URICopied ? 1 : 0)
+                                    }
+                                    .font(.caption)
+                                    .frame(width: 14, height: 14)
+                                    .animation(.easeInOut(duration: 0.15), value: showS3URICopied)
+                                }
+                                .buttonStyle(.borderless)
+                                .help("Copy S3 URI")
                             }
                         }
                     }
