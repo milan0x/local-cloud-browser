@@ -71,6 +71,14 @@ final class S3Service: ObservableObject {
         try await deleteObject(bucket: bucket, key: sourceKey)
     }
 
+    func moveObjects(bucket: String, sourceKeys: [String], destinationPrefix: String) async throws {
+        for key in sourceKeys {
+            let filename = key.components(separatedBy: "/").last ?? key
+            let destinationKey = destinationPrefix + filename
+            try await moveObject(bucket: bucket, sourceKey: key, destinationKey: destinationKey)
+        }
+    }
+
     func deleteObject(bucket: String, key: String) async throws {
         _ = try await client.s3Request(method: "DELETE", path: "/\(bucket)/\(key)")
     }
