@@ -38,7 +38,7 @@ struct S3FolderMetadataView: View {
                     Text(displayName)
                         .font(.headline)
                     Text("in \(bucket)")
-                        .font(.caption)
+                        .font(.callout)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -129,7 +129,7 @@ struct S3FolderMetadataView: View {
                 .font(.title3)
                 .fontWeight(.medium)
             Text(label)
-                .font(.caption)
+                .font(.callout)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
@@ -138,11 +138,11 @@ struct S3FolderMetadataView: View {
     private func detailRow(label: String, value: String, copiable: Bool = false) -> some View {
         HStack(spacing: 6) {
             Text(label)
-                .font(.caption)
+                .font(.callout)
                 .foregroundStyle(.secondary)
                 .frame(width: 50, alignment: .trailing)
             Text(value)
-                .font(.system(.caption, design: .monospaced))
+                .font(.system(.callout, design: .monospaced))
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .textSelection(.enabled)
@@ -163,7 +163,7 @@ struct S3FolderMetadataView: View {
                             .foregroundStyle(.green)
                             .opacity(copiedField == label ? 1 : 0)
                     }
-                    .font(.caption)
+                    .font(.callout)
                     .frame(width: 14, height: 14)
                     .animation(.easeInOut(duration: 0.15), value: copiedField)
                 }
