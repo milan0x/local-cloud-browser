@@ -41,6 +41,20 @@ final class S3Service: ObservableObject {
         return try S3ObjectListParser().parse(data: data)
     }
 
+    func listAllObjects(bucket: String, prefix: String) async throws -> [S3Object] {
+        var allObjects: [S3Object] = []
+        var token: String? = nil
+        repeat {
+            var params: [String: String] = ["list-type": "2", "prefix": prefix]
+            if let token { params["continuation-token"] = token }
+            let data = try await client.s3Request(method: "GET", path: "/\(bucket)", queryParams: params)
+            let result = try S3ObjectListParser().parse(data: data)
+            allObjects.append(contentsOf: result.objects)
+            token = result.isTruncated ? result.nextContinuationToken : nil
+        } while token != nil
+        return allObjects
+    }
+
     func getObject(bucket: String, key: String) async throws -> Data {
         try await client.s3Request(method: "GET", path: "/\(bucket)/\(key)")
     }

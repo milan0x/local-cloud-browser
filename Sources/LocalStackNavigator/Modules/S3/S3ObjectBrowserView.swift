@@ -27,6 +27,13 @@ struct S3ObjectBrowserView: View {
     @State private var isMovingObjects = false
     @State private var moveDestination = ""
 
+    // Folder deletion
+    @State private var folderDeleteItems: [FolderDeleteInfo] = []
+    @State private var standaloneObjectsToDelete: [S3Object] = []
+    @State private var isFetchingFolderDetails = false
+    @State private var isDeletingFolders = false
+    @AppStorage("showFolderDetailsOnDelete") private var showFolderDetailsOnDelete = false
+
     // Navigation history
     @State private var navigationHistory: [[String]] = [[]]
     @State private var historyIndex: Int = 0
@@ -96,15 +103,22 @@ struct S3ObjectBrowserView: View {
                     .disabled(appState.isReadOnly)
 
                     Button {
-                        let deletable = deletableSelectedObjects
-                        if !deletable.isEmpty {
-                            objectsToDelete = deletable
+                        let allDeletable = allDeletableSelectedItems
+                        let folderPrefixes = allDeletable.filter { $0.isFolder }.map(\.fullKey)
+                        let fileObjs = allDeletable.filter { !$0.isFolder }.compactMap { item in
+                            objects.first { $0.key == item.fullKey }
+                        }
+                        if folderPrefixes.isEmpty {
+                            if !fileObjs.isEmpty { objectsToDelete = fileObjs }
+                        } else {
+                            standaloneObjectsToDelete = fileObjs
+                            requestFolderDeletion(prefixes: folderPrefixes)
                         }
                     } label: {
                         Image(systemName: "trash")
                     }
                     .help("Delete Selected")
-                    .disabled(appState.isReadOnly || deletableSelectedObjects.isEmpty || isDeletingObjects)
+                    .disabled(appState.isReadOnly || allDeletableSelectedItems.isEmpty || isDeletingObjects || isDeletingFolders)
                 }
             }
         }
@@ -147,6 +161,16 @@ struct S3ObjectBrowserView: View {
             } else {
                 Text("Are you sure you want to delete \(objectsToDelete.count) objects?")
             }
+        }
+        .sheet(isPresented: Binding(
+            get: { !folderDeleteItems.isEmpty },
+            set: { if !$0 {
+                folderDeleteItems = []
+                standaloneObjectsToDelete = []
+                isFetchingFolderDetails = false
+            }}
+        )) {
+            folderDeleteSheet
         }
         .serviceErrorAlert(error: $serviceError)
         .task(id: bucket.id) {
@@ -326,6 +350,11 @@ struct S3ObjectBrowserView: View {
                     Button("Go to Parent") { navigateToParent() }
                 } else if item.isFolder {
                     Button("Open") { navigateToPrefix(item.fullKey) }
+                    Divider()
+                    Button("Delete Folder", role: .destructive) {
+                        requestFolderDeletion(prefixes: [item.fullKey])
+                    }
+                    .disabled(appState.isReadOnly)
                 } else {
                     Button("Download") { downloadObject(key: item.fullKey) }
                     Button("Metadata") {
@@ -349,21 +378,35 @@ struct S3ObjectBrowserView: View {
                     .disabled(appState.isReadOnly)
                 }
             } else {
-                let movableItems = items.filter { $0.id != Self.parentRowID && !$0.isFolder }
-                if !movableItems.isEmpty {
-                    let movableObjs = movableItems.compactMap { item in
+                let selectedItems = items.filter { $0.id != Self.parentRowID }
+                let folderItems = selectedItems.filter { $0.isFolder }
+                let fileItems = selectedItems.filter { !$0.isFolder }
+
+                if !fileItems.isEmpty {
+                    let movableObjs = fileItems.compactMap { item in
                         objects.first { $0.key == item.fullKey }
                     }
-                    Button("Move \(movableItems.count) Items...") {
+                    Button("Move \(fileItems.count) Items...") {
                         objectsToMove = movableObjs
                         moveDestination = currentPrefix
                     }
                     .disabled(appState.isReadOnly)
                     moveToMenu(for: movableObjs)
                         .disabled(appState.isReadOnly)
-                    Button("Delete \(movableItems.count) Items", role: .destructive) {
-                        objectsToDelete = movableItems.compactMap { item in
+                }
+
+                if !selectedItems.isEmpty {
+                    Divider()
+                    let totalCount = selectedItems.count
+                    Button("Delete \(totalCount) Items", role: .destructive) {
+                        let fileObjs = fileItems.compactMap { item in
                             objects.first { $0.key == item.fullKey }
+                        }
+                        if folderItems.isEmpty {
+                            objectsToDelete = fileObjs
+                        } else {
+                            standaloneObjectsToDelete = fileObjs
+                            requestFolderDeletion(prefixes: folderItems.map(\.fullKey))
                         }
                     }
                     .disabled(appState.isReadOnly)
@@ -488,6 +531,15 @@ struct S3ObjectBrowserView: View {
         let dateValue: Date
         let isFolder: Bool
         let icon: String
+    }
+
+    struct FolderDeleteInfo: Identifiable {
+        let id: String
+        let prefix: String
+        let displayName: String
+        var objectCount: Int?
+        var totalSize: Int64?
+        var allKeys: [String]
     }
 
     private var rowItems: [RowItem] {
@@ -874,6 +926,158 @@ struct S3ObjectBrowserView: View {
             return !item.isFolder
         }
         return deletableIDs.compactMap { id in objects.first { $0.key == id } }
+    }
+
+    private var allDeletableSelectedItems: [RowItem] {
+        selectedRowIDs.compactMap { id in
+            guard id != Self.parentRowID else { return nil }
+            return sortedRowItems.first(where: { $0.id == id })
+        }
+    }
+
+    // MARK: - Folder Deletion
+
+    private var folderDeleteSheet: some View {
+        let folderCount = folderDeleteItems.count
+        let fileCount = standaloneObjectsToDelete.count
+        let totalItems = folderCount + fileCount
+        let title = totalItems == 1 ? "Delete Folder" : "Delete \(totalItems) Items"
+        let hasDetails = folderDeleteItems.allSatisfy { $0.objectCount != nil }
+        let canDelete = !isFetchingFolderDetails || !showFolderDetailsOnDelete
+
+        return VStack(spacing: 16) {
+            Text(title)
+                .font(.headline)
+
+            if isFetchingFolderDetails && showFolderDetailsOnDelete {
+                ProgressView("Scanning folder contents...")
+                    .padding(.vertical, 8)
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(folderDeleteItems) { info in
+                        HStack {
+                            Image(systemName: "folder")
+                                .foregroundStyle(.secondary)
+                            Text(info.displayName + "/")
+                                .fontWeight(.medium)
+                            Spacer()
+                            if showFolderDetailsOnDelete, let count = info.objectCount, let size = info.totalSize {
+                                Text("\(count) objects")
+                                    .foregroundStyle(.secondary)
+                                Text(ByteCountFormatter.string(fromByteCount: size, countStyle: .file))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 80, alignment: .trailing)
+                            }
+                        }
+                    }
+                    if fileCount > 0 {
+                        HStack {
+                            Image(systemName: "doc")
+                                .foregroundStyle(.secondary)
+                            Text("\(fileCount) file\(fileCount == 1 ? "" : "s")")
+                            Spacer()
+                        }
+                    }
+                }
+                .padding(.horizontal, 4)
+            }
+
+            if !isFetchingFolderDetails || !showFolderDetailsOnDelete {
+                if showFolderDetailsOnDelete && hasDetails {
+                    let totalObjects = folderDeleteItems.compactMap(\.objectCount).reduce(0, +) + fileCount
+                    Text("This will permanently delete \(totalObjects) object\(totalObjects == 1 ? "" : "s").")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("This will permanently delete all contents of the selected folder\(folderCount == 1 ? "" : "s").")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            HStack {
+                Button("Cancel") {
+                    folderDeleteItems = []
+                    standaloneObjectsToDelete = []
+                    isFetchingFolderDetails = false
+                }
+                .keyboardShortcut(.cancelAction)
+                Spacer()
+                if isDeletingFolders {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Button("Delete", role: .destructive) {
+                        executeFolderDelete()
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!canDelete)
+                }
+            }
+        }
+        .padding()
+        .frame(width: 420)
+    }
+
+    private func requestFolderDeletion(prefixes: [String]) {
+        folderDeleteItems = prefixes.map { prefix in
+            let display = String(prefix.dropLast()).components(separatedBy: "/").last ?? prefix
+            return FolderDeleteInfo(id: prefix, prefix: prefix, displayName: display, allKeys: [])
+        }
+
+        if showFolderDetailsOnDelete {
+            isFetchingFolderDetails = true
+            Task {
+                for i in folderDeleteItems.indices {
+                    let objs = try? await service.listAllObjects(
+                        bucket: bucket.name,
+                        prefix: folderDeleteItems[i].prefix
+                    )
+                    folderDeleteItems[i].objectCount = objs?.count ?? 0
+                    folderDeleteItems[i].totalSize = objs?.reduce(0) { $0 + $1.size } ?? 0
+                    folderDeleteItems[i].allKeys = objs?.map(\.key) ?? []
+                }
+                isFetchingFolderDetails = false
+            }
+        }
+    }
+
+    private func executeFolderDelete() {
+        isDeletingFolders = true
+        let folders = folderDeleteItems
+        let standaloneFiles = standaloneObjectsToDelete
+        folderDeleteItems = []
+        standaloneObjectsToDelete = []
+
+        Task {
+            do {
+                var allKeys: [String] = []
+
+                for folder in folders {
+                    if !folder.allKeys.isEmpty {
+                        allKeys.append(contentsOf: folder.allKeys)
+                    } else {
+                        let objs = try await service.listAllObjects(bucket: bucket.name, prefix: folder.prefix)
+                        allKeys.append(contentsOf: objs.map(\.key))
+                    }
+                }
+
+                allKeys.append(contentsOf: standaloneFiles.map(\.key))
+
+                if !allKeys.isEmpty {
+                    _ = try await service.deleteObjects(bucket: bucket.name, keys: allKeys)
+                }
+                loadObjects(force: true)
+            } catch {
+                if let clientError = error as? LocalStackClientError,
+                   let parsed = clientError.serviceError {
+                    serviceError = parsed
+                } else {
+                    errorMessage = error.localizedDescription
+                }
+            }
+            isDeletingFolders = false
+        }
     }
 
     private func deleteObjects(_ objs: [S3Object]) {
