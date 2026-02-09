@@ -15,11 +15,11 @@ struct S3ObjectBrowserView: View {
     @State private var selectedObject: S3Object?
     @State private var showPolicyEditor = false
     @State private var objectToDelete: S3Object?
-    @State private var viewMode: S3BrowserViewMode = .list
     @State private var lastLoadTime: Date?
     @State private var sortOrder: [KeyPathComparator<RowItem>] = [KeyPathComparator(\RowItem.name, order: .forward)]
     @State private var isDropTargeted = false
     @State private var selectedRowID: RowItem.ID?
+    @State private var serviceError: ServiceError?
 
     // Pagination
     @State private var currentPage = 1
@@ -42,17 +42,13 @@ struct S3ObjectBrowserView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if viewMode != .column {
-                breadcrumbBar
-                Divider()
-            }
+            breadcrumbBar
+            Divider()
             contentArea
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 HStack(spacing: 8) {
-                    viewModePicker
-
                     Button { loadObjects() } label: {
                         Image(systemName: "arrow.clockwise")
                     }
@@ -64,7 +60,7 @@ struct S3ObjectBrowserView: View {
                     .help("Bucket Policy")
 
                     Button { uploadFile() } label: {
-                        Image(systemName: "square.and.arrow.up")
+                        Image(systemName: "plus")
                     }
                     .help("Upload File")
                     .disabled(appState.isReadOnly)
@@ -91,34 +87,12 @@ struct S3ObjectBrowserView: View {
         } message: { obj in
             Text("Are you sure you want to delete \"\(obj.displayName)\"?")
         }
+        .serviceErrorAlert(error: $serviceError)
         .task(id: bucket.id) {
             pathComponents = []
             resetPagination()
             loadObjects()
         }
-    }
-
-    // MARK: - View Mode Picker
-
-    private var viewModePicker: some View {
-        HStack(spacing: 2) {
-            ForEach(S3BrowserViewMode.allCases) { mode in
-                Button {
-                    viewMode = mode
-                } label: {
-                    Image(systemName: mode.systemImage)
-                        .frame(width: 24, height: 20)
-                }
-                .buttonStyle(.plain)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(viewMode == mode ? Color.accentColor.opacity(0.2) : Color.clear)
-                )
-                .help(mode.label)
-            }
-        }
-        .padding(2)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
     }
 
     // MARK: - Breadcrumb
@@ -178,38 +152,7 @@ struct S3ObjectBrowserView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             VStack(spacing: 0) {
-                switch viewMode {
-                case .list:
-                    listView
-                case .icon:
-                    S3IconBrowserView(
-                        items: rowItems,
-                        onNavigate: { navigateToPrefix($0) },
-                        onDownload: { downloadObject(key: $0) },
-                        onShowMetadata: { key in
-                            selectedObject = objects.first { $0.key == key }
-
-                        },
-                        onDelete: { key in
-                            objectToDelete = objects.first { $0.key == key }
-                        },
-                        isReadOnly: appState.isReadOnly
-                    )
-                case .column:
-                    S3ColumnBrowserView(
-                        service: service,
-                        bucket: bucket.name,
-                        onDownload: { downloadObject(key: $0) },
-                        onShowMetadata: { key in
-                            selectedObject = objects.first { $0.key == key }
-
-                        },
-                        onDelete: { key in
-                            objectToDelete = objects.first { $0.key == key }
-                        },
-                        isReadOnly: appState.isReadOnly
-                    )
-                }
+                listView
                 Divider()
                 statusBar
             }
@@ -504,7 +447,12 @@ struct S3ObjectBrowserView: View {
                     try data.write(to: url)
                 }
             } catch {
-                errorMessage = error.localizedDescription
+                if let clientError = error as? LocalStackClientError,
+                   let parsed = clientError.serviceError {
+                    serviceError = parsed
+                } else {
+                    errorMessage = error.localizedDescription
+                }
             }
         }
     }
@@ -526,7 +474,12 @@ struct S3ObjectBrowserView: View {
                 try await service.putObject(bucket: bucket.name, key: key, data: data, contentType: contentType)
                 loadObjects()
             } catch {
-                errorMessage = error.localizedDescription
+                if let clientError = error as? LocalStackClientError,
+                   let parsed = clientError.serviceError {
+                    serviceError = parsed
+                } else {
+                    errorMessage = error.localizedDescription
+                }
             }
         }
     }
@@ -543,7 +496,12 @@ struct S3ObjectBrowserView: View {
             }
             loadObjects()
         } catch {
-            errorMessage = error.localizedDescription
+            if let clientError = error as? LocalStackClientError,
+               let parsed = clientError.serviceError {
+                serviceError = parsed
+            } else {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 
@@ -553,7 +511,12 @@ struct S3ObjectBrowserView: View {
                 try await service.deleteObject(bucket: bucket.name, key: obj.key)
                 loadObjects()
             } catch {
-                errorMessage = error.localizedDescription
+                if let clientError = error as? LocalStackClientError,
+                   let parsed = clientError.serviceError {
+                    serviceError = parsed
+                } else {
+                    errorMessage = error.localizedDescription
+                }
             }
         }
     }

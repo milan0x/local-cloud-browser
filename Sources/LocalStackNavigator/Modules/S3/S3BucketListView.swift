@@ -10,6 +10,7 @@ struct S3BucketListView: View {
     @State private var errorMessage: String?
     @State private var showCreateSheet = false
     @State private var bucketToDelete: S3Bucket?
+    @State private var serviceError: ServiceError?
     @State private var lastLoadTime: Date?
 
     private static let dateFormatter: DateFormatter = {
@@ -43,6 +44,7 @@ struct S3BucketListView: View {
         } message: { bucket in
             Text("Are you sure you want to delete \"\(bucket.name)\"? This cannot be undone.")
         }
+        .serviceErrorAlert(error: $serviceError)
         .task { loadBuckets() }
         .onChange(of: appState.connectionVersion) {
             selectedBucket = nil
@@ -154,7 +156,12 @@ struct S3BucketListView: View {
                 if selectedBucket == bucket { selectedBucket = nil }
                 loadBuckets(force: true)
             } catch {
-                errorMessage = error.localizedDescription
+                if let clientError = error as? LocalStackClientError,
+                   let parsed = clientError.serviceError {
+                    serviceError = parsed
+                } else {
+                    errorMessage = error.localizedDescription
+                }
             }
         }
     }
