@@ -1,3 +1,4 @@
+#15 -- [x] Fix: removed `.draggable`/`.dropDestination` from table cells (was stealing click/select gestures)
 # Xcode
 xcuserdata/
 *.xcscmblueprint
