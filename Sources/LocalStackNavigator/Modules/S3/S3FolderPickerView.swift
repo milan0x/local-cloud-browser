@@ -295,25 +295,35 @@ struct S3FolderPickerView: View {
     // MARK: - Destination Bar
 
     private var destinationBar: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 2) {
             Image(systemName: "arrow.right.circle.fill")
                 .foregroundStyle(.tint)
                 .font(.system(size: 13))
-            Text(selectedBucket)
-                .font(.system(size: 12, weight: .medium, design: .monospaced))
-            if !browsePrefix.isEmpty {
-                Text("/")
-                    .font(.system(size: 12, design: .monospaced))
-                    .foregroundStyle(.quaternary)
-                Text(browsePrefix)
-                    .font(.system(size: 12, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            } else {
-                Text("/")
-                    .font(.system(size: 12, design: .monospaced))
-                    .foregroundStyle(.quaternary)
+                .padding(.trailing, 4)
+            Button {
+                browsePrefix = ""
+            } label: {
+                Text(selectedBucket)
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+            }
+            .buttonStyle(.plain)
+            Text("/")
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundStyle(.quaternary)
+            ForEach(Array(pathComponents.enumerated()), id: \.offset) { index, component in
+                Button {
+                    browsePrefix = pathComponents.prefix(index + 1).joined(separator: "/") + "/"
+                } label: {
+                    Text(component)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                if index < pathComponents.count - 1 {
+                    Text("/")
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(.quaternary)
+                }
             }
             Spacer()
         }
