@@ -634,6 +634,8 @@ struct S3ObjectBrowserView: View {
         }
         isLoading = true
         errorMessage = nil
+        objects = []
+        prefixes = []
         Task {
             do {
                 let result = try await service.listObjects(
