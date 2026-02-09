@@ -11,10 +11,11 @@ struct S3FolderPickerView: View {
     @State private var selectedBucket: String
     @State private var browsePrefix = ""
     @State private var folders: [S3Prefix] = []
+    @State private var objects: [S3Object] = []
     @State private var buckets: [S3Bucket] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var hoveredFolder: String?
+    @State private var sortOrder: [KeyPathComparator<RowItem>] = [KeyPathComparator(\RowItem.dateValue, order: .reverse)]
 
     init(service: S3Service, currentBucket: String, currentPrefix: String, onSelect: @escaping (String, String) -> Void) {
         self.service = service
@@ -30,22 +31,98 @@ struct S3FolderPickerView: View {
         return trimmed.components(separatedBy: "/")
     }
 
+    // MARK: - Row Model
+
+    struct RowItem: Identifiable {
+        let id: String
+        let name: String
+        let fullKey: String
+        let kind: String
+        let size: String
+        let sizeBytes: Int64
+        let lastModified: String
+        let dateValue: Date
+        let isFolder: Bool
+        let icon: String
+    }
+
+    private static let parentRowID = ".."
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .short
+        return f
+    }()
+
+    private var rowItems: [RowItem] {
+        let folderRows = folders.map { prefix in
+            RowItem(
+                id: prefix.prefix,
+                name: prefix.displayName,
+                fullKey: prefix.prefix,
+                kind: "Folder",
+                size: "--",
+                sizeBytes: -1,
+                lastModified: "--",
+                dateValue: .distantPast,
+                isFolder: true,
+                icon: S3FileKind.icon(for: prefix.displayName, isFolder: true)
+            )
+        }
+        let objectRows = objects.filter { $0.key != browsePrefix }.map { obj in
+            RowItem(
+                id: obj.key,
+                name: obj.displayName,
+                fullKey: obj.key,
+                kind: S3FileKind.kind(for: obj.displayName),
+                size: obj.formattedSize,
+                sizeBytes: obj.size,
+                lastModified: obj.lastModified.map { Self.dateFormatter.string(from: $0) } ?? "--",
+                dateValue: obj.lastModified ?? .distantPast,
+                isFolder: false,
+                icon: S3FileKind.icon(for: obj.displayName, isFolder: false)
+            )
+        }
+        return folderRows + objectRows
+    }
+
+    private var sortedRowItems: [RowItem] {
+        let sorted = rowItems.sorted(using: sortOrder)
+        guard !pathComponents.isEmpty else { return sorted }
+        let parentRow = RowItem(
+            id: Self.parentRowID,
+            name: "..",
+            fullKey: Self.parentRowID,
+            kind: "Parent Folder",
+            size: "--",
+            sizeBytes: -1,
+            lastModified: "--",
+            dateValue: .distantFuture,
+            isFolder: true,
+            icon: "arrow.up.doc"
+        )
+        return [parentRow] + sorted
+    }
+
+    // MARK: - Body
+
     var body: some View {
         VStack(spacing: 0) {
             header
             Divider()
             bucketPicker
-            breadcrumb
+            breadcrumbBar
             Divider()
-            folderList
+            contentArea
             Divider()
             destinationBar
             Divider()
             buttons
         }
-        .frame(width: 440)
+        .frame(width: 600)
         .task(id: selectedBucket + "|" + browsePrefix) {
-            await loadFolders()
+            await loadContents()
         }
         .task {
             await loadBuckets()
@@ -75,9 +152,8 @@ struct S3FolderPickerView: View {
 
     private var bucketPicker: some View {
         HStack(spacing: 8) {
-            Image(systemName: "externaldrive")
+            Text("Bucket:")
                 .foregroundStyle(.secondary)
-                .frame(width: 16)
             Picker("", selection: $selectedBucket) {
                 ForEach(buckets) { b in
                     Text(b.name).tag(b.name)
@@ -94,143 +170,126 @@ struct S3FolderPickerView: View {
 
     // MARK: - Breadcrumb
 
-    private var breadcrumb: some View {
-        HStack(spacing: 0) {
-            if !pathComponents.isEmpty {
-                Button {
-                    let parent = Array(pathComponents.dropLast())
-                    browsePrefix = parent.isEmpty ? "" : parent.joined(separator: "/") + "/"
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.caption)
-                        .frame(width: 24, height: 24)
-                        .contentShape(Rectangle())
+    private var breadcrumbBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 4) {
+                Button(selectedBucket) {
+                    browsePrefix = ""
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-            }
+                .fontWeight(.medium)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 3) {
-                    breadcrumbSegment(label: "/", isCurrent: pathComponents.isEmpty) {
-                        browsePrefix = ""
+                ForEach(Array(pathComponents.enumerated()), id: \.offset) { index, component in
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button(component) {
+                        browsePrefix = pathComponents.prefix(index + 1).joined(separator: "/") + "/"
                     }
-
-                    ForEach(Array(pathComponents.enumerated()), id: \.offset) { index, component in
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 8, weight: .semibold))
-                            .foregroundStyle(.quaternary)
-                        breadcrumbSegment(
-                            label: component,
-                            isCurrent: index == pathComponents.count - 1
-                        ) {
-                            browsePrefix = pathComponents.prefix(index + 1).joined(separator: "/") + "/"
-                        }
-                    }
+                    .buttonStyle(.plain)
+                    .fontWeight(index == pathComponents.count - 1 ? .medium : .regular)
                 }
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+        }
+    }
+
+    // MARK: - Content Area
+
+    @ViewBuilder
+    private var contentArea: some View {
+        if isLoading && objects.isEmpty && folders.isEmpty {
+            VStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Loading...")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(maxWidth: .infinity, minHeight: 250, maxHeight: .infinity)
+        } else if let errorMessage {
+            VStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.title3)
+                    .foregroundStyle(.orange)
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, minHeight: 250, maxHeight: .infinity)
+        } else if rowItems.isEmpty && pathComponents.isEmpty {
+            VStack(spacing: 6) {
+                Image(systemName: "folder")
+                    .font(.title3)
+                    .foregroundStyle(.tertiary)
+                Text("Empty")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                Text("You can still move items here")
+                    .font(.caption2)
+                    .foregroundStyle(.quaternary)
+            }
+            .frame(maxWidth: .infinity, minHeight: 250, maxHeight: .infinity)
+        } else {
+            VStack(spacing: 0) {
+                tableView
+                Divider()
+                statusBar
+            }
+        }
+    }
+
+    private var tableView: some View {
+        Table(sortedRowItems, sortOrder: $sortOrder) {
+            TableColumn("Name", value: \.name) { item in
+                HStack(spacing: 6) {
+                    Image(systemName: item.icon)
+                        .foregroundStyle(item.isFolder ? .secondary : .tertiary)
+                    Text(item.name)
+                        .foregroundStyle(item.isFolder ? .primary : .tertiary)
+                }
+            }
+            TableColumn("Kind", value: \.kind) { item in
+                Text(item.kind)
+                    .foregroundStyle(item.isFolder ? .secondary : .tertiary)
+            }
+            .width(min: 60, ideal: 90)
+            TableColumn("Size", value: \.sizeBytes) { item in
+                Text(item.size)
+                    .foregroundStyle(item.isFolder ? .primary : .tertiary)
+            }
+            .width(min: 60, ideal: 80)
+            TableColumn("Date Added", value: \.dateValue) { item in
+                Text(item.lastModified)
+                    .foregroundStyle(item.isFolder ? .primary : .tertiary)
+            }
+            .width(min: 100, ideal: 130)
+        }
+        .contextMenu(forSelectionType: RowItem.ID.self) { _ in } primaryAction: { ids in
+            guard ids.count == 1,
+                  let id = ids.first,
+                  let item = sortedRowItems.first(where: { $0.id == id }) else { return }
+            if item.id == Self.parentRowID {
+                let parent = Array(pathComponents.dropLast())
+                browsePrefix = parent.isEmpty ? "" : parent.joined(separator: "/") + "/"
+            } else if item.isFolder {
+                browsePrefix = item.fullKey
+            }
+            // Ignore files — they're shown for context only
+        }
+        .frame(minHeight: 250)
+    }
+
+    private var statusBar: some View {
+        HStack {
+            Text("\(rowItems.count) items")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(.bar)
-    }
-
-    private func breadcrumbSegment(label: String, isCurrent: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label)
-                .font(.caption)
-                .fontWeight(isCurrent ? .semibold : .regular)
-                .foregroundStyle(isCurrent ? .primary : .secondary)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(isCurrent ? Color.accentColor.opacity(0.1) : .clear)
-                )
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Folder List
-
-    private var folderList: some View {
-        Group {
-            if isLoading {
-                VStack(spacing: 8) {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("Loading...")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let errorMessage {
-                VStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.title3)
-                        .foregroundStyle(.orange)
-                    Text(errorMessage)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if folders.isEmpty {
-                VStack(spacing: 6) {
-                    Image(systemName: "folder")
-                        .font(.title3)
-                        .foregroundStyle(.tertiary)
-                    Text("No subfolders")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                    Text("You can still move items here")
-                        .font(.caption2)
-                        .foregroundStyle(.quaternary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 1) {
-                        ForEach(folders) { folder in
-                            folderRow(folder)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 8)
-                }
-            }
-        }
-        .frame(height: 220)
-    }
-
-    private func folderRow(_ folder: S3Prefix) -> some View {
-        let isHovered = hoveredFolder == folder.id
-        return Button {
-            browsePrefix = folder.prefix
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "folder.fill")
-                    .font(.system(size: 14))
-                    .foregroundStyle(isHovered ? Color.accentColor : .secondary)
-                Text(folder.displayName)
-                    .font(.system(size: 13))
-                    .lineLimit(1)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isHovered ? Color.accentColor.opacity(0.08) : .clear)
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            hoveredFolder = hovering ? folder.id : nil
-        }
     }
 
     // MARK: - Destination Bar
@@ -285,7 +344,7 @@ struct S3FolderPickerView: View {
 
     // MARK: - Loading
 
-    private func loadFolders() async {
+    private func loadContents() async {
         isLoading = true
         errorMessage = nil
         do {
@@ -294,9 +353,11 @@ struct S3FolderPickerView: View {
                 prefix: browsePrefix
             )
             folders = result.commonPrefixes
+            objects = result.objects
         } catch {
-            errorMessage = "Failed to load folders"
+            errorMessage = "Failed to load contents"
             folders = []
+            objects = []
         }
         isLoading = false
     }
