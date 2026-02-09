@@ -113,6 +113,25 @@ final class S3Service: ObservableObject {
         try await putObject(bucket: destinationBucket, key: destinationKey, data: data, contentType: detail.contentType)
     }
 
+    /// Moves an object from one bucket to another using copy + delete.
+    func moveObjectToBucket(sourceBucket: String, sourceKey: String, destinationBucket: String, destinationKey: String) async throws {
+        try await copyObject(sourceBucket: sourceBucket, sourceKey: sourceKey, destinationBucket: destinationBucket, destinationKey: destinationKey)
+        try await deleteObject(bucket: sourceBucket, key: sourceKey)
+    }
+
+    /// Recursively moves all objects under `sourcePrefix` to another bucket,
+    /// preserving relative paths. Returns the number of objects moved.
+    @discardableResult
+    func moveFolderToBucket(sourceBucket: String, sourcePrefix: String, destinationBucket: String, destinationPrefix: String) async throws -> Int {
+        let objects = try await listAllObjects(bucket: sourceBucket, prefix: sourcePrefix)
+        for obj in objects {
+            let relativePath = String(obj.key.dropFirst(sourcePrefix.count))
+            let newKey = destinationPrefix + relativePath
+            try await moveObjectToBucket(sourceBucket: sourceBucket, sourceKey: obj.key, destinationBucket: destinationBucket, destinationKey: newKey)
+        }
+        return objects.count
+    }
+
     func deleteObject(bucket: String, key: String) async throws {
         _ = try await client.s3Request(method: "DELETE", path: "/\(bucket)/\(key)")
     }

@@ -29,6 +29,14 @@ struct S3ObjectBrowserView: View {
     @State private var foldersToMove: [String] = []
     @State private var isMovingObjects = false
     @State private var moveDestination = ""
+    // Cross-bucket move
+    @State private var showMoveToBucket = false
+    @State private var moveToBucketItems: [S3Object] = []
+    @State private var moveToBucketFolders: [String] = []
+    @State private var destinationBucketName = ""
+    @State private var destinationBucketPrefix = ""
+    @State private var availableBuckets: [S3Bucket] = []
+    @State private var isMovingToBucket = false
     // Folder info & deletion
     @State private var selectedFolderPrefix: String?
     @State private var folderDeleteItems: [FolderDeleteInfo] = []
@@ -147,6 +155,9 @@ struct S3ObjectBrowserView: View {
             set: { if !$0 { objectsToMove = []; foldersToMove = []; moveDestination = "" } }
         )) {
             moveSheet
+        }
+        .sheet(isPresented: $showMoveToBucket) {
+            moveToBucketSheet
         }
         .confirmationDialog(
             objectsToDelete.count == 1
@@ -373,6 +384,12 @@ struct S3ObjectBrowserView: View {
                     .disabled(appState.isReadOnly)
                     folderMoveToMenu(for: [item.fullKey])
                         .disabled(appState.isReadOnly)
+                    Button("Move to Bucket...") {
+                        moveToBucketItems = []
+                        moveToBucketFolders = [item.fullKey]
+                        showMoveToBucket = true
+                    }
+                    .disabled(appState.isReadOnly)
                     Divider()
                     Button("Delete Folder", role: .destructive) {
                         requestFolderDeletion(prefixes: [item.fullKey])
@@ -394,6 +411,14 @@ struct S3ObjectBrowserView: View {
                         moveToMenu(for: [obj])
                             .disabled(appState.isReadOnly)
                     }
+                    Button("Move to Bucket...") {
+                        if let obj = objects.first(where: { $0.key == item.fullKey }) {
+                            moveToBucketItems = [obj]
+                            moveToBucketFolders = []
+                            showMoveToBucket = true
+                        }
+                    }
+                    .disabled(appState.isReadOnly)
                     Divider()
                     Button("Delete", role: .destructive) {
                         objectsToDelete = objects.filter { $0.key == item.fullKey }
@@ -419,6 +444,12 @@ struct S3ObjectBrowserView: View {
                     .disabled(appState.isReadOnly)
                     mixedMoveToMenu(objects: movableObjs, folders: movableFolders)
                         .disabled(appState.isReadOnly)
+                    Button("Move \(moveCount) Items to Bucket...") {
+                        moveToBucketItems = movableObjs
+                        moveToBucketFolders = movableFolders
+                        showMoveToBucket = true
+                    }
+                    .disabled(appState.isReadOnly)
                 }
 
                 if !selectedItems.isEmpty {
@@ -874,6 +905,135 @@ struct S3ObjectBrowserView: View {
                 }
             }
             isMovingObjects = false
+        }
+    }
+
+    // MARK: - Move to Bucket Sheet
+
+    private var moveToBucketSheet: some View {
+        let totalCount = moveToBucketItems.count + moveToBucketFolders.count
+        let isSingle = totalCount == 1
+        let title: String = {
+            if isSingle { return "Move to Bucket" }
+            return "Move \(totalCount) Items to Bucket"
+        }()
+        let subtitle: String = {
+            if isSingle {
+                if let obj = moveToBucketItems.first {
+                    return obj.key.components(separatedBy: "/").last ?? obj.key
+                }
+                if let folder = moveToBucketFolders.first {
+                    return String(folder.dropLast()).components(separatedBy: "/").last ?? folder
+                }
+            }
+            return "\(totalCount) items"
+        }()
+        let filteredBuckets = availableBuckets.filter { $0.name != bucket.name }
+
+        return VStack(spacing: 16) {
+            Text(title)
+                .font(.headline)
+            Text(subtitle)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Destination bucket")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if filteredBuckets.isEmpty {
+                    Text("No other buckets available")
+                        .foregroundStyle(.secondary)
+                        .italic()
+                } else {
+                    Picker("", selection: $destinationBucketName) {
+                        Text("Select a bucket").tag("")
+                        ForEach(filteredBuckets) { b in
+                            Text(b.name).tag(b.name)
+                        }
+                    }
+                    .labelsHidden()
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Destination prefix (optional)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                TextField("e.g. folder/subfolder/", text: $destinationBucketPrefix)
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            HStack {
+                Button("Cancel") {
+                    showMoveToBucket = false
+                    moveToBucketItems = []
+                    moveToBucketFolders = []
+                    destinationBucketName = ""
+                    destinationBucketPrefix = ""
+                }
+                .keyboardShortcut(.cancelAction)
+                Spacer()
+                if isMovingToBucket {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Button("Move") { performMoveToBucket() }
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(destinationBucketName.isEmpty)
+                }
+            }
+        }
+        .padding()
+        .frame(width: 400)
+        .task {
+            do {
+                availableBuckets = try await service.listBuckets()
+            } catch {
+                availableBuckets = []
+            }
+        }
+    }
+
+    private func performMoveToBucket() {
+        let objs = moveToBucketItems
+        let folders = moveToBucketFolders
+        let destBucket = destinationBucketName
+        let destPrefix = destinationBucketPrefix
+        showMoveToBucket = false
+        moveToBucketItems = []
+        moveToBucketFolders = []
+        destinationBucketName = ""
+        destinationBucketPrefix = ""
+        isMovingToBucket = true
+        Task {
+            do {
+                for obj in objs {
+                    let filename = obj.key.components(separatedBy: "/").last ?? obj.key
+                    let destKey = destPrefix + filename
+                    try await service.moveObjectToBucket(
+                        sourceBucket: bucket.name, sourceKey: obj.key,
+                        destinationBucket: destBucket, destinationKey: destKey
+                    )
+                }
+                for folder in folders {
+                    let folderName = String(folder.dropLast()).components(separatedBy: "/").last ?? folder
+                    let destFolderPrefix = destPrefix + folderName + "/"
+                    try await service.moveFolderToBucket(
+                        sourceBucket: bucket.name, sourcePrefix: folder,
+                        destinationBucket: destBucket, destinationPrefix: destFolderPrefix
+                    )
+                }
+                loadObjects(force: true)
+            } catch {
+                if let clientError = error as? LocalStackClientError,
+                   let parsed = clientError.serviceError {
+                    serviceError = parsed
+                } else {
+                    errorMessage = error.localizedDescription
+                }
+            }
+            isMovingToBucket = false
         }
     }
 
