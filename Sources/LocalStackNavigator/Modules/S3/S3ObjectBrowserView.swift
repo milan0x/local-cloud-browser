@@ -20,6 +20,7 @@ struct S3ObjectBrowserView: View {
     @State private var lastLoadTime: Date?
     @State private var sortOrder: [KeyPathComparator<RowItem>] = [KeyPathComparator(\RowItem.name, order: .forward)]
     @State private var isDropTargeted = false
+    @State private var selectedRowID: RowItem.ID?
 
     // Pagination
     @State private var currentPage = 1
@@ -291,7 +292,7 @@ struct S3ObjectBrowserView: View {
     }
 
     private var listView: some View {
-        Table(sortedRowItems, sortOrder: $sortOrder) {
+        Table(sortedRowItems, selection: $selectedRowID, sortOrder: $sortOrder) {
             TableColumn("Name", value: \.name) { item in
                 HStack(spacing: 6) {
                     Image(systemName: item.icon)
@@ -316,6 +317,32 @@ struct S3ObjectBrowserView: View {
                 actionsForRow(item)
             }
             .width(min: 60, ideal: 80)
+        }
+        .contextMenu(forSelectionType: RowItem.ID.self) { ids in
+            if let id = ids.first, let item = sortedRowItems.first(where: { $0.id == id }) {
+                if item.isFolder {
+                    Button("Open") { navigateToPrefix(item.fullKey) }
+                } else {
+                    Button("Download") { downloadObject(key: item.fullKey) }
+                    Button("Metadata") {
+                        selectedObject = objects.first { $0.key == item.fullKey }
+                        showMetadata = true
+                    }
+                    Divider()
+                    Button("Delete", role: .destructive) {
+                        objectToDelete = objects.first { $0.key == item.fullKey }
+                    }
+                    .disabled(appState.isReadOnly)
+                }
+            }
+        } primaryAction: { ids in
+            guard let id = ids.first, let item = sortedRowItems.first(where: { $0.id == id }) else { return }
+            if item.isFolder {
+                navigateToPrefix(item.fullKey)
+            } else {
+                selectedObject = objects.first { $0.key == item.fullKey }
+                showMetadata = true
+            }
         }
     }
 

@@ -20,70 +20,10 @@ struct S3BucketListView: View {
     }()
 
     var body: some View {
-        Group {
-            if isLoading && buckets.isEmpty {
-                ProgressView("Loading buckets...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let errorMessage {
-                VStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.title)
-                        .foregroundStyle(.secondary)
-                    Text(errorMessage)
-                        .foregroundStyle(.secondary)
-                    Button("Retry") { loadBuckets(force: true) }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if buckets.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "externaldrive")
-                        .font(.title)
-                        .foregroundStyle(.secondary)
-                    Text("No buckets")
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                List(buckets, selection: $selectedBucket) { bucket in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(bucket.name)
-                                .fontWeight(.medium)
-                            if let date = bucket.creationDate {
-                                Text(Self.dateFormatter.string(from: date))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                        if !appState.isReadOnly {
-                            Button(role: .destructive) {
-                                bucketToDelete = bucket
-                            } label: {
-                                Image(systemName: "trash")
-                                    .foregroundStyle(.red)
-                            }
-                            .buttonStyle(.borderless)
-                        }
-                    }
-                    .tag(bucket)
-                }
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                HStack(spacing: 8) {
-                    Button { loadBuckets(force: true) } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .disabled(isLoading)
-
-                    Button { showCreateSheet = true } label: {
-                        Image(systemName: "plus")
-                    }
-                    .disabled(appState.isReadOnly)
-                }
-            }
+        VStack(spacing: 0) {
+            bucketListHeader
+            Divider()
+            bucketListContent
         }
         .sheet(isPresented: $showCreateSheet) {
             S3CreateBucketView(service: service)
@@ -110,6 +50,84 @@ struct S3BucketListView: View {
             loadBuckets(force: true)
         }
     }
+
+    // MARK: - Header
+
+    private var bucketListHeader: some View {
+        HStack {
+            Text("Buckets")
+                .font(.headline)
+            Spacer()
+            Button { loadBuckets(force: true) } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .buttonStyle(.borderless)
+            .disabled(isLoading)
+
+            Button { showCreateSheet = true } label: {
+                Image(systemName: "plus")
+            }
+            .buttonStyle(.borderless)
+            .disabled(appState.isReadOnly)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+
+    // MARK: - Content
+
+    @ViewBuilder
+    private var bucketListContent: some View {
+        if isLoading && buckets.isEmpty {
+            ProgressView("Loading buckets...")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let errorMessage {
+            VStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.title)
+                    .foregroundStyle(.secondary)
+                Text(errorMessage)
+                    .foregroundStyle(.secondary)
+                Button("Retry") { loadBuckets(force: true) }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if buckets.isEmpty {
+            VStack(spacing: 8) {
+                Image(systemName: "externaldrive")
+                    .font(.title)
+                    .foregroundStyle(.secondary)
+                Text("No buckets")
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            List(buckets, selection: $selectedBucket) { bucket in
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(bucket.name)
+                            .fontWeight(.medium)
+                        if let date = bucket.creationDate {
+                            Text(Self.dateFormatter.string(from: date))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Button(role: .destructive) {
+                        bucketToDelete = bucket
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundStyle(appState.isReadOnly ? .gray : .red)
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(appState.isReadOnly)
+                }
+                .tag(bucket)
+            }
+        }
+    }
+
+    // MARK: - Data
 
     private func loadBuckets(force: Bool = false) {
         guard !isLoading else { return }

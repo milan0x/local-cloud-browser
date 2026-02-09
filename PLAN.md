@@ -21,6 +21,18 @@
 - [x] Upload/download objects
 - [x] Object metadata viewer
 - [x] Bucket policy editor
+- [x] Fix S3 routing: use virtual-hosted-style (`s3.localhost.localstack.cloud`) for LocalStack v4+
+- [x] Stable layout: bucket list uses inline header instead of toolbar to prevent shifts on selection
+- [x] Bucket list pane capped at maxWidth 360 to prevent HSplitView rebalancing
+- [x] Create bucket dialog shows region as disabled/grayed-out text
+- [x] "+" button always visible (disabled in read-only mode instead of hidden)
+- [x] All mutating actions (upload, delete, save policy) show as disabled/grayed instead of hidden in read-only mode
+- [x] Drag-and-drop file upload from Finder into object browser (all view modes)
+- [x] Visual drop-target feedback (dashed accent border + tint overlay)
+- [x] List view: row selection via `Table(selection:)` binding
+- [x] List view: double-click navigates folders / opens file metadata
+- [x] List view: right-click context menu (Download, Metadata, Delete)
+- [x] Pagination support for object listing (next/previous page, status bar)
 
 ## Phase 3: SQS Module
 - [ ] List queues view

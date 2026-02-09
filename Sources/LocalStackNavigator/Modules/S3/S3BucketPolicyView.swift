@@ -48,10 +48,8 @@ struct S3BucketPolicyView: View {
                             .font(.caption)
                     }
                     Spacer()
-                    if !appState.isReadOnly {
-                        Button("Save") { savePolicy() }
-                            .disabled(isSaving)
-                    }
+                    Button("Save") { savePolicy() }
+                        .disabled(appState.isReadOnly || isSaving)
                 }
                 .padding()
             }
