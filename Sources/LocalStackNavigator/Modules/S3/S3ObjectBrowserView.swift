@@ -16,10 +16,18 @@ struct S3ObjectBrowserView: View {
     @State private var showPolicyEditor = false
     @State private var objectToDelete: S3Object?
     @State private var lastLoadTime: Date?
-    @State private var sortOrder: [KeyPathComparator<RowItem>] = [KeyPathComparator(\RowItem.name, order: .forward)]
+    @State private var sortOrder: [KeyPathComparator<RowItem>] = [KeyPathComparator(\RowItem.dateValue, order: .reverse)]
     @State private var isDropTargeted = false
     @State private var selectedRowID: RowItem.ID?
     @State private var serviceError: ServiceError?
+    @State private var showCreateFolder = false
+    @State private var newFolderName = ""
+    @State private var objectToMove: S3Object?
+    @State private var moveDestination = ""
+
+    // Navigation history
+    @State private var navigationHistory: [[String]] = [[]]
+    @State private var historyIndex: Int = 0
 
     // Pagination
     @State private var currentPage = 1
@@ -47,6 +55,20 @@ struct S3ObjectBrowserView: View {
             contentArea
         }
         .toolbar {
+            ToolbarItem(placement: .navigation) {
+                HStack(spacing: 4) {
+                    Button { navigateBack() } label: {
+                        Image(systemName: "chevron.left")
+                    }
+                    .disabled(!canGoBack || isLoading)
+                    .help("Back")
+                    Button { navigateForward() } label: {
+                        Image(systemName: "chevron.right")
+                    }
+                    .disabled(!canGoForward || isLoading)
+                    .help("Forward")
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 HStack(spacing: 8) {
                     Button { loadObjects() } label: {
@@ -58,6 +80,12 @@ struct S3ObjectBrowserView: View {
                         Image(systemName: "doc.text")
                     }
                     .help("Bucket Policy")
+
+                    Button { showCreateFolder = true } label: {
+                        Image(systemName: "folder.badge.plus")
+                    }
+                    .help("Create Folder")
+                    .disabled(appState.isReadOnly)
 
                     Button { uploadFile() } label: {
                         Image(systemName: "plus")
@@ -72,6 +100,12 @@ struct S3ObjectBrowserView: View {
         }
         .sheet(isPresented: $showPolicyEditor) {
             S3BucketPolicyView(service: service, bucket: bucket.name)
+        }
+        .sheet(isPresented: $showCreateFolder) {
+            createFolderSheet
+        }
+        .sheet(item: $objectToMove) { obj in
+            moveSheet(for: obj)
         }
         .confirmationDialog(
             "Delete Object",
@@ -90,6 +124,8 @@ struct S3ObjectBrowserView: View {
         .serviceErrorAlert(error: $serviceError)
         .task(id: bucket.id) {
             pathComponents = []
+            navigationHistory = [[]]
+            historyIndex = 0
             resetPagination()
             loadObjects()
         }
@@ -101,8 +137,7 @@ struct S3ObjectBrowserView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 4) {
                 Button(bucket.name) {
-                    pathComponents = []
-                    loadObjects()
+                    navigate(to: [])
                 }
                 .buttonStyle(.plain)
                 .fontWeight(.medium)
@@ -112,8 +147,7 @@ struct S3ObjectBrowserView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Button(component) {
-                        pathComponents = Array(pathComponents.prefix(index + 1))
-                        loadObjects()
+                        navigate(to: Array(pathComponents.prefix(index + 1)))
                     }
                     .buttonStyle(.plain)
                     .fontWeight(index == pathComponents.count - 1 ? .medium : .regular)
@@ -141,7 +175,7 @@ struct S3ObjectBrowserView: View {
                 Button("Retry") { loadObjects() }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if objects.isEmpty && prefixes.isEmpty {
+        } else if rowItems.isEmpty {
             VStack(spacing: 8) {
                 Image(systemName: "folder")
                     .font(.title)
@@ -193,7 +227,7 @@ struct S3ObjectBrowserView: View {
 
     private var statusBar: some View {
         HStack {
-            Text("\(totalItemsOnPage) items")
+            Text("\(rowItems.count) items")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -267,6 +301,11 @@ struct S3ObjectBrowserView: View {
                     Button("Metadata") {
                         selectedObject = objects.first { $0.key == item.fullKey }
                     }
+                    Button("Move...") {
+                        objectToMove = objects.first { $0.key == item.fullKey }
+                        moveDestination = currentPrefix
+                    }
+                    .disabled(appState.isReadOnly)
                     Divider()
                     Button("Delete", role: .destructive) {
                         objectToDelete = objects.first { $0.key == item.fullKey }
@@ -354,7 +393,7 @@ struct S3ObjectBrowserView: View {
                 icon: S3FileKind.icon(for: prefix.displayName, isFolder: true)
             )
         }
-        let objectRows = objects.map { obj in
+        let objectRows = objects.filter { $0.key != currentPrefix }.map { obj in
             RowItem(
                 id: obj.key,
                 name: obj.displayName,
@@ -371,13 +410,184 @@ struct S3ObjectBrowserView: View {
         return folderRows + objectRows
     }
 
+    // MARK: - Create Folder Sheet
+
+    private var isValidFolderName: Bool {
+        let trimmed = newFolderName.trimmingCharacters(in: .whitespaces)
+        return !trimmed.isEmpty && !trimmed.contains("/")
+    }
+
+    private var createFolderSheet: some View {
+        VStack(spacing: 16) {
+            Text("Create Folder")
+                .font(.headline)
+            Text("in \(currentPrefix.isEmpty ? "/" : currentPrefix)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextField("Folder name", text: $newFolderName)
+                .textFieldStyle(.roundedBorder)
+                .onSubmit { if isValidFolderName { createFolder() } }
+            HStack {
+                Button("Cancel") {
+                    showCreateFolder = false
+                    newFolderName = ""
+                }
+                .keyboardShortcut(.cancelAction)
+                Spacer()
+                Button("Create") { createFolder() }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!isValidFolderName)
+            }
+        }
+        .padding()
+        .frame(width: 320)
+    }
+
+    private func createFolder() {
+        let name = newFolderName.trimmingCharacters(in: .whitespaces)
+        showCreateFolder = false
+        newFolderName = ""
+        Task {
+            do {
+                try await service.createFolder(bucket: bucket.name, prefix: currentPrefix, name: name)
+                loadObjects(force: true)
+            } catch {
+                if let clientError = error as? LocalStackClientError,
+                   let parsed = clientError.serviceError {
+                    serviceError = parsed
+                } else {
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    // MARK: - Move Sheet
+
+    private func moveSheet(for obj: S3Object) -> some View {
+        let filename = obj.key.components(separatedBy: "/").last ?? obj.key
+        let currentFolder = String(obj.key.dropLast(filename.count))
+        return VStack(spacing: 16) {
+            Text("Move Object")
+                .font(.headline)
+            Text(filename)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Destination folder")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                TextField("e.g. folder/subfolder/", text: $moveDestination)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit {
+                        if moveDestination != currentFolder { performMove(obj: obj) }
+                    }
+            }
+
+            if !pathComponents.isEmpty {
+                HStack(spacing: 8) {
+                    Text("Quick:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button("Parent Folder") {
+                        let parent = Array(pathComponents.dropLast())
+                        moveDestination = parent.isEmpty ? "" : parent.joined(separator: "/") + "/"
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    Spacer()
+                }
+            }
+
+            if !prefixes.isEmpty {
+                HStack(spacing: 8) {
+                    Text("Subfolders:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    ForEach(prefixes.prefix(4)) { prefix in
+                        Button(prefix.displayName) {
+                            moveDestination = prefix.prefix
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                    Spacer()
+                }
+            }
+
+            HStack {
+                Button("Cancel") {
+                    objectToMove = nil
+                    moveDestination = ""
+                }
+                .keyboardShortcut(.cancelAction)
+                Spacer()
+                Button("Move") { performMove(obj: obj) }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(moveDestination == currentFolder)
+            }
+        }
+        .padding()
+        .frame(width: 400)
+    }
+
+    private func performMove(obj: S3Object) {
+        let filename = obj.key.components(separatedBy: "/").last ?? obj.key
+        let destinationKey = moveDestination + filename
+        objectToMove = nil
+        moveDestination = ""
+        Task {
+            do {
+                try await service.moveObject(bucket: bucket.name, sourceKey: obj.key, destinationKey: destinationKey)
+                loadObjects(force: true)
+            } catch {
+                if let clientError = error as? LocalStackClientError,
+                   let parsed = clientError.serviceError {
+                    serviceError = parsed
+                } else {
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    // MARK: - Navigation History
+
+    private var canGoBack: Bool { historyIndex > 0 }
+    private var canGoForward: Bool { historyIndex < navigationHistory.count - 1 }
+
+    private func navigate(to components: [String]) {
+        navigationHistory = Array(navigationHistory.prefix(historyIndex + 1))
+        navigationHistory.append(components)
+        historyIndex += 1
+        pathComponents = components
+        resetPagination()
+        loadObjects(force: true)
+    }
+
+    private func navigateBack() {
+        guard canGoBack else { return }
+        historyIndex -= 1
+        pathComponents = navigationHistory[historyIndex]
+        resetPagination()
+        loadObjects(force: true)
+    }
+
+    private func navigateForward() {
+        guard canGoForward else { return }
+        historyIndex += 1
+        pathComponents = navigationHistory[historyIndex]
+        resetPagination()
+        loadObjects(force: true)
+    }
+
     // MARK: - Actions
 
     private func navigateToPrefix(_ prefix: String) {
         let trimmed = prefix.hasSuffix("/") ? String(prefix.dropLast()) : prefix
-        pathComponents = trimmed.components(separatedBy: "/")
-        resetPagination()
-        loadObjects()
+        let components = trimmed.components(separatedBy: "/")
+        navigate(to: components)
     }
 
     private func resetPagination() {
