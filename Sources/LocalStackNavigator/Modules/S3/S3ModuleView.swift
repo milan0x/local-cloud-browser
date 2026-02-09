@@ -5,6 +5,9 @@ struct S3ModuleView: View {
     @StateObject private var service: S3Service
 
     @State private var selectedBucket: S3Bucket?
+    @State private var showSplitView = false
+    @State private var splitBucket: S3Bucket?
+    @State private var splitPrefix: String?
 
     init() {
         // Placeholder — real client injected via onAppear
@@ -13,12 +16,23 @@ struct S3ModuleView: View {
 
     var body: some View {
         HSplitView {
-            S3BucketListView(service: service, selectedBucket: $selectedBucket)
-                .frame(width: 220)
+            S3BucketListView(
+                service: service,
+                selectedBucket: $selectedBucket,
+                showSplitView: $showSplitView,
+                onOpenInSplit: openInSplit
+            )
+            .frame(width: 220)
 
+            // Primary pane
             Group {
                 if let bucket = selectedBucket {
-                    S3ObjectBrowserView(service: service, bucket: bucket)
+                    S3ObjectBrowserView(
+                        service: service,
+                        bucket: bucket,
+                        paneID: "main",
+                        onOpenInSplit: openInSplit
+                    )
                 } else {
                     VStack(spacing: 8) {
                         Image(systemName: "externaldrive")
@@ -31,10 +45,28 @@ struct S3ModuleView: View {
                 }
             }
             .frame(minWidth: 400)
+
+            // Split pane (conditional)
+            if showSplitView, let bucket = splitBucket {
+                Divider()
+                S3ObjectBrowserView(
+                    service: service,
+                    bucket: bucket,
+                    paneID: "split",
+                    onOpenInSplit: nil
+                )
+                .frame(minWidth: 300)
+            }
         }
         .onAppear {
             service.updateClient(client)
         }
+    }
+
+    private func openInSplit(bucket: S3Bucket, prefix: String?) {
+        splitBucket = bucket
+        splitPrefix = prefix
+        showSplitView = true
     }
 }
 

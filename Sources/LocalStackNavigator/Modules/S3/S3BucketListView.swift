@@ -4,7 +4,10 @@ struct S3BucketListView: View {
     @ObservedObject var service: S3Service
     @EnvironmentObject private var appState: AppState
     @Binding var selectedBucket: S3Bucket?
+    @Binding var showSplitView: Bool
+    var onOpenInSplit: ((S3Bucket, String?) -> Void)?
 
+    @Environment(\.openWindow) private var openWindow
     @State private var buckets: [S3Bucket] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -60,6 +63,18 @@ struct S3BucketListView: View {
             Text("Buckets")
                 .font(.headline)
             Spacer()
+
+            Button {
+                showSplitView.toggle()
+            } label: {
+                Image(systemName: showSplitView
+                    ? "rectangle.split.2x1.fill"
+                    : "rectangle.split.2x1")
+            }
+            .buttonStyle(.borderless)
+            .help(showSplitView ? "Close Split View" : "Open Split View")
+            .disabled(selectedBucket == nil)
+
             Button { loadBuckets(force: true) } label: {
                 Image(systemName: "arrow.clockwise")
             }
@@ -125,6 +140,21 @@ struct S3BucketListView: View {
                     .disabled(appState.isReadOnly)
                 }
                 .tag(bucket)
+                .contextMenu {
+                    if let onOpenInSplit {
+                        Button("Open in Split View") {
+                            onOpenInSplit(bucket, nil)
+                        }
+                    }
+                    Button("Open in New Window") {
+                        openWindow(value: S3BrowserTarget(bucket: bucket.name, prefix: nil))
+                    }
+                    Divider()
+                    Button("Delete", role: .destructive) {
+                        bucketToDelete = bucket
+                    }
+                    .disabled(appState.isReadOnly)
+                }
             }
         }
     }
