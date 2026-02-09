@@ -8,7 +8,6 @@ struct S3ObjectBrowserView: View {
     @Environment(\.openWindow) private var openWindow
     let bucket: S3Bucket
     var paneID: String = "main"
-    var onOpenInSplit: ((S3Bucket, String?) -> Void)?
 
     @State private var objects: [S3Object] = []
     @State private var prefixes: [S3Prefix] = []
@@ -363,11 +362,6 @@ struct S3ObjectBrowserView: View {
                 } else if item.isFolder {
                     Button("Open") { navigateToPrefix(item.fullKey) }
                     Button("Folder Info") { selectedFolderPrefix = item.fullKey }
-                    if let onOpenInSplit {
-                        Button("Open in Split View") {
-                            onOpenInSplit(bucket, item.fullKey)
-                        }
-                    }
                     Button("Open in New Window") {
                         openWindow(value: S3BrowserTarget(bucket: bucket.name, prefix: item.fullKey))
                     }
