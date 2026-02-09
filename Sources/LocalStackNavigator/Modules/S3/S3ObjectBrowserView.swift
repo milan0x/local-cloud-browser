@@ -18,6 +18,16 @@ struct S3ObjectBrowserView: View {
     @State private var objectToDelete: S3Object?
     @State private var viewMode: S3BrowserViewMode = .list
     @State private var lastLoadTime: Date?
+    @State private var sortOrder: [KeyPathComparator<RowItem>] = [KeyPathComparator(\RowItem.name, order: .forward)]
+    @State private var isDropTargeted = false
+
+    // Pagination
+    @State private var currentPage = 1
+    @State private var continuationToken: String?
+    @State private var nextPageToken: String?
+    @State private var previousTokens: [String?] = []
+    @State private var isTruncated = false
+    @State private var totalItemsOnPage = 0
 
     private var currentPrefix: String {
         pathComponents.isEmpty ? "" : pathComponents.joined(separator: "/") + "/"
@@ -53,12 +63,11 @@ struct S3ObjectBrowserView: View {
                     }
                     .help("Bucket Policy")
 
-                    if !appState.isReadOnly {
-                        Button { uploadFile() } label: {
-                            Image(systemName: "square.and.arrow.up")
-                        }
-                        .help("Upload File")
+                    Button { uploadFile() } label: {
+                        Image(systemName: "square.and.arrow.up")
                     }
+                    .help("Upload File")
+                    .disabled(appState.isReadOnly)
                 }
             }
         }
@@ -86,6 +95,7 @@ struct S3ObjectBrowserView: View {
         }
         .task(id: bucket.id) {
             pathComponents = []
+            resetPagination()
             loadObjects()
         }
     }
@@ -169,68 +179,148 @@ struct S3ObjectBrowserView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            switch viewMode {
-            case .list:
-                listView
-            case .icon:
-                S3IconBrowserView(
-                    items: rowItems,
-                    onNavigate: { navigateToPrefix($0) },
-                    onDownload: { downloadObject(key: $0) },
-                    onShowMetadata: { key in
-                        selectedObject = objects.first { $0.key == key }
-                        showMetadata = true
-                    },
-                    onDelete: { key in
-                        objectToDelete = objects.first { $0.key == key }
-                    },
-                    isReadOnly: appState.isReadOnly
-                )
-            case .column:
-                S3ColumnBrowserView(
-                    service: service,
-                    bucket: bucket.name,
-                    onDownload: { downloadObject(key: $0) },
-                    onShowMetadata: { key in
-                        selectedObject = objects.first { $0.key == key }
-                        showMetadata = true
-                    },
-                    onDelete: { key in
-                        objectToDelete = objects.first { $0.key == key }
-                    },
-                    isReadOnly: appState.isReadOnly
-                )
+            VStack(spacing: 0) {
+                switch viewMode {
+                case .list:
+                    listView
+                case .icon:
+                    S3IconBrowserView(
+                        items: rowItems,
+                        onNavigate: { navigateToPrefix($0) },
+                        onDownload: { downloadObject(key: $0) },
+                        onShowMetadata: { key in
+                            selectedObject = objects.first { $0.key == key }
+                            showMetadata = true
+                        },
+                        onDelete: { key in
+                            objectToDelete = objects.first { $0.key == key }
+                        },
+                        isReadOnly: appState.isReadOnly
+                    )
+                case .column:
+                    S3ColumnBrowserView(
+                        service: service,
+                        bucket: bucket.name,
+                        onDownload: { downloadObject(key: $0) },
+                        onShowMetadata: { key in
+                            selectedObject = objects.first { $0.key == key }
+                            showMetadata = true
+                        },
+                        onDelete: { key in
+                            objectToDelete = objects.first { $0.key == key }
+                        },
+                        isReadOnly: appState.isReadOnly
+                    )
+                }
+                Divider()
+                statusBar
+            }
+            .overlay {
+                if isDropTargeted && !appState.isReadOnly {
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
+                        .background(Color.accentColor.opacity(0.06))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .padding(4)
+                }
+            }
+            .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
+                guard !appState.isReadOnly else { return false }
+                let validProviders = providers.filter { $0.hasItemConformingToTypeIdentifier("public.file-url") }
+                guard !validProviders.isEmpty else { return false }
+                Task {
+                    var urls: [URL] = []
+                    for provider in validProviders {
+                        if let url: URL = await withCheckedContinuation({ continuation in
+                            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                                continuation.resume(returning: url)
+                            }
+                        }) {
+                            urls.append(url)
+                        }
+                    }
+                    if !urls.isEmpty {
+                        await uploadFiles(from: urls)
+                    }
+                }
+                return true
             }
         }
     }
 
+    // MARK: - Status Bar
+
+    private var statusBar: some View {
+        HStack {
+            Text("\(totalItemsOnPage) items")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if isTruncated || currentPage > 1 {
+                Spacer()
+
+                HStack(spacing: 12) {
+                    Button {
+                        loadPreviousPage()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(currentPage <= 1 || isLoading)
+
+                    Text("Page \(currentPage)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Button {
+                        loadNextPage()
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(!isTruncated || isLoading)
+                }
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+    }
+
     private var listView: some View {
-        Table(of: RowItem.self) {
-            TableColumn("Name") { item in
+        Table(sortedRowItems, sortOrder: $sortOrder) {
+            TableColumn("Name", value: \.name) { item in
                 HStack(spacing: 6) {
                     Image(systemName: item.icon)
                         .foregroundStyle(.secondary)
                     Text(item.name)
                 }
             }
-            TableColumn("Kind") { item in
+            TableColumn("Kind", value: \.kind) { item in
                 Text(item.kind)
                     .foregroundStyle(.secondary)
             }
             .width(min: 80, ideal: 120)
-            TableColumn("Size", value: \.size)
-                .width(min: 60, ideal: 80)
-            TableColumn("Date Added", value: \.lastModified)
-                .width(min: 120, ideal: 160)
+            TableColumn("Size", value: \.sizeBytes) { item in
+                Text(item.size)
+            }
+            .width(min: 60, ideal: 80)
+            TableColumn("Date Added", value: \.dateValue) { item in
+                Text(item.lastModified)
+            }
+            .width(min: 120, ideal: 160)
             TableColumn("Actions") { item in
                 actionsForRow(item)
             }
             .width(min: 60, ideal: 80)
-        } rows: {
-            ForEach(rowItems) { item in
-                TableRow(item)
-            }
         }
+    }
+
+    private var sortedRowItems: [RowItem] {
+        rowItems.sorted(using: sortOrder)
     }
 
     @ViewBuilder
@@ -257,16 +347,15 @@ struct S3ObjectBrowserView: View {
                 .buttonStyle(.borderless)
                 .help("Metadata")
 
-                if !appState.isReadOnly {
-                    Button(role: .destructive) {
-                        objectToDelete = objects.first { $0.key == item.fullKey }
-                    } label: {
-                        Image(systemName: "trash")
-                            .foregroundStyle(.red)
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Delete")
+                Button(role: .destructive) {
+                    objectToDelete = objects.first { $0.key == item.fullKey }
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundStyle(appState.isReadOnly ? .gray : .red)
                 }
+                .buttonStyle(.borderless)
+                .help("Delete")
+                .disabled(appState.isReadOnly)
             }
         }
     }
@@ -323,7 +412,15 @@ struct S3ObjectBrowserView: View {
     private func navigateToPrefix(_ prefix: String) {
         let trimmed = prefix.hasSuffix("/") ? String(prefix.dropLast()) : prefix
         pathComponents = trimmed.components(separatedBy: "/")
+        resetPagination()
         loadObjects()
+    }
+
+    private func resetPagination() {
+        currentPage = 1
+        continuationToken = nil
+        previousTokens = []
+        isTruncated = false
     }
 
     private func loadObjects(force: Bool = false) {
@@ -335,15 +432,42 @@ struct S3ObjectBrowserView: View {
         errorMessage = nil
         Task {
             do {
-                let result = try await service.listObjects(bucket: bucket.name, prefix: currentPrefix)
+                let result = try await service.listObjects(
+                    bucket: bucket.name,
+                    prefix: currentPrefix,
+                    continuationToken: continuationToken
+                )
                 objects = result.objects
                 prefixes = result.commonPrefixes
+                isTruncated = result.isTruncated
+                totalItemsOnPage = result.keyCount
+                // Store the next token for pagination
+                if result.isTruncated {
+                    nextPageToken = result.nextContinuationToken
+                } else {
+                    nextPageToken = nil
+                }
             } catch {
                 errorMessage = error.localizedDescription
             }
             isLoading = false
             lastLoadTime = Date()
         }
+    }
+
+    private func loadNextPage() {
+        guard isTruncated, let nextPageToken else { return }
+        previousTokens.append(continuationToken)
+        continuationToken = nextPageToken
+        currentPage += 1
+        loadObjects(force: true)
+    }
+
+    private func loadPreviousPage() {
+        guard currentPage > 1 else { return }
+        continuationToken = previousTokens.removeLast()
+        currentPage -= 1
+        loadObjects(force: true)
     }
 
     private func downloadObject(key: String) {
@@ -383,6 +507,22 @@ struct S3ObjectBrowserView: View {
             } catch {
                 errorMessage = error.localizedDescription
             }
+        }
+    }
+
+    @MainActor
+    private func uploadFiles(from urls: [URL]) async {
+        do {
+            for url in urls {
+                let data = try Data(contentsOf: url)
+                let key = currentPrefix + url.lastPathComponent
+                let contentType = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
+                    ?? "application/octet-stream"
+                try await service.putObject(bucket: bucket.name, key: key, data: data, contentType: contentType)
+            }
+            loadObjects()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 
