@@ -37,6 +37,10 @@ struct S3ObjectBrowserView: View {
     @State private var destinationBucketPrefix = ""
     @State private var availableBuckets: [S3Bucket] = []
     @State private var isMovingToBucket = false
+    // Browse folder picker
+    @State private var showBrowsePicker = false
+    @State private var browsePickerItems: [S3Object] = []
+    @State private var browsePickerFolders: [String] = []
     // Folder info & deletion
     @State private var selectedFolderPrefix: String?
     @State private var folderDeleteItems: [FolderDeleteInfo] = []
@@ -158,6 +162,30 @@ struct S3ObjectBrowserView: View {
         }
         .sheet(isPresented: $showMoveToBucket) {
             moveToBucketSheet
+        }
+        .sheet(isPresented: $showBrowsePicker) {
+            S3FolderPickerView(
+                service: service,
+                currentBucket: bucket.name,
+                currentPrefix: currentPrefix
+            ) { destBucket, destPrefix in
+                if destBucket == bucket.name {
+                    objectsToMove = browsePickerItems
+                    foldersToMove = browsePickerFolders
+                    moveDestination = destPrefix
+                    browsePickerItems = []
+                    browsePickerFolders = []
+                    performMove()
+                } else {
+                    moveToBucketItems = browsePickerItems
+                    moveToBucketFolders = browsePickerFolders
+                    destinationBucketName = destBucket
+                    destinationBucketPrefix = destPrefix
+                    browsePickerItems = []
+                    browsePickerFolders = []
+                    performMoveToBucket()
+                }
+            }
         }
         .confirmationDialog(
             objectsToDelete.count == 1
@@ -384,12 +412,6 @@ struct S3ObjectBrowserView: View {
                     .disabled(appState.isReadOnly)
                     folderMoveToMenu(for: [item.fullKey])
                         .disabled(appState.isReadOnly)
-                    Button("Move to Bucket...") {
-                        moveToBucketItems = []
-                        moveToBucketFolders = [item.fullKey]
-                        showMoveToBucket = true
-                    }
-                    .disabled(appState.isReadOnly)
                     Divider()
                     Button("Delete Folder", role: .destructive) {
                         requestFolderDeletion(prefixes: [item.fullKey])
@@ -411,14 +433,6 @@ struct S3ObjectBrowserView: View {
                         moveToMenu(for: [obj])
                             .disabled(appState.isReadOnly)
                     }
-                    Button("Move to Bucket...") {
-                        if let obj = objects.first(where: { $0.key == item.fullKey }) {
-                            moveToBucketItems = [obj]
-                            moveToBucketFolders = []
-                            showMoveToBucket = true
-                        }
-                    }
-                    .disabled(appState.isReadOnly)
                     Divider()
                     Button("Delete", role: .destructive) {
                         objectsToDelete = objects.filter { $0.key == item.fullKey }
@@ -444,12 +458,6 @@ struct S3ObjectBrowserView: View {
                     .disabled(appState.isReadOnly)
                     mixedMoveToMenu(objects: movableObjs, folders: movableFolders)
                         .disabled(appState.isReadOnly)
-                    Button("Move \(moveCount) Items to Bucket...") {
-                        moveToBucketItems = movableObjs
-                        moveToBucketFolders = movableFolders
-                        showMoveToBucket = true
-                    }
-                    .disabled(appState.isReadOnly)
                 }
 
                 if !selectedItems.isEmpty {
@@ -591,6 +599,12 @@ struct S3ObjectBrowserView: View {
                 Button("No folders") {}
                     .disabled(true)
             }
+            Divider()
+            Button("Browse...") {
+                browsePickerItems = objs
+                browsePickerFolders = []
+                showBrowsePicker = true
+            }
         }
     }
 
@@ -622,6 +636,12 @@ struct S3ObjectBrowserView: View {
             if !hasParent && !hasFolders {
                 Button("No folders") {}
                     .disabled(true)
+            }
+            Divider()
+            Button("Browse...") {
+                browsePickerItems = []
+                browsePickerFolders = folders
+                showBrowsePicker = true
             }
         }
     }
@@ -656,6 +676,12 @@ struct S3ObjectBrowserView: View {
             if !hasParent && !hasFolders {
                 Button("No folders") {}
                     .disabled(true)
+            }
+            Divider()
+            Button("Browse...") {
+                browsePickerItems = objs
+                browsePickerFolders = folders
+                showBrowsePicker = true
             }
         }
     }
