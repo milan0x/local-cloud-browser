@@ -23,7 +23,8 @@ struct S3ObjectBrowserView: View {
     @State private var serviceError: ServiceError?
     @State private var showCreateFolder = false
     @State private var newFolderName = ""
-    @State private var objectToMove: S3Object?
+    @State private var objectsToMove: [S3Object] = []
+    @State private var isMovingObjects = false
     @State private var moveDestination = ""
 
     // Navigation history
@@ -116,8 +117,11 @@ struct S3ObjectBrowserView: View {
         .sheet(isPresented: $showCreateFolder) {
             createFolderSheet
         }
-        .sheet(item: $objectToMove) { obj in
-            moveSheet(for: obj)
+        .sheet(isPresented: Binding(
+            get: { !objectsToMove.isEmpty },
+            set: { if !$0 { objectsToMove = []; moveDestination = "" } }
+        )) {
+            moveSheet
         }
         .confirmationDialog(
             objectsToDelete.count == 1
@@ -328,8 +332,10 @@ struct S3ObjectBrowserView: View {
                         selectedObject = objects.first { $0.key == item.fullKey }
                     }
                     Button("Move...") {
-                        objectToMove = objects.first { $0.key == item.fullKey }
-                        moveDestination = currentPrefix
+                        if let obj = objects.first(where: { $0.key == item.fullKey }) {
+                            objectsToMove = [obj]
+                            moveDestination = currentPrefix
+                        }
                     }
                     .disabled(appState.isReadOnly)
                     Divider()
@@ -339,10 +345,17 @@ struct S3ObjectBrowserView: View {
                     .disabled(appState.isReadOnly)
                 }
             } else {
-                let deletableItems = items.filter { $0.id != Self.parentRowID && !$0.isFolder }
-                if !deletableItems.isEmpty {
-                    Button("Delete \(deletableItems.count) Items", role: .destructive) {
-                        objectsToDelete = deletableItems.compactMap { item in
+                let movableItems = items.filter { $0.id != Self.parentRowID && !$0.isFolder }
+                if !movableItems.isEmpty {
+                    Button("Move \(movableItems.count) Items...") {
+                        objectsToMove = movableItems.compactMap { item in
+                            objects.first { $0.key == item.fullKey }
+                        }
+                        moveDestination = currentPrefix
+                    }
+                    .disabled(appState.isReadOnly)
+                    Button("Delete \(movableItems.count) Items", role: .destructive) {
+                        objectsToDelete = movableItems.compactMap { item in
                             objects.first { $0.key == item.fullKey }
                         }
                     }
@@ -525,13 +538,32 @@ struct S3ObjectBrowserView: View {
 
     // MARK: - Move Sheet
 
-    private func moveSheet(for obj: S3Object) -> some View {
-        let filename = obj.key.components(separatedBy: "/").last ?? obj.key
-        let currentFolder = String(obj.key.dropLast(filename.count))
+    private var moveSheet: some View {
+        let isSingle = objectsToMove.count == 1
+        let title = isSingle ? "Move Object" : "Move \(objectsToMove.count) Objects"
+        let subtitle: String = {
+            if isSingle, let obj = objectsToMove.first {
+                return obj.key.components(separatedBy: "/").last ?? obj.key
+            }
+            return "\(objectsToMove.count) files"
+        }()
+        let currentFolder: String? = {
+            if isSingle, let obj = objectsToMove.first {
+                let filename = obj.key.components(separatedBy: "/").last ?? obj.key
+                return String(obj.key.dropLast(filename.count))
+            }
+            return nil
+        }()
+        let isMoveDisabled: Bool = {
+            if moveDestination.isEmpty { return true }
+            if let currentFolder { return moveDestination == currentFolder }
+            return false
+        }()
+
         return VStack(spacing: 16) {
-            Text("Move Object")
+            Text(title)
                 .font(.headline)
-            Text(filename)
+            Text(subtitle)
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
@@ -542,7 +574,7 @@ struct S3ObjectBrowserView: View {
                 TextField("e.g. folder/subfolder/", text: $moveDestination)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit {
-                        if moveDestination != currentFolder { performMove(obj: obj) }
+                        if !isMoveDisabled { performMove() }
                     }
             }
 
@@ -579,28 +611,41 @@ struct S3ObjectBrowserView: View {
 
             HStack {
                 Button("Cancel") {
-                    objectToMove = nil
+                    objectsToMove = []
                     moveDestination = ""
                 }
                 .keyboardShortcut(.cancelAction)
                 Spacer()
-                Button("Move") { performMove(obj: obj) }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(moveDestination == currentFolder)
+                if isMovingObjects {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Button("Move") { performMove() }
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(isMoveDisabled)
+                }
             }
         }
         .padding()
         .frame(width: 400)
     }
 
-    private func performMove(obj: S3Object) {
-        let filename = obj.key.components(separatedBy: "/").last ?? obj.key
-        let destinationKey = moveDestination + filename
-        objectToMove = nil
+    private func performMove() {
+        let objs = objectsToMove
+        let destination = moveDestination
+        objectsToMove = []
         moveDestination = ""
+        isMovingObjects = true
         Task {
             do {
-                try await service.moveObject(bucket: bucket.name, sourceKey: obj.key, destinationKey: destinationKey)
+                if objs.count == 1, let obj = objs.first {
+                    let filename = obj.key.components(separatedBy: "/").last ?? obj.key
+                    let destinationKey = destination + filename
+                    try await service.moveObject(bucket: bucket.name, sourceKey: obj.key, destinationKey: destinationKey)
+                } else {
+                    let keys = objs.map(\.key)
+                    try await service.moveObjects(bucket: bucket.name, sourceKeys: keys, destinationPrefix: destination)
+                }
                 loadObjects(force: true)
             } catch {
                 if let clientError = error as? LocalStackClientError,
@@ -610,6 +655,7 @@ struct S3ObjectBrowserView: View {
                     errorMessage = error.localizedDescription
                 }
             }
+            isMovingObjects = false
         }
     }
 
