@@ -54,6 +54,23 @@ final class S3Service: ObservableObject {
         )
     }
 
+    func createFolder(bucket: String, prefix: String, name: String) async throws {
+        let key = prefix + name + "/"
+        _ = try await client.s3Request(
+            method: "PUT",
+            path: "/\(bucket)/\(key)",
+            body: Data(),
+            contentType: "application/x-directory"
+        )
+    }
+
+    func moveObject(bucket: String, sourceKey: String, destinationKey: String) async throws {
+        let detail = try await headObject(bucket: bucket, key: sourceKey)
+        let data = try await getObject(bucket: bucket, key: sourceKey)
+        try await putObject(bucket: bucket, key: destinationKey, data: data, contentType: detail.contentType)
+        try await deleteObject(bucket: bucket, key: sourceKey)
+    }
+
     func deleteObject(bucket: String, key: String) async throws {
         _ = try await client.s3Request(method: "DELETE", path: "/\(bucket)/\(key)")
     }
