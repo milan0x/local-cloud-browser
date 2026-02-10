@@ -161,6 +161,11 @@ struct S3BucketListView: View {
                         openWindow(value: S3BrowserTarget(bucket: bucket.name, prefix: nil))
                     }
                     Divider()
+                    Button("Create Bucket") {
+                        showCreateSheet = true
+                    }
+                    .disabled(appState.isReadOnly)
+                    Divider()
                     if selectedBucketIDs.count > 1 && selectedBucketIDs.contains(bucket.id) {
                         let selected = buckets.filter { selectedBucketIDs.contains($0.id) }
                         Button("Delete \(selected.count) Buckets", role: .destructive) {
@@ -174,6 +179,12 @@ struct S3BucketListView: View {
                         .disabled(appState.isReadOnly)
                     }
                 }
+            }
+            .contextMenu {
+                Button("Create Bucket") {
+                    showCreateSheet = true
+                }
+                .disabled(appState.isReadOnly)
             }
         }
     }
