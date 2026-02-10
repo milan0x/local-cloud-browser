@@ -9,6 +9,7 @@ final class AppState: ObservableObject {
     @Published var region: String = "us-east-1"
     @Published var activeConnectionName: String = "Default"
     @Published var connectionVersion: Int = 0
+    let autoRefresh = AutoRefreshManager()
 
     func applyProfile(_ profile: ConnectionProfile) {
         endpoint = profile.endpoint

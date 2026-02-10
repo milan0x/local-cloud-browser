@@ -119,6 +119,9 @@ Phases are independent and ordered by complexity (simplest first):
 5. Force Delete Bucket — new service logic + two-step confirmation flow
 6. Universal Search — cross-cutting, touches ContentView + all modules
 
+## Completed (outside phases)
+- **Auto-refresh extraction** — reusable `AutoRefreshManager` (on `AppState`, injected as `@EnvironmentObject`), `AutoRefreshIndicatorView` (countdown in breadcrumb bar), `AutoRefreshMenuView` (single toolbar menu with Refresh Now + interval picker). Internal Task-based timer, `refreshTrigger` pattern. Both S3 bucket list and object browser auto-refresh. Settings view uses `@EnvironmentObject` directly.
+
 ## Verification
 
 After each phase: `swift build` must pass. Manual test against running LocalStack.

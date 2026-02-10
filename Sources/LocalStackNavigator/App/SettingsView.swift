@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @AppStorage("showFolderDetailsOnDelete") private var showFolderDetailsOnDelete = false
+    @EnvironmentObject private var autoRefresh: AutoRefreshManager
 
     var body: some View {
         Form {
@@ -12,6 +13,14 @@ struct SettingsView: View {
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+                Picker("Auto-refresh interval", selection: $autoRefresh.interval) {
+                    Text("Off").tag(0)
+                    Text("5 seconds").tag(5)
+                    Text("10 seconds").tag(10)
+                    Text("30 seconds").tag(30)
+                    Text("60 seconds").tag(60)
+                }
             }
         }
         .formStyle(.grouped)
