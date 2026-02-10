@@ -43,7 +43,11 @@
 - [x] Parent directory `..` row pinned at top when inside subfolders
 - [x] Default sort order: date descending (newest first)
 - [x] Folder picker (Browse...): revamped to mirror browser Table layout with files greyed out, clickable destination bar
-- [x] Search & filter: toolbar search bar with scope dropdown (Current Folder / Entire Bucket), extension matching, bucket-wide search via listAllObjects
+- [x] Search & filter: reusable `SearchBarView` component, current-folder filter with extension matching, fixed-width bar (no layout shift)
+- [x] Bucket list header rearranged: + button (white, before refresh menu), trash always visible (disabled until selection), pane widened to 260pt
+- [x] Delete dialogs: native macOS `.alert()` for all deletes (objects, folders, buckets), multi-delete lists items on separate lines
+- [x] Right-click context menus on empty areas: "Create Folder" + "Upload File" in empty object browser, "Create Bucket" in empty bucket list
+- [x] Auto-refresh menu: `.menuStyle(.borderlessButton)` + `.fixedSize()` for compact icon rendering
 
 ## Phase 3: SQS Module
 - [ ] List queues view
