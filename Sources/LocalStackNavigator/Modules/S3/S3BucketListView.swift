@@ -190,7 +190,14 @@ struct S3BucketListView: View {
         errorMessage = nil
         Task {
             do {
-                buckets = try await service.listBuckets()
+                buckets = try await service.listBuckets().sorted { a, b in
+                    switch (a.creationDate, b.creationDate) {
+                    case let (dateA?, dateB?): return dateA > dateB
+                    case (_?, nil): return true
+                    case (nil, _?): return false
+                    case (nil, nil): return a.name.localizedStandardCompare(b.name) == .orderedAscending
+                    }
+                }
             } catch {
                 errorMessage = error.localizedDescription
             }
