@@ -144,6 +144,7 @@ struct S3BucketListView: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
             .contextMenu {
                 Button("Create Bucket") {
                     showCreateSheet = true
