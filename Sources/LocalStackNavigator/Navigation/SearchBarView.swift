@@ -12,18 +12,17 @@ struct SearchBarView<TrailingContent: View>: View {
                 .font(.system(size: 11))
             TextField(placeholder, text: $query)
                 .textFieldStyle(.plain)
-                .frame(minWidth: 80, maxWidth: 180)
-            if !query.isEmpty {
-                trailing()
-                Button {
-                    query = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
+            trailing()
+            Button {
+                query = ""
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.secondary)
             }
+            .buttonStyle(.plain)
+            .opacity(query.isEmpty ? 0 : 1)
         }
+        .frame(width: 200)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
