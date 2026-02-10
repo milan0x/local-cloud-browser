@@ -4,7 +4,8 @@ struct S3ModuleView: View {
     @EnvironmentObject private var client: LocalStackClient
     @StateObject private var service: S3Service
 
-    @State private var selectedBucket: S3Bucket?
+    @State private var selectedBucketIDs: Set<S3Bucket.ID> = []
+    @State private var activeBucket: S3Bucket?
 
     init() {
         // Placeholder — real client injected via onAppear
@@ -15,13 +16,14 @@ struct S3ModuleView: View {
         HSplitView {
             S3BucketListView(
                 service: service,
-                selectedBucket: $selectedBucket
+                selectedBucketIDs: $selectedBucketIDs,
+                activeBucket: $activeBucket
             )
             .frame(width: 220)
 
             // Primary pane
             Group {
-                if let bucket = selectedBucket {
+                if let bucket = activeBucket {
                     S3ObjectBrowserView(
                         service: service,
                         bucket: bucket,

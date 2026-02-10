@@ -4,14 +4,15 @@ struct S3BucketListView: View {
     @ObservedObject var service: S3Service
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var autoRefresh: AutoRefreshManager
-    @Binding var selectedBucket: S3Bucket?
+    @Binding var selectedBucketIDs: Set<S3Bucket.ID>
+    @Binding var activeBucket: S3Bucket?
 
     @Environment(\.openWindow) private var openWindow
     @State private var buckets: [S3Bucket] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showCreateSheet = false
-    @State private var bucketToDelete: S3Bucket?
+    @State private var bucketsToDelete: [S3Bucket] = []
     @State private var serviceError: ServiceError?
     @State private var lastLoadTime: Date?
 
@@ -33,29 +34,49 @@ struct S3BucketListView: View {
                 .onDisappear { loadBuckets(force: true) }
         }
         .confirmationDialog(
-            "Delete Bucket",
+            bucketsToDelete.count == 1
+                ? "Delete Bucket"
+                : "Delete \(bucketsToDelete.count) Buckets",
             isPresented: Binding(
-                get: { bucketToDelete != nil },
-                set: { if !$0 { bucketToDelete = nil } }
-            ),
-            presenting: bucketToDelete
-        ) { bucket in
-            Button("Delete \"\(bucket.name)\"", role: .destructive) {
-                deleteBucket(bucket)
+                get: { !bucketsToDelete.isEmpty },
+                set: { if !$0 { bucketsToDelete = [] } }
+            )
+        ) {
+            if bucketsToDelete.count == 1, let bucket = bucketsToDelete.first {
+                Button("Delete \"\(bucket.name)\"", role: .destructive) {
+                    deleteBuckets(bucketsToDelete)
+                }
+            } else {
+                Button("Delete \(bucketsToDelete.count) Buckets", role: .destructive) {
+                    deleteBuckets(bucketsToDelete)
+                }
             }
-        } message: { bucket in
-            Text("Are you sure you want to delete \"\(bucket.name)\"? This cannot be undone.")
+        } message: {
+            if bucketsToDelete.count == 1, let bucket = bucketsToDelete.first {
+                Text("Are you sure you want to delete \"\(bucket.name)\"? This cannot be undone.")
+            } else {
+                let names = bucketsToDelete.map(\.name).joined(separator: ", ")
+                Text("Are you sure you want to delete \(bucketsToDelete.count) buckets (\(names))? This cannot be undone.")
+            }
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadBuckets() }
         .onChange(of: autoRefresh.refreshTrigger) {
-            guard !showCreateSheet && bucketToDelete == nil && !isLoading else { return }
+            guard !showCreateSheet && bucketsToDelete.isEmpty && !isLoading else { return }
             loadBuckets(force: true)
         }
         .onChange(of: appState.connectionVersion) {
-            selectedBucket = nil
+            selectedBucketIDs = []
+            activeBucket = nil
             buckets = []
             loadBuckets(force: true)
+        }
+        .onChange(of: selectedBucketIDs) {
+            if selectedBucketIDs.count == 1, let id = selectedBucketIDs.first {
+                activeBucket = buckets.first { $0.id == id }
+            } else {
+                activeBucket = nil
+            }
         }
     }
 
@@ -114,7 +135,7 @@ struct S3BucketListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            List(buckets, selection: $selectedBucket) { bucket in
+            List(buckets, selection: $selectedBucketIDs) { bucket in
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(bucket.name)
@@ -127,7 +148,7 @@ struct S3BucketListView: View {
                     }
                     Spacer()
                     Button(role: .destructive) {
-                        bucketToDelete = bucket
+                        bucketsToDelete = [bucket]
                     } label: {
                         Image(systemName: "trash")
                             .foregroundStyle(appState.isReadOnly ? .gray : .red)
@@ -135,16 +156,24 @@ struct S3BucketListView: View {
                     .buttonStyle(.borderless)
                     .disabled(appState.isReadOnly)
                 }
-                .tag(bucket)
+                .tag(bucket.id)
                 .contextMenu {
                     Button("Open in New Window") {
                         openWindow(value: S3BrowserTarget(bucket: bucket.name, prefix: nil))
                     }
                     Divider()
-                    Button("Delete", role: .destructive) {
-                        bucketToDelete = bucket
+                    if selectedBucketIDs.count > 1 && selectedBucketIDs.contains(bucket.id) {
+                        let selected = buckets.filter { selectedBucketIDs.contains($0.id) }
+                        Button("Delete \(selected.count) Buckets", role: .destructive) {
+                            bucketsToDelete = selected
+                        }
+                        .disabled(appState.isReadOnly)
+                    } else {
+                        Button("Delete", role: .destructive) {
+                            bucketsToDelete = [bucket]
+                        }
+                        .disabled(appState.isReadOnly)
                     }
-                    .disabled(appState.isReadOnly)
                 }
             }
         }
@@ -170,19 +199,28 @@ struct S3BucketListView: View {
         }
     }
 
-    private func deleteBucket(_ bucket: S3Bucket) {
+    private func deleteBuckets(_ targets: [S3Bucket]) {
         Task {
-            do {
-                try await service.deleteBucket(name: bucket.name)
-                if selectedBucket == bucket { selectedBucket = nil }
-                loadBuckets(force: true)
-            } catch {
-                if let clientError = error as? LocalStackClientError,
-                   let parsed = clientError.serviceError {
-                    serviceError = parsed
-                } else {
-                    errorMessage = error.localizedDescription
+            var deletedIDs: Set<S3Bucket.ID> = []
+            for bucket in targets {
+                do {
+                    try await service.deleteBucket(name: bucket.name)
+                    deletedIDs.insert(bucket.id)
+                } catch {
+                    if let clientError = error as? LocalStackClientError,
+                       let parsed = clientError.serviceError {
+                        serviceError = parsed
+                    } else {
+                        errorMessage = error.localizedDescription
+                    }
                 }
+            }
+            if !deletedIDs.isEmpty {
+                selectedBucketIDs.subtract(deletedIDs)
+                if let active = activeBucket, deletedIDs.contains(active.id) {
+                    activeBucket = nil
+                }
+                loadBuckets(force: true)
             }
         }
     }

@@ -1409,6 +1409,8 @@ struct S3ObjectBrowserView: View {
                 if !allKeys.isEmpty {
                     _ = try await service.deleteObjects(bucket: bucket.name, keys: allKeys)
                 }
+                selectedRowIDs.subtract(Set(allKeys))
+                selectedRowIDs.subtract(Set(folders.map(\.prefix)))
                 loadObjects(force: true)
             } catch {
                 if let clientError = error as? LocalStackClientError,
@@ -1429,6 +1431,7 @@ struct S3ObjectBrowserView: View {
             do {
                 let keys = objs.map(\.key)
                 _ = try await service.deleteObjects(bucket: bucket.name, keys: keys)
+                selectedRowIDs.subtract(Set(keys))
                 loadObjects(force: true)
             } catch {
                 if let clientError = error as? LocalStackClientError,
