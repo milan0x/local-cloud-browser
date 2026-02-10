@@ -95,63 +95,7 @@ struct S3ObjectBrowserView: View {
             Divider()
             contentArea
         }
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                HStack(spacing: 4) {
-                    Button { navigateBack() } label: {
-                        Image(systemName: "chevron.left")
-                    }
-                    .disabled(!canGoBack || isLoading)
-                    .help("Back")
-                    Button { navigateForward() } label: {
-                        Image(systemName: "chevron.right")
-                    }
-                    .disabled(!canGoForward || isLoading)
-                    .help("Forward")
-                }
-            }
-            ToolbarItem(placement: .primaryAction) {
-                SearchBarView(query: $searchQuery, placeholder: "Search in folder")
-            }
-            ToolbarItem(placement: .primaryAction) {
-                HStack(spacing: 8) {
-                    Button { showPolicyEditor = true } label: {
-                        Image(systemName: "doc.text")
-                    }
-                    .help("Bucket Policy")
-
-                    Button { showCreateFolder = true } label: {
-                        Image(systemName: "folder.badge.plus")
-                    }
-                    .help("Create Folder")
-                    .disabled(appState.isReadOnly)
-
-                    Button { uploadFile() } label: {
-                        Image(systemName: "plus")
-                    }
-                    .help("Upload File")
-                    .disabled(appState.isReadOnly)
-
-                    Button {
-                        let allDeletable = allDeletableSelectedItems
-                        let folderPrefixes = allDeletable.filter { $0.isFolder }.map(\.fullKey)
-                        let fileObjs = allDeletable.filter { !$0.isFolder }.compactMap { item in
-                            objects.first { $0.key == item.fullKey }
-                        }
-                        if folderPrefixes.isEmpty {
-                            if !fileObjs.isEmpty { objectsToDelete = fileObjs }
-                        } else {
-                            standaloneObjectsToDelete = fileObjs
-                            requestFolderDeletion(prefixes: folderPrefixes)
-                        }
-                    } label: {
-                        Image(systemName: "trash")
-                    }
-                    .help("Delete Selected")
-                    .disabled(appState.isReadOnly || selectedRowIDs.subtracting([Self.parentRowID]).isEmpty || isDeletingObjects || isDeletingFolders)
-                }
-            }
-        }
+        .toolbar(id: "objectBrowser") { toolbarContent }
         .sheet(item: $selectedObject) { obj in
             S3ObjectMetadataView(service: service, bucket: bucket.name, objectKey: obj.key)
         }
@@ -269,6 +213,70 @@ struct S3ObjectBrowserView: View {
         .onChange(of: autoRefresh.refreshTrigger) {
             guard !anySheetOpen && !isLoading else { return }
             loadObjects(force: true, silent: true)
+        }
+    }
+
+    // MARK: - Toolbar
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some CustomizableToolbarContent {
+        ToolbarItem(id: "navigation", placement: .navigation) {
+            HStack(spacing: 4) {
+                Button { navigateBack() } label: {
+                    Image(systemName: "chevron.left")
+                }
+                .disabled(!canGoBack || isLoading)
+                .help("Back")
+                Button { navigateForward() } label: {
+                    Image(systemName: "chevron.right")
+                }
+                .disabled(!canGoForward || isLoading)
+                .help("Forward")
+            }
+        }
+        ToolbarItem(id: "search", placement: .primaryAction) {
+            SearchBarView(query: $searchQuery, placeholder: "Search in folder")
+        }
+        ToolbarItem(id: "policy", placement: .primaryAction) {
+            Button { showPolicyEditor = true } label: {
+                Label("Policy", systemImage: "doc.text")
+            }
+            .help("Bucket Policy")
+        }
+        ToolbarItem(id: "createFolder", placement: .primaryAction) {
+            Button { showCreateFolder = true } label: {
+                Label("Folder", systemImage: "folder.badge.plus")
+            }
+            .help("Create Folder")
+            .disabled(appState.isReadOnly)
+        }
+        ToolbarItem(id: "upload", placement: .primaryAction) {
+            Button { uploadFile() } label: {
+                Label("Upload", systemImage: "plus")
+            }
+            .help("Upload File")
+            .disabled(appState.isReadOnly)
+        }
+        ToolbarItem(id: "delete", placement: .primaryAction) {
+            Button { deleteSelectedItems() } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            .help("Delete Selected")
+            .disabled(appState.isReadOnly || selectedRowIDs.subtracting([Self.parentRowID]).isEmpty || isDeletingObjects || isDeletingFolders)
+        }
+    }
+
+    private func deleteSelectedItems() {
+        let allDeletable = allDeletableSelectedItems
+        let folderPrefixes = allDeletable.filter { $0.isFolder }.map(\.fullKey)
+        let fileObjs = allDeletable.filter { !$0.isFolder }.compactMap { item in
+            objects.first { $0.key == item.fullKey }
+        }
+        if folderPrefixes.isEmpty {
+            if !fileObjs.isEmpty { objectsToDelete = fileObjs }
+        } else {
+            standaloneObjectsToDelete = fileObjs
+            requestFolderDeletion(prefixes: folderPrefixes)
         }
     }
 
