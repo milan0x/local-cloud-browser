@@ -51,8 +51,7 @@
 - [x] S3 global region indicator: "Global" badge (dimmed) replaces region name when viewing S3, tooltip explains S3 buckets are not region-specific
 - [x] Bucket list "Global" caption next to header title
 - [x] Toolbar "Icons and Text" mode: action buttons use `Label` for proper display, search bar moved to breadcrumb bar
-- [x] Toolbar display mode persistence: `ToolbarDisplayModeSaver` (NSToolbar KVO + UserDefaults)
-- [x] Disabled toolbar placeholder: action buttons shown grayed-out when no bucket selected
+- [x] Toolbar refactored: shared `S3ToolbarState` (ObservableObject bridge) + `S3Toolbar` (reusable ToolbarContent), owned by parent view (S3ModuleView / S3BrowserWindow), buttons disabled when no bucket selected. Removed `ToolbarDisplayModeSaver` (KVO hack) and duplicate placeholder toolbar.
 - [x] Sidebar title removed (empty `.navigationTitle("")`)
 
 ## Phase 3: SQS Module

@@ -10,7 +10,9 @@ struct S3BrowserTarget: Codable, Hashable {
 struct S3BrowserWindow: View {
     let target: S3BrowserTarget
     @EnvironmentObject private var client: LocalStackClient
+    @EnvironmentObject private var appState: AppState
     @StateObject private var service: S3Service
+    @StateObject private var toolbarState = S3ToolbarState()
 
     init(target: S3BrowserTarget) {
         self.target = target
@@ -21,8 +23,16 @@ struct S3BrowserWindow: View {
         S3ObjectBrowserView(
             service: service,
             bucket: S3Bucket(name: target.bucket, creationDate: nil),
-            paneID: "window-\(target.bucket)"
+            paneID: "window-\(target.bucket)",
+            toolbarState: toolbarState
         )
+        .toolbar(id: "s3-window") {
+            S3Toolbar(
+                state: toolbarState,
+                isReadOnly: appState.isReadOnly,
+                hasBucket: true
+            )
+        }
         .navigationTitle(windowTitle)
         .onAppear {
             service.updateClient(client)
