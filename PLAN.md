@@ -42,6 +42,7 @@
 - [x] Back/forward navigation with history stack + toolbar buttons
 - [x] Parent directory `..` row pinned at top when inside subfolders
 - [x] Default sort order: date descending (newest first)
+- [x] Folder picker (Browse...): revamped to mirror browser Table layout with files greyed out, clickable destination bar
 
 ## Phase 3: SQS Module
 - [ ] List queues view
