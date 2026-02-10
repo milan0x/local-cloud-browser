@@ -8,6 +8,7 @@ struct S3ObjectBrowserView: View {
     @Environment(\.openWindow) private var openWindow
     let bucket: S3Bucket
     var paneID: String = "main"
+    @ObservedObject var toolbarState: S3ToolbarState
 
     @State private var objects: [S3Object] = []
     @State private var prefixes: [S3Prefix] = []
@@ -91,7 +92,6 @@ struct S3ObjectBrowserView: View {
 
     var body: some View {
         mainContent
-            .toolbar { toolbarContent }
             .serviceErrorAlert(error: $serviceError)
             .task(id: bucket.id) {
                 pathComponents = []
@@ -105,6 +105,26 @@ struct S3ObjectBrowserView: View {
             .onChange(of: autoRefresh.refreshTrigger) {
                 guard !anySheetOpen && !isLoading else { return }
                 loadObjects(force: true, silent: true)
+            }
+            // Sync toolbar display state
+            .onChange(of: isLoading) { toolbarState.isLoading = isLoading }
+            .onChange(of: isDeletingObjects) { toolbarState.isDeleting = isDeletingObjects || isDeletingFolders }
+            .onChange(of: isDeletingFolders) { toolbarState.isDeleting = isDeletingObjects || isDeletingFolders }
+            .onChange(of: selectedRowIDs) {
+                toolbarState.hasSelection = !selectedRowIDs.subtracting([Self.parentRowID]).isEmpty
+            }
+            // Handle toolbar actions
+            .onChange(of: toolbarState.pendingAction) { _, action in
+                guard let action else { return }
+                toolbarState.pendingAction = nil
+                switch action {
+                case .navigateBack: navigateBack()
+                case .navigateForward: navigateForward()
+                case .showPolicy: showPolicyEditor = true
+                case .createFolder: showCreateFolder = true
+                case .upload: uploadFile()
+                case .deleteSelected: deleteSelectedItems()
+                }
             }
     }
 
@@ -221,53 +241,6 @@ struct S3ObjectBrowserView: View {
                 browsePickerFolders = []
                 performMoveToBucket()
             }
-        }
-    }
-
-    // MARK: - Toolbar
-
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            HStack(spacing: 4) {
-                Button { navigateBack() } label: {
-                    Image(systemName: "chevron.left")
-                }
-                .disabled(!canGoBack || isLoading)
-                .help("Back")
-                Button { navigateForward() } label: {
-                    Image(systemName: "chevron.right")
-                }
-                .disabled(!canGoForward || isLoading)
-                .help("Forward")
-            }
-        }
-        ToolbarItem(placement: .primaryAction) {
-            Button { showPolicyEditor = true } label: {
-                Label("Policy", systemImage: "doc.text")
-            }
-            .help("Bucket Policy")
-        }
-        ToolbarItem(placement: .primaryAction) {
-            Button { showCreateFolder = true } label: {
-                Label("Folder", systemImage: "folder.badge.plus")
-            }
-            .help("Create Folder")
-            .disabled(appState.isReadOnly)
-        }
-        ToolbarItem(placement: .primaryAction) {
-            Button { uploadFile() } label: {
-                Label("Upload", systemImage: "plus")
-            }
-            .help("Upload File")
-            .disabled(appState.isReadOnly)
-        }
-        ToolbarItem(placement: .primaryAction) {
-            Button { deleteSelectedItems() } label: {
-                Label("Delete", systemImage: "trash")
-            }
-            .help("Delete Selected")
-            .disabled(appState.isReadOnly || selectedRowIDs.subtracting([Self.parentRowID]).isEmpty || isDeletingObjects || isDeletingFolders)
         }
     }
 
@@ -1204,6 +1177,7 @@ struct S3ObjectBrowserView: View {
         historyIndex += 1
         pathComponents = components
         resetPagination()
+        syncToolbarNavigation()
         loadObjects(force: true)
     }
 
@@ -1212,6 +1186,7 @@ struct S3ObjectBrowserView: View {
         historyIndex -= 1
         pathComponents = navigationHistory[historyIndex]
         resetPagination()
+        syncToolbarNavigation()
         loadObjects(force: true)
     }
 
@@ -1220,7 +1195,13 @@ struct S3ObjectBrowserView: View {
         historyIndex += 1
         pathComponents = navigationHistory[historyIndex]
         resetPagination()
+        syncToolbarNavigation()
         loadObjects(force: true)
+    }
+
+    private func syncToolbarNavigation() {
+        toolbarState.canGoBack = canGoBack
+        toolbarState.canGoForward = canGoForward
     }
 
     // MARK: - Actions

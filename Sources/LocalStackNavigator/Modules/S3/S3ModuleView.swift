@@ -1,9 +1,10 @@
 import SwiftUI
-import AppKit
 
 struct S3ModuleView: View {
     @EnvironmentObject private var client: LocalStackClient
+    @EnvironmentObject private var appState: AppState
     @StateObject private var service: S3Service
+    @StateObject private var toolbarState = S3ToolbarState()
 
     @State private var selectedBucketIDs: Set<S3Bucket.ID> = []
     @State private var activeBucket: S3Bucket?
@@ -28,7 +29,8 @@ struct S3ModuleView: View {
                     S3ObjectBrowserView(
                         service: service,
                         bucket: bucket,
-                        paneID: "main"
+                        paneID: "main",
+                        toolbarState: toolbarState
                     )
                 } else {
                     VStack(spacing: 8) {
@@ -39,96 +41,22 @@ struct S3ModuleView: View {
                             .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .toolbar {
-                        ToolbarItem(placement: .navigation) {
-                            HStack(spacing: 4) {
-                                Button {} label: { Image(systemName: "chevron.left") }
-                                    .disabled(true)
-                                    .help("Back")
-                                Button {} label: { Image(systemName: "chevron.right") }
-                                    .disabled(true)
-                                    .help("Forward")
-                            }
-                        }
-                        ToolbarItem(placement: .primaryAction) {
-                            Button {} label: { Label("Policy", systemImage: "doc.text") }
-                                .disabled(true)
-                                .help("Bucket Policy")
-                        }
-                        ToolbarItem(placement: .primaryAction) {
-                            Button {} label: { Label("Folder", systemImage: "folder.badge.plus") }
-                                .disabled(true)
-                                .help("Create Folder")
-                        }
-                        ToolbarItem(placement: .primaryAction) {
-                            Button {} label: { Label("Upload", systemImage: "plus") }
-                                .disabled(true)
-                                .help("Upload File")
-                        }
-                        ToolbarItem(placement: .primaryAction) {
-                            Button {} label: { Label("Delete", systemImage: "trash") }
-                                .disabled(true)
-                                .help("Delete Selected")
-                        }
-                    }
                 }
             }
             .frame(minWidth: 400)
-            .background(ToolbarDisplayModeSaver())
+        }
+        .toolbar(id: "s3") {
+            S3Toolbar(
+                state: toolbarState,
+                isReadOnly: appState.isReadOnly,
+                hasBucket: activeBucket != nil
+            )
+        }
+        .onChange(of: activeBucket) {
+            toolbarState.reset()
         }
         .onAppear {
             service.updateClient(client)
-        }
-    }
-}
-
-// MARK: - Toolbar Display Mode Persistence
-
-private struct ToolbarDisplayModeSaver: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView {
-        ToolbarObserverView()
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        (nsView as? ToolbarObserverView)?.restoreDisplayMode()
-    }
-
-    class ToolbarObserverView: NSView {
-        private var observation: NSKeyValueObservation?
-        private static let defaultsKey = "toolbarDisplayMode"
-
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            observation?.invalidate()
-            observation = nil
-            guard let toolbar = window?.toolbar else { return }
-
-            restoreDisplayMode()
-
-            let key = Self.defaultsKey
-            observation = toolbar.observe(\.displayMode, options: [.new]) { _, change in
-                if let mode = change.newValue {
-                    UserDefaults.standard.set(Int(mode.rawValue), forKey: key)
-                }
-            }
-        }
-
-        func restoreDisplayMode() {
-            guard let toolbar = window?.toolbar else { return }
-
-            // Restore saved display mode
-            if UserDefaults.standard.object(forKey: Self.defaultsKey) != nil {
-                let saved = UserDefaults.standard.integer(forKey: Self.defaultsKey)
-                let mode = NSToolbar.DisplayMode(rawValue: UInt(saved)) ?? .default
-                if toolbar.displayMode != mode {
-                    toolbar.displayMode = mode
-                }
-            }
-
-        }
-
-        deinit {
-            observation?.invalidate()
         }
     }
 }
