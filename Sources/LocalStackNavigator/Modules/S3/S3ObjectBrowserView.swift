@@ -746,7 +746,10 @@ struct S3ObjectBrowserView: View {
 
     private var isValidFolderName: Bool {
         let trimmed = newFolderName.trimmingCharacters(in: .whitespaces)
-        return !trimmed.isEmpty && !trimmed.contains("/")
+        let segments = trimmed.split(separator: "/", omittingEmptySubsequences: false)
+        return !trimmed.isEmpty && !trimmed.hasPrefix("/") && !trimmed.hasSuffix("/")
+            && !segments.contains("..")
+            && !segments.contains(".")
     }
 
     private var createFolderSheet: some View {
