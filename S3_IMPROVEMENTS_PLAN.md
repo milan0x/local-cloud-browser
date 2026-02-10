@@ -112,7 +112,7 @@
 ## Implementation Order
 
 Phases are independent and ordered by complexity (simplest first):
-1. ~~Create Folder~~ ✅ (also includes move, back/forward, parent row)
+1. ~~Create Folder~~ ✅ (also includes move, back/forward, parent row, folder picker revamp)
 2. Multi-Select Delete — changes Table selection type
 3. Copy Object Key — trivial addition
 4. Inline Text Preview — extends existing metadata sheet
