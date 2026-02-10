@@ -109,10 +109,6 @@ struct S3ObjectBrowserView: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 HStack(spacing: 8) {
-                    AutoRefreshMenuView(interval: $autoRefresh.interval) {
-                        loadObjects()
-                    }
-
                     Button { showPolicyEditor = true } label: {
                         Image(systemName: "doc.text")
                     }
@@ -278,11 +274,6 @@ struct S3ObjectBrowserView: View {
             }
 
             Spacer()
-
-            AutoRefreshIndicatorView(manager: autoRefresh) {
-                loadObjects(force: true)
-            }
-            .padding(.trailing, 12)
         }
     }
 
