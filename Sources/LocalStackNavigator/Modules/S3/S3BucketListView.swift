@@ -65,12 +65,16 @@ struct S3BucketListView: View {
         HStack {
             Text("Buckets")
                 .font(.headline)
+
+            AutoRefreshIndicatorView(manager: autoRefresh) {
+                loadBuckets(force: true)
+            }
+
             Spacer()
 
-            Button { loadBuckets(force: true) } label: {
-                Image(systemName: "arrow.clockwise")
+            AutoRefreshMenuView(interval: $autoRefresh.interval) {
+                loadBuckets(force: true)
             }
-            .buttonStyle(.borderless)
             .disabled(isLoading)
 
             Button { showCreateSheet = true } label: {
