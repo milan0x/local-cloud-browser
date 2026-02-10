@@ -301,7 +301,7 @@ struct S3ObjectBrowserView: View {
                 Button("Retry") { loadObjects() }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if rowItems.isEmpty && pathComponents.isEmpty && !isSearchActive {
+        } else if rowItems.isEmpty && !isSearchActive {
             VStack(spacing: 8) {
                 Image(systemName: "folder")
                     .font(.title)
@@ -310,6 +310,7 @@ struct S3ObjectBrowserView: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
             .contextMenu {
                 Button("Create Folder") {
                     showCreateFolder = true
