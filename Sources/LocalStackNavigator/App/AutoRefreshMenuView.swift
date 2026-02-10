@@ -6,6 +6,8 @@ struct AutoRefreshMenuView: View {
 
     private static let options: [(label: String, value: Int)] = [
         ("Off", 0),
+        ("1 second", 1),
+        ("3 seconds", 3),
         ("5 seconds", 5),
         ("10 seconds", 10),
         ("30 seconds", 30),
