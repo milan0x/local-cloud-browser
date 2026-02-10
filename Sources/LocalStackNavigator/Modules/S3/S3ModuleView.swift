@@ -45,7 +45,7 @@ struct S3ModuleView: View {
             }
             .frame(minWidth: 400)
         }
-        .toolbar(id: "s3") {
+        .toolbar {
             S3Toolbar(
                 state: toolbarState,
                 isReadOnly: appState.isReadOnly,

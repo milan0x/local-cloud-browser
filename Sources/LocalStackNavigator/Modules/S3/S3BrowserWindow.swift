@@ -26,7 +26,7 @@ struct S3BrowserWindow: View {
             paneID: "window-\(target.bucket)",
             toolbarState: toolbarState
         )
-        .toolbar(id: "s3-window") {
+        .toolbar {
             S3Toolbar(
                 state: toolbarState,
                 isReadOnly: appState.isReadOnly,
