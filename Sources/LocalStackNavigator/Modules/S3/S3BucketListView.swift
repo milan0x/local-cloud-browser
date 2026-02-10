@@ -93,27 +93,26 @@ struct S3BucketListView: View {
 
             Spacer()
 
+            Button { showCreateSheet = true } label: {
+                Image(systemName: "plus")
+                    .foregroundStyle(appState.isReadOnly ? .gray : Color.white)
+            }
+            .buttonStyle(.borderless)
+            .disabled(appState.isReadOnly)
+
             AutoRefreshMenuView(interval: $autoRefresh.interval) {
                 loadBuckets(force: true)
             }
 
-            if !selectedBucketIDs.isEmpty {
-                Button {
-                    bucketsToDelete = buckets.filter { selectedBucketIDs.contains($0.id) }
-                } label: {
-                    Image(systemName: "trash")
-                        .foregroundStyle(appState.isReadOnly ? .gray : .red)
-                }
-                .buttonStyle(.borderless)
-                .disabled(appState.isReadOnly)
-                .help(selectedBucketIDs.count == 1 ? "Delete Bucket" : "Delete \(selectedBucketIDs.count) Buckets")
-            }
-
-            Button { showCreateSheet = true } label: {
-                Image(systemName: "plus")
+            Button {
+                bucketsToDelete = buckets.filter { selectedBucketIDs.contains($0.id) }
+            } label: {
+                Image(systemName: "trash")
+                    .foregroundStyle(appState.isReadOnly || selectedBucketIDs.isEmpty ? .gray : .red)
             }
             .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
+            .disabled(appState.isReadOnly || selectedBucketIDs.isEmpty)
+            .help(selectedBucketIDs.count <= 1 ? "Delete Bucket" : "Delete \(selectedBucketIDs.count) Buckets")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

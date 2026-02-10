@@ -41,6 +41,8 @@ struct AutoRefreshMenuView: View {
             Image(systemName: "arrow.clockwise")
                 .foregroundStyle(interval > 0 ? Color.accentColor : .secondary)
         }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
         .help(interval > 0 ? "Auto-refresh: \(interval)s" : "Refresh")
     }
 }

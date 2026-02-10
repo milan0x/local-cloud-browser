@@ -19,7 +19,7 @@ struct S3ModuleView: View {
                 selectedBucketIDs: $selectedBucketIDs,
                 activeBucket: $activeBucket
             )
-            .frame(width: 220)
+            .frame(width: 260)
 
             // Primary pane
             Group {
