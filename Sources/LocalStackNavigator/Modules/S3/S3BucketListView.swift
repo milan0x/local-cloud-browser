@@ -144,6 +144,12 @@ struct S3BucketListView: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contextMenu {
+                Button("Create Bucket") {
+                    showCreateSheet = true
+                }
+                .disabled(appState.isReadOnly)
+            }
         } else {
             List(buckets, selection: $selectedBucketIDs) { bucket in
                 VStack(alignment: .leading, spacing: 2) {
