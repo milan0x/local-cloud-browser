@@ -20,17 +20,23 @@ struct ContentView: View {
         }
     }
 
+    private var isGlobalService: Bool {
+        appState.selectedRoute == .s3
+    }
+
     private var regionBadge: some View {
         HStack(spacing: 4) {
             Image(systemName: "globe")
                 .font(.caption)
-            Text(appState.region)
+            Text(isGlobalService ? "Global" : appState.region)
                 .font(.caption)
                 .fontWeight(.medium)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(.quaternary, in: Capsule())
+        .opacity(isGlobalService ? 0.5 : 1.0)
+        .help(isGlobalService ? "S3 buckets are global on LocalStack, not region-specific" : "Region: \(appState.region)")
     }
 
     @ViewBuilder
