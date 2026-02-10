@@ -85,23 +85,21 @@
 
 ## Phase 6: S3 Search & Filter ✅
 
-**Goal:** Search and filter objects in S3 buckets — local folder filter + bucket-wide search.
+**Goal:** Search and filter objects in the current folder.
 
 **Completed:**
-- [x] Inline toolbar search bar: magnifying glass icon + text field + scope dropdown + clear button, rounded rect background
-- [x] Scope dropdown (Menu): "Current Folder" (default) / "Entire Bucket", compact capsule label with system dropdown arrow
-- [x] Current folder mode: filters visible `rowItems` by name (case-insensitive contains); `.ext` queries match file suffixes
-- [x] Entire bucket mode: fetches all objects via `listAllObjects(prefix: "")`, caches in `bucketSearchResults`, filters client-side by full key path
-- [x] Data pipeline: `rowItems → filteredRowItems → sortedRowItems` (current folder) or `bucketSearchResults → searchRowItems → sortedRowItems` (bucket-wide)
-- [x] Status bar: "3 of 15 items" (folder filter) or "12 results" / "No results" (bucket-wide)
+- [x] Reusable `SearchBarView` component: extracted to `Navigation/SearchBarView.swift`, generic `TrailingContent` parameter, fixed 200pt width (no layout shift), clear button always present (opacity toggle)
+- [x] Inline toolbar search bar: magnifying glass icon + text field + clear button, rounded rect background, placeholder "Search in folder"
+- [x] Current folder filter: filters visible `rowItems` by name (case-insensitive contains); `.ext` queries match file suffixes
+- [x] Data pipeline: `rowItems → filteredRowItems → sortedRowItems`
+- [x] Status bar: "3 of 15 items" (when filtering)
 - [x] Empty search state: "No matches for [query]" centered placeholder
-- [x] Inline loading spinner in toolbar during bucket fetch
-- [x] Full-screen "Searching bucket..." spinner on first fetch
 - [x] Parent `..` row suppressed during active search
-- [x] Context menus and actions use `activeObjects` helper to resolve objects from either current folder or bucket search results
-- [x] Auto-refresh skipped while bucket search in progress
 - [x] Bucket change (`.task(id:)`) clears search state
 - [x] Double-click folder during search clears search and navigates
+
+**Removed (simplification):**
+- Bucket-wide search scope ("Entire Bucket") — removed to reduce complexity. Scope dropdown, `bucketSearchResults`, `searchRowItems`, `activeObjects`, `SearchScope` enum, `performBucketSearch()` all removed. Current-folder filtering covers the primary use case.
 
 ---
 
@@ -113,10 +111,14 @@ Phases are independent and ordered by complexity (simplest first):
 3. Copy Object Key — trivial addition
 4. Inline Text Preview — extends existing metadata sheet
 5. Force Delete Bucket — new service logic + two-step confirmation flow
-6. ~~S3 Search & Filter~~ ✅ (toolbar search bar with folder/bucket scope dropdown)
+6. ~~S3 Search & Filter~~ ✅ (reusable SearchBarView, current-folder filter only)
 
 ## Completed (outside phases)
-- **Auto-refresh extraction** — reusable `AutoRefreshManager` (on `AppState`, injected as `@EnvironmentObject`), `AutoRefreshIndicatorView` (countdown in breadcrumb bar), `AutoRefreshMenuView` (single toolbar menu with Refresh Now + interval picker). Internal Task-based timer, `refreshTrigger` pattern. Both S3 bucket list and object browser auto-refresh. Settings view uses `@EnvironmentObject` directly.
+- **Auto-refresh extraction** — reusable `AutoRefreshManager` (on `AppState`, injected as `@EnvironmentObject`), `AutoRefreshIndicatorView` (countdown in breadcrumb bar), `AutoRefreshMenuView` (single toolbar menu with Refresh Now + interval picker, `.menuStyle(.borderlessButton)` + `.fixedSize()` for compact icon). Internal Task-based timer, `refreshTrigger` pattern. Both S3 bucket list and object browser auto-refresh. Settings view uses `@EnvironmentObject` directly.
+- **Bucket list header layout** — Rearranged: Buckets label → countdown → spacer → + (create, accent-colored) → refresh menu → trash (always visible, disabled until selection). Pane width increased from 220pt to 260pt to prevent layout cramping when delete button appears.
+- **Native delete dialogs** — All delete confirmations (objects, folders, buckets) use `.alert()` (native macOS NSAlert) instead of `.confirmationDialog()` or custom sheets. Multi-delete lists each item name on separate lines. Removed the large custom `folderDeleteSheet` view.
+- **Right-click context menus on empty areas** — Object browser empty state: right-click shows "Create Folder" + "Upload File". Bucket list empty state: right-click shows "Create Bucket". Uses `.contentShape(Rectangle())` for full-area hit detection. Also added "Create Bucket" to per-row bucket context menu.
+- **SearchBarView component** — Reusable `Navigation/SearchBarView.swift` with generic `TrailingContent`, fixed 200pt width, convenience init for no trailing content (`EmptyView`). Used by S3 object browser; ready for future SQS/SNS/Secrets Manager modules.
 
 ## Verification
 
