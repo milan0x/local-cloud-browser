@@ -33,7 +33,7 @@ struct S3BucketListView: View {
             S3CreateBucketView(service: service)
                 .onDisappear { loadBuckets(force: true) }
         }
-        .confirmationDialog(
+        .alert(
             bucketsToDelete.count == 1
                 ? "Delete Bucket"
                 : "Delete \(bucketsToDelete.count) Buckets",
@@ -42,21 +42,18 @@ struct S3BucketListView: View {
                 set: { if !$0 { bucketsToDelete = [] } }
             )
         ) {
-            if bucketsToDelete.count == 1, let bucket = bucketsToDelete.first {
-                Button("Delete \"\(bucket.name)\"", role: .destructive) {
-                    deleteBuckets(bucketsToDelete)
-                }
-            } else {
-                Button("Delete \(bucketsToDelete.count) Buckets", role: .destructive) {
-                    deleteBuckets(bucketsToDelete)
-                }
+            Button("Delete", role: .destructive) {
+                deleteBuckets(bucketsToDelete)
+            }
+            Button("Cancel", role: .cancel) {
+                bucketsToDelete = []
             }
         } message: {
             if bucketsToDelete.count == 1, let bucket = bucketsToDelete.first {
-                Text("Are you sure you want to delete \"\(bucket.name)\"? This cannot be undone.")
+                Text("Are you sure you want to delete \"\(bucket.name)\"?\n\nThis cannot be undone.")
             } else {
-                let names = bucketsToDelete.map(\.name).joined(separator: ", ")
-                Text("Are you sure you want to delete \(bucketsToDelete.count) buckets (\(names))? This cannot be undone.")
+                let names = bucketsToDelete.map(\.name).joined(separator: "\n")
+                Text("Are you sure you want to delete these buckets?\n\n\(names)\n\nThis cannot be undone.")
             }
         }
         .serviceErrorAlert(error: $serviceError)
