@@ -96,7 +96,18 @@ struct S3BucketListView: View {
             AutoRefreshMenuView(interval: $autoRefresh.interval) {
                 loadBuckets(force: true)
             }
-            .disabled(isLoading)
+
+            if !selectedBucketIDs.isEmpty {
+                Button {
+                    bucketsToDelete = buckets.filter { selectedBucketIDs.contains($0.id) }
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundStyle(appState.isReadOnly ? .gray : .red)
+                }
+                .buttonStyle(.borderless)
+                .disabled(appState.isReadOnly)
+                .help(selectedBucketIDs.count == 1 ? "Delete Bucket" : "Delete \(selectedBucketIDs.count) Buckets")
+            }
 
             Button { showCreateSheet = true } label: {
                 Image(systemName: "plus")
@@ -136,25 +147,14 @@ struct S3BucketListView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List(buckets, selection: $selectedBucketIDs) { bucket in
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(bucket.name)
-                            .fontWeight(.medium)
-                        if let date = bucket.creationDate {
-                            Text(Self.dateFormatter.string(from: date))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(bucket.name)
+                        .fontWeight(.medium)
+                    if let date = bucket.creationDate {
+                        Text(Self.dateFormatter.string(from: date))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    Spacer()
-                    Button(role: .destructive) {
-                        bucketsToDelete = [bucket]
-                    } label: {
-                        Image(systemName: "trash")
-                            .foregroundStyle(appState.isReadOnly ? .gray : .red)
-                    }
-                    .buttonStyle(.borderless)
-                    .disabled(appState.isReadOnly)
                 }
                 .tag(bucket.id)
                 .contextMenu {
