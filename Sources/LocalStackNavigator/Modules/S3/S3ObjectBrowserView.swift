@@ -202,7 +202,7 @@ struct S3ObjectBrowserView: View {
                 }
             }
         }
-        .confirmationDialog(
+        .alert(
             objectsToDelete.count == 1
                 ? "Delete Object"
                 : "Delete \(objectsToDelete.count) Objects",
@@ -211,31 +211,50 @@ struct S3ObjectBrowserView: View {
                 set: { if !$0 { objectsToDelete = [] } }
             )
         ) {
-            if objectsToDelete.count == 1, let obj = objectsToDelete.first {
-                Button("Delete \"\(obj.displayName)\"", role: .destructive) {
-                    deleteObjects(objectsToDelete)
-                }
-            } else {
-                Button("Delete \(objectsToDelete.count) Objects", role: .destructive) {
-                    deleteObjects(objectsToDelete)
-                }
+            Button("Delete", role: .destructive) {
+                deleteObjects(objectsToDelete)
+            }
+            Button("Cancel", role: .cancel) {
+                objectsToDelete = []
             }
         } message: {
             if objectsToDelete.count == 1, let obj = objectsToDelete.first {
                 Text("Are you sure you want to delete \"\(obj.displayName)\"?")
             } else {
-                Text("Are you sure you want to delete \(objectsToDelete.count) objects?")
+                let names = objectsToDelete.map(\.displayName).joined(separator: "\n")
+                Text("Are you sure you want to delete these items?\n\n\(names)")
             }
         }
-        .sheet(isPresented: Binding(
-            get: { !folderDeleteItems.isEmpty },
-            set: { if !$0 {
+        .alert(
+            folderDeleteItems.count + standaloneObjectsToDelete.count == 1
+                ? "Delete Folder"
+                : "Delete \(folderDeleteItems.count + standaloneObjectsToDelete.count) Items",
+            isPresented: Binding(
+                get: { !folderDeleteItems.isEmpty },
+                set: { if !$0 {
+                    folderDeleteItems = []
+                    standaloneObjectsToDelete = []
+                    isFetchingFolderDetails = false
+                }}
+            )
+        ) {
+            Button("Delete", role: .destructive) {
+                executeFolderDelete()
+            }
+            Button("Cancel", role: .cancel) {
                 folderDeleteItems = []
                 standaloneObjectsToDelete = []
                 isFetchingFolderDetails = false
-            }}
-        )) {
-            folderDeleteSheet
+            }
+        } message: {
+            let folderNames = folderDeleteItems.map { $0.displayName + "/" }
+            let fileNames = standaloneObjectsToDelete.map(\.displayName)
+            let allNames = (folderNames + fileNames).joined(separator: "\n")
+            if folderDeleteItems.count + standaloneObjectsToDelete.count == 1 {
+                Text("Are you sure you want to delete \"\(allNames)\"?\n\nAll contents will be permanently deleted.")
+            } else {
+                Text("Are you sure you want to delete these items?\n\n\(allNames)\n\nAll contents will be permanently deleted.")
+            }
         }
         .serviceErrorAlert(error: $serviceError)
         .task(id: bucket.id) {
@@ -1353,87 +1372,6 @@ struct S3ObjectBrowserView: View {
 
     // MARK: - Folder Deletion
 
-    private var folderDeleteSheet: some View {
-        let folderCount = folderDeleteItems.count
-        let fileCount = standaloneObjectsToDelete.count
-        let totalItems = folderCount + fileCount
-        let title = totalItems == 1 ? "Delete Folder" : "Delete \(totalItems) Items"
-        let hasDetails = folderDeleteItems.allSatisfy { $0.objectCount != nil }
-        let canDelete = !isFetchingFolderDetails || !showFolderDetailsOnDelete
-
-        return VStack(spacing: 16) {
-            Text(title)
-                .font(.headline)
-
-            if isFetchingFolderDetails && showFolderDetailsOnDelete {
-                ProgressView("Scanning folder contents...")
-                    .padding(.vertical, 8)
-            } else {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(folderDeleteItems) { info in
-                        HStack {
-                            Image(systemName: "folder")
-                                .foregroundStyle(.secondary)
-                            Text(info.displayName + "/")
-                                .fontWeight(.medium)
-                            Spacer()
-                            if showFolderDetailsOnDelete, let count = info.objectCount, let size = info.totalSize {
-                                Text("\(count) objects")
-                                    .foregroundStyle(.secondary)
-                                Text(ByteCountFormatter.string(fromByteCount: size, countStyle: .file))
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 80, alignment: .trailing)
-                            }
-                        }
-                    }
-                    if fileCount > 0 {
-                        HStack {
-                            Image(systemName: "doc")
-                                .foregroundStyle(.secondary)
-                            Text("\(fileCount) file\(fileCount == 1 ? "" : "s")")
-                            Spacer()
-                        }
-                    }
-                }
-                .padding(.horizontal, 4)
-            }
-
-            if !isFetchingFolderDetails || !showFolderDetailsOnDelete {
-                if showFolderDetailsOnDelete && hasDetails {
-                    let totalObjects = folderDeleteItems.compactMap(\.objectCount).reduce(0, +) + fileCount
-                    Text("This will permanently delete \(totalObjects) object\(totalObjects == 1 ? "" : "s").")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("This will permanently delete all contents of the selected folder\(folderCount == 1 ? "" : "s").")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            HStack {
-                Button("Cancel") {
-                    folderDeleteItems = []
-                    standaloneObjectsToDelete = []
-                    isFetchingFolderDetails = false
-                }
-                .keyboardShortcut(.cancelAction)
-                Spacer()
-                if isDeletingFolders {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Button("Delete", role: .destructive) {
-                        executeFolderDelete()
-                    }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!canDelete)
-                }
-            }
-        }
-        .padding()
-        .frame(width: 420)
-    }
 
     private func requestFolderDeletion(prefixes: [String]) {
         folderDeleteItems = prefixes.map { prefix in
