@@ -50,6 +50,13 @@ struct S3ObjectBrowserView: View {
     @AppStorage("showFolderDetailsOnDelete") private var showFolderDetailsOnDelete = false
     @EnvironmentObject private var autoRefresh: AutoRefreshManager
 
+    // Search & filter
+    @State private var searchQuery = ""
+    @State private var searchScope: SearchScope = .currentFolder
+    @State private var bucketSearchResults: [S3Object]?
+    @State private var isSearchingBucket = false
+    @State private var searchTask: Task<Void, Never>?
+
     // Navigation history
     @State private var navigationHistory: [[String]] = [[]]
     @State private var historyIndex: Int = 0
@@ -92,6 +99,15 @@ struct S3ObjectBrowserView: View {
             Divider()
             contentArea
         }
+        .onChange(of: searchScope) {
+            if searchScope == .entireBucket {
+                performBucketSearch()
+            } else {
+                bucketSearchResults = nil
+                isSearchingBucket = false
+                searchTask?.cancel()
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 HStack(spacing: 4) {
@@ -106,6 +122,56 @@ struct S3ObjectBrowserView: View {
                     .disabled(!canGoForward || isLoading)
                     .help("Forward")
                 }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                HStack(spacing: 4) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                        .font(.system(size: 11))
+                    TextField("Filter...", text: $searchQuery)
+                        .textFieldStyle(.plain)
+                        .frame(minWidth: 80, maxWidth: 180)
+                    if isSearchActive {
+                        Menu {
+                            ForEach(SearchScope.allCases, id: \.self) { scope in
+                                Button {
+                                    searchScope = scope
+                                } label: {
+                                    if searchScope == scope {
+                                        Label(scope.rawValue, systemImage: "checkmark")
+                                    } else {
+                                        Text(scope.rawValue)
+                                    }
+                                }
+                            }
+                        } label: {
+                            Text(searchScope.rawValue)
+                                .font(.system(size: 11, weight: .medium))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .foregroundStyle(.primary)
+                                .background(Color.primary.opacity(0.08), in: Capsule())
+                        }
+                        .menuStyle(.borderlessButton)
+                        .fixedSize()
+                        if isSearchingBucket {
+                            ProgressView()
+                                .controlSize(.small)
+                                .scaleEffect(0.7)
+                        }
+                        Button {
+                            clearSearch()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+                .padding(.leading, 8)
             }
             ToolbarItem(placement: .primaryAction) {
                 HStack(spacing: 8) {
@@ -130,7 +196,7 @@ struct S3ObjectBrowserView: View {
                         let allDeletable = allDeletableSelectedItems
                         let folderPrefixes = allDeletable.filter { $0.isFolder }.map(\.fullKey)
                         let fileObjs = allDeletable.filter { !$0.isFolder }.compactMap { item in
-                            objects.first { $0.key == item.fullKey }
+                            activeObjects.first { $0.key == item.fullKey }
                         }
                         if folderPrefixes.isEmpty {
                             if !fileObjs.isEmpty { objectsToDelete = fileObjs }
@@ -236,12 +302,13 @@ struct S3ObjectBrowserView: View {
             pathComponents = []
             navigationHistory = [[]]
             historyIndex = 0
+            clearSearch()
             autoRefresh.resetState()
             resetPagination()
             loadObjects(force: true)
         }
         .onChange(of: autoRefresh.refreshTrigger) {
-            guard !anySheetOpen && !isLoading else { return }
+            guard !anySheetOpen && !isLoading && !isSearchingBucket else { return }
             loadObjects(force: true, silent: true)
         }
     }
@@ -294,7 +361,7 @@ struct S3ObjectBrowserView: View {
                 Button("Retry") { loadObjects() }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if rowItems.isEmpty && pathComponents.isEmpty {
+        } else if rowItems.isEmpty && pathComponents.isEmpty && !isSearchActive {
             VStack(spacing: 8) {
                 Image(systemName: "folder")
                     .font(.title)
@@ -303,9 +370,23 @@ struct S3ObjectBrowserView: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if isSearchingBucket && bucketSearchResults == nil {
+            ProgressView("Searching bucket...")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             VStack(spacing: 0) {
-                listView
+                if isSearchActive && sortedRowItems.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.title)
+                            .foregroundStyle(.secondary)
+                        Text("No matches for \"\(searchQuery)\"")
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    listView
+                }
                 Divider()
                 statusBar
             }
@@ -344,9 +425,23 @@ struct S3ObjectBrowserView: View {
 
     // MARK: - Status Bar
 
+    private var statusBarText: String {
+        if isSearchActive {
+            if searchScope == .entireBucket && bucketSearchResults != nil {
+                let count = searchRowItems.count
+                return count == 0 ? "No results" : "\(count) results"
+            } else {
+                let filtered = filteredRowItems.count
+                let total = rowItems.count
+                return "\(filtered) of \(total) items"
+            }
+        }
+        return "\(rowItems.count) items"
+    }
+
     private var statusBar: some View {
         HStack {
-            Text("\(rowItems.count) items")
+            Text(statusBarText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -438,22 +533,22 @@ struct S3ObjectBrowserView: View {
                 } else {
                     Button("Download") { downloadObject(key: item.fullKey) }
                     Button("Metadata") {
-                        selectedObject = objects.first { $0.key == item.fullKey }
+                        selectedObject = activeObjects.first { $0.key == item.fullKey }
                     }
                     Button("Move...") {
-                        if let obj = objects.first(where: { $0.key == item.fullKey }) {
+                        if let obj = activeObjects.first(where: { $0.key == item.fullKey }) {
                             objectsToMove = [obj]
                             moveDestination = currentPrefix
                         }
                     }
                     .disabled(appState.isReadOnly)
-                    if let obj = objects.first(where: { $0.key == item.fullKey }) {
+                    if let obj = activeObjects.first(where: { $0.key == item.fullKey }) {
                         moveToMenu(for: [obj])
                             .disabled(appState.isReadOnly)
                     }
                     Divider()
                     Button("Delete", role: .destructive) {
-                        objectsToDelete = objects.filter { $0.key == item.fullKey }
+                        objectsToDelete = activeObjects.filter { $0.key == item.fullKey }
                     }
                     .disabled(appState.isReadOnly)
                 }
@@ -464,7 +559,7 @@ struct S3ObjectBrowserView: View {
 
                 if !selectedItems.isEmpty {
                     let movableObjs = fileItems.compactMap { item in
-                        objects.first { $0.key == item.fullKey }
+                        activeObjects.first { $0.key == item.fullKey }
                     }
                     let movableFolders = folderItems.map(\.fullKey)
                     let moveCount = movableObjs.count + movableFolders.count
@@ -483,7 +578,7 @@ struct S3ObjectBrowserView: View {
                     let totalCount = selectedItems.count
                     Button("Delete \(totalCount) Items", role: .destructive) {
                         let fileObjs = fileItems.compactMap { item in
-                            objects.first { $0.key == item.fullKey }
+                            activeObjects.first { $0.key == item.fullKey }
                         }
                         if folderItems.isEmpty {
                             objectsToDelete = fileObjs
@@ -502,9 +597,10 @@ struct S3ObjectBrowserView: View {
             if item.id == Self.parentRowID {
                 navigateToParent()
             } else if item.isFolder {
+                clearSearch()
                 navigateToPrefix(item.fullKey)
             } else {
-                selectedObject = objects.first { $0.key == item.fullKey }
+                selectedObject = activeObjects.first { $0.key == item.fullKey }
             }
         }
     }
@@ -512,8 +608,15 @@ struct S3ObjectBrowserView: View {
     private static let parentRowID = ".."
 
     private var sortedRowItems: [RowItem] {
-        let sorted = rowItems.sorted(using: sortOrder)
-        guard !pathComponents.isEmpty else { return sorted }
+        let source: [RowItem]
+        if searchScope == .entireBucket && bucketSearchResults != nil && isSearchActive {
+            source = searchRowItems
+        } else {
+            source = filteredRowItems
+        }
+        let sorted = source.sorted(using: sortOrder)
+        // Suppress parent row during active search
+        guard !pathComponents.isEmpty && !isSearchActive else { return sorted }
         let parentRow = RowItem(
             id: Self.parentRowID,
             name: "..",
@@ -569,7 +672,7 @@ struct S3ObjectBrowserView: View {
                 .help("Download")
 
                 Button {
-                    selectedObject = objects.first { $0.key == item.fullKey }
+                    selectedObject = activeObjects.first { $0.key == item.fullKey }
                 } label: {
                     Image(systemName: "info.circle")
                 }
@@ -577,7 +680,7 @@ struct S3ObjectBrowserView: View {
                 .help("Metadata")
 
                 Button(role: .destructive) {
-                    objectsToDelete = objects.filter { $0.key == item.fullKey }
+                    objectsToDelete = activeObjects.filter { $0.key == item.fullKey }
                 } label: {
                     Image(systemName: "trash")
                         .foregroundStyle(appState.isReadOnly ? .gray : .red)
@@ -719,6 +822,11 @@ struct S3ObjectBrowserView: View {
         let icon: String
     }
 
+    private enum SearchScope: String, CaseIterable {
+        case currentFolder = "Current Folder"
+        case entireBucket = "Entire Bucket"
+    }
+
     struct FolderDeleteInfo: Identifiable {
         let id: String
         let prefix: String
@@ -758,6 +866,60 @@ struct S3ObjectBrowserView: View {
             )
         }
         return folderRows + objectRows
+    }
+
+    private var isSearchActive: Bool {
+        !searchQuery.isEmpty
+    }
+
+    private var activeObjects: [S3Object] {
+        if searchScope == .entireBucket, let results = bucketSearchResults {
+            return results
+        }
+        return objects
+    }
+
+    private var filteredRowItems: [RowItem] {
+        guard isSearchActive else { return rowItems }
+        let query = searchQuery.lowercased()
+        let isExtensionSearch = query.hasPrefix(".")
+        return rowItems.filter { item in
+            if isExtensionSearch {
+                return item.isFolder
+                    ? item.name.lowercased().contains(query)
+                    : item.name.lowercased().hasSuffix(query)
+            }
+            return item.name.lowercased().contains(query)
+        }
+    }
+
+    private var searchRowItems: [RowItem] {
+        guard let results = bucketSearchResults else { return [] }
+        let query = searchQuery.lowercased()
+        let isExtensionSearch = query.hasPrefix(".")
+        let filtered = results.filter { obj in
+            guard !(obj.size == 0 && obj.key.hasSuffix("/")) else { return false }
+            guard !query.isEmpty else { return true }
+            let key = obj.key.lowercased()
+            if isExtensionSearch {
+                return key.hasSuffix(query)
+            }
+            return key.contains(query)
+        }
+        return filtered.map { obj in
+            RowItem(
+                id: obj.key,
+                name: obj.key,
+                fullKey: obj.key,
+                kind: S3FileKind.kind(for: obj.displayName),
+                size: obj.formattedSize,
+                sizeBytes: obj.size,
+                lastModified: obj.lastModified.map { Self.dateFormatter.string(from: $0) } ?? "--",
+                dateValue: obj.lastModified ?? .distantPast,
+                isFolder: false,
+                icon: S3FileKind.icon(for: obj.displayName, isFolder: false)
+            )
+        }
     }
 
     // MARK: - Create Folder Sheet
@@ -1084,6 +1246,29 @@ struct S3ObjectBrowserView: View {
         }
     }
 
+    // MARK: - Search Helpers
+
+    private func clearSearch() {
+        searchQuery = ""
+        searchScope = .currentFolder
+        bucketSearchResults = nil
+        isSearchingBucket = false
+        searchTask?.cancel()
+    }
+
+    private func performBucketSearch() {
+        searchTask?.cancel()
+        searchTask = Task {
+            isSearchingBucket = true
+            do {
+                bucketSearchResults = try await service.listAllObjects(bucket: bucket.name, prefix: "")
+            } catch {
+                bucketSearchResults = []
+            }
+            isSearchingBucket = false
+        }
+    }
+
     // MARK: - Navigation History
 
     private var canGoBack: Bool { historyIndex > 0 }
@@ -1267,7 +1452,7 @@ struct S3ObjectBrowserView: View {
             guard let item = sortedRowItems.first(where: { $0.id == id }) else { return false }
             return !item.isFolder
         }
-        return deletableIDs.compactMap { id in objects.first { $0.key == id } }
+        return deletableIDs.compactMap { id in activeObjects.first { $0.key == id } }
     }
 
     private var allDeletableSelectedItems: [RowItem] {
