@@ -35,6 +35,7 @@ struct LocalStackNavigatorApp: App {
                     NSApplication.shared.activate(ignoringOtherApps: true)
                 }
         }
+        .defaultSize(width: 1100, height: 700)
 
         WindowGroup(id: "s3-browser", for: S3BrowserTarget.self) { $target in
             if let target {

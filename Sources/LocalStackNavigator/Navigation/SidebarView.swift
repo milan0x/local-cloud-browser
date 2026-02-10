@@ -12,6 +12,7 @@ struct SidebarView: View {
             Label(route.displayName, systemImage: route.systemImage)
                 .tag(route)
         }
+        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
         .navigationTitle("")
         .safeAreaInset(edge: .top) {
             if !appState.isLocalEndpoint {
