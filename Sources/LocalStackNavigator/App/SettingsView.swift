@@ -16,6 +16,8 @@ struct SettingsView: View {
 
                 Picker("Auto-refresh interval", selection: $autoRefresh.interval) {
                     Text("Off").tag(0)
+                    Text("1 second").tag(1)
+                    Text("3 seconds").tag(3)
                     Text("5 seconds").tag(5)
                     Text("10 seconds").tag(10)
                     Text("30 seconds").tag(30)
