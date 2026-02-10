@@ -12,7 +12,7 @@ struct SidebarView: View {
             Label(route.displayName, systemImage: route.systemImage)
                 .tag(route)
         }
-        .navigationTitle("Services")
+        .navigationTitle("")
         .safeAreaInset(edge: .top) {
             if !appState.isLocalEndpoint {
                 nonLocalWarning
