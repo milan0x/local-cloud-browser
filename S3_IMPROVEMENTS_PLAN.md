@@ -16,35 +16,35 @@
 
 ---
 
-## Phase 2: Multi-Select Delete
+## Phase 2: Multi-Select Delete ✅
 
 **Goal:** Allow selecting multiple objects and deleting them in bulk.
 
-**Files:**
-- `S3ObjectBrowserView.swift` — Change `selectedRowID: RowItem.ID?` to `selectedRowIDs: Set<RowItem.ID>`, update `Table(selection:)` binding, add a "Delete Selected" button (visible when selection count > 0), add confirmation dialog for bulk delete
-- `S3Service.swift` — Add `deleteObjects(bucket:keys:)` that loops and deletes each key (LocalStack Community doesn't support multi-object delete XML API reliably, so sequential single deletes is safer)
-
-**Details:**
-- Update context menu to work with multi-selection (show "Delete N items" when multiple selected)
-- Confirmation dialog shows count: "Delete 5 objects?"
-- Disabled in read-only mode
-- Progress indication during bulk delete (optional: just reload after all complete)
-- Single-select double-click/primary action still works as before
+**Completed:**
+- [x] Table selection changed to `Set<RowItem.ID>` for multi-selection (objects) and `Set<S3Bucket.ID>` (buckets)
+- [x] `S3Service.deleteObjects(bucket:keys:)` — sequential single deletes (LocalStack Community compat)
+- [x] Context menus adapt: "Delete N Items" / "Delete N Buckets" for multi-select
+- [x] Native `.alert()` confirmation lists all selected item names on separate lines
+- [x] Selection state cleared after successful deletion
+- [x] Disabled in read-only mode
+- [x] Single-select double-click/primary action still works
+- [x] Multi-select move: "Move N Items..." context menu action
 
 ---
 
-## Phase 3: Copy Object Key
+## Phase 3: Copy Key / S3 URI ✅
 
-**Goal:** Add "Copy Key" to the context menu and action buttons for objects.
+**Goal:** Add clipboard copy options to context menus for objects, folders, and buckets.
 
-**Files:**
-- `S3ObjectBrowserView.swift` — Add "Copy Key" item to context menu (after "Metadata", before Divider), add a copy button to `actionsForRow`
-
-**Details:**
-- Uses `NSPasteboard.general.clearContents()` + `setString(key, forType: .string)`
-- Copies the full key (e.g., `folder/subfolder/file.txt`), not just the display name
-- Works for both files and folders
-- No read-only restriction (read-only operation)
+**Completed:**
+- [x] Single file: "Copy Key" + "Copy S3 URI" + "Copy as AWS JSON" in right-click context menu
+- [x] Single folder: "Copy Key" + "Copy S3 URI" + "Copy as AWS JSON" in right-click context menu
+- [x] Multi-select objects: "Copy N Paths" (newline-separated) + "Copy N S3 URIs" (newline-separated) + "Copy as AWS JSON" (`{"Objects":[{"Key":...}]}`)
+- [x] Single bucket: "Copy Name" + "Copy S3 URI" (`s3://bucket`) in right-click context menu
+- [x] Multi-select buckets: "Copy N Names" (newline-separated) + "Copy N S3 URIs" (newline-separated)
+- [x] AWS JSON format directly usable with `aws s3api delete-objects --delete`
+- [x] No read-only restriction (read-only operation)
+- [x] Uses `NSPasteboard.general` for clipboard
 
 ---
 
@@ -107,8 +107,8 @@
 
 Phases are independent and ordered by complexity (simplest first):
 1. ~~Create Folder~~ ✅ (also includes move, back/forward, parent row, folder picker revamp)
-2. Multi-Select Delete — changes Table selection type
-3. Copy Object Key — trivial addition
+2. ~~Multi-Select Delete~~ ✅ (Set-based selection, bulk delete, adapted context menus)
+3. ~~Copy Key / S3 URI~~ ✅ (Copy Key, Copy S3 URI, JSON array for multi-select, buckets + objects)
 4. Inline Text Preview — extends existing metadata sheet
 5. Force Delete Bucket — new service logic + two-step confirmation flow
 6. ~~S3 Search & Filter~~ ✅ (reusable SearchBarView, current-folder filter only)
@@ -124,6 +124,7 @@ Phases are independent and ordered by complexity (simplest first):
 - **Toolbar architecture refactor** — Toolbar lifted from `S3ObjectBrowserView` to parent views (`S3ModuleView`, `S3BrowserWindow`) via shared `S3ToolbarState` (ObservableObject two-way bridge) + `S3Toolbar` (reusable `ToolbarContent`). Browser view syncs display state upward (`onChange`) and handles actions via `pendingAction` enum. Removed `ToolbarDisplayModeSaver` (custom KVO + UserDefaults hack) and duplicate placeholder toolbar. Each future module (SQS, SNS) can define its own toolbar independently.
 - **Toolbar display mode persistence — skipped** — Attempted: `toolbar(id:)` with `CustomizableToolbarContent` (doesn't persist display mode, only item customization), KVO on `NSToolbar.displayMode` via NSViewRepresentable with `viewDidMoveToWindow` + window.toolbar observation (observer never reliably attaches — SwiftUI manages toolbar lifecycle opaquely). Would likely require NSWindowController or full AppKit toolbar ownership. Low priority — user can change display mode per session.
 - **Window & layout defaults** — Main WindowGroup `.defaultSize(width: 1100, height: 700)` for proper first-launch sizing. Sidebar `navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)` for consistent proportions.
+- **Human-readable file sizes** — `S3Object.formattedSize` computed property using `ByteCountFormatter` with `.file` count style (e.g., "4.2 MB"). Used consistently in object browser table, metadata view, folder metadata view, and folder picker.
 
 ## Verification
 
