@@ -439,6 +439,16 @@ struct S3ObjectBrowserView: View {
             .width(min: 60, ideal: 80)
         }
         .contextMenu(forSelectionType: RowItem.ID.self) { ids in
+            if ids.isEmpty {
+                Button("Create Folder") {
+                    showCreateFolder = true
+                }
+                .disabled(appState.isReadOnly)
+                Button("Upload File") {
+                    uploadFile()
+                }
+                .disabled(appState.isReadOnly)
+            }
             let items = ids.compactMap { id in sortedRowItems.first(where: { $0.id == id }) }
             if items.count == 1, let item = items.first {
                 if item.id == Self.parentRowID {
