@@ -32,9 +32,10 @@ struct ContentView: View {
                 .font(.caption)
                 .fontWeight(.medium)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 5)
         .background(.quaternary, in: Capsule())
+        .padding(3)
         .opacity(isGlobalService ? 0.5 : 1.0)
         .help(isGlobalService ? "S3 buckets are global on LocalStack, not region-specific" : "Region: \(appState.region)")
     }

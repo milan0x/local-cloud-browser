@@ -90,12 +90,30 @@ struct S3ObjectBrowserView: View {
     }
 
     var body: some View {
+        mainContent
+            .toolbar { toolbarContent }
+            .serviceErrorAlert(error: $serviceError)
+            .task(id: bucket.id) {
+                pathComponents = []
+                navigationHistory = [[]]
+                historyIndex = 0
+                clearSearch()
+                autoRefresh.resetState()
+                resetPagination()
+                loadObjects(force: true)
+            }
+            .onChange(of: autoRefresh.refreshTrigger) {
+                guard !anySheetOpen && !isLoading else { return }
+                loadObjects(force: true, silent: true)
+            }
+    }
+
+    private var mainContent: some View {
         VStack(spacing: 0) {
             breadcrumbBar
             Divider()
             contentArea
         }
-        .toolbar(id: "objectBrowser") { toolbarContent }
         .sheet(item: $selectedObject) { obj in
             S3ObjectMetadataView(service: service, bucket: bucket.name, objectKey: obj.key)
         }
@@ -123,28 +141,7 @@ struct S3ObjectBrowserView: View {
             moveToBucketSheet
         }
         .sheet(isPresented: $showBrowsePicker) {
-            S3FolderPickerView(
-                service: service,
-                currentBucket: bucket.name,
-                currentPrefix: currentPrefix
-            ) { destBucket, destPrefix in
-                if destBucket == bucket.name {
-                    objectsToMove = browsePickerItems
-                    foldersToMove = browsePickerFolders
-                    moveDestination = destPrefix
-                    browsePickerItems = []
-                    browsePickerFolders = []
-                    performMove()
-                } else {
-                    moveToBucketItems = browsePickerItems
-                    moveToBucketFolders = browsePickerFolders
-                    destinationBucketName = destBucket
-                    destinationBucketPrefix = destPrefix
-                    browsePickerItems = []
-                    browsePickerFolders = []
-                    performMoveToBucket()
-                }
-            }
+            browsePickerSheet
         }
         .alert(
             objectsToDelete.count == 1
@@ -200,27 +197,38 @@ struct S3ObjectBrowserView: View {
                 Text("Are you sure you want to delete these items?\n\n\(allNames)\n\nAll contents will be permanently deleted.")
             }
         }
-        .serviceErrorAlert(error: $serviceError)
-        .task(id: bucket.id) {
-            pathComponents = []
-            navigationHistory = [[]]
-            historyIndex = 0
-            clearSearch()
-            autoRefresh.resetState()
-            resetPagination()
-            loadObjects(force: true)
-        }
-        .onChange(of: autoRefresh.refreshTrigger) {
-            guard !anySheetOpen && !isLoading else { return }
-            loadObjects(force: true, silent: true)
+    }
+
+    private var browsePickerSheet: some View {
+        S3FolderPickerView(
+            service: service,
+            currentBucket: bucket.name,
+            currentPrefix: currentPrefix
+        ) { destBucket, destPrefix in
+            if destBucket == bucket.name {
+                objectsToMove = browsePickerItems
+                foldersToMove = browsePickerFolders
+                moveDestination = destPrefix
+                browsePickerItems = []
+                browsePickerFolders = []
+                performMove()
+            } else {
+                moveToBucketItems = browsePickerItems
+                moveToBucketFolders = browsePickerFolders
+                destinationBucketName = destBucket
+                destinationBucketPrefix = destPrefix
+                browsePickerItems = []
+                browsePickerFolders = []
+                performMoveToBucket()
+            }
         }
     }
 
     // MARK: - Toolbar
 
     @ToolbarContentBuilder
-    private var toolbarContent: some CustomizableToolbarContent {
-        ToolbarItem(id: "navigation", placement: .navigation) {
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
             HStack(spacing: 4) {
                 Button { navigateBack() } label: {
                     Image(systemName: "chevron.left")
@@ -234,30 +242,27 @@ struct S3ObjectBrowserView: View {
                 .help("Forward")
             }
         }
-        ToolbarItem(id: "search", placement: .primaryAction) {
-            SearchBarView(query: $searchQuery, placeholder: "Search in folder")
-        }
-        ToolbarItem(id: "policy", placement: .primaryAction) {
+        ToolbarItem(placement: .primaryAction) {
             Button { showPolicyEditor = true } label: {
                 Label("Policy", systemImage: "doc.text")
             }
             .help("Bucket Policy")
         }
-        ToolbarItem(id: "createFolder", placement: .primaryAction) {
+        ToolbarItem(placement: .primaryAction) {
             Button { showCreateFolder = true } label: {
                 Label("Folder", systemImage: "folder.badge.plus")
             }
             .help("Create Folder")
             .disabled(appState.isReadOnly)
         }
-        ToolbarItem(id: "upload", placement: .primaryAction) {
+        ToolbarItem(placement: .primaryAction) {
             Button { uploadFile() } label: {
                 Label("Upload", systemImage: "plus")
             }
             .help("Upload File")
             .disabled(appState.isReadOnly)
         }
-        ToolbarItem(id: "delete", placement: .primaryAction) {
+        ToolbarItem(placement: .primaryAction) {
             Button { deleteSelectedItems() } label: {
                 Label("Delete", systemImage: "trash")
             }
@@ -308,6 +313,9 @@ struct S3ObjectBrowserView: View {
             }
 
             Spacer()
+
+            SearchBarView(query: $searchQuery, placeholder: "Search in folder")
+                .padding(.trailing, 8)
         }
     }
 
