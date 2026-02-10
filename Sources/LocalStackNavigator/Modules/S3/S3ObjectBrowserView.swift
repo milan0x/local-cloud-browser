@@ -310,6 +310,16 @@ struct S3ObjectBrowserView: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contextMenu {
+                Button("Create Folder") {
+                    showCreateFolder = true
+                }
+                .disabled(appState.isReadOnly)
+                Button("Upload File") {
+                    uploadFile()
+                }
+                .disabled(appState.isReadOnly)
+            }
         } else {
             VStack(spacing: 0) {
                 if isSearchActive && sortedRowItems.isEmpty {
