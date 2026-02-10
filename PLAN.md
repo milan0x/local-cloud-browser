@@ -67,8 +67,12 @@
 - [ ] Version history
 
 ## Phase 6: Settings & Polish
-- [ ] Settings UI (endpoint, region, credentials)
-- [ ] Persist settings to UserDefaults or file
+- [x] Settings UI (endpoint, region, auto-refresh interval, folder delete details toggle)
+- [x] Persist settings to UserDefaults
+- [x] Auto-refresh: reusable `AutoRefreshManager` on `AppState`, internal Task-based timer, `refreshTrigger` pattern
+- [x] Auto-refresh indicator in S3 breadcrumb bar (countdown only)
+- [x] Auto-refresh menu (single toolbar button: Refresh Now + interval picker)
+- [x] Bucket list auto-refreshes alongside object browser
 - [ ] Connection health check (ping LocalStack)
 - [ ] Error handling improvements
 - [ ] Keyboard shortcuts

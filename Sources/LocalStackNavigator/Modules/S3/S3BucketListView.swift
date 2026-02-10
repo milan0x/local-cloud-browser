@@ -3,6 +3,7 @@ import SwiftUI
 struct S3BucketListView: View {
     @ObservedObject var service: S3Service
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var autoRefresh: AutoRefreshManager
     @Binding var selectedBucket: S3Bucket?
 
     @Environment(\.openWindow) private var openWindow
@@ -47,6 +48,10 @@ struct S3BucketListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadBuckets() }
+        .onChange(of: autoRefresh.refreshTrigger) {
+            guard !showCreateSheet && bucketToDelete == nil && !isLoading else { return }
+            loadBuckets(force: true)
+        }
         .onChange(of: appState.connectionVersion) {
             selectedBucket = nil
             buckets = []

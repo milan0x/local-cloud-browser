@@ -30,6 +30,7 @@ struct LocalStackNavigatorApp: App {
                 .environmentObject(appState)
                 .environmentObject(client)
                 .environmentObject(profileStore)
+                .environmentObject(appState.autoRefresh)
                 .onAppear {
                     NSApplication.shared.activate(ignoringOtherApps: true)
                 }
@@ -40,11 +41,13 @@ struct LocalStackNavigatorApp: App {
                 S3BrowserWindow(target: target)
                     .environmentObject(appState)
                     .environmentObject(client)
+                    .environmentObject(appState.autoRefresh)
             }
         }
 
         Settings {
             SettingsView()
+                .environmentObject(appState.autoRefresh)
         }
     }
 }

@@ -48,6 +48,7 @@ struct S3ObjectBrowserView: View {
     @State private var isFetchingFolderDetails = false
     @State private var isDeletingFolders = false
     @AppStorage("showFolderDetailsOnDelete") private var showFolderDetailsOnDelete = false
+    @EnvironmentObject private var autoRefresh: AutoRefreshManager
 
     // Navigation history
     @State private var navigationHistory: [[String]] = [[]]
@@ -72,6 +73,19 @@ struct S3ObjectBrowserView: View {
         return f
     }()
 
+    private var anySheetOpen: Bool {
+        showCreateFolder
+            || selectedObject != nil
+            || showPolicyEditor
+            || !objectsToMove.isEmpty
+            || !foldersToMove.isEmpty
+            || showMoveToBucket
+            || showBrowsePicker
+            || !objectsToDelete.isEmpty
+            || !folderDeleteItems.isEmpty
+            || selectedFolderPrefix != nil
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             breadcrumbBar
@@ -95,10 +109,9 @@ struct S3ObjectBrowserView: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 HStack(spacing: 8) {
-                    Button { loadObjects() } label: {
-                        Image(systemName: "arrow.clockwise")
+                    AutoRefreshMenuView(interval: $autoRefresh.interval) {
+                        loadObjects()
                     }
-                    .disabled(isLoading)
 
                     Button { showPolicyEditor = true } label: {
                         Image(systemName: "doc.text")
@@ -227,35 +240,49 @@ struct S3ObjectBrowserView: View {
             pathComponents = []
             navigationHistory = [[]]
             historyIndex = 0
+            autoRefresh.resetState()
             resetPagination()
             loadObjects(force: true)
+        }
+        .onChange(of: autoRefresh.refreshTrigger) {
+            guard !anySheetOpen && !isLoading else { return }
+            loadObjects(force: true, silent: true)
         }
     }
 
     // MARK: - Breadcrumb
 
     private var breadcrumbBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
-                Button(bucket.name) {
-                    navigate(to: [])
-                }
-                .buttonStyle(.plain)
-                .fontWeight(.medium)
-
-                ForEach(Array(pathComponents.enumerated()), id: \.offset) { index, component in
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Button(component) {
-                        navigate(to: Array(pathComponents.prefix(index + 1)))
+        HStack(spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 4) {
+                    Button(bucket.name) {
+                        navigate(to: [])
                     }
                     .buttonStyle(.plain)
-                    .fontWeight(index == pathComponents.count - 1 ? .medium : .regular)
+                    .fontWeight(.medium)
+
+                    ForEach(Array(pathComponents.enumerated()), id: \.offset) { index, component in
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button(component) {
+                            navigate(to: Array(pathComponents.prefix(index + 1)))
+                        }
+                        .buttonStyle(.plain)
+                        .fontWeight(index == pathComponents.count - 1 ? .medium : .regular)
+                    }
                 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+
+            Spacer()
+
+            AutoRefreshIndicatorView(manager: autoRefresh) {
+                loadObjects(force: true)
+            }
+            .padding(.trailing, 12)
         }
     }
 
@@ -1116,15 +1143,17 @@ struct S3ObjectBrowserView: View {
         isTruncated = false
     }
 
-    private func loadObjects(force: Bool = false) {
+    private func loadObjects(force: Bool = false, silent: Bool = false) {
         guard !isLoading else { return }
         if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
             return
         }
         isLoading = true
-        errorMessage = nil
-        objects = []
-        prefixes = []
+        if !silent {
+            errorMessage = nil
+            objects = []
+            prefixes = []
+        }
         Task {
             do {
                 let result = try await service.listObjects(
@@ -1134,6 +1163,8 @@ struct S3ObjectBrowserView: View {
                 )
                 objects = result.objects
                 prefixes = result.commonPrefixes
+                errorMessage = nil
+                autoRefresh.reportSuccess()
                 isTruncated = result.isTruncated
                 totalItemsOnPage = result.keyCount
                 // Store the next token for pagination
@@ -1143,7 +1174,10 @@ struct S3ObjectBrowserView: View {
                     nextPageToken = nil
                 }
             } catch {
-                errorMessage = error.localizedDescription
+                if !silent {
+                    errorMessage = error.localizedDescription
+                }
+                autoRefresh.reportFailure()
             }
             isLoading = false
             lastLoadTime = Date()
