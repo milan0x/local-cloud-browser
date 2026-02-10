@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct S3BucketListView: View {
     @ObservedObject var service: S3Service
@@ -168,6 +169,17 @@ struct S3BucketListView: View {
                         openWindow(value: S3BrowserTarget(bucket: bucket.name, prefix: nil))
                     }
                     Divider()
+                    if selectedBucketIDs.count > 1 && selectedBucketIDs.contains(bucket.id) {
+                        let selected = buckets.filter { selectedBucketIDs.contains($0.id) }
+                        let names = selected.map(\.name)
+                        let uris = names.map { "s3://\($0)" }
+                        Button("Copy \(names.count) Names") { copyToClipboard(names.joined(separator: "\n")) }
+                        Button("Copy \(names.count) S3 URIs") { copyToClipboard(uris.joined(separator: "\n")) }
+                    } else {
+                        Button("Copy Name") { copyToClipboard(bucket.name) }
+                        Button("Copy S3 URI") { copyToClipboard("s3://\(bucket.name)") }
+                    }
+                    Divider()
                     Button("Create Bucket") {
                         showCreateSheet = true
                     }
@@ -247,5 +259,10 @@ struct S3BucketListView: View {
                 loadBuckets(force: true)
             }
         }
+    }
+
+    private func copyToClipboard(_ string: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(string, forType: .string)
     }
 }

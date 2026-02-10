@@ -479,6 +479,10 @@ struct S3ObjectBrowserView: View {
                         openWindow(value: S3BrowserTarget(bucket: bucket.name, prefix: item.fullKey))
                     }
                     Divider()
+                    Button("Copy Key") { copyToClipboard(item.fullKey) }
+                    Button("Copy S3 URI") { copyToClipboard(s3URI(for: item.fullKey)) }
+                    Button("Copy as AWS JSON") { copyToClipboard(toAWSJSON([item.fullKey])) }
+                    Divider()
                     Button("Move...") {
                         foldersToMove = [item.fullKey]
                         moveDestination = currentPrefix
@@ -493,6 +497,10 @@ struct S3ObjectBrowserView: View {
                     .disabled(appState.isReadOnly)
                 } else {
                     Button("Download") { downloadObject(key: item.fullKey) }
+                    Button("Copy Key") { copyToClipboard(item.fullKey) }
+                    Button("Copy S3 URI") { copyToClipboard(s3URI(for: item.fullKey)) }
+                    Button("Copy as AWS JSON") { copyToClipboard(toAWSJSON([item.fullKey])) }
+                    Divider()
                     Button("Metadata") {
                         selectedObject = objects.first { $0.key == item.fullKey }
                     }
@@ -517,6 +525,15 @@ struct S3ObjectBrowserView: View {
                 let selectedItems = items.filter { $0.id != Self.parentRowID }
                 let folderItems = selectedItems.filter { $0.isFolder }
                 let fileItems = selectedItems.filter { !$0.isFolder }
+
+                if selectedItems.count > 1 {
+                    let keys = selectedItems.map(\.fullKey)
+                    let uris = keys.map { s3URI(for: $0) }
+                    Button("Copy \(keys.count) Paths") { copyToClipboard(keys.joined(separator: "\n")) }
+                    Button("Copy \(keys.count) S3 URIs") { copyToClipboard(uris.joined(separator: "\n")) }
+                    Button("Copy as AWS JSON") { copyToClipboard(toAWSJSON(keys)) }
+                    Divider()
+                }
 
                 if !selectedItems.isEmpty {
                     let movableObjs = fileItems.compactMap { item in
@@ -1431,6 +1448,22 @@ struct S3ObjectBrowserView: View {
             }
             isDeletingFolders = false
         }
+    }
+
+    private func toAWSJSON(_ keys: [String]) -> String {
+        let objects = keys.map { ["Key": $0] }
+        let payload: [String: Any] = ["Objects": objects]
+        let data = try? JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
+        return data.flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+    }
+
+    private func copyToClipboard(_ string: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(string, forType: .string)
+    }
+
+    private func s3URI(for key: String) -> String {
+        "s3://\(bucket.name)/\(key)"
     }
 
     private func deleteObjects(_ objs: [S3Object]) {
