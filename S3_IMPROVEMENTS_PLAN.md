@@ -83,29 +83,25 @@
 
 ---
 
-## Phase 6: Universal Search/Filter Bar
+## Phase 6: S3 Search & Filter ✅
 
-**Goal:** A reusable search component in the toolbar (top-right) that filters content based on the active module.
+**Goal:** Search and filter objects in S3 buckets — local folder filter + bucket-wide search.
 
-**Files:**
-- **New:** `Navigation/SearchBar.swift` — A reusable `View` that renders a search text field with magnifying glass icon, clear button, and placeholder text. Takes a `Binding<String>` and a placeholder string.
-- **New:** `Navigation/SearchableModule.swift` — Protocol: `protocol SearchableModule { var searchPlaceholder: String { get } }`. Each module can declare what search means for it.
-- `ContentView.swift` — Add `@State searchText: String = ""` and place `SearchBar` in the toolbar. Pass `searchText` down to the active detail view. Clear `searchText` when route changes.
-- `S3ObjectBrowserView.swift` — Accept `searchText: String` parameter. Filter `rowItems` (or `sortedRowItems`) by name containing the search text (case-insensitive). Show "No results for '<query>'" empty state when filter matches nothing but items exist.
-- `S3BucketListView.swift` — Accept `searchText: String` parameter. Filter `buckets` list by name.
-
-**Future-proof for other modules:**
-- SQS: filter messages by body/title
-- SNS: filter topics by name, subscriptions by endpoint
-- Secrets Manager: filter secrets by name
-- Each module view accepts `searchText` and applies its own filtering logic
-
-**Details:**
-- Search is client-side filtering of already-loaded data (not an API call)
-- Debounce not needed since it's local filtering
-- Search bar appears in toolbar with `magnifyingglass` icon
-- Placeholder adapts: "Filter objects..." for S3 browser, "Filter buckets..." for bucket list, "Filter queues..." for SQS, etc.
-- `Cmd+F` keyboard shortcut focuses the search field
+**Completed:**
+- [x] Inline toolbar search bar: magnifying glass icon + text field + scope dropdown + clear button, rounded rect background
+- [x] Scope dropdown (Menu): "Current Folder" (default) / "Entire Bucket", compact capsule label with system dropdown arrow
+- [x] Current folder mode: filters visible `rowItems` by name (case-insensitive contains); `.ext` queries match file suffixes
+- [x] Entire bucket mode: fetches all objects via `listAllObjects(prefix: "")`, caches in `bucketSearchResults`, filters client-side by full key path
+- [x] Data pipeline: `rowItems → filteredRowItems → sortedRowItems` (current folder) or `bucketSearchResults → searchRowItems → sortedRowItems` (bucket-wide)
+- [x] Status bar: "3 of 15 items" (folder filter) or "12 results" / "No results" (bucket-wide)
+- [x] Empty search state: "No matches for [query]" centered placeholder
+- [x] Inline loading spinner in toolbar during bucket fetch
+- [x] Full-screen "Searching bucket..." spinner on first fetch
+- [x] Parent `..` row suppressed during active search
+- [x] Context menus and actions use `activeObjects` helper to resolve objects from either current folder or bucket search results
+- [x] Auto-refresh skipped while bucket search in progress
+- [x] Bucket change (`.task(id:)`) clears search state
+- [x] Double-click folder during search clears search and navigates
 
 ---
 
@@ -117,7 +113,7 @@ Phases are independent and ordered by complexity (simplest first):
 3. Copy Object Key — trivial addition
 4. Inline Text Preview — extends existing metadata sheet
 5. Force Delete Bucket — new service logic + two-step confirmation flow
-6. Universal Search — cross-cutting, touches ContentView + all modules
+6. ~~S3 Search & Filter~~ ✅ (toolbar search bar with folder/bucket scope dropdown)
 
 ## Completed (outside phases)
 - **Auto-refresh extraction** — reusable `AutoRefreshManager` (on `AppState`, injected as `@EnvironmentObject`), `AutoRefreshIndicatorView` (countdown in breadcrumb bar), `AutoRefreshMenuView` (single toolbar menu with Refresh Now + interval picker). Internal Task-based timer, `refreshTrigger` pattern. Both S3 bucket list and object browser auto-refresh. Settings view uses `@EnvironmentObject` directly.

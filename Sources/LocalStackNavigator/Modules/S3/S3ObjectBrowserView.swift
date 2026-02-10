@@ -99,6 +99,14 @@ struct S3ObjectBrowserView: View {
             Divider()
             contentArea
         }
+        .onChange(of: searchQuery) {
+            if searchQuery.isEmpty {
+                searchScope = .currentFolder
+                bucketSearchResults = nil
+                isSearchingBucket = false
+                searchTask?.cancel()
+            }
+        }
         .onChange(of: searchScope) {
             if searchScope == .entireBucket {
                 performBucketSearch()
@@ -124,54 +132,35 @@ struct S3ObjectBrowserView: View {
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                HStack(spacing: 4) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondary)
-                        .font(.system(size: 11))
-                    TextField("Filter...", text: $searchQuery)
-                        .textFieldStyle(.plain)
-                        .frame(minWidth: 80, maxWidth: 180)
-                    if isSearchActive {
-                        Menu {
-                            ForEach(SearchScope.allCases, id: \.self) { scope in
-                                Button {
-                                    searchScope = scope
-                                } label: {
-                                    if searchScope == scope {
-                                        Label(scope.rawValue, systemImage: "checkmark")
-                                    } else {
-                                        Text(scope.rawValue)
-                                    }
+                SearchBarView(query: $searchQuery, placeholder: "Filter...") {
+                    Menu {
+                        ForEach(SearchScope.allCases, id: \.self) { scope in
+                            Button {
+                                searchScope = scope
+                            } label: {
+                                if searchScope == scope {
+                                    Label(scope.rawValue, systemImage: "checkmark")
+                                } else {
+                                    Text(scope.rawValue)
                                 }
                             }
-                        } label: {
-                            Text(searchScope.rawValue)
-                                .font(.system(size: 11, weight: .medium))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .foregroundStyle(.primary)
-                                .background(Color.primary.opacity(0.08), in: Capsule())
                         }
-                        .menuStyle(.borderlessButton)
-                        .fixedSize()
-                        if isSearchingBucket {
-                            ProgressView()
-                                .controlSize(.small)
-                                .scaleEffect(0.7)
-                        }
-                        Button {
-                            clearSearch()
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
+                    } label: {
+                        Text(searchScope.rawValue)
+                            .font(.system(size: 11, weight: .medium))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .foregroundStyle(.primary)
+                            .background(Color.primary.opacity(0.08), in: Capsule())
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    if isSearchingBucket {
+                        ProgressView()
+                            .controlSize(.small)
+                            .scaleEffect(0.7)
                     }
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
-                .padding(.leading, 8)
             }
             ToolbarItem(placement: .primaryAction) {
                 HStack(spacing: 8) {
