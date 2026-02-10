@@ -33,14 +33,13 @@ final class S3ToolbarState: ObservableObject {
 }
 
 /// Reusable toolbar content for S3 browser views.
-/// Conforms to CustomizableToolbarContent so toolbar(id:) can persist display mode natively.
-struct S3Toolbar: CustomizableToolbarContent {
+struct S3Toolbar: ToolbarContent {
     @ObservedObject var state: S3ToolbarState
     let isReadOnly: Bool
     let hasBucket: Bool
 
-    var body: some CustomizableToolbarContent {
-        ToolbarItem(id: "s3-navigation", placement: .navigation) {
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
             HStack(spacing: 4) {
                 Button { state.pendingAction = .navigateBack } label: {
                     Image(systemName: "chevron.left")
@@ -54,28 +53,28 @@ struct S3Toolbar: CustomizableToolbarContent {
                 .help("Forward")
             }
         }
-        ToolbarItem(id: "s3-policy", placement: .primaryAction) {
+        ToolbarItem(placement: .primaryAction) {
             Button { state.pendingAction = .showPolicy } label: {
                 Label("Policy", systemImage: "doc.text")
             }
             .help("Bucket Policy")
             .disabled(!hasBucket)
         }
-        ToolbarItem(id: "s3-create-folder", placement: .primaryAction) {
+        ToolbarItem(placement: .primaryAction) {
             Button { state.pendingAction = .createFolder } label: {
                 Label("Folder", systemImage: "folder.badge.plus")
             }
             .help("Create Folder")
             .disabled(!hasBucket || isReadOnly)
         }
-        ToolbarItem(id: "s3-upload", placement: .primaryAction) {
+        ToolbarItem(placement: .primaryAction) {
             Button { state.pendingAction = .upload } label: {
                 Label("Upload", systemImage: "plus")
             }
             .help("Upload File")
             .disabled(!hasBucket || isReadOnly)
         }
-        ToolbarItem(id: "s3-delete", placement: .primaryAction) {
+        ToolbarItem(placement: .primaryAction) {
             Button { state.pendingAction = .deleteSelected } label: {
                 Label("Delete", systemImage: "trash")
             }
