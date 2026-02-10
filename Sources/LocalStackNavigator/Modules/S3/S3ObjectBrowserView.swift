@@ -146,7 +146,7 @@ struct S3ObjectBrowserView: View {
                         Image(systemName: "trash")
                     }
                     .help("Delete Selected")
-                    .disabled(appState.isReadOnly || allDeletableSelectedItems.isEmpty || isDeletingObjects || isDeletingFolders)
+                    .disabled(appState.isReadOnly || selectedRowIDs.subtracting([Self.parentRowID]).isEmpty || isDeletingObjects || isDeletingFolders)
                 }
             }
         }
