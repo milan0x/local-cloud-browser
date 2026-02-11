@@ -176,7 +176,8 @@
 - [x] `S3Service.renameObject()` — server-side copy + delete within same bucket
 - [x] `S3Service.renameFolder()` — copy ALL objects first, then delete ALL originals (safer: originals intact if copy fails midway)
 - [x] Context menu "Rename" for single files (after Metadata) and single folders (after Copy as AWS JSON divider)
-- [x] Rename sheet: title, current name display, text field pre-filled with current name, validation (not empty, not same as current, no `/`)
+- [x] Rename sheet: title, current name display, text field pre-filled with current name, validation (not empty, not same as current, no `/`, no name collision)
+- [x] Collision detection: validates new name against existing files/folders in the current directory, disables "Rename" button and shows red warning when name already exists — prevents silent S3 PUT overwrite
 - [x] Disabled in read-only mode, not shown for `..` parent row or multi-select
 - [x] `itemToRename` added to `anySheetOpen` to suppress auto-refresh during rename
 - [x] Standard error handling via `serviceError` alert
@@ -205,24 +206,62 @@
 - [x] `S3BucketListView` now takes `@ObservedObject toolbarState: S3ToolbarState` instead of a plain `hasObjectSelection` bool
 
 **Context menu order (single file):**
-1. Download / Quick Look / Copy Key / Copy S3 URI / Copy as AWS JSON
-2. Divider
-3. Metadata
-4. Rename
-5. Move... / Move to / Duplicate
+1. Download / Quick Look
+2. Copy (to app clipboard)
+3. Copy Key / Copy S3 URI / Copy as AWS JSON
+4. Divider
+5. Metadata / Rename / Move... / Move to / Duplicate
 6. Divider
 7. Delete
 
 **Context menu order (single folder):**
 1. Open / Folder Info / Open in New Window
 2. Download as ZIP
-3. Divider
-4. Copy Key / Copy S3 URI / Copy as AWS JSON
-5. Divider
-6. Rename
-7. Move... / Move to / Duplicate
+3. Copy (to app clipboard)
+4. Divider
+5. Copy Key / Copy S3 URI / Copy as AWS JSON
+6. Divider
+7. Rename / Move... / Move to / Duplicate
 8. Divider
-9. Delete Folder
+9. Paste Here
+10. Divider
+11. Delete Folder
+
+**Context menu order (multi-select):**
+1. Copy N Items (to app clipboard)
+2. Divider
+3. Copy N Paths / Copy N S3 URIs / Copy as AWS JSON
+4. Divider
+5. Move N Items... / Move to
+6. Divider
+7. Delete N Items
+
+**Context menu order (empty area):**
+1. Create Folder / Upload File
+2. Divider
+3. Paste
+
+---
+
+## Phase 10: Intra-App Copy/Paste ✅
+
+**Goal:** Clipboard-based copy/paste for S3 objects and folders using server-side copy — no data leaves the server.
+
+**Completed:**
+- [x] `S3Clipboard` model — `sourceBucket`, `objectKeys`, `folderPrefixes`, stored on `AppState` for app-wide sharing across views and windows
+- [x] `S3Service.copyFolder()` — recursive server-side copy preserving relative paths, supports cross-bucket
+- [x] "Copy" context menu item for single files (after Quick Look), single folders (after Download as ZIP), and multi-select ("Copy N Items")
+- [x] "Paste" on empty-area right-click (after Upload File) — pastes into current prefix
+- [x] "Paste Here" on folder right-click (before Delete Folder) — pastes directly into that folder without navigating
+- [x] Dynamic labels: "Paste (3 Items)", "Paste Here (1 Item)" — shows clipboard content count
+- [x] Disabled when clipboard is empty, in read-only mode, or during active paste
+- [x] Clipboard not cleared on paste (standard OS behavior — paste multiple times)
+- [x] Cross-bucket: copy in bucket A, navigate to bucket B, paste — works via `serverSideCopy`
+
+**Design decisions:**
+- No keyboard shortcuts (Cmd+C/V conflicts with text field copy/paste in search bar — would require `FocusedValues` + responder chain)
+- No visual clipboard indicator (dynamic context menu label is sufficient)
+- Paste overwrites: S3 PUT semantics — if a key already exists at destination, it's silently replaced (matches S3 behavior)
 
 ---
 
@@ -237,7 +276,8 @@ Phases are independent and ordered by complexity (simplest first):
 6. ~~S3 Search & Filter~~ ✅ (reusable SearchBarView, current-folder filter only)
 7. Folder Upload — drag-and-drop + NSOpenPanel, recursive enumerate, progress indicator, junk file filter
 8. ~~Duplicate Object~~ ✅ (server-side copy via `x-amz-copy-source`, Finder naming, collision check)
-9. ~~Server-Side Copy + Rename + Download ZIP~~ ✅ (all move/copy upgraded to server-side, rename files/folders, download folder as ZIP, delete button safety)
+9. ~~Server-Side Copy + Rename + Download ZIP~~ ✅ (all move/copy upgraded to server-side, rename files/folders with collision detection, download folder as ZIP, delete button safety)
+10. ~~Intra-App Copy/Paste~~ ✅ (clipboard-based copy/paste via context menus, server-side copy, cross-bucket, app-wide clipboard on AppState)
 
 ## Completed (outside phases)
 - **Auto-refresh extraction** — reusable `AutoRefreshManager` (on `AppState`, injected as `@EnvironmentObject`), `AutoRefreshIndicatorView` (countdown in breadcrumb bar), `AutoRefreshMenuView` (single toolbar menu with Refresh Now + interval picker, `.menuStyle(.borderlessButton)` + `.fixedSize()` for compact icon). Internal Task-based timer, `refreshTrigger` pattern. Both S3 bucket list and object browser auto-refresh. Settings view uses `@EnvironmentObject` directly.
