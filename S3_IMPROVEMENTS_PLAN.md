@@ -366,6 +366,10 @@ Phases are independent and ordered by complexity (simplest first):
 - **Human-readable file sizes** — `S3Object.formattedSize` computed property using `ByteCountFormatter` with `.file` count style (e.g., "4.2 MB"). Used consistently in object browser table, metadata view, folder metadata view, and folder picker.
 - **Delete button safety** — Bucket delete (trash icon in bucket list header) disabled when objects are selected in the browser, with tooltip "Click on the bucket you want to delete — objects are currently selected". Toolbar object delete button colored red when enabled. `PaneClickDetector` (NSViewRepresentable with `NSEvent.addLocalMonitorForEvents`) on bucket list pane clears browser object selection on any click, ensuring only one delete scope is active at a time.
 
+## Future Considerations
+
+- **"Copy to" context menu** — A "Copy to" submenu mirroring the existing "Move to" logic: quick options for parent folder (`..`) and visible subfolders, plus a "Browse..." option opening the folder picker for cross-bucket/arbitrary destination selection. Uses `serverSideCopy` (no download/re-upload). Difference from intra-app copy/paste: "Copy to" is a single-action shortcut (right-click → pick destination → done) vs. the two-step copy-then-paste workflow. Same collision detection pattern as move (`checkCollisions()` before executing). Supports single files, single folders (recursive), and multi-select.
+
 ## Verification
 
 After each phase: `swift build` must pass. Manual test against running LocalStack.
