@@ -106,7 +106,7 @@
 - [x] Auto-refresh indicator in S3 breadcrumb bar (countdown only)
 - [x] Auto-refresh menu (single toolbar button: Refresh Now + interval picker)
 - [x] Bucket list auto-refreshes alongside object browser
-- [ ] Connection health check (ping LocalStack)
+- [x] Connection health check: polls `/_localstack/health` every 3 seconds (3s request timeout). `AppState.startHealthCheck()` runs a Task-based timer, sets `isConnected` on success/failure. Restarts automatically on profile switch (`applyProfile` cancels old task, starts new one with immediate check). Sidebar shows `link` icon — green when connected, gray when not connected. Replaces the old colored dot.
 - [ ] Error handling improvements
 - [x] Keyboard shortcuts: Cmd+C/V for S3 copy/paste, Cmd+Backspace for delete (objects only, shows confirmation dialog)
 - [x] Searchable region picker: `AWSRegion` static data model (39 regions), reusable `SearchableDropdown` popover component (filter-as-you-type, checkmark selection, auto-scroll), `AWSRegionPicker` convenience wrapper. Replaces free-text `TextField` in S3 create bucket dialog and connection profile editor. Only valid AWS region codes selectable. Create bucket dialog restructured from plain VStack to `Form` with `.formStyle(.grouped)` matching the connection profile editor — info label in its own `Section`, `Divider` + button bar below, 380pt width.

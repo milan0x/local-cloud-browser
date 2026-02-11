@@ -19,6 +19,8 @@ struct LocalStackNavigatorApp: App {
         let store = ConnectionProfileStore()
         if let active = store.activeProfile {
             state.applyProfile(active)
+        } else {
+            state.startHealthCheck()
         }
         _appState = StateObject(wrappedValue: state)
         _client = StateObject(wrappedValue: LocalStackClient(appState: state))
