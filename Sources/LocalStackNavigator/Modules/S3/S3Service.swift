@@ -237,6 +237,18 @@ final class S3Service: ObservableObject {
         return zipURL
     }
 
+    func emptyBucket(bucket: String) async throws {
+        let objects = try await listAllObjects(bucket: bucket, prefix: "")
+        if !objects.isEmpty {
+            _ = try await deleteObjects(bucket: bucket, keys: objects.map(\.key))
+        }
+    }
+
+    func forceDeleteBucket(bucket: String) async throws {
+        try await emptyBucket(bucket: bucket)
+        try await deleteBucket(name: bucket)
+    }
+
     func deleteObject(bucket: String, key: String) async throws {
         _ = try await client.s3Request(method: "DELETE", path: "/\(bucket)/\(key)")
     }
