@@ -179,6 +179,7 @@
 - [x] Context menu "Rename" for single files (after Metadata) and single folders (after Copy as AWS JSON divider)
 - [x] Rename sheet: title, current name display, text field pre-filled with current name, validation (not empty, not same as current, no `/`, no name collision)
 - [x] Collision detection: validates new name against existing files/folders in the current directory, disables "Rename" button and shows red warning when name already exists — prevents silent S3 PUT overwrite
+- [x] Move/paste collision warning: `checkCollisions()` lists destination folder and compares against incoming items. `requestMove()`, `requestMoveToBucket()`, `requestPaste()` wrappers check before executing. Native `.alert()` with "Stop" / "Replace" explains merge behavior (matching replaced, others untouched, new added). All callers updated: move sheet, "Move to" submenus, browse picker, "Move to Bucket" sheet, empty-area paste, folder paste-here.
 - [x] Disabled in read-only mode, not shown for `..` parent row or multi-select
 - [x] `itemToRename` added to `anySheetOpen` to suppress auto-refresh during rename
 - [x] Standard error handling via `serviceError` alert

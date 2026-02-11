@@ -70,6 +70,7 @@
 - [x] Rename collision detection: rename sheet validates new name against existing files/folders in the current directory. Disables "Rename" button and shows red warning when name already exists. Prevents silent S3 PUT overwrite.
 - [x] Create folder collision detection: create folder sheet validates name against existing folders and files. Disables "Create" button and shows red warning when name already exists.
 - [x] Create bucket collision detection: create bucket sheet validates name against existing buckets. Disables "Create" button and shows red warning when name already exists.
+- [x] Move/paste collision warning: checks destination folder for same-named items before move (same-bucket, cross-bucket, browse picker) and paste operations. Shows native `.alert()` listing colliding names with "Stop" / "Replace" buttons. Explains merge behavior (matching replaced, others untouched, new added).
 
 ## Phase 3: SQS Module
 - [ ] List queues view

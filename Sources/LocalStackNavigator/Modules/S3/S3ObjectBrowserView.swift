@@ -75,6 +75,10 @@ struct S3ObjectBrowserView: View {
     // Copy/paste
     @State private var isPasting = false
 
+    // Collision warning
+    @State private var collisionItems: [String] = []
+    @State private var collisionAction: (() -> Void)?
+
     // Search & filter
     @State private var searchQuery = ""
 
@@ -316,6 +320,28 @@ struct S3ObjectBrowserView: View {
                 Text("Are you sure you want to delete these items?\n\n\(allNames)\n\nAll contents will be permanently deleted.")
             }
         }
+        // Collision warning for move/paste
+        .alert(
+            "\(collisionItems.count) \(collisionItems.count == 1 ? "Item Already Exists" : "Items Already Exist")",
+            isPresented: Binding(
+                get: { !collisionItems.isEmpty },
+                set: { if !$0 { collisionItems = []; collisionAction = nil } }
+            )
+        ) {
+            Button("Stop", role: .cancel) {
+                collisionItems = []
+                collisionAction = nil
+            }
+            Button("Replace", role: .destructive) {
+                let action = collisionAction
+                collisionItems = []
+                collisionAction = nil
+                action?()
+            }
+        } message: {
+            let names = collisionItems.joined(separator: "\n")
+            Text("The destination already contains items with these names:\n\n\(names)\n\n• Matching items will be replaced\n• Other existing items will remain untouched\n• New items will be added")
+        }
     }
 
     private var browsePickerSheet: some View {
@@ -330,7 +356,7 @@ struct S3ObjectBrowserView: View {
                 moveDestination = destPrefix
                 browsePickerItems = []
                 browsePickerFolders = []
-                performMove()
+                requestMove()
             } else {
                 moveToBucketItems = browsePickerItems
                 moveToBucketFolders = browsePickerFolders
@@ -338,7 +364,7 @@ struct S3ObjectBrowserView: View {
                 destinationBucketPrefix = destPrefix
                 browsePickerItems = []
                 browsePickerFolders = []
-                performMoveToBucket()
+                requestMoveToBucket()
             }
         }
     }
@@ -429,7 +455,7 @@ struct S3ObjectBrowserView: View {
                 .disabled(appState.isReadOnly)
                 Divider()
                 Button(pasteLabel) {
-                    performPaste()
+                    requestPaste()
                 }
                 .disabled(appState.isReadOnly || appState.s3Clipboard == nil || isPasting)
             }
@@ -585,7 +611,7 @@ struct S3ObjectBrowserView: View {
                 .disabled(appState.isReadOnly)
                 Divider()
                 Button(pasteLabel) {
-                    performPaste()
+                    requestPaste()
                 }
                 .disabled(appState.isReadOnly || appState.s3Clipboard == nil || isPasting)
             }
@@ -630,7 +656,7 @@ struct S3ObjectBrowserView: View {
                     .disabled(appState.isReadOnly)
                     Divider()
                     Button(pasteHereLabel) {
-                        performPaste(into: item.fullKey)
+                        requestPaste(into: item.fullKey)
                     }
                     .disabled(appState.isReadOnly || appState.s3Clipboard == nil || isPasting)
                     Divider()
@@ -846,7 +872,7 @@ struct S3ObjectBrowserView: View {
                     let dest = parent.isEmpty ? "" : parent.joined(separator: "/") + "/"
                     objectsToMove = objs
                     moveDestination = dest
-                    performMove()
+                    requestMove()
                 }
                 if hasFolders { Divider() }
             }
@@ -855,7 +881,7 @@ struct S3ObjectBrowserView: View {
                     Button(prefix.displayName) {
                         objectsToMove = objs
                         moveDestination = prefix.prefix
-                        performMove()
+                        requestMove()
                     }
                 }
             }
@@ -884,7 +910,7 @@ struct S3ObjectBrowserView: View {
                     let dest = parent.isEmpty ? "" : parent.joined(separator: "/") + "/"
                     foldersToMove = folders
                     moveDestination = dest
-                    performMove()
+                    requestMove()
                 }
                 if hasFolders { Divider() }
             }
@@ -893,7 +919,7 @@ struct S3ObjectBrowserView: View {
                     Button(prefix.displayName) {
                         foldersToMove = folders
                         moveDestination = prefix.prefix
-                        performMove()
+                        requestMove()
                     }
                 }
             }
@@ -923,7 +949,7 @@ struct S3ObjectBrowserView: View {
                     objectsToMove = objs
                     foldersToMove = folders
                     moveDestination = dest
-                    performMove()
+                    requestMove()
                 }
                 if hasFolders { Divider() }
             }
@@ -933,7 +959,7 @@ struct S3ObjectBrowserView: View {
                         objectsToMove = objs
                         foldersToMove = folders
                         moveDestination = prefix.prefix
-                        performMove()
+                        requestMove()
                     }
                 }
             }
@@ -1210,7 +1236,7 @@ struct S3ObjectBrowserView: View {
                 TextField("e.g. folder/subfolder/", text: $moveDestination)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit {
-                        if !isMoveDisabled { performMove() }
+                        if !isMoveDisabled { requestMove() }
                     }
             }
 
@@ -1258,7 +1284,7 @@ struct S3ObjectBrowserView: View {
                     ProgressView()
                         .controlSize(.small)
                 } else {
-                    Button("Move") { performMove() }
+                    Button("Move") { requestMove() }
                         .keyboardShortcut(.defaultAction)
                         .disabled(isMoveDisabled)
                 }
@@ -1266,6 +1292,103 @@ struct S3ObjectBrowserView: View {
         }
         .padding()
         .frame(width: 400)
+    }
+
+    /// Returns the names of items that already exist at the destination.
+    private func checkCollisions(
+        bucket: String,
+        destinationPrefix: String,
+        incomingFileNames: [String],
+        incomingFolderNames: [String]
+    ) async -> [String] {
+        do {
+            let result = try await service.listObjects(bucket: bucket, prefix: destinationPrefix)
+            let existingFileNames = Set(result.objects.filter { $0.key != destinationPrefix }.map(\.displayName))
+            let existingFolderNames = Set(result.commonPrefixes.map(\.displayName))
+            let allExisting = existingFileNames.union(existingFolderNames)
+            let allIncoming = Set(incomingFileNames + incomingFolderNames)
+            return Array(allIncoming.intersection(allExisting)).sorted()
+        } catch {
+            return []
+        }
+    }
+
+    private func requestMove() {
+        let objs = objectsToMove
+        let folders = foldersToMove
+        let destination = moveDestination
+
+        let fileNames = objs.map { $0.key.components(separatedBy: "/").last ?? $0.key }
+        let folderNames = folders.map { f in
+            String(f.dropLast()).components(separatedBy: "/").last ?? f
+        }
+
+        Task {
+            let collisions = await checkCollisions(
+                bucket: bucket.name,
+                destinationPrefix: destination,
+                incomingFileNames: fileNames,
+                incomingFolderNames: folderNames
+            )
+            if collisions.isEmpty {
+                performMove()
+            } else {
+                collisionItems = collisions
+                collisionAction = { performMove() }
+            }
+        }
+    }
+
+    private func requestMoveToBucket() {
+        let objs = moveToBucketItems
+        let folders = moveToBucketFolders
+        let destBucket = destinationBucketName
+        let destPrefix = destinationBucketPrefix
+
+        let fileNames = objs.map { $0.key.components(separatedBy: "/").last ?? $0.key }
+        let folderNames = folders.map { f in
+            String(f.dropLast()).components(separatedBy: "/").last ?? f
+        }
+
+        Task {
+            let collisions = await checkCollisions(
+                bucket: destBucket,
+                destinationPrefix: destPrefix,
+                incomingFileNames: fileNames,
+                incomingFolderNames: folderNames
+            )
+            if collisions.isEmpty {
+                performMoveToBucket()
+            } else {
+                collisionItems = collisions
+                collisionAction = { performMoveToBucket() }
+            }
+        }
+    }
+
+    private func requestPaste(into destinationPrefix: String? = nil) {
+        guard let clipboard = appState.s3Clipboard else { return }
+        let destPrefix = destinationPrefix ?? currentPrefix
+
+        let fileNames = clipboard.objectKeys.map { $0.components(separatedBy: "/").last ?? $0 }
+        let folderNames = clipboard.folderPrefixes.map { f in
+            String(f.dropLast()).components(separatedBy: "/").last ?? f
+        }
+
+        Task {
+            let collisions = await checkCollisions(
+                bucket: bucket.name,
+                destinationPrefix: destPrefix,
+                incomingFileNames: fileNames,
+                incomingFolderNames: folderNames
+            )
+            if collisions.isEmpty {
+                performPaste(into: destinationPrefix)
+            } else {
+                collisionItems = collisions
+                collisionAction = { performPaste(into: destinationPrefix) }
+            }
+        }
     }
 
     private func performMove() {
@@ -1378,7 +1501,7 @@ struct S3ObjectBrowserView: View {
                     ProgressView()
                         .controlSize(.small)
                 } else {
-                    Button("Move") { performMoveToBucket() }
+                    Button("Move") { requestMoveToBucket() }
                         .keyboardShortcut(.defaultAction)
                         .disabled(destinationBucketName.isEmpty)
                 }
