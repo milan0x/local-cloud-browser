@@ -109,5 +109,5 @@
 - [ ] Connection health check (ping LocalStack)
 - [ ] Error handling improvements
 - [x] Keyboard shortcuts: Cmd+C/V for S3 copy/paste, Cmd+Backspace for delete (objects only, shows confirmation dialog)
-- [x] Searchable region picker: `AWSRegion` static data model (39 regions), reusable `SearchableDropdown` popover component (filter-as-you-type, checkmark selection, auto-scroll), `AWSRegionPicker` convenience wrapper. Replaces free-text `TextField` in S3 create bucket dialog and connection profile editor. Only valid AWS region codes selectable.
+- [x] Searchable region picker: `AWSRegion` static data model (39 regions), reusable `SearchableDropdown` popover component (filter-as-you-type, checkmark selection, auto-scroll), `AWSRegionPicker` convenience wrapper. Replaces free-text `TextField` in S3 create bucket dialog and connection profile editor. Only valid AWS region codes selectable. Create bucket dialog restructured from plain VStack to `Form` with `.formStyle(.grouped)` matching the connection profile editor — info label in its own `Section`, `Divider` + button bar below, 380pt width.
 - [ ] Menu bar integration
