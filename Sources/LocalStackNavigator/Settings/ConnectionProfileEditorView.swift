@@ -39,7 +39,7 @@ struct ConnectionProfileEditorView: View {
             Form {
                 TextField("Name", text: $name)
                 TextField("Endpoint", text: $endpoint)
-                LabeledContent("Region") {
+                LabeledContent("Default Region") {
                     AWSRegionPicker(regionCode: $region)
                 }
                 TextField("Access Key ID", text: $accessKeyId)

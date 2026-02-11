@@ -6,7 +6,12 @@ final class AppState: ObservableObject {
     @Published var isReadOnly: Bool = false
     @Published var endpoint: String = "http://localhost:4566"
     @Published var selectedRoute: Route? = nil
-    @Published var region: String = "us-east-1"
+    @Published var region: String = {
+        let stored = UserDefaults.standard.string(forKey: AppPreferences.regionKey)
+        return (stored != nil && !stored!.isEmpty) ? stored! : "us-east-1"
+    }() {
+        didSet { UserDefaults.standard.set(region, forKey: AppPreferences.regionKey) }
+    }
     @Published var activeConnectionName: String = "Default"
     @Published var connectionVersion: Int = 0
     @Published var s3Clipboard: S3Clipboard?
