@@ -37,6 +37,9 @@ struct LocalStackNavigatorApp: App {
                 }
         }
         .defaultSize(width: 1100, height: 700)
+        .commands {
+            S3PasteboardCommands()
+        }
 
         WindowGroup(id: "s3-browser", for: S3BrowserTarget.self) { $target in
             if let target {
@@ -52,5 +55,60 @@ struct LocalStackNavigatorApp: App {
                 .environmentObject(appState)
                 .environmentObject(appState.autoRefresh)
         }
+    }
+}
+
+struct S3PasteboardCommands: Commands {
+    @FocusedValue(\.s3CopyAction) private var s3Copy
+    @FocusedValue(\.s3PasteAction) private var s3Paste
+    @FocusedValue(\.s3DeleteAction) private var s3Delete
+
+    var body: some Commands {
+        CommandGroup(replacing: .pasteboard) {
+            Button("Cut") {
+                NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil)
+            }
+            .keyboardShortcut("x", modifiers: .command)
+
+            Button("Copy") {
+                if isTextFieldFocused {
+                    NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
+                } else if let s3Copy {
+                    s3Copy()
+                } else {
+                    NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
+                }
+            }
+            .keyboardShortcut("c", modifiers: .command)
+
+            Button("Paste") {
+                if isTextFieldFocused {
+                    NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+                } else if let s3Paste {
+                    s3Paste()
+                } else {
+                    NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+                }
+            }
+            .keyboardShortcut("v", modifiers: .command)
+
+            Button("Delete") {
+                if isTextFieldFocused {
+                    NSApp.sendAction(#selector(NSText.delete(_:)), to: nil, from: nil)
+                } else if let s3Delete {
+                    s3Delete()
+                }
+            }
+            .keyboardShortcut(.delete, modifiers: .command)
+
+            Button("Select All") {
+                NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
+            }
+            .keyboardShortcut("a", modifiers: .command)
+        }
+    }
+
+    private var isTextFieldFocused: Bool {
+        NSApp.keyWindow?.firstResponder is NSTextView
     }
 }

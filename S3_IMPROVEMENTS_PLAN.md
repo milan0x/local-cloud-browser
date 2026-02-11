@@ -261,7 +261,7 @@
 - [x] Cross-bucket: copy in bucket A, navigate to bucket B, paste — works via `serverSideCopy`
 
 **Design decisions:**
-- No keyboard shortcuts (Cmd+C/V conflicts with text field copy/paste in search bar — would require `FocusedValues` + responder chain)
+- Keyboard shortcuts: Cmd+C (copy to S3 clipboard), Cmd+V (paste from S3 clipboard), Cmd+Backspace (delete selected items). Uses `FocusedValues` + `CommandGroup(replacing: .pasteboard)` with `NSApp.keyWindow?.firstResponder is NSTextView` check to fall through to standard text behavior when a text field is focused. Works in both main window and S3 browser windows.
 - No visual clipboard indicator (dynamic context menu label is sufficient)
 - Paste collisions: collision warning alert shown before paste if destination contains same-named items (see Phase 11)
 
