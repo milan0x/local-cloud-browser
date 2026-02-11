@@ -9,6 +9,8 @@ struct SidebarView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var profileStore: ConnectionProfileStore
     @State private var showProfilePicker = false
+    @State private var showHealthWarning = false
+    @State private var showConnectionError = false
     @State private var editorSheet: EditorSheet?
 
     var body: some View {
@@ -81,10 +83,15 @@ struct SidebarView: View {
 
     private var connectionIndicator: some View {
         HStack(spacing: 6) {
-            Image(systemName: connectionIcon)
-                .font(.caption2)
-                .foregroundStyle(connectionColor)
-                .help(connectionHelp)
+            if appState.connectionStatus == .connected {
+                healthStatusButton
+            } else if appState.connectionError != nil {
+                connectionErrorButton
+            } else {
+                Image(systemName: "checkmark.circle")
+                    .font(.caption2)
+                    .foregroundStyle(Color.gray)
+            }
 
             Button {
                 showProfilePicker.toggle()
@@ -111,27 +118,139 @@ struct SidebarView: View {
         }
     }
 
-    private var connectionIcon: String {
-        switch appState.connectionStatus {
-        case .connected: "link"
-        case .unhealthy: "exclamationmark.triangle.fill"
-        case .disconnected: "link"
+    private var hasIssues: Bool {
+        appState.healthInfo?.hasIssues ?? false
+    }
+
+    private var healthStatusButton: some View {
+        Button {
+            showHealthWarning.toggle()
+        } label: {
+            Image(systemName: hasIssues ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                .font(.caption2)
+                .foregroundStyle(hasIssues ? Color.orange : Color.green)
+        }
+        .buttonStyle(.plain)
+        .help(hasIssues ? "Some services have issues" : "Connected to \(appState.endpoint)")
+        .popover(isPresented: $showHealthWarning, arrowEdge: .top) {
+            healthPopover
         }
     }
 
-    private var connectionColor: Color {
-        switch appState.connectionStatus {
-        case .connected: .green
-        case .unhealthy: .orange
-        case .disconnected: .gray
+    private var connectionErrorButton: some View {
+        Button {
+            showConnectionError.toggle()
+        } label: {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.caption2)
+                .foregroundStyle(Color.orange)
+        }
+        .buttonStyle(.plain)
+        .help("Connection error — click for details")
+        .popover(isPresented: $showConnectionError, arrowEdge: .top) {
+            connectionErrorPopover
         }
     }
 
-    private var connectionHelp: String {
-        switch appState.connectionStatus {
-        case .connected: "Connected to \(appState.endpoint)"
-        case .unhealthy: "Slow response from \(appState.endpoint)"
-        case .disconnected: "Not connected to \(appState.endpoint)"
+    private var connectionErrorPopover: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Connection Error")
+                .font(.headline)
+
+            Divider()
+
+            HStack {
+                Text("Reason")
+                    .font(.body)
+                Spacer()
+                Text(connectionErrorReason)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 2)
+            .padding(.horizontal, 2)
+
+            HStack {
+                Text("Endpoint")
+                    .font(.body)
+                Spacer()
+                Text(appState.endpoint)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 2)
+            .padding(.horizontal, 2)
+        }
+        .padding(12)
+        .frame(width: 280)
+    }
+
+    private var connectionErrorReason: String {
+        guard let error = appState.connectionError else { return "Unknown" }
+        switch error {
+        case .timeout:
+            return "Timed out (5s)"
+        case .httpError(let code):
+            return "HTTP \(code)"
+        case .networkError(let message):
+            return message
+        }
+    }
+
+    private var healthPopover: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let info = appState.healthInfo {
+                Text("LocalStack Health")
+                    .font(.headline)
+
+                Divider()
+
+                healthRow("edition", info.edition)
+                healthRow("version", info.version)
+
+                Divider()
+
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(info.services) { service in
+                            HStack {
+                                Text(service.id)
+                                    .font(.body)
+                                Spacer()
+                                Text(service.status)
+                                    .font(.caption)
+                                    .foregroundStyle(serviceStatusColor(for: service))
+                            }
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, 2)
+                        }
+                    }
+                }
+                .frame(maxHeight: 240)
+            }
+        }
+        .padding(12)
+        .frame(width: 280)
+    }
+
+    private func healthRow(_ key: String, _ value: String) -> some View {
+        HStack {
+            Text(key)
+                .font(.body)
+            Spacer()
+            Text(value)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 2)
+        .padding(.horizontal, 2)
+    }
+
+    private func serviceStatusColor(for service: ServiceHealth) -> Color {
+        if service.isHealthy { return .green }
+        switch service.status {
+        case "error", "disabled": return .red
+        default: return .orange
         }
     }
 
