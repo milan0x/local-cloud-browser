@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var profileStore: ConnectionProfileStore
     @State private var showRegionPicker = false
     @State private var regionFilter = ""
 
@@ -92,6 +93,10 @@ struct ContentView: View {
                         ForEach(filteredRegions, id: \.code) { region in
                             Button {
                                 appState.region = region.code
+                                if var profile = profileStore.activeProfile {
+                                    profile.region = region.code
+                                    profileStore.update(profile)
+                                }
                                 showRegionPicker = false
                             } label: {
                                 HStack(spacing: 6) {

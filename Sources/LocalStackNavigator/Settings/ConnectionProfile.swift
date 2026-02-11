@@ -16,7 +16,7 @@ struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
 
     init(
         id: UUID = UUID(),
-        name: String = "Default Connection",
+        name: String = "default connection",
         endpoint: String = "http://localhost:4566",
         region: String = "us-east-1",
         accessKeyId: String = "test",

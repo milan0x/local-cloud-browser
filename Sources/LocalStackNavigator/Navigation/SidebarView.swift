@@ -90,7 +90,7 @@ struct SidebarView: View {
             } label: {
                 HStack(spacing: 4) {
                     Text(appState.activeConnectionName)
-                        .font(.caption)
+                        .font(.callout)
                         .foregroundStyle(.secondary)
                     Image(systemName: "chevron.up.chevron.down")
                         .font(.system(size: 8))

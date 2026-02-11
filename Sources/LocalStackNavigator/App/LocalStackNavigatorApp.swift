@@ -18,11 +18,7 @@ struct LocalStackNavigatorApp: App {
         let state = AppState()
         let store = ConnectionProfileStore()
         if let active = store.activeProfile {
-            let persistedRegion = UserDefaults.standard.string(forKey: AppPreferences.regionKey)
             state.applyProfile(active)
-            if let persistedRegion, !persistedRegion.isEmpty {
-                state.region = persistedRegion
-            }
         }
         _appState = StateObject(wrappedValue: state)
         _client = StateObject(wrappedValue: LocalStackClient(appState: state))
