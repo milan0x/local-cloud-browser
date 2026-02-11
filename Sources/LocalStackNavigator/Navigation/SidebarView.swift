@@ -12,6 +12,8 @@ struct SidebarView: View {
     @State private var showHealthWarning = false
     @State private var showConnectionError = false
     @State private var editorSheet: EditorSheet?
+    @State private var showConnectionBubble = false
+    @State private var bubbleDismissedByUser = false
 
     var body: some View {
         List(Route.allCases, selection: $appState.selectedRoute) { route in
@@ -27,6 +29,25 @@ struct SidebarView: View {
         }
         .safeAreaInset(edge: .bottom) {
             bottomBar
+                .overlay(alignment: .top) {
+                    if showConnectionBubble {
+                        connectionLostBubble
+                            .offset(y: -36)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+        }
+        .onChange(of: appState.connectionError != nil) { _, hasError in
+            withAnimation(.easeInOut(duration: 0.25)) {
+                if hasError {
+                    if !bubbleDismissedByUser {
+                        showConnectionBubble = true
+                    }
+                } else {
+                    showConnectionBubble = false
+                    bubbleDismissedByUser = false
+                }
+            }
         }
         .sheet(item: $editorSheet) { sheet in
             ConnectionProfileEditorView(
@@ -81,6 +102,31 @@ struct SidebarView: View {
         .padding(.vertical, 8)
     }
 
+    private var connectionLostBubble: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.caption2)
+                .foregroundStyle(.orange)
+            Text("Connection lost")
+                .font(.caption)
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showConnectionBubble = false
+                    bubbleDismissedByUser = true
+                }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+    }
+
     private var connectionIndicator: some View {
         HStack(spacing: 6) {
             if appState.connectionStatus == .connected {
@@ -88,7 +134,7 @@ struct SidebarView: View {
             } else if appState.connectionError != nil {
                 connectionErrorButton
             } else {
-                Image(systemName: "checkmark.circle")
+                Image(systemName: "circle")
                     .font(.caption2)
                     .foregroundStyle(Color.gray)
             }
