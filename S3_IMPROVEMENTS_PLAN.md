@@ -179,7 +179,6 @@
 - [x] Context menu "Rename" for single files (after Metadata) and single folders (after Copy as AWS JSON divider)
 - [x] Rename sheet: title, current name display, text field pre-filled with current name, validation (not empty, not same as current, no `/`, no name collision)
 - [x] Collision detection: validates new name against existing files/folders in the current directory, disables "Rename" button and shows red warning when name already exists — prevents silent S3 PUT overwrite
-- [x] Move/paste collision warning: `checkCollisions()` lists destination folder and compares against incoming items. `requestMove()`, `requestMoveToBucket()`, `requestPaste()` wrappers check before executing. Native `.alert()` with "Stop" / "Replace" explains merge behavior (matching replaced, others untouched, new added). All callers updated: move sheet, "Move to" submenus, browse picker, "Move to Bucket" sheet, empty-area paste, folder paste-here.
 - [x] Disabled in read-only mode, not shown for `..` parent row or multi-select
 - [x] `itemToRename` added to `anySheetOpen` to suppress auto-refresh during rename
 - [x] Standard error handling via `serviceError` alert
@@ -263,7 +262,77 @@
 **Design decisions:**
 - No keyboard shortcuts (Cmd+C/V conflicts with text field copy/paste in search bar — would require `FocusedValues` + responder chain)
 - No visual clipboard indicator (dynamic context menu label is sufficient)
-- Paste overwrites: S3 PUT semantics — if a key already exists at destination, it's silently replaced (matches S3 behavior)
+- Paste collisions: collision warning alert shown before paste if destination contains same-named items (see Phase 11)
+
+---
+
+## Phase 11: Collision Detection ✅
+
+**Goal:** Prevent silent data loss from S3's PUT-overwrites-existing semantics. When a user creates, renames, moves, or pastes items, warn if something with the same name already exists at the destination.
+
+**Problem:** S3 has no concept of "file already exists" — every PUT silently replaces whatever was at that key. Combined with move (which deletes the source after copy), this means a careless move can permanently destroy destination files with zero warning. The same risk applies to paste, rename, create folder, and create bucket.
+
+**Completed:**
+
+### Inline validation (preventive — blocks the action)
+These check against locally loaded data (no extra API call) and disable the action button with a red warning message when a collision is detected:
+
+- [x] **Rename collision detection** — rename sheet validates new name against existing files and folders in the current directory. Compares `renameText` against `objects.map(\.displayName)` and `prefixes.map(\.displayName)`. Disables "Rename" button and shows red text: "An item named "X" already exists in this folder."
+- [x] **Create folder collision detection** — create folder sheet validates name against existing folders and files. Uses same local comparison. Disables "Create" button with same red warning.
+- [x] **Create bucket collision detection** — create bucket sheet validates name against existing buckets loaded in the bucket list. Disables "Create" button with red warning: "A bucket named "X" already exists."
+- [x] **Duplicate collision avoidance** — `duplicateName()` generates `name copy.ext` / `name copy 2.ext` etc., checking against loaded objects/prefixes. No collision possible — always finds a unique name.
+
+### Async warning (confirmatory — user decides)
+These make an async `listObjects` call to the destination folder before executing, because the destination may not be the current folder (move to parent, move to subfolder, move to another bucket, paste into folder):
+
+- [x] **Move collision warning** — `requestMove()` wraps `performMove()`. Before executing, calls `checkCollisions()` which lists the destination folder via `service.listObjects()` and compares incoming file/folder names against existing items. If collisions found, shows native `.alert()` with "Stop" / "Replace" buttons.
+- [x] **Cross-bucket move collision warning** — `requestMoveToBucket()` wraps `performMoveToBucket()`. Same pattern — lists the destination prefix in the target bucket before moving.
+- [x] **Paste collision warning** — `requestPaste(into:)` wraps `performPaste(into:)`. Checks destination folder (current prefix or specific folder for "Paste Here") before copying.
+
+### Implementation details
+
+**`checkCollisions()` method:**
+```
+checkCollisions(bucket:destinationPrefix:incomingFileNames:incomingFolderNames:) -> [String]
+```
+- Calls `service.listObjects(bucket:prefix:)` on the destination
+- Builds sets of existing file names (`result.objects.map(\.displayName)`) and folder names (`result.commonPrefixes.map(\.displayName)`)
+- Returns sorted intersection of incoming names vs. existing names
+- Returns empty array on error (fail-safe — proceeds without warning rather than blocking the operation)
+
+**Collision alert (shared by all three `request*` methods):**
+- Title: "N Items Already Exist" / "1 Item Already Exists"
+- Message lists all colliding names, then explains S3 merge behavior:
+  - Matching items will be replaced
+  - Other existing items will remain untouched
+  - New items will be added
+- Buttons: "Stop" (cancel, `.cancel` role) and "Replace" (proceed, `.destructive` role)
+- State: `@State collisionItems: [String]` (names) + `@State collisionAction: (() -> Void)?` (deferred execution closure)
+- Alert placed on `mainContent` (not `body`) to avoid Swift type-checker timeout
+
+**Callers updated (9 locations):**
+| Caller | Was | Now |
+|---|---|---|
+| Move sheet "Move" button | `performMove()` | `requestMove()` |
+| Move sheet `.onSubmit` | `performMove()` | `requestMove()` |
+| `moveToMenu` ".." and subfolder buttons | `performMove()` | `requestMove()` |
+| `folderMoveToMenu` ".." and subfolder buttons | `performMove()` | `requestMove()` |
+| `mixedMoveToMenu` ".." and subfolder buttons | `performMove()` | `requestMove()` |
+| Browse picker same-bucket callback | `performMove()` | `requestMove()` |
+| Browse picker cross-bucket callback | `performMoveToBucket()` | `requestMoveToBucket()` |
+| "Move to Bucket" sheet "Move" button | `performMoveToBucket()` | `requestMoveToBucket()` |
+| Empty area "Paste" (2 locations) | `performPaste()` | `requestPaste()` |
+| Folder "Paste Here" | `performPaste(into:)` | `requestPaste(into:)` |
+
+**Design decisions:**
+- Used `.alert()` (NSAlert) for the collision warning — consistent with all other confirmation dialogs in the app (delete objects, delete folders, delete buckets). `.alert()` is a centered modal that forces the user to stop and read, appropriate for a "data will be overwritten" warning.
+- SwiftUI `.alert()` does not expose `NSAlert.alertStyle` — always renders with the app icon, not the yellow warning triangle. To get the warning icon would require dropping to AppKit (`NSAlert` directly), which breaks the SwiftUI pattern. Accepted trade-off.
+- "Stop" / "Replace" button labels chosen over "Cancel" / "Overwrite" — "Stop" is clearer than "Cancel" (the operation hasn't started), "Replace" is less alarming than "Overwrite" while still conveying the consequence.
+- Fail-safe on error: if `listObjects` fails during collision check, returns empty (no collisions) and proceeds with the operation. Rationale: the move/paste will likely fail anyway with its own error, and blocking the user because of a transient listing failure is worse than proceeding.
+- No collision check for duplicate — `duplicateName()` already generates unique names algorithmically, so collisions are impossible.
+
+**Files modified:**
+- `S3ObjectBrowserView.swift` — `checkCollisions()`, `requestMove()`, `requestMoveToBucket()`, `requestPaste()`, collision alert state + `.alert()`, all 9 caller updates
 
 ---
 
@@ -280,6 +349,7 @@ Phases are independent and ordered by complexity (simplest first):
 8. ~~Duplicate Object~~ ✅ (server-side copy via `x-amz-copy-source`, Finder naming, collision check)
 9. ~~Server-Side Copy + Rename + Download ZIP~~ ✅ (all move/copy upgraded to server-side, rename files/folders with collision detection, download folder as ZIP, delete button safety)
 10. ~~Intra-App Copy/Paste~~ ✅ (clipboard-based copy/paste via context menus, server-side copy, cross-bucket, app-wide clipboard on AppState)
+11. ~~Collision Detection~~ ✅ (inline validation for rename/create folder/create bucket, async collision warning for move/paste with "Stop"/"Replace" alert)
 
 ## Completed (outside phases)
 - **Auto-refresh extraction** — reusable `AutoRefreshManager` (on `AppState`, injected as `@EnvironmentObject`), `AutoRefreshIndicatorView` (countdown in breadcrumb bar), `AutoRefreshMenuView` (single toolbar menu with Refresh Now + interval picker, `.menuStyle(.borderlessButton)` + `.fixedSize()` for compact icon). Internal Task-based timer, `refreshTrigger` pattern. Both S3 bucket list and object browser auto-refresh. Settings view uses `@EnvironmentObject` directly.

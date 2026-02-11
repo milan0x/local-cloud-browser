@@ -67,10 +67,14 @@
 - [x] "Date Added" column renamed to "Date Modified" — more accurate for S3's `LastModified` semantics
 - [x] Delete button safety: bucket delete disabled when objects are selected (prevents accidental bucket deletion), tooltip explains "Click on the bucket you want to delete — objects are currently selected". Toolbar delete button red when enabled. `PaneClickDetector` (NSViewRepresentable + NSEvent monitor) on bucket list clears browser object selection on any click.
 - [x] Intra-app copy/paste: clipboard-based copy/paste using server-side copy (`x-amz-copy-source`). Right-click → "Copy" on files, folders, or multi-select. "Paste" on empty area, "Paste Here" on folders. Works across buckets and windows (clipboard stored on `AppState`). `S3Clipboard` model, `S3Service.copyFolder()` for recursive copy.
-- [x] Rename collision detection: rename sheet validates new name against existing files/folders in the current directory. Disables "Rename" button and shows red warning when name already exists. Prevents silent S3 PUT overwrite.
-- [x] Create folder collision detection: create folder sheet validates name against existing folders and files. Disables "Create" button and shows red warning when name already exists.
-- [x] Create bucket collision detection: create bucket sheet validates name against existing buckets. Disables "Create" button and shows red warning when name already exists.
-- [x] Move/paste collision warning: checks destination folder for same-named items before move (same-bucket, cross-bucket, browse picker) and paste operations. Shows native `.alert()` listing colliding names with "Stop" / "Replace" buttons. Explains merge behavior (matching replaced, others untouched, new added).
+- [x] Collision detection — comprehensive safety system to prevent silent S3 PUT overwrites:
+  - **Rename:** inline validation in rename sheet — checks new name against existing files/folders, disables "Rename" button with red warning text
+  - **Create folder:** inline validation in create folder sheet — checks name against existing folders and files, disables "Create" button with red warning text
+  - **Create bucket:** inline validation in create bucket sheet — checks name against existing buckets, disables "Create" button with red warning text
+  - **Duplicate:** algorithmic avoidance via `duplicateName()` — always generates unique "name copy N.ext" names
+  - **Move:** async `checkCollisions()` lists destination folder before `performMove()` — shows native `.alert()` with "Stop" / "Replace" if same-named items exist. Covers same-bucket move, cross-bucket move (`requestMoveToBucket()`), browse picker, "Move to" submenus, move sheet
+  - **Paste:** async `checkCollisions()` lists destination before `performPaste()` — same alert. Covers empty-area "Paste" and folder "Paste Here"
+  - Alert explains S3 merge behavior: matching items replaced, other existing items untouched, new items added
 
 ## Phase 3: SQS Module
 - [ ] List queues view
