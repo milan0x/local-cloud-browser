@@ -4,7 +4,9 @@ struct ConnectionProfileEditorView: View {
     @Environment(\.dismiss) private var dismiss
 
     let existing: ConnectionProfile?
+    let canDelete: Bool
     let onSave: (ConnectionProfile) -> Void
+    let onDelete: (() -> Void)?
 
     @State private var name: String
     @State private var endpoint: String
@@ -13,15 +15,18 @@ struct ConnectionProfileEditorView: View {
     @State private var secretAccessKey: String
     @State private var testResult: TestResult?
     @State private var isTesting = false
+    @State private var showDeleteConfirmation = false
 
     enum TestResult {
         case success(String)
         case failure(String)
     }
 
-    init(existing: ConnectionProfile? = nil, onSave: @escaping (ConnectionProfile) -> Void) {
+    init(existing: ConnectionProfile? = nil, canDelete: Bool = false, onSave: @escaping (ConnectionProfile) -> Void, onDelete: (() -> Void)? = nil) {
         self.existing = existing
+        self.canDelete = canDelete
         self.onSave = onSave
+        self.onDelete = onDelete
         _name = State(initialValue: existing?.name ?? "")
         _endpoint = State(initialValue: existing?.endpoint ?? "http://localhost:4566")
         _region = State(initialValue: existing?.region ?? "us-east-1")
@@ -65,6 +70,19 @@ struct ConnectionProfileEditorView: View {
                         }
                     }
                 }
+
+                if existing != nil && canDelete {
+                    Section {
+                        Button(role: .destructive) {
+                            showDeleteConfirmation = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "trash")
+                                Text("Delete Connection")
+                            }
+                        }
+                    }
+                }
             }
             .formStyle(.grouped)
 
@@ -91,7 +109,18 @@ struct ConnectionProfileEditorView: View {
             }
             .padding()
         }
-        .frame(width: 400, height: 380)
+        .frame(width: 400, height: canDelete ? 440 : 380)
+        .alert("Delete Connection?", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                onDelete?()
+                dismiss()
+            }
+        } message: {
+            if let existing {
+                Text("\(existing.name)\n\(existing.endpoint)\nRegion: \(existing.region)")
+            }
+        }
     }
 
     @ViewBuilder
