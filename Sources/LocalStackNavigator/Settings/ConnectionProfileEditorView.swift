@@ -16,6 +16,7 @@ struct ConnectionProfileEditorView: View {
     @State private var testResult: TestResult?
     @State private var isTesting = false
     @State private var showDeleteConfirmation = false
+    @FocusState private var focusedField: String?
 
     enum TestResult {
         case success(String)
@@ -43,6 +44,7 @@ struct ConnectionProfileEditorView: View {
         VStack(spacing: 0) {
             Form {
                 TextField("Name", text: $name)
+                    .focused($focusedField, equals: "name")
                 TextField("Endpoint", text: $endpoint)
                 LabeledContent("Default Region") {
                     AWSRegionPicker(regionCode: $region)
