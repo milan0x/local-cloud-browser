@@ -74,19 +74,11 @@ struct ConnectionProfileEditorView: View {
                 if existing != nil {
                     Section {
                         if canDelete {
-                            Button {
+                            Button(role: .destructive) {
                                 showDeleteConfirmation = true
                             } label: {
-                                HStack {
-                                    Image(systemName: "trash")
-                                    Text("Delete Connection")
-                                }
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 4)
+                                Label("Delete Connection", systemImage: "trash")
                             }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.red)
                         } else {
                             Label("This is a default profile and cannot be deleted.", systemImage: "info.circle")
                                 .font(.caption)

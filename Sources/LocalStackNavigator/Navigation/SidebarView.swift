@@ -25,7 +25,7 @@ struct SidebarView: View {
         .sheet(isPresented: $showProfileEditor) {
             ConnectionProfileEditorView(
                 existing: editingProfile,
-                canDelete: editingProfile != nil && profileStore.profiles.count > 1,
+                canDelete: editingProfile != nil && profileStore.profiles.count > 1 && !profileStore.isDefaultProfile(editingProfile!.id),
                 onSave: { profile in
                     if editingProfile != nil {
                         profileStore.update(profile)

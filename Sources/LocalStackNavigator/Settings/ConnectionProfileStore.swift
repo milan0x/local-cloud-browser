@@ -7,6 +7,13 @@ final class ConnectionProfileStore: ObservableObject {
 
     private let profilesKey = "ConnectionProfiles"
     private let activeProfileKey = "ActiveProfileId"
+    private let defaultProfileKey = "DefaultProfileId"
+
+    private(set) var defaultProfileId: UUID?
+
+    func isDefaultProfile(_ id: UUID) -> Bool {
+        id == defaultProfileId
+    }
 
     var activeProfile: ConnectionProfile? {
         profiles.first { $0.id == activeProfileId }
@@ -18,6 +25,8 @@ final class ConnectionProfileStore: ObservableObject {
             let defaultProfile = ConnectionProfile()
             profiles = [defaultProfile]
             activeProfileId = defaultProfile.id
+            defaultProfileId = defaultProfile.id
+            UserDefaults.standard.set(defaultProfile.id.uuidString, forKey: defaultProfileKey)
             UserDefaults.standard.set(true, forKey: Self.migratedToKeychainKey)
             save()
             Log.info("Created default connection profile", category: "Profiles")
@@ -96,6 +105,11 @@ final class ConnectionProfileStore: ObservableObject {
         if let idString = UserDefaults.standard.string(forKey: activeProfileKey),
            let id = UUID(uuidString: idString) {
             activeProfileId = id
+        }
+
+        if let idString = UserDefaults.standard.string(forKey: defaultProfileKey),
+           let id = UUID(uuidString: idString) {
+            defaultProfileId = id
         }
     }
 
