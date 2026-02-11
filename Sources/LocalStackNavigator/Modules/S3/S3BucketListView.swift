@@ -17,6 +17,9 @@ struct S3BucketListView: View {
     @State private var bucketsToDelete: [S3Bucket] = []
     @State private var serviceError: ServiceError?
     @State private var lastLoadTime: Date?
+    @State private var forceDeleteBuckets: [S3Bucket] = []
+    @State private var forceDeleteConfirmation = ""
+    @State private var isForceDeleting = false
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -30,7 +33,16 @@ struct S3BucketListView: View {
             bucketListHeader
             Divider()
             bucketListContent
+                .overlay {
+                    if isForceDeleting {
+                        ZStack {
+                            Color(nsColor: .windowBackgroundColor).opacity(0.8)
+                            ProgressView("Deleting...")
+                        }
+                    }
+                }
         }
+        .disabled(isForceDeleting)
         .background(PaneClickDetector {
             toolbarState.clearSelectionTrigger += 1
         })
@@ -62,9 +74,47 @@ struct S3BucketListView: View {
             }
         }
         .serviceErrorAlert(error: $serviceError)
+        .alert(
+            forceDeleteBuckets.count == 1
+                ? "Bucket Not Empty"
+                : "Buckets Not Empty",
+            isPresented: Binding(
+                get: { !forceDeleteBuckets.isEmpty },
+                set: { if !$0 { forceDeleteBuckets = []; forceDeleteConfirmation = "" } }
+            )
+        ) {
+            TextField("Type delete to confirm", text: $forceDeleteConfirmation)
+            Button("Force Delete", role: .destructive) {
+                let trimmed = forceDeleteConfirmation.trimmingCharacters(in: .whitespaces).lowercased()
+                if trimmed == "delete" {
+                    let targets = forceDeleteBuckets
+                    forceDeleteBuckets = []
+                    forceDeleteConfirmation = ""
+                    performForceDelete(targets)
+                } else {
+                    let targets = forceDeleteBuckets
+                    forceDeleteBuckets = []
+                    forceDeleteConfirmation = ""
+                    DispatchQueue.main.async {
+                        forceDeleteBuckets = targets
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                forceDeleteBuckets = []
+                forceDeleteConfirmation = ""
+            }
+        } message: {
+            if forceDeleteBuckets.count == 1, let bucket = forceDeleteBuckets.first {
+                Text("\"\(bucket.name)\" contains objects. Type \"delete\" to permanently remove all objects and delete the bucket.")
+            } else {
+                let names = forceDeleteBuckets.map(\.name).joined(separator: ", ")
+                Text("\(names) contain objects. Type \"delete\" to permanently remove all objects and delete the buckets.")
+            }
+        }
         .task { loadBuckets() }
         .onChange(of: autoRefresh.refreshTrigger) {
-            guard !showCreateSheet && bucketsToDelete.isEmpty && !isLoading else { return }
+            guard !showCreateSheet && bucketsToDelete.isEmpty && forceDeleteBuckets.isEmpty && !isForceDeleting && !isLoading else { return }
             loadBuckets(force: true)
         }
         .onChange(of: appState.connectionVersion) {
@@ -253,9 +303,44 @@ struct S3BucketListView: View {
     private func deleteBuckets(_ targets: [S3Bucket]) {
         Task {
             var deletedIDs: Set<S3Bucket.ID> = []
+            var nonEmptyBuckets: [S3Bucket] = []
             for bucket in targets {
                 do {
                     try await service.deleteBucket(name: bucket.name)
+                    deletedIDs.insert(bucket.id)
+                } catch {
+                    if let clientError = error as? LocalStackClientError,
+                       let parsed = clientError.serviceError {
+                        if parsed.code == "BucketNotEmpty" {
+                            nonEmptyBuckets.append(bucket)
+                        } else {
+                            serviceError = parsed
+                        }
+                    } else {
+                        errorMessage = error.localizedDescription
+                    }
+                }
+            }
+            if !deletedIDs.isEmpty {
+                selectedBucketIDs.subtract(deletedIDs)
+                if let active = activeBucket, deletedIDs.contains(active.id) {
+                    activeBucket = nil
+                }
+                loadBuckets(force: true)
+            }
+            if !nonEmptyBuckets.isEmpty {
+                forceDeleteBuckets = nonEmptyBuckets
+            }
+        }
+    }
+
+    private func performForceDelete(_ targets: [S3Bucket]) {
+        isForceDeleting = true
+        Task {
+            var deletedIDs: Set<S3Bucket.ID> = []
+            for bucket in targets {
+                do {
+                    try await service.forceDeleteBucket(bucket: bucket.name)
                     deletedIDs.insert(bucket.id)
                 } catch {
                     if let clientError = error as? LocalStackClientError,
@@ -271,8 +356,9 @@ struct S3BucketListView: View {
                 if let active = activeBucket, deletedIDs.contains(active.id) {
                     activeBucket = nil
                 }
-                loadBuckets(force: true)
             }
+            isForceDeleting = false
+            loadBuckets(force: true)
         }
     }
 
