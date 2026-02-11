@@ -7,6 +7,7 @@ struct S3BucketListView: View {
     @EnvironmentObject private var autoRefresh: AutoRefreshManager
     @Binding var selectedBucketIDs: Set<S3Bucket.ID>
     @Binding var activeBucket: S3Bucket?
+    @ObservedObject var toolbarState: S3ToolbarState
 
     @Environment(\.openWindow) private var openWindow
     @State private var buckets: [S3Bucket] = []
@@ -30,6 +31,9 @@ struct S3BucketListView: View {
             Divider()
             bucketListContent
         }
+        .background(PaneClickDetector {
+            toolbarState.clearSelectionTrigger += 1
+        })
         .sheet(isPresented: $showCreateSheet) {
             S3CreateBucketView(service: service)
                 .onDisappear { loadBuckets(force: true) }
@@ -78,6 +82,17 @@ struct S3BucketListView: View {
         }
     }
 
+    private var bucketDeleteDisabled: Bool {
+        appState.isReadOnly || selectedBucketIDs.isEmpty || toolbarState.hasSelection
+    }
+
+    private var bucketDeleteHelp: String {
+        if toolbarState.hasSelection {
+            return "Click on the bucket you want to delete — objects are currently selected"
+        }
+        return selectedBucketIDs.count <= 1 ? "Delete Bucket" : "Delete \(selectedBucketIDs.count) Buckets"
+    }
+
     // MARK: - Header
 
     private var bucketListHeader: some View {
@@ -109,11 +124,11 @@ struct S3BucketListView: View {
                 bucketsToDelete = buckets.filter { selectedBucketIDs.contains($0.id) }
             } label: {
                 Image(systemName: "trash")
-                    .foregroundStyle(appState.isReadOnly || selectedBucketIDs.isEmpty ? .gray : .red)
+                    .foregroundStyle(bucketDeleteDisabled ? .gray : .red)
             }
             .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly || selectedBucketIDs.isEmpty)
-            .help(selectedBucketIDs.count <= 1 ? "Delete Bucket" : "Delete \(selectedBucketIDs.count) Buckets")
+            .disabled(bucketDeleteDisabled)
+            .help(bucketDeleteHelp)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -264,5 +279,48 @@ struct S3BucketListView: View {
     private func copyToClipboard(_ string: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(string, forType: .string)
+    }
+}
+
+/// Detects mouse clicks within its own bounds using an NSEvent monitor.
+/// Placed as `.background` on the bucket list pane — doesn't intercept clicks,
+/// just observes them to trigger a callback.
+private struct PaneClickDetector: NSViewRepresentable {
+    let onClick: () -> Void
+
+    func makeNSView(context: Context) -> PaneClickNSView {
+        let view = PaneClickNSView()
+        view.onClick = onClick
+        return view
+    }
+
+    func updateNSView(_ nsView: PaneClickNSView, context: Context) {
+        nsView.onClick = onClick
+    }
+
+    final class PaneClickNSView: NSView {
+        var onClick: (() -> Void)?
+        private var monitor: Any?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            monitor.flatMap { NSEvent.removeMonitor($0) }
+            monitor = nil
+            guard window != nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
+                guard let self else { return event }
+                let pointInSelf = self.convert(event.locationInWindow, from: nil)
+                if self.bounds.contains(pointInSelf) {
+                    self.onClick?()
+                }
+                return event
+            }
+        }
+
+        override func removeFromSuperview() {
+            monitor.flatMap { NSEvent.removeMonitor($0) }
+            monitor = nil
+            super.removeFromSuperview()
+        }
     }
 }

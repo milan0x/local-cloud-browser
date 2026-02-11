@@ -136,6 +136,10 @@ struct S3ObjectBrowserView: View {
             .onChange(of: selectedRowIDs) {
                 toolbarState.hasSelection = !selectedRowIDs.subtracting([Self.parentRowID]).isEmpty
             }
+            // Clear object selection when bucket list is clicked
+            .onChange(of: toolbarState.clearSelectionTrigger) {
+                selectedRowIDs = []
+            }
             // Handle toolbar actions
             .onChange(of: toolbarState.pendingAction) { _, action in
                 guard let action else { return }

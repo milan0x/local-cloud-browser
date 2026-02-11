@@ -19,7 +19,8 @@ struct S3ModuleView: View {
             S3BucketListView(
                 service: service,
                 selectedBucketIDs: $selectedBucketIDs,
-                activeBucket: $activeBucket
+                activeBucket: $activeBucket,
+                toolbarState: toolbarState
             )
             .frame(width: 260)
 

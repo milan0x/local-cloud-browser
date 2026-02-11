@@ -147,49 +147,82 @@
 
 ---
 
-## Phase 8: Duplicate Object
+## Phase 8: Duplicate Object ✅
 
 **Goal:** Right-click an object → "Duplicate" to create a copy in the same folder using macOS Finder naming convention. Uses S3 native server-side copy (`x-amz-copy-source` header) — no data downloaded or re-uploaded.
 
-**Priority:** Low — convenience feature for testing workflows.
+**Completed:**
+- [x] `LocalStackClient.swift` — Added `headers: [String: String] = [:]` parameter to `s3Request()` and `executeRequest()`, applied after content-type logic
+- [x] `S3Service.swift` — `duplicateObject()` and `duplicateFolder()` using server-side copy via `x-amz-copy-source` header
+- [x] `S3ObjectBrowserView.swift` — "Duplicate" in right-click context menu for single files and folders, disabled in read-only mode
+- [x] Finder naming: `name copy.ext` → `name copy 2.ext` etc., collision check against loaded objects/prefixes (no extra HEAD requests)
 
-**Verified:** LocalStack Community supports `x-amz-copy-source` (tested: `PUT` with header returns `<CopyObjectResult>`, same ETag, content type preserved, HTTP 200).
+---
 
-**Files:**
-- `LocalStackClient.swift` — Add `headers: [String: String] = [:]` parameter to `s3Request()` and `executeRequest()`. In `executeRequest()`, apply custom headers to the `URLRequest` after the existing content-type logic. This is a small, backwards-compatible change (default empty dict).
-- `S3Service.swift` — Add `duplicateObject(bucket:key:)` that: (1) computes the new key name using Finder naming convention, (2) checks for collisions, (3) sends a `PUT` with `x-amz-copy-source` header via the updated `s3Request()`. Also add `duplicateFolder(bucket:prefix:)` for folder duplication.
-- `S3ObjectBrowserView.swift` — Add "Duplicate" to right-click context menu for files and folders. Single-item only (no multi-select duplicate). Disabled in read-only mode.
+## Phase 9: Server-Side Copy Upgrade + Rename + Download as ZIP ✅
 
-**Naming convention — macOS Finder style:**
-- `report.json` → `report copy.json` → `report copy 2.json` → `report copy 3.json`
-- `Makefile` (no extension) → `Makefile copy` → `Makefile copy 2`
-- `archive.tar.gz` (compound extension) → `archive copy.tar.gz` → `archive copy 2.tar.gz`
-- `my-folder/` → `my-folder copy/` → `my-folder copy 2/`
+**Goal:** Upgrade all move/copy operations to use S3 server-side copy (no download/re-upload), add rename for files and folders, add folder download as ZIP.
 
-**Name generation logic:**
-1. Split the key's filename at the **first** `.` to get `(stem, extension)`. This handles compound extensions: `archive.tar.gz` → stem `archive`, extension `.tar.gz`. For no extension: stem is the full name, extension is empty.
-2. Proposed name = `{stem} copy.{extension}` (or `{stem} copy` if no extension).
-3. Check if that key already exists in the current prefix by scanning the already-loaded `objects` array — do NOT make an extra `HEAD` request. The browser already has the full object list for the current page.
-4. If it exists, try `{stem} copy 2`, `{stem} copy 3`, etc., up to a reasonable limit (99).
-5. If all 99 names are taken, show an error. This will never happen in practice.
+**Completed:**
 
-**Implementation approach:**
-1. **Server-side copy for files:** Single `PUT` request with empty body + `x-amz-copy-source: /{bucket}/{encodedKey}` header. The `x-amz-copy-source` value must be URL-encoded (percent-encode the key). Content type is preserved automatically by S3 — no need to read it first.
-2. **Folder duplication:** List all objects under the folder prefix (`listAllObjects`), then server-side copy each one, rewriting the prefix from `original/` to `original copy/`. Sequential loop, same as folder move.
-3. **Context menu placement:** Add "Duplicate" after "Move..." in the right-click context menu. Only show for single selection (when `selectedRowIDs.count <= 1` or on the right-clicked item). Dimmed/disabled for multi-select — duplicating many objects at once is confusing and rarely needed.
-4. **After duplication:** Call `loadObjects(force: true)` to refresh the browser. The new copy will appear in the list.
+### Server-Side Copy Upgrade
+- [x] `S3Service.serverSideCopy()` — General-purpose server-side copy between any two buckets using `x-amz-copy-source` header
+- [x] `duplicateObject()` now delegates to `serverSideCopy` (same bucket)
+- [x] `moveObject()` upgraded from HEAD+GET+PUT+DELETE to `serverSideCopy`+DELETE
+- [x] `copyObject()` upgraded from HEAD+GET+PUT to `serverSideCopy` (cross-bucket capable)
+- [x] All downstream methods (`moveObjects`, `moveFolder`, `moveObjectToBucket`, `moveFolderToBucket`) automatically benefit
 
-**Things to watch for — DO NOT skip these:**
+### Rename
+- [x] `S3Service.renameObject()` — server-side copy + delete within same bucket
+- [x] `S3Service.renameFolder()` — copy ALL objects first, then delete ALL originals (safer: originals intact if copy fails midway)
+- [x] Context menu "Rename" for single files (after Metadata) and single folders (after Copy as AWS JSON divider)
+- [x] Rename sheet: title, current name display, text field pre-filled with current name, validation (not empty, not same as current, no `/`)
+- [x] Disabled in read-only mode, not shown for `..` parent row or multi-select
+- [x] `itemToRename` added to `anySheetOpen` to suppress auto-refresh during rename
+- [x] Standard error handling via `serviceError` alert
 
-- **`x-amz-copy-source` URL encoding:** The source key MUST be percent-encoded in the header value. Keys with spaces, special characters, or Unicode will break if passed raw. Use `key.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)`. Tested: `item.json` works, but keys like `random name/Screenshot 2026-01-25 at 21.52.30.png` will fail without encoding.
-- **Collision check uses local data only:** Check against the already-loaded `objects` array and `folders` array in the browser view. Do NOT make a `HEAD` request per candidate name — that's N network round-trips for no reason. The object list is already in memory. Edge case: if the list is paginated and the collision is on a different page, we might miss it. This is acceptable — S3 `PUT` silently overwrites, so worst case a duplicate overwrites an existing object on another page. For a dev tool, this risk is negligible.
-- **Don't duplicate the `..` parent row:** Guard against the `".."` sentinel ID in the context menu handler, same as delete/move.
-- **Compound extensions:** Do NOT split at the last `.` — that turns `archive.tar.gz` into `archive.tar copy.gz` which is wrong. Split at the first `.` so the full extension is preserved: `archive copy.tar.gz`.
-- **Folder markers:** When duplicating a folder, also copy the zero-byte folder marker object (`prefix/` → `prefix copy/`). Without this, the duplicated folder won't appear until files are inside it.
-- **Read-only mode:** "Duplicate" must be `.disabled(appState.isReadOnly)` in the context menu, consistent with all other mutating actions.
-- **`executeRequest` header addition:** When adding the `headers` parameter, apply custom headers AFTER the content-type logic so they can't accidentally override Content-Type. Loop: `for (key, value) in headers { urlRequest.setValue(value, forHTTPHeaderField: key) }`.
-- **Existing `copyObject` in S3Service:** The current `copyObject()` uses GET+PUT (downloads then re-uploads). Do NOT modify it — other code (`moveObject`, `moveObjectToBucket`) depends on it. Add a new `duplicateObject()` method that uses the native header approach. Optionally, add a lower-level `s3CopyNative()` that uses the header, and migrate `copyObject` later as a separate refactor.
-- **Error handling:** Show `serviceError` alert if the copy fails. Common failure: source object deleted between listing and copy attempt (race condition). Unlikely in a dev tool, but handle gracefully.
+### Download Folder as ZIP
+- [x] `S3Service.downloadFolderAsZip()` — lists all objects, downloads to temp directory preserving relative paths, zips with `/usr/bin/ditto -c -k --sequesterRsrc`, returns ZIP URL
+- [x] Zero-byte folder markers (keys ending in `/` with size 0) filtered out before download
+- [x] Returns `nil` for empty folders → triggers "Empty Folder" alert
+- [x] Progress callback: `(current: Int, total: Int)` called after each file download
+- [x] Context menu "Download as ZIP" on single folders (after "Open in New Window")
+- [x] Status bar progress: spinner + "Downloading folder... (12/47)" in the bottom bar between item count and pagination
+- [x] NSSavePanel with default filename `foldername.zip`
+- [x] Temp directory + ZIP cleaned up after save/cancel
+- [x] Disabled while another folder download is in progress
+- [x] `folderDownloadProgress` added to `anySheetOpen` to suppress auto-refresh during download
+
+### Column Label
+- [x] "Date Added" column renamed to "Date Modified" — more accurate since S3 `LastModified` reflects the last write time (upload, copy, rename)
+
+### Delete Button Safety
+- [x] Bucket delete button disabled when objects are selected in the browser — prevents accidental bucket deletion when user meant to delete objects
+- [x] Bucket delete tooltip changes to "Click on the bucket you want to delete — objects are currently selected" when objects are selected
+- [x] Toolbar (object) delete button colored red when enabled, gray when disabled — visually signals destructive action
+- [x] `PaneClickDetector` (NSViewRepresentable) on bucket list background detects clicks via `NSEvent.addLocalMonitorForEvents` and clears browser object selection through `S3ToolbarState.clearSelectionTrigger`
+- [x] Clicking any bucket (including already-selected) deselects objects in the browser, enabling the bucket delete button
+- [x] `S3BucketListView` now takes `@ObservedObject toolbarState: S3ToolbarState` instead of a plain `hasObjectSelection` bool
+
+**Context menu order (single file):**
+1. Download / Quick Look / Copy Key / Copy S3 URI / Copy as AWS JSON
+2. Divider
+3. Metadata
+4. Rename
+5. Move... / Move to / Duplicate
+6. Divider
+7. Delete
+
+**Context menu order (single folder):**
+1. Open / Folder Info / Open in New Window
+2. Download as ZIP
+3. Divider
+4. Copy Key / Copy S3 URI / Copy as AWS JSON
+5. Divider
+6. Rename
+7. Move... / Move to / Duplicate
+8. Divider
+9. Delete Folder
 
 ---
 
@@ -203,7 +236,8 @@ Phases are independent and ordered by complexity (simplest first):
 5. Force Delete Bucket — new service logic + two-step confirmation flow
 6. ~~S3 Search & Filter~~ ✅ (reusable SearchBarView, current-folder filter only)
 7. Folder Upload — drag-and-drop + NSOpenPanel, recursive enumerate, progress indicator, junk file filter
-8. Duplicate Object — right-click "Duplicate", server-side copy via `x-amz-copy-source`, Finder naming, collision check
+8. ~~Duplicate Object~~ ✅ (server-side copy via `x-amz-copy-source`, Finder naming, collision check)
+9. ~~Server-Side Copy + Rename + Download ZIP~~ ✅ (all move/copy upgraded to server-side, rename files/folders, download folder as ZIP, delete button safety)
 
 ## Completed (outside phases)
 - **Auto-refresh extraction** — reusable `AutoRefreshManager` (on `AppState`, injected as `@EnvironmentObject`), `AutoRefreshIndicatorView` (countdown in breadcrumb bar), `AutoRefreshMenuView` (single toolbar menu with Refresh Now + interval picker, `.menuStyle(.borderlessButton)` + `.fixedSize()` for compact icon). Internal Task-based timer, `refreshTrigger` pattern. Both S3 bucket list and object browser auto-refresh. Settings view uses `@EnvironmentObject` directly.
@@ -217,6 +251,7 @@ Phases are independent and ordered by complexity (simplest first):
 - **Toolbar display mode persistence — skipped** — Attempted: `toolbar(id:)` with `CustomizableToolbarContent` (doesn't persist display mode, only item customization), KVO on `NSToolbar.displayMode` via NSViewRepresentable with `viewDidMoveToWindow` + window.toolbar observation (observer never reliably attaches — SwiftUI manages toolbar lifecycle opaquely). Would likely require NSWindowController or full AppKit toolbar ownership. Low priority — user can change display mode per session.
 - **Window & layout defaults** — Main WindowGroup `.defaultSize(width: 1100, height: 700)` for proper first-launch sizing. Sidebar `navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)` for consistent proportions.
 - **Human-readable file sizes** — `S3Object.formattedSize` computed property using `ByteCountFormatter` with `.file` count style (e.g., "4.2 MB"). Used consistently in object browser table, metadata view, folder metadata view, and folder picker.
+- **Delete button safety** — Bucket delete (trash icon in bucket list header) disabled when objects are selected in the browser, with tooltip "Click on the bucket you want to delete — objects are currently selected". Toolbar object delete button colored red when enabled. `PaneClickDetector` (NSViewRepresentable with `NSEvent.addLocalMonitorForEvents`) on bucket list pane clears browser object selection on any click, ensuring only one delete scope is active at a time.
 
 ## Verification
 
