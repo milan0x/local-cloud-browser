@@ -11,43 +11,48 @@ struct S3CreateBucketView: View {
     var existingBucketNames: Set<String> = []
 
     var body: some View {
-        VStack(spacing: 16) {
-            Text("Create Bucket")
-                .font(.headline)
+        VStack(spacing: 0) {
+            Form {
+                TextField("Bucket name", text: $bucketName)
+                LabeledContent("Region") {
+                    AWSRegionPicker(regionCode: $region)
+                }
 
-            TextField("Bucket name", text: $bucketName)
-                .textFieldStyle(.roundedBorder)
-
-            VStack(alignment: .leading, spacing: 8) {
-                AWSRegionPicker(regionCode: $region)
-                Label("S3 buckets are global on LocalStack — no region isolation.", systemImage: "info.circle")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Section {
+                    Label("S3 buckets are global on LocalStack — no region isolation.", systemImage: "info.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
+            .formStyle(.grouped)
 
             if nameExists {
                 Text("A bucket named \"\(bucketName.trimmingCharacters(in: .whitespaces))\" already exists.")
                     .foregroundStyle(.red)
                     .font(.caption)
+                    .padding(.horizontal)
             }
 
             if let errorMessage {
                 Text(errorMessage)
                     .foregroundStyle(.red)
                     .font(.caption)
+                    .padding(.horizontal)
             }
+
+            Divider()
 
             HStack {
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
-
+                Spacer()
                 Button("Create") { create() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(!isValid || isCreating)
             }
+            .padding()
         }
-        .padding()
-        .frame(width: 320)
+        .frame(width: 380)
         .onAppear { region = appState.region }
     }
 

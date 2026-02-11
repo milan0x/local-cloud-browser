@@ -35,17 +35,17 @@ struct SearchableDropdown: View {
             HStack(spacing: 4) {
                 if let item = selectedItem {
                     Text(item.label)
-                        .foregroundColor(Color(.labelColor))
+                        .foregroundStyle(.primary)
                     Text("— \(item.description)")
-                        .foregroundColor(Color(.secondaryLabelColor))
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                 } else {
                     Text(placeholder)
-                        .foregroundColor(Color(.tertiaryLabelColor))
+                        .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Image(systemName: "chevron.up.chevron.down")
-                    .foregroundColor(Color(.secondaryLabelColor))
+                    .foregroundStyle(.secondary)
                     .font(.caption)
             }
             .padding(.horizontal, 6)
