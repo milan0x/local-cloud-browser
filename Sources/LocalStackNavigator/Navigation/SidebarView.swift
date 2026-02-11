@@ -23,16 +23,29 @@ struct SidebarView: View {
             bottomBar
         }
         .sheet(isPresented: $showProfileEditor) {
-            ConnectionProfileEditorView(existing: editingProfile) { profile in
-                if editingProfile != nil {
-                    profileStore.update(profile)
-                    if profile.id == profileStore.activeProfileId {
-                        appState.applyProfile(profile)
+            ConnectionProfileEditorView(
+                existing: editingProfile,
+                canDelete: editingProfile != nil && profileStore.profiles.count > 1,
+                onSave: { profile in
+                    if editingProfile != nil {
+                        profileStore.update(profile)
+                        if profile.id == profileStore.activeProfileId {
+                            appState.applyProfile(profile)
+                        }
+                    } else {
+                        profileStore.add(profile)
                     }
-                } else {
-                    profileStore.add(profile)
+                },
+                onDelete: editingProfile.map { profile in
+                    {
+                        profileStore.delete(id: profile.id)
+                        if profileStore.activeProfileId == nil, let first = profileStore.profiles.first {
+                            profileStore.setActive(id: first.id)
+                            appState.applyProfile(first)
+                        }
+                    }
                 }
-            }
+            )
         }
     }
 
