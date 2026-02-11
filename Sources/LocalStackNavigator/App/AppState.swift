@@ -12,7 +12,7 @@ final class AppState: ObservableObject {
     }() {
         didSet { UserDefaults.standard.set(region, forKey: AppPreferences.regionKey) }
     }
-    @Published var activeConnectionName: String = "Default"
+    @Published var activeConnectionName: String = "Default Connection"
     @Published var connectionVersion: Int = 0
     @Published var s3Clipboard: S3Clipboard?
     @Published var previewSizeLimitMB: Int = {

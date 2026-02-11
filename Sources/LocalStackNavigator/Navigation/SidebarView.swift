@@ -1,11 +1,15 @@
 import SwiftUI
 
+    private struct EditorSheet: Identifiable {
+        let id = UUID()
+        let profile: ConnectionProfile?
+    }
+
 struct SidebarView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var profileStore: ConnectionProfileStore
     @State private var showProfilePicker = false
-    @State private var showProfileEditor = false
-    @State private var editingProfile: ConnectionProfile?
+    @State private var editorSheet: EditorSheet?
 
     var body: some View {
         List(Route.allCases, selection: $appState.selectedRoute) { route in
@@ -22,12 +26,12 @@ struct SidebarView: View {
         .safeAreaInset(edge: .bottom) {
             bottomBar
         }
-        .sheet(isPresented: $showProfileEditor) {
+        .sheet(item: $editorSheet) { sheet in
             ConnectionProfileEditorView(
-                existing: editingProfile,
-                canDelete: editingProfile != nil && profileStore.profiles.count > 1 && !profileStore.isDefaultProfile(editingProfile!.id),
+                existing: sheet.profile,
+                canDelete: sheet.profile != nil && profileStore.profiles.count > 1 && !profileStore.isDefaultProfile(sheet.profile!.id),
                 onSave: { profile in
-                    if editingProfile != nil {
+                    if sheet.profile != nil {
                         profileStore.update(profile)
                         if profile.id == profileStore.activeProfileId {
                             appState.applyProfile(profile)
@@ -36,7 +40,7 @@ struct SidebarView: View {
                         profileStore.add(profile)
                     }
                 },
-                onDelete: editingProfile.map { profile in
+                onDelete: sheet.profile.map { profile in
                     {
                         profileStore.delete(id: profile.id)
                         if profileStore.activeProfileId == nil, let first = profileStore.profiles.first {
@@ -46,7 +50,6 @@ struct SidebarView: View {
                     }
                 }
             )
-            .id(editingProfile?.id)
         }
     }
 
@@ -98,10 +101,9 @@ struct SidebarView: View {
             .popover(isPresented: $showProfilePicker, arrowEdge: .top) {
                 ConnectionProfilePickerView { profileToEdit in
                     showProfilePicker = false
-                    editingProfile = profileToEdit
                     // Small delay so the popover dismisses before the sheet appears
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        showProfileEditor = true
+                        editorSheet = EditorSheet(profile: profileToEdit)
                     }
                 }
             }
