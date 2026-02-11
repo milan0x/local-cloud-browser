@@ -5,7 +5,7 @@
 **Goal:** Allow users to create "folders" (zero-byte keys ending in `/`) in the current prefix, with full file-browser navigation.
 
 **Completed:**
-- [x] Create folder: toolbar button (folder.badge.plus), sheet with validation, `S3Service.createFolder()`
+- [x] Create folder: toolbar button (folder.badge.plus), sheet with validation (format + name collision detection), `S3Service.createFolder()`
 - [x] Filter folder marker objects: zero-byte keys matching `currentPrefix` hidden from object list
 - [x] Move objects: `S3Service.moveObject()` (GET→PUT→DELETE), context menu "Move..." with sheet (destination field, quick parent/subfolder buttons)
 - [x] Back/forward navigation: history stack with toolbar chevron buttons, all nav paths go through `navigate(to:)`

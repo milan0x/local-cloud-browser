@@ -1026,12 +1026,20 @@ struct S3ObjectBrowserView: View {
 
     // MARK: - Create Folder Sheet
 
+    private var folderNameExists: Bool {
+        let trimmed = newFolderName.trimmingCharacters(in: .whitespaces)
+        let existingFolderNames = Set(prefixes.map(\.displayName))
+        let existingFileNames = Set(objects.filter { $0.key != currentPrefix }.map(\.displayName))
+        return existingFolderNames.contains(trimmed) || existingFileNames.contains(trimmed)
+    }
+
     private var isValidFolderName: Bool {
         let trimmed = newFolderName.trimmingCharacters(in: .whitespaces)
         let segments = trimmed.split(separator: "/", omittingEmptySubsequences: false)
         return !trimmed.isEmpty && !trimmed.hasPrefix("/") && !trimmed.hasSuffix("/")
             && !segments.contains("..")
             && !segments.contains(".")
+            && !folderNameExists
     }
 
     private var createFolderSheet: some View {
@@ -1044,6 +1052,11 @@ struct S3ObjectBrowserView: View {
             TextField("Folder name", text: $newFolderName)
                 .textFieldStyle(.roundedBorder)
                 .onSubmit { if isValidFolderName { createFolder() } }
+            if folderNameExists {
+                Text("An item named \"\(newFolderName.trimmingCharacters(in: .whitespaces))\" already exists in this folder.")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
             HStack {
                 Button("Cancel") {
                     showCreateFolder = false
@@ -1086,11 +1099,17 @@ struct S3ObjectBrowserView: View {
         let currentName = isFolder
             ? String(item.fullKey.dropLast()).components(separatedBy: "/").last ?? item.fullKey
             : item.name
+        let existingFileNames = Set(objects.filter { $0.key != currentPrefix }.map(\.displayName))
+        let existingFolderNames = Set(prefixes.map(\.displayName))
+        let trimmed = renameText.trimmingCharacters(in: .whitespaces)
+        let nameExists = isFolder
+            ? existingFolderNames.contains(trimmed)
+            : existingFileNames.contains(trimmed)
         let isValid: Bool = {
-            let trimmed = renameText.trimmingCharacters(in: .whitespaces)
             if trimmed.isEmpty { return false }
             if trimmed == currentName { return false }
             if trimmed.contains("/") { return false }
+            if nameExists { return false }
             return true
         }()
 
@@ -1103,6 +1122,11 @@ struct S3ObjectBrowserView: View {
             TextField("New name", text: $renameText)
                 .textFieldStyle(.roundedBorder)
                 .onSubmit { if isValid { performRename(item: item) } }
+            if nameExists && trimmed != currentName {
+                Text("An item named \"\(trimmed)\" already exists in this folder.")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
             HStack {
                 Button("Cancel") {
                     itemToRename = nil
