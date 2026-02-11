@@ -82,7 +82,7 @@ struct SidebarView: View {
     private var connectionIndicator: some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(appState.isConnected ? .green : .red)
+                .fill(appState.isConnected ? .green : .gray)
                 .frame(width: 8, height: 8)
 
             Button {
