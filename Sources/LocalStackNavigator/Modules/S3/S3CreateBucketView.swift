@@ -18,9 +18,8 @@ struct S3CreateBucketView: View {
             TextField("Bucket name", text: $bucketName)
                 .textFieldStyle(.roundedBorder)
 
-            VStack(alignment: .leading, spacing: 4) {
-                TextField("Region (e.g. us-east-1)", text: $region)
-                    .textFieldStyle(.roundedBorder)
+            VStack(alignment: .leading, spacing: 8) {
+                AWSRegionPicker(regionCode: $region)
                 Label("S3 buckets are global on LocalStack — no region isolation.", systemImage: "info.circle")
                     .font(.caption)
                     .foregroundStyle(.secondary)
