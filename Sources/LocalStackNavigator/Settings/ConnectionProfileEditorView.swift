@@ -112,7 +112,7 @@ struct ConnectionProfileEditorView: View {
             }
             .padding()
         }
-        .frame(width: 400, height: canDelete ? 440 : 380)
+        .frame(width: 400, height: existing != nil ? 440 : 380)
         .alert("Delete Connection?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {

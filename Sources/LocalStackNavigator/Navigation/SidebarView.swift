@@ -46,6 +46,7 @@ struct SidebarView: View {
                     }
                 }
             )
+            .id(editingProfile?.id)
         }
     }
 
