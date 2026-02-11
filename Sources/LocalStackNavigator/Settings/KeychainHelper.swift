@@ -5,20 +5,25 @@ enum KeychainHelper {
     private static let service = "LocalStackNavigator"
 
     static func save(account: String, data: Data) -> Bool {
-        // Delete any existing item first to avoid duplicates.
-        delete(account: account)
-
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
-            kSecValueData as String: data,
         ]
-        let status = SecItemAdd(query as CFDictionary, nil)
-        if status != errSecSuccess {
-            Log.error("Keychain save failed for \(account): \(status)", category: "Keychain")
+        // Try to update an existing item first (single Keychain operation).
+        let updateAttrs: [String: Any] = [kSecValueData as String: data]
+        let updateStatus = SecItemUpdate(query as CFDictionary, updateAttrs as CFDictionary)
+        if updateStatus == errSecSuccess {
+            return true
         }
-        return status == errSecSuccess
+        // Item doesn't exist yet — add it.
+        var addQuery = query
+        addQuery[kSecValueData as String] = data
+        let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+        if addStatus != errSecSuccess {
+            Log.error("Keychain save failed for \(account): \(addStatus)", category: "Keychain")
+        }
+        return addStatus == errSecSuccess
     }
 
     static func load(account: String) -> Data? {
@@ -53,12 +58,25 @@ enum KeychainHelper {
 
     // MARK: - Credential helpers
 
+    static let defaultAccessKeyId = "test"
+    static let defaultSecretAccessKey = "test"
+
     private struct StoredCredentials: Codable {
         let accessKeyId: String
         let secretAccessKey: String
     }
 
+    static func isDefaultCredentials(accessKeyId: String, secretAccessKey: String) -> Bool {
+        accessKeyId == defaultAccessKeyId && secretAccessKey == defaultSecretAccessKey
+    }
+
     static func saveCredentials(profileId: UUID, accessKeyId: String, secretAccessKey: String) {
+        if isDefaultCredentials(accessKeyId: accessKeyId, secretAccessKey: secretAccessKey) {
+            // Default LocalStack credentials don't need Keychain protection.
+            // Remove any existing entry (e.g. from a previous version).
+            deleteCredentials(profileId: profileId)
+            return
+        }
         let creds = StoredCredentials(accessKeyId: accessKeyId, secretAccessKey: secretAccessKey)
         guard let data = try? JSONEncoder().encode(creds) else {
             Log.error("Failed to encode credentials for profile \(profileId)", category: "Keychain")

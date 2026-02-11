@@ -3,8 +3,16 @@ import SwiftUI
 struct ConnectionProfilePickerView: View {
     @EnvironmentObject private var profileStore: ConnectionProfileStore
     @EnvironmentObject private var appState: AppState
+    @State private var deleteTarget: ConnectionProfile?
 
     var onRequestEdit: (ConnectionProfile?) -> Void
+
+    private var showDeleteAlert: Binding<Bool> {
+        Binding(
+            get: { deleteTarget != nil },
+            set: { if !$0 { deleteTarget = nil } }
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -43,6 +51,18 @@ struct ConnectionProfilePickerView: View {
             .padding(.vertical, 8)
         }
         .frame(width: 260)
+        .alert("Delete Connection?", isPresented: showDeleteAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                if let target = deleteTarget {
+                    profileStore.delete(id: target.id)
+                }
+            }
+        } message: {
+            if let target = deleteTarget {
+                Text("\(target.name)\n\(target.endpoint)\nRegion: \(target.region)")
+            }
+        }
     }
 
     private func profileRow(_ profile: ConnectionProfile) -> some View {
@@ -70,20 +90,21 @@ struct ConnectionProfilePickerView: View {
             }
             .buttonStyle(.plain)
 
-            Menu {
-                Button("Edit...") {
-                    onRequestEdit(profile)
+            VStack(spacing: 2) {
+                Button { onRequestEdit(profile) } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .foregroundStyle(.primary)
                 }
+                .buttonStyle(.borderless)
+
                 if profileStore.profiles.count > 1 {
-                    Button("Delete", role: .destructive) {
-                        profileStore.delete(id: profile.id)
+                    Button { deleteTarget = profile } label: {
+                        Image(systemName: "trash")
+                            .foregroundStyle(.red)
                     }
+                    .buttonStyle(.borderless)
                 }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-                    .foregroundStyle(.secondary)
             }
-            .menuStyle(.borderlessButton)
             .frame(width: 24)
         }
         .padding(.horizontal, 8)

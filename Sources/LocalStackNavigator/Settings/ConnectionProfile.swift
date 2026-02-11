@@ -16,7 +16,7 @@ struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
 
     init(
         id: UUID = UUID(),
-        name: String = "Default",
+        name: String = "Default LocalStack Connection",
         endpoint: String = "http://localhost:4566",
         region: String = "us-east-1",
         accessKeyId: String = "test",
@@ -37,7 +37,8 @@ struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
         endpoint = try container.decode(String.self, forKey: .endpoint)
         region = try container.decode(String.self, forKey: .region)
         // Credentials are hydrated from Keychain after decoding.
-        accessKeyId = ""
-        secretAccessKey = ""
+        // Fall back to LocalStack defaults so profiles without Keychain entries work.
+        accessKeyId = KeychainHelper.defaultAccessKeyId
+        secretAccessKey = KeychainHelper.defaultSecretAccessKey
     }
 }
