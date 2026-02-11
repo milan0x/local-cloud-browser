@@ -2,19 +2,42 @@ import SwiftUI
 
 enum ConnectionStatus: Equatable {
     case connected
-    case unhealthy
     case disconnected
+}
+
+enum ConnectionError {
+    case timeout
+    case httpError(Int)
+    case networkError(String)
+}
+
+struct ServiceHealth: Identifiable {
+    let id: String   // service name (e.g. "s3", "sqs")
+    let status: String // raw value (e.g. "running", "error", "disabled")
+
+    var isHealthy: Bool { status == "available" || status == "running" }
+}
+
+struct HealthInfo {
+    let version: String
+    let edition: String
+    let services: [ServiceHealth]
+
+    var unhealthyServices: [ServiceHealth] { services.filter { !$0.isHealthy } }
+    var hasIssues: Bool { !unhealthyServices.isEmpty }
 }
 
 @MainActor
 final class AppState: ObservableObject {
     @Published var connectionStatus: ConnectionStatus = .disconnected
+    @Published var healthInfo: HealthInfo?
     @Published var isReadOnly: Bool = false
     @Published var endpoint: String = "http://localhost:4566"
     @Published var selectedRoute: Route? = nil
     @Published var region: String = "us-east-1"
     @Published var activeConnectionName: String = "default connection"
     @Published var connectionVersion: Int = 0
+    @Published var connectionError: ConnectionError?
     @Published var s3Clipboard: S3Clipboard?
     @Published var previewSizeLimitMB: Int = {
         let stored = UserDefaults.standard.integer(forKey: AppPreferences.previewSizeLimitMBKey)
@@ -24,6 +47,7 @@ final class AppState: ObservableObject {
     }
     let autoRefresh = AutoRefreshManager()
     private var healthCheckTask: Task<Void, Never>?
+    private var consecutiveFailures = 0
 
     var previewSizeLimitBytes: Int64 { Int64(previewSizeLimitMB) * 1024 * 1024 }
 
@@ -33,6 +57,8 @@ final class AppState: ObservableObject {
         activeConnectionName = profile.name
         connectionVersion += 1
         connectionStatus = .disconnected
+        consecutiveFailures = 0
+        connectionError = nil
         startHealthCheck()
         Log.info("Applied profile \"\(profile.name)\" — endpoint: \(profile.endpoint), region: \(profile.region)", category: "App")
     }
@@ -50,48 +76,64 @@ final class AppState: ObservableObject {
     private func performHealthCheck() async {
         guard let url = URL(string: endpoint + "/_localstack/health") else {
             connectionStatus = .disconnected
+            healthInfo = nil
             return
         }
 
-        // Race the request against a 2-second deadline
-        let result: ConnectionStatus = await withTaskGroup(of: ConnectionStatus.self) { group in
+        // Race the request against a 5-second deadline
+        let result: (ConnectionStatus, HealthInfo?, ConnectionError?) = await withTaskGroup(of: (ConnectionStatus, HealthInfo?, ConnectionError?).self) { group in
             group.addTask { @Sendable in
                 let config = URLSessionConfiguration.ephemeral
-                config.timeoutIntervalForRequest = 2
-                config.timeoutIntervalForResource = 2
+                config.timeoutIntervalForRequest = 5
+                config.timeoutIntervalForResource = 5
                 let session = URLSession(configuration: config)
                 defer { session.invalidateAndCancel() }
                 do {
-                    let start = ContinuousClock.now
-                    let (_, response) = try await session.data(from: url)
-                    let elapsed = ContinuousClock.now - start
-                    let isOk = (response as? HTTPURLResponse)?.statusCode == 200
-                    if isOk && elapsed < .seconds(1) {
-                        return .connected
-                    } else if isOk {
-                        return .unhealthy
-                    } else {
-                        return .disconnected
+                    let (data, response) = try await session.data(from: url)
+                    if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+                        return (.disconnected, nil, .httpError(httpResponse.statusCode))
                     }
+
+                    guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                        return (.connected, nil, nil)
+                    }
+
+                    let version = json["version"] as? String ?? "unknown"
+                    let edition = json["edition"] as? String ?? "unknown"
+                    let servicesDict = json["services"] as? [String: String] ?? [:]
+                    let services = servicesDict
+                        .map { ServiceHealth(id: $0.key, status: $0.value) }
+                        .sorted { $0.id < $1.id }
+
+                    return (.connected, HealthInfo(version: version, edition: edition, services: services), nil)
                 } catch {
-                    return .disconnected
+                    return (.disconnected, nil, .networkError(error.localizedDescription))
                 }
             }
 
             group.addTask { @Sendable in
-                try? await Task.sleep(for: .seconds(2))
-                return .disconnected
+                try? await Task.sleep(for: .seconds(5))
+                return (.disconnected, nil, .timeout)
             }
 
-            let first = await group.next() ?? .disconnected
+            let first = await group.next() ?? (.disconnected, nil, .timeout)
             group.cancelAll()
             return first
         }
 
-        if result != connectionStatus {
-            Log.info("Health check: \(result)", category: "App")
+        if result.0 != connectionStatus {
+            Log.info("Health check: \(result.0)", category: "App")
         }
-        connectionStatus = result
+        connectionStatus = result.0
+        healthInfo = result.1
+
+        if result.0 == .connected {
+            consecutiveFailures = 0
+            connectionError = nil
+        } else {
+            consecutiveFailures += 1
+            connectionError = consecutiveFailures >= 2 ? result.2 : nil
+        }
     }
 
     var isLocalEndpoint: Bool {
