@@ -35,7 +35,7 @@ struct S3BucketListView: View {
             toolbarState.clearSelectionTrigger += 1
         })
         .sheet(isPresented: $showCreateSheet) {
-            S3CreateBucketView(service: service)
+            S3CreateBucketView(service: service, existingBucketNames: Set(buckets.map(\.name)))
                 .onDisappear { loadBuckets(force: true) }
         }
         .alert(

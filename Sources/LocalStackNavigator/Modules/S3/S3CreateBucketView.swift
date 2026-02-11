@@ -7,6 +7,7 @@ struct S3CreateBucketView: View {
     @State private var bucketName = ""
     @State private var errorMessage: String?
     @State private var isCreating = false
+    var existingBucketNames: Set<String> = []
 
     var body: some View {
         VStack(spacing: 16) {
@@ -22,6 +23,12 @@ struct S3CreateBucketView: View {
                 Spacer()
                 Text(appState.region)
                     .foregroundStyle(.secondary)
+            }
+
+            if nameExists {
+                Text("A bucket named \"\(bucketName.trimmingCharacters(in: .whitespaces))\" already exists.")
+                    .foregroundStyle(.red)
+                    .font(.caption)
             }
 
             if let errorMessage {
@@ -43,13 +50,18 @@ struct S3CreateBucketView: View {
         .frame(width: 320)
     }
 
+    private var nameExists: Bool {
+        let name = bucketName.trimmingCharacters(in: .whitespaces)
+        return !name.isEmpty && existingBucketNames.contains(name)
+    }
+
     private var isValid: Bool {
         let name = bucketName.trimmingCharacters(in: .whitespaces)
         guard name.count >= 3, name.count <= 63 else { return false }
         let allowed = CharacterSet.lowercaseLetters
             .union(.decimalDigits)
             .union(CharacterSet(charactersIn: ".-"))
-        return name.unicodeScalars.allSatisfy { allowed.contains($0) }
+        return name.unicodeScalars.allSatisfy { allowed.contains($0) } && !nameExists
     }
 
     private func create() {
