@@ -114,6 +114,85 @@
 
 ---
 
+## Phase 7: Folder Upload (Drag-and-Drop + Toolbar)
+
+**Goal:** Allow uploading entire folders into S3, preserving directory structure. Supports both drag-and-drop from Finder and the toolbar Upload button.
+
+**Priority:** Low — polish feature, not blocking other work. Implement after SQS/SNS modules or Force Delete Bucket.
+
+**Current problem:** Dropping a folder from Finder onto the object browser **silently fails**. `Data(contentsOf:)` cannot read a directory, so the upload errors out with no user feedback. This must be fixed regardless — either by supporting folder upload or by showing a clear error.
+
+**Files:**
+- `S3ObjectBrowserView.swift` — Modify `.onDrop` handler (line ~431) to detect folders and recursively upload. Modify `uploadFile()` to allow directory selection via `NSOpenPanel`.
+- `S3Service.swift` — No changes needed; reuse existing `putObject(bucket:key:data:contentType:)` for each file.
+
+**Implementation approach:**
+1. **Detect folders in drop handler:** Check `url.hasDirectoryPath` on each URL from `NSItemProvider`. Separate into file URLs and folder URLs.
+2. **Enumerate folder contents:** Use `FileManager.default.enumerator(at:url, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey])` to recursively walk all files.
+3. **Preserve structure:** For each file, compute relative path from the folder root. Prepend `currentPrefix + folderName/` to create the S3 key. Example: dropping `photos/` containing `2024/cat.jpg` into prefix `data/` creates key `data/photos/2024/cat.jpg`.
+4. **Upload files sequentially:** Call `putObject` for each file with correct key and content type.
+5. **NSOpenPanel support:** Change `canChooseDirectories` from `false` to `true` in `uploadFile()`. Detect whether the user selected a file or directory and handle accordingly.
+6. **Empty subdirectories:** Create zero-byte folder marker objects (key ending in `/`) so empty subdirectories appear in the browser. This is consistent with how "Create Folder" already works.
+
+**Things to watch for — DO NOT skip these:**
+
+- **macOS junk files — FILTER OUT:** Skip `.DS_Store`, `._*` (AppleDouble resource forks), `.Spotlight-V100`, `.Trashes`, `__MACOSX`, `Thumbs.db`. These are invisible metadata files macOS creates inside folders. Uploading them to S3 pollutes the bucket with useless objects. Use a hardcoded skip-list checked against each filename.
+- **Symbolic links — DO NOT FOLLOW:** `FileManager.enumerator` follows symlinks by default. A symlink pointing to a parent directory creates an infinite loop that will hang the app or exhaust memory. Pass `.skipsHiddenFiles` is NOT sufficient (symlinks aren't hidden). Either: (a) check `resourceValues.isSymbolicLink` and skip, or (b) use `enumerator(at:, includingPropertiesForKeys:, options: [])` and manually check each item. Safest: skip all symlinks entirely.
+- **Large folders — SHOW PROGRESS:** Uploading 100+ files sequentially can take a while. Must show a progress indicator: "Uploading 12 of 47 files..." as an overlay or inline status. Without this, the user thinks the app froze. Consider a cancel button for very large uploads.
+- **`Data(contentsOf:)` memory — WATCH FILE SIZES:** Current upload reads entire file into memory. For a folder with many large files, this is fine one-at-a-time (sequential loop frees each `Data` after upload). Do NOT load all files into memory at once. Keep the sequential loop pattern.
+- **Error handling — DON'T STOP ON FIRST ERROR:** If file 5 of 20 fails, continue uploading the rest. Collect failures and show a summary at the end: "Uploaded 18 of 20 files. 2 failed: [names]." Stopping on first error wastes all the successful uploads and frustrates the user.
+- **Read-only mode:** Folder upload must be blocked when `appState.isReadOnly` is true, same as file upload. The `.onDrop` handler already guards this.
+- **Sandboxing:** App is currently NOT sandboxed (SPM build, no entitlements). `FileManager.enumerator` has unrestricted access. If sandboxing is ever added, dropped folder URLs would need `url.startAccessingSecurityScopedResource()` / `url.stopAccessingSecurityScopedResource()` bracketing.
+- **Content type detection:** Use existing pattern — `UTType(filenameExtension:)?.preferredMIMEType ?? "application/octet-stream"` for each file. Do not try to detect content type from file contents.
+
+---
+
+## Phase 8: Duplicate Object
+
+**Goal:** Right-click an object → "Duplicate" to create a copy in the same folder using macOS Finder naming convention. Uses S3 native server-side copy (`x-amz-copy-source` header) — no data downloaded or re-uploaded.
+
+**Priority:** Low — convenience feature for testing workflows.
+
+**Verified:** LocalStack Community supports `x-amz-copy-source` (tested: `PUT` with header returns `<CopyObjectResult>`, same ETag, content type preserved, HTTP 200).
+
+**Files:**
+- `LocalStackClient.swift` — Add `headers: [String: String] = [:]` parameter to `s3Request()` and `executeRequest()`. In `executeRequest()`, apply custom headers to the `URLRequest` after the existing content-type logic. This is a small, backwards-compatible change (default empty dict).
+- `S3Service.swift` — Add `duplicateObject(bucket:key:)` that: (1) computes the new key name using Finder naming convention, (2) checks for collisions, (3) sends a `PUT` with `x-amz-copy-source` header via the updated `s3Request()`. Also add `duplicateFolder(bucket:prefix:)` for folder duplication.
+- `S3ObjectBrowserView.swift` — Add "Duplicate" to right-click context menu for files and folders. Single-item only (no multi-select duplicate). Disabled in read-only mode.
+
+**Naming convention — macOS Finder style:**
+- `report.json` → `report copy.json` → `report copy 2.json` → `report copy 3.json`
+- `Makefile` (no extension) → `Makefile copy` → `Makefile copy 2`
+- `archive.tar.gz` (compound extension) → `archive copy.tar.gz` → `archive copy 2.tar.gz`
+- `my-folder/` → `my-folder copy/` → `my-folder copy 2/`
+
+**Name generation logic:**
+1. Split the key's filename at the **first** `.` to get `(stem, extension)`. This handles compound extensions: `archive.tar.gz` → stem `archive`, extension `.tar.gz`. For no extension: stem is the full name, extension is empty.
+2. Proposed name = `{stem} copy.{extension}` (or `{stem} copy` if no extension).
+3. Check if that key already exists in the current prefix by scanning the already-loaded `objects` array — do NOT make an extra `HEAD` request. The browser already has the full object list for the current page.
+4. If it exists, try `{stem} copy 2`, `{stem} copy 3`, etc., up to a reasonable limit (99).
+5. If all 99 names are taken, show an error. This will never happen in practice.
+
+**Implementation approach:**
+1. **Server-side copy for files:** Single `PUT` request with empty body + `x-amz-copy-source: /{bucket}/{encodedKey}` header. The `x-amz-copy-source` value must be URL-encoded (percent-encode the key). Content type is preserved automatically by S3 — no need to read it first.
+2. **Folder duplication:** List all objects under the folder prefix (`listAllObjects`), then server-side copy each one, rewriting the prefix from `original/` to `original copy/`. Sequential loop, same as folder move.
+3. **Context menu placement:** Add "Duplicate" after "Move..." in the right-click context menu. Only show for single selection (when `selectedRowIDs.count <= 1` or on the right-clicked item). Dimmed/disabled for multi-select — duplicating many objects at once is confusing and rarely needed.
+4. **After duplication:** Call `loadObjects(force: true)` to refresh the browser. The new copy will appear in the list.
+
+**Things to watch for — DO NOT skip these:**
+
+- **`x-amz-copy-source` URL encoding:** The source key MUST be percent-encoded in the header value. Keys with spaces, special characters, or Unicode will break if passed raw. Use `key.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)`. Tested: `item.json` works, but keys like `random name/Screenshot 2026-01-25 at 21.52.30.png` will fail without encoding.
+- **Collision check uses local data only:** Check against the already-loaded `objects` array and `folders` array in the browser view. Do NOT make a `HEAD` request per candidate name — that's N network round-trips for no reason. The object list is already in memory. Edge case: if the list is paginated and the collision is on a different page, we might miss it. This is acceptable — S3 `PUT` silently overwrites, so worst case a duplicate overwrites an existing object on another page. For a dev tool, this risk is negligible.
+- **Don't duplicate the `..` parent row:** Guard against the `".."` sentinel ID in the context menu handler, same as delete/move.
+- **Compound extensions:** Do NOT split at the last `.` — that turns `archive.tar.gz` into `archive.tar copy.gz` which is wrong. Split at the first `.` so the full extension is preserved: `archive copy.tar.gz`.
+- **Folder markers:** When duplicating a folder, also copy the zero-byte folder marker object (`prefix/` → `prefix copy/`). Without this, the duplicated folder won't appear until files are inside it.
+- **Read-only mode:** "Duplicate" must be `.disabled(appState.isReadOnly)` in the context menu, consistent with all other mutating actions.
+- **`executeRequest` header addition:** When adding the `headers` parameter, apply custom headers AFTER the content-type logic so they can't accidentally override Content-Type. Loop: `for (key, value) in headers { urlRequest.setValue(value, forHTTPHeaderField: key) }`.
+- **Existing `copyObject` in S3Service:** The current `copyObject()` uses GET+PUT (downloads then re-uploads). Do NOT modify it — other code (`moveObject`, `moveObjectToBucket`) depends on it. Add a new `duplicateObject()` method that uses the native header approach. Optionally, add a lower-level `s3CopyNative()` that uses the header, and migrate `copyObject` later as a separate refactor.
+- **Error handling:** Show `serviceError` alert if the copy fails. Common failure: source object deleted between listing and copy attempt (race condition). Unlikely in a dev tool, but handle gracefully.
+
+---
+
 ## Implementation Order
 
 Phases are independent and ordered by complexity (simplest first):
@@ -123,6 +202,8 @@ Phases are independent and ordered by complexity (simplest first):
 4. ~~Quick Look Preview~~ ✅ (QLPreviewPanel, streaming download, size limit settings, eye button, spacebar)
 5. Force Delete Bucket — new service logic + two-step confirmation flow
 6. ~~S3 Search & Filter~~ ✅ (reusable SearchBarView, current-folder filter only)
+7. Folder Upload — drag-and-drop + NSOpenPanel, recursive enumerate, progress indicator, junk file filter
+8. Duplicate Object — right-click "Duplicate", server-side copy via `x-amz-copy-source`, Finder naming, collision check
 
 ## Completed (outside phases)
 - **Auto-refresh extraction** — reusable `AutoRefreshManager` (on `AppState`, injected as `@EnvironmentObject`), `AutoRefreshIndicatorView` (countdown in breadcrumb bar), `AutoRefreshMenuView` (single toolbar menu with Refresh Now + interval picker, `.menuStyle(.borderlessButton)` + `.fixedSize()` for compact icon). Internal Task-based timer, `refreshTrigger` pattern. Both S3 bucket list and object browser auto-refresh. Settings view uses `@EnvironmentObject` directly.
