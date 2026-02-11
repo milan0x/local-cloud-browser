@@ -5,6 +5,7 @@ struct S3CreateBucketView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
     @State private var bucketName = ""
+    @State private var region = ""
     @State private var errorMessage: String?
     @State private var isCreating = false
     var existingBucketNames: Set<String> = []
@@ -17,11 +18,11 @@ struct S3CreateBucketView: View {
             TextField("Bucket name", text: $bucketName)
                 .textFieldStyle(.roundedBorder)
 
-            HStack {
-                Text("Region")
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text(appState.region)
+            VStack(alignment: .leading, spacing: 4) {
+                TextField("Region (e.g. us-east-1)", text: $region)
+                    .textFieldStyle(.roundedBorder)
+                Label("S3 buckets are global on LocalStack — no region isolation.", systemImage: "info.circle")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
@@ -48,6 +49,7 @@ struct S3CreateBucketView: View {
         }
         .padding()
         .frame(width: 320)
+        .onAppear { region = appState.region }
     }
 
     private var nameExists: Bool {
@@ -70,7 +72,8 @@ struct S3CreateBucketView: View {
         errorMessage = nil
         Task {
             do {
-                try await service.createBucket(name: name)
+                let regionValue = region.trimmingCharacters(in: .whitespaces)
+                try await service.createBucket(name: name, region: regionValue.isEmpty ? nil : regionValue)
                 dismiss()
             } catch {
                 errorMessage = error.localizedDescription
