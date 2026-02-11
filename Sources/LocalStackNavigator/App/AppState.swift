@@ -9,6 +9,7 @@ final class AppState: ObservableObject {
     @Published var region: String = "us-east-1"
     @Published var activeConnectionName: String = "Default"
     @Published var connectionVersion: Int = 0
+    @Published var s3Clipboard: S3Clipboard?
     @Published var previewSizeLimitMB: Int = {
         let stored = UserDefaults.standard.integer(forKey: AppPreferences.previewSizeLimitMBKey)
         return stored > 0 ? stored : AppPreferences.defaultPreviewSizeLimitMB
