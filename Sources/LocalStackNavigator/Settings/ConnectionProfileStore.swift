@@ -18,6 +18,7 @@ final class ConnectionProfileStore: ObservableObject {
             let defaultProfile = ConnectionProfile()
             profiles = [defaultProfile]
             activeProfileId = defaultProfile.id
+            KeychainHelper.saveCredentials(profileId: defaultProfile.id, accessKeyId: defaultProfile.accessKeyId, secretAccessKey: defaultProfile.secretAccessKey)
             save()
             Log.info("Created default connection profile", category: "Profiles")
         }
@@ -30,6 +31,7 @@ final class ConnectionProfileStore: ObservableObject {
 
     func add(_ profile: ConnectionProfile) {
         profiles.append(profile)
+        KeychainHelper.saveCredentials(profileId: profile.id, accessKeyId: profile.accessKeyId, secretAccessKey: profile.secretAccessKey)
         save()
         Log.info("Added profile \"\(profile.name)\" (\(profile.endpoint))", category: "Profiles")
     }
@@ -40,6 +42,7 @@ final class ConnectionProfileStore: ObservableObject {
             return
         }
         profiles[index] = profile
+        KeychainHelper.saveCredentials(profileId: profile.id, accessKeyId: profile.accessKeyId, secretAccessKey: profile.secretAccessKey)
         save()
         Log.info("Updated profile \"\(profile.name)\"", category: "Profiles")
     }
@@ -47,6 +50,7 @@ final class ConnectionProfileStore: ObservableObject {
     func delete(id: UUID) {
         let name = profiles.first { $0.id == id }?.name ?? "unknown"
         profiles.removeAll { $0.id == id }
+        KeychainHelper.deleteCredentials(profileId: id)
         if activeProfileId == id {
             activeProfileId = profiles.first?.id
             Log.info("Active profile deleted, switched to \(activeProfile?.name ?? "none")", category: "Profiles")
@@ -61,17 +65,62 @@ final class ConnectionProfileStore: ObservableObject {
         Log.info("Switched active profile to \"\(activeProfile?.name ?? "unknown")\"", category: "Profiles")
     }
 
+    private static let migratedToKeychainKey = "CredentialsMigratedToKeychain"
+
     private func load() {
+        let hasMigrated = UserDefaults.standard.bool(forKey: Self.migratedToKeychainKey)
+
+        if !hasMigrated {
+            // First run after update: old profiles may contain plaintext credentials.
+            // Decode with a permissive decoder that reads accessKeyId/secretAccessKey if present.
+            if let data = UserDefaults.standard.data(forKey: profilesKey) {
+                migrateLegacyProfiles(data: data)
+            }
+        }
+
         if let data = UserDefaults.standard.data(forKey: profilesKey),
            let decoded = try? JSONDecoder().decode([ConnectionProfile].self, from: data) {
             profiles = decoded
         } else {
             Log.warn("No saved profiles found or decode failed", category: "Profiles")
         }
+
+        // Hydrate credentials from Keychain.
+        for i in profiles.indices {
+            if let creds = KeychainHelper.loadCredentials(profileId: profiles[i].id) {
+                profiles[i].accessKeyId = creds.accessKeyId
+                profiles[i].secretAccessKey = creds.secretAccessKey
+            }
+        }
+
         if let idString = UserDefaults.standard.string(forKey: activeProfileKey),
            let id = UUID(uuidString: idString) {
             activeProfileId = id
         }
+    }
+
+    /// Migrate plaintext credentials from UserDefaults to Keychain (one-time).
+    private func migrateLegacyProfiles(data: Data) {
+        struct LegacyProfile: Codable {
+            var id: UUID
+            var accessKeyId: String?
+            var secretAccessKey: String?
+        }
+        guard let legacy = try? JSONDecoder().decode([LegacyProfile].self, from: data) else { return }
+        var migrated = 0
+        for profile in legacy {
+            let keyId = profile.accessKeyId ?? "test"
+            let secret = profile.secretAccessKey ?? "test"
+            KeychainHelper.saveCredentials(profileId: profile.id, accessKeyId: keyId, secretAccessKey: secret)
+            migrated += 1
+        }
+        // Re-save profiles without credentials (new CodingKeys will strip them).
+        if let decoded = try? JSONDecoder().decode([ConnectionProfile].self, from: data),
+           let clean = try? JSONEncoder().encode(decoded) {
+            UserDefaults.standard.set(clean, forKey: profilesKey)
+        }
+        UserDefaults.standard.set(true, forKey: Self.migratedToKeychainKey)
+        Log.info("Migrated \(migrated) profile credential(s) to Keychain", category: "Profiles")
     }
 
     private func save() {
