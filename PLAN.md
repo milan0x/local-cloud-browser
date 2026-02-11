@@ -110,4 +110,5 @@
 - [ ] Error handling improvements
 - [x] Keyboard shortcuts: Cmd+C/V for S3 copy/paste, Cmd+Backspace for delete (objects only, shows confirmation dialog)
 - [x] Searchable region picker: `AWSRegion` static data model (39 regions), reusable `SearchableDropdown` popover component (filter-as-you-type, checkmark selection, auto-scroll), `AWSRegionPicker` convenience wrapper. Replaces free-text `TextField` in S3 create bucket dialog and connection profile editor. Only valid AWS region codes selectable. Create bucket dialog restructured from plain VStack to `Form` with `.formStyle(.grouped)` matching the connection profile editor — info label in its own `Section`, `Divider` + button bar below, 380pt width.
+- [x] Clickable toolbar region badge: for non-S3 modules (SQS, SNS, Secrets Manager), the region badge is now a clickable button with chevron hint that opens a searchable region picker popover directly (filter + scrollable list, no extra click). S3 keeps the static dimmed "Global" badge. Selecting a region updates `appState.region` immediately.
 - [ ] Menu bar integration
