@@ -1,8 +1,14 @@
 import SwiftUI
 
+enum ConnectionStatus: Equatable {
+    case connected
+    case unhealthy
+    case disconnected
+}
+
 @MainActor
 final class AppState: ObservableObject {
-    @Published var isConnected: Bool = false
+    @Published var connectionStatus: ConnectionStatus = .disconnected
     @Published var isReadOnly: Bool = false
     @Published var endpoint: String = "http://localhost:4566"
     @Published var selectedRoute: Route? = nil
@@ -26,7 +32,7 @@ final class AppState: ObservableObject {
         region = profile.region
         activeConnectionName = profile.name
         connectionVersion += 1
-        isConnected = false
+        connectionStatus = .disconnected
         startHealthCheck()
         Log.info("Applied profile \"\(profile.name)\" — endpoint: \(profile.endpoint), region: \(profile.region)", category: "App")
     }
@@ -43,18 +49,49 @@ final class AppState: ObservableObject {
 
     private func performHealthCheck() async {
         guard let url = URL(string: endpoint + "/_localstack/health") else {
-            isConnected = false
+            connectionStatus = .disconnected
             return
         }
-        var request = URLRequest(url: url, timeoutInterval: 3)
-        request.httpMethod = "GET"
-        request.cachePolicy = .reloadIgnoringLocalCacheData
-        do {
-            let (_, response) = try await URLSession.shared.data(for: request)
-            isConnected = (response as? HTTPURLResponse)?.statusCode == 200
-        } catch {
-            isConnected = false
+
+        // Race the request against a 2-second deadline
+        let result: ConnectionStatus = await withTaskGroup(of: ConnectionStatus.self) { group in
+            group.addTask { @Sendable in
+                let config = URLSessionConfiguration.ephemeral
+                config.timeoutIntervalForRequest = 2
+                config.timeoutIntervalForResource = 2
+                let session = URLSession(configuration: config)
+                defer { session.invalidateAndCancel() }
+                do {
+                    let start = ContinuousClock.now
+                    let (_, response) = try await session.data(from: url)
+                    let elapsed = ContinuousClock.now - start
+                    let isOk = (response as? HTTPURLResponse)?.statusCode == 200
+                    if isOk && elapsed < .seconds(1) {
+                        return .connected
+                    } else if isOk {
+                        return .unhealthy
+                    } else {
+                        return .disconnected
+                    }
+                } catch {
+                    return .disconnected
+                }
+            }
+
+            group.addTask { @Sendable in
+                try? await Task.sleep(for: .seconds(2))
+                return .disconnected
+            }
+
+            let first = await group.next() ?? .disconnected
+            group.cancelAll()
+            return first
         }
+
+        if result != connectionStatus {
+            Log.info("Health check: \(result)", category: "App")
+        }
+        connectionStatus = result
     }
 
     var isLocalEndpoint: Bool {

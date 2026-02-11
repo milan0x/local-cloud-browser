@@ -81,9 +81,10 @@ struct SidebarView: View {
 
     private var connectionIndicator: some View {
         HStack(spacing: 6) {
-            Image(systemName: appState.isConnected ? "link" : "link")
+            Image(systemName: connectionIcon)
                 .font(.caption2)
-                .foregroundStyle(appState.isConnected ? .green : .gray)
+                .foregroundStyle(connectionColor)
+                .help(connectionHelp)
 
             Button {
                 showProfilePicker.toggle()
@@ -107,6 +108,30 @@ struct SidebarView: View {
                     }
                 }
             }
+        }
+    }
+
+    private var connectionIcon: String {
+        switch appState.connectionStatus {
+        case .connected: "link"
+        case .unhealthy: "exclamationmark.triangle.fill"
+        case .disconnected: "link"
+        }
+    }
+
+    private var connectionColor: Color {
+        switch appState.connectionStatus {
+        case .connected: .green
+        case .unhealthy: .orange
+        case .disconnected: .gray
+        }
+    }
+
+    private var connectionHelp: String {
+        switch appState.connectionStatus {
+        case .connected: "Connected to \(appState.endpoint)"
+        case .unhealthy: "Slow response from \(appState.endpoint)"
+        case .disconnected: "Not connected to \(appState.endpoint)"
         }
     }
 
