@@ -18,7 +18,7 @@ final class ConnectionProfileStore: ObservableObject {
             let defaultProfile = ConnectionProfile()
             profiles = [defaultProfile]
             activeProfileId = defaultProfile.id
-            KeychainHelper.saveCredentials(profileId: defaultProfile.id, accessKeyId: defaultProfile.accessKeyId, secretAccessKey: defaultProfile.secretAccessKey)
+            UserDefaults.standard.set(true, forKey: Self.migratedToKeychainKey)
             save()
             Log.info("Created default connection profile", category: "Profiles")
         }
@@ -109,8 +109,9 @@ final class ConnectionProfileStore: ObservableObject {
         guard let legacy = try? JSONDecoder().decode([LegacyProfile].self, from: data) else { return }
         var migrated = 0
         for profile in legacy {
-            let keyId = profile.accessKeyId ?? "test"
-            let secret = profile.secretAccessKey ?? "test"
+            let keyId = profile.accessKeyId ?? KeychainHelper.defaultAccessKeyId
+            let secret = profile.secretAccessKey ?? KeychainHelper.defaultSecretAccessKey
+            // saveCredentials skips Keychain for default "test"/"test" credentials.
             KeychainHelper.saveCredentials(profileId: profile.id, accessKeyId: keyId, secretAccessKey: secret)
             migrated += 1
         }
