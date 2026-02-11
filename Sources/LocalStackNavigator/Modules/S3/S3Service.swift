@@ -178,6 +178,51 @@ final class S3Service: ObservableObject {
         return objects.count
     }
 
+    /// Downloads all objects under a prefix into a temp directory and zips them.
+    /// Returns the ZIP file URL, or nil if the folder has no downloadable files.
+    /// Caller is responsible for cleaning up the returned URL and its parent temp directory.
+    func downloadFolderAsZip(
+        bucket: String,
+        prefix: String,
+        progress: @escaping (Int, Int) -> Void
+    ) async throws -> URL? {
+        let allObjects = try await listAllObjects(bucket: bucket, prefix: prefix)
+        // Filter out zero-byte folder markers
+        let files = allObjects.filter { !($0.key.hasSuffix("/") && $0.size == 0) }
+        guard !files.isEmpty else { return nil }
+
+        let folderName = String(prefix.dropLast()).components(separatedBy: "/").last ?? "folder"
+        let tempBase = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let contentDir = tempBase.appendingPathComponent(folderName)
+        try FileManager.default.createDirectory(at: contentDir, withIntermediateDirectories: true)
+
+        for (index, obj) in files.enumerated() {
+            let relativePath = String(obj.key.dropFirst(prefix.count))
+            let fileURL = contentDir.appendingPathComponent(relativePath)
+            let parentDir = fileURL.deletingLastPathComponent()
+            if !FileManager.default.fileExists(atPath: parentDir.path) {
+                try FileManager.default.createDirectory(at: parentDir, withIntermediateDirectories: true)
+            }
+            let data = try await getObject(bucket: bucket, key: obj.key)
+            try data.write(to: fileURL)
+            progress(index + 1, files.count)
+        }
+
+        let zipURL = tempBase.appendingPathComponent("\(folderName).zip")
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+        process.arguments = ["-c", "-k", "--sequesterRsrc", contentDir.path, zipURL.path]
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw NSError(domain: "S3Service", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create ZIP archive"])
+        }
+
+        // Clean up the unzipped content, keep the zip
+        try? FileManager.default.removeItem(at: contentDir)
+        return zipURL
+    }
+
     func deleteObject(bucket: String, key: String) async throws {
         _ = try await client.s3Request(method: "DELETE", path: "/\(bucket)/\(key)")
     }
