@@ -48,6 +48,7 @@ final class AppState: ObservableObject {
         }
         var request = URLRequest(url: url, timeoutInterval: 3)
         request.httpMethod = "GET"
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
             isConnected = (response as? HTTPURLResponse)?.statusCode == 200
