@@ -68,6 +68,10 @@ struct S3ObjectBrowserView: View {
     @State private var itemToRename: RowItem?
     @State private var renameText = ""
 
+    // Folder download
+    @State private var folderDownloadProgress: (current: Int, total: Int)?
+    @State private var emptyFolderAlert = false
+
     // Search & filter
     @State private var searchQuery = ""
 
@@ -106,6 +110,7 @@ struct S3ObjectBrowserView: View {
             || !folderDeleteItems.isEmpty
             || selectedFolderPrefix != nil
             || itemToRename != nil
+            || folderDownloadProgress != nil
     }
 
     var body: some View {
@@ -190,6 +195,12 @@ struct S3ObjectBrowserView: View {
                 if let err = quickLook.downloadError {
                     Text(err)
                 }
+            }
+            // Empty folder download alert
+            .alert("Empty Folder", isPresented: $emptyFolderAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("This folder has no downloadable files.")
             }
     }
 
@@ -477,6 +488,18 @@ struct S3ObjectBrowserView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
+            Spacer()
+
+            if let progress = folderDownloadProgress {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.mini)
+                    Text("Downloading folder... (\(progress.current)/\(progress.total))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             if isTruncated || currentPage > 1 {
                 Spacer()
 
@@ -559,6 +582,10 @@ struct S3ObjectBrowserView: View {
                     Button("Open in New Window") {
                         openWindow(value: S3BrowserTarget(bucket: bucket.name, prefix: item.fullKey))
                     }
+                    Button("Download as ZIP") {
+                        downloadFolderAsZip(prefix: item.fullKey)
+                    }
+                    .disabled(folderDownloadProgress != nil)
                     Divider()
                     Button("Copy Key") { copyToClipboard(item.fullKey) }
                     Button("Copy S3 URI") { copyToClipboard(s3URI(for: item.fullKey)) }
@@ -1701,6 +1728,53 @@ struct S3ObjectBrowserView: View {
                 }
                 loadObjects(force: true)
             } catch {
+                if let clientError = error as? LocalStackClientError,
+                   let parsed = clientError.serviceError {
+                    serviceError = parsed
+                } else {
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    // MARK: - Download Folder as ZIP
+
+    private func downloadFolderAsZip(prefix: String) {
+        guard folderDownloadProgress == nil else { return }
+        folderDownloadProgress = (current: 0, total: 0)
+        Task {
+            var tempDir: URL?
+            do {
+                let zipURL = try await service.downloadFolderAsZip(
+                    bucket: bucket.name,
+                    prefix: prefix
+                ) { current, total in
+                    Task { @MainActor in
+                        folderDownloadProgress = (current: current, total: total)
+                    }
+                }
+                folderDownloadProgress = nil
+
+                guard let zipURL else {
+                    emptyFolderAlert = true
+                    return
+                }
+                tempDir = zipURL.deletingLastPathComponent()
+
+                let folderName = String(prefix.dropLast()).components(separatedBy: "/").last ?? "folder"
+                let panel = NSSavePanel()
+                panel.nameFieldStringValue = "\(folderName).zip"
+                panel.canCreateDirectories = true
+                let response = panel.runModal()
+                if response == .OK, let dest = panel.url {
+                    try FileManager.default.copyItem(at: zipURL, to: dest)
+                }
+                // Clean up temp
+                if let tempDir { try? FileManager.default.removeItem(at: tempDir) }
+            } catch {
+                folderDownloadProgress = nil
+                if let tempDir { try? FileManager.default.removeItem(at: tempDir) }
                 if let clientError = error as? LocalStackClientError,
                    let parsed = clientError.serviceError {
                     serviceError = parsed
