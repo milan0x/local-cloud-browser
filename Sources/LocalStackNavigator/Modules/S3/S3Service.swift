@@ -17,8 +17,19 @@ final class S3Service: ObservableObject {
         return try S3BucketListParser().parse(data: data)
     }
 
-    func createBucket(name: String) async throws {
-        _ = try await client.s3Request(method: "PUT", path: "/\(name)")
+    func createBucket(name: String, region: String? = nil) async throws {
+        var body: Data?
+        var contentType: String?
+        if let region, !region.isEmpty {
+            let xml = """
+                <CreateBucketConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+                    <LocationConstraint>\(region)</LocationConstraint>
+                </CreateBucketConfiguration>
+                """
+            body = Data(xml.utf8)
+            contentType = "application/xml"
+        }
+        _ = try await client.s3Request(method: "PUT", path: "/\(name)", body: body, contentType: contentType)
     }
 
     func deleteBucket(name: String) async throws {
