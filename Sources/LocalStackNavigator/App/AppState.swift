@@ -17,6 +17,7 @@ final class AppState: ObservableObject {
         didSet { UserDefaults.standard.set(previewSizeLimitMB, forKey: AppPreferences.previewSizeLimitMBKey) }
     }
     let autoRefresh = AutoRefreshManager()
+    private var healthCheckTask: Task<Void, Never>?
 
     var previewSizeLimitBytes: Int64 { Int64(previewSizeLimitMB) * 1024 * 1024 }
 
@@ -25,7 +26,34 @@ final class AppState: ObservableObject {
         region = profile.region
         activeConnectionName = profile.name
         connectionVersion += 1
+        isConnected = false
+        startHealthCheck()
         Log.info("Applied profile \"\(profile.name)\" — endpoint: \(profile.endpoint), region: \(profile.region)", category: "App")
+    }
+
+    func startHealthCheck() {
+        healthCheckTask?.cancel()
+        healthCheckTask = Task {
+            while !Task.isCancelled {
+                await performHealthCheck()
+                try? await Task.sleep(for: .seconds(3))
+            }
+        }
+    }
+
+    private func performHealthCheck() async {
+        guard let url = URL(string: endpoint + "/_localstack/health") else {
+            isConnected = false
+            return
+        }
+        var request = URLRequest(url: url, timeoutInterval: 3)
+        request.httpMethod = "GET"
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            isConnected = (response as? HTTPURLResponse)?.statusCode == 200
+        } catch {
+            isConnected = false
+        }
     }
 
     var isLocalEndpoint: Bool {

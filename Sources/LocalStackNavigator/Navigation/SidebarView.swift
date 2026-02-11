@@ -81,9 +81,9 @@ struct SidebarView: View {
 
     private var connectionIndicator: some View {
         HStack(spacing: 6) {
-            Circle()
-                .fill(appState.isConnected ? .green : .gray)
-                .frame(width: 8, height: 8)
+            Image(systemName: appState.isConnected ? "link" : "link")
+                .font(.caption2)
+                .foregroundStyle(appState.isConnected ? .green : .gray)
 
             Button {
                 showProfilePicker.toggle()
