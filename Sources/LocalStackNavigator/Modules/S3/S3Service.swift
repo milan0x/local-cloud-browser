@@ -154,6 +154,20 @@ final class S3Service: ObservableObject {
         return objects.count
     }
 
+    /// Recursively copies all objects under sourcePrefix to destinationPrefix, preserving relative paths.
+    @discardableResult
+    func copyFolder(sourceBucket: String, sourcePrefix: String,
+                    destinationBucket: String, destinationPrefix: String) async throws -> Int {
+        let objects = try await listAllObjects(bucket: sourceBucket, prefix: sourcePrefix)
+        for obj in objects {
+            let relativePath = String(obj.key.dropFirst(sourcePrefix.count))
+            let newKey = destinationPrefix + relativePath
+            try await serverSideCopy(sourceBucket: sourceBucket, sourceKey: obj.key,
+                                      destinationBucket: destinationBucket, destinationKey: newKey)
+        }
+        return objects.count
+    }
+
     /// Copies an object within the same bucket or across buckets using server-side copy.
     func copyObject(sourceBucket: String, sourceKey: String, destinationBucket: String, destinationKey: String) async throws {
         try await serverSideCopy(sourceBucket: sourceBucket, sourceKey: sourceKey, destinationBucket: destinationBucket, destinationKey: destinationKey)

@@ -72,6 +72,9 @@ struct S3ObjectBrowserView: View {
     @State private var folderDownloadProgress: (current: Int, total: Int)?
     @State private var emptyFolderAlert = false
 
+    // Copy/paste
+    @State private var isPasting = false
+
     // Search & filter
     @State private var searchQuery = ""
 
@@ -424,6 +427,11 @@ struct S3ObjectBrowserView: View {
                     uploadFile()
                 }
                 .disabled(appState.isReadOnly)
+                Divider()
+                Button(pasteLabel) {
+                    performPaste()
+                }
+                .disabled(appState.isReadOnly || appState.s3Clipboard == nil || isPasting)
             }
         } else {
             VStack(spacing: 0) {
@@ -575,6 +583,11 @@ struct S3ObjectBrowserView: View {
                     uploadFile()
                 }
                 .disabled(appState.isReadOnly)
+                Divider()
+                Button(pasteLabel) {
+                    performPaste()
+                }
+                .disabled(appState.isReadOnly || appState.s3Clipboard == nil || isPasting)
             }
             let items = ids.compactMap { id in sortedRowItems.first(where: { $0.id == id }) }
             if items.count == 1, let item = items.first {
@@ -590,6 +603,9 @@ struct S3ObjectBrowserView: View {
                         downloadFolderAsZip(prefix: item.fullKey)
                     }
                     .disabled(folderDownloadProgress != nil)
+                    Button("Copy") {
+                        copyItemsToClipboard(folderPrefixes: [item.fullKey])
+                    }
                     Divider()
                     Button("Copy Key") { copyToClipboard(item.fullKey) }
                     Button("Copy S3 URI") { copyToClipboard(s3URI(for: item.fullKey)) }
@@ -613,6 +629,11 @@ struct S3ObjectBrowserView: View {
                     }
                     .disabled(appState.isReadOnly)
                     Divider()
+                    Button(pasteHereLabel) {
+                        performPaste(into: item.fullKey)
+                    }
+                    .disabled(appState.isReadOnly || appState.s3Clipboard == nil || isPasting)
+                    Divider()
                     Button("Delete Folder", role: .destructive) {
                         requestFolderDeletion(prefixes: [item.fullKey])
                     }
@@ -620,6 +641,9 @@ struct S3ObjectBrowserView: View {
                 } else {
                     Button("Download") { downloadObject(key: item.fullKey) }
                     Button("Quick Look") { requestPreview(key: item.fullKey) }
+                    Button("Copy") {
+                        copyItemsToClipboard(objectKeys: [item.fullKey])
+                    }
                     Button("Copy Key") { copyToClipboard(item.fullKey) }
                     Button("Copy S3 URI") { copyToClipboard(s3URI(for: item.fullKey)) }
                     Button("Copy as AWS JSON") { copyToClipboard(toAWSJSON([item.fullKey])) }
@@ -657,6 +681,15 @@ struct S3ObjectBrowserView: View {
                 let selectedItems = items.filter { $0.id != Self.parentRowID }
                 let folderItems = selectedItems.filter { $0.isFolder }
                 let fileItems = selectedItems.filter { !$0.isFolder }
+
+                if !selectedItems.isEmpty {
+                    let copyObjKeys = fileItems.map(\.fullKey)
+                    let copyFolderPrefixes = folderItems.map(\.fullKey)
+                    Button("Copy \(selectedItems.count) \(selectedItems.count == 1 ? "Item" : "Items")") {
+                        copyItemsToClipboard(objectKeys: copyObjKeys, folderPrefixes: copyFolderPrefixes)
+                    }
+                    Divider()
+                }
 
                 if selectedItems.count > 1 {
                     let keys = selectedItems.map(\.fullKey)
@@ -1739,6 +1772,58 @@ struct S3ObjectBrowserView: View {
                     errorMessage = error.localizedDescription
                 }
             }
+        }
+    }
+
+    // MARK: - Copy/Paste
+
+    private func copyItemsToClipboard(objectKeys: [String] = [], folderPrefixes: [String] = []) {
+        appState.s3Clipboard = S3Clipboard(
+            sourceBucket: bucket.name,
+            objectKeys: objectKeys,
+            folderPrefixes: folderPrefixes
+        )
+    }
+
+    private var pasteLabel: String {
+        guard let clipboard = appState.s3Clipboard else { return "Paste" }
+        return "Paste (\(clipboard.totalCount) \(clipboard.totalCount == 1 ? "Item" : "Items"))"
+    }
+
+    private var pasteHereLabel: String {
+        guard let clipboard = appState.s3Clipboard else { return "Paste Here" }
+        return "Paste Here (\(clipboard.totalCount) \(clipboard.totalCount == 1 ? "Item" : "Items"))"
+    }
+
+    private func performPaste(into destinationPrefix: String? = nil) {
+        guard let clipboard = appState.s3Clipboard else { return }
+        let destPrefix = destinationPrefix ?? currentPrefix
+        isPasting = true
+        Task {
+            do {
+                for key in clipboard.objectKeys {
+                    let filename = key.components(separatedBy: "/").last ?? key
+                    let destKey = destPrefix + filename
+                    try await service.serverSideCopy(
+                        sourceBucket: clipboard.sourceBucket, sourceKey: key,
+                        destinationBucket: bucket.name, destinationKey: destKey)
+                }
+                for folderPrefix in clipboard.folderPrefixes {
+                    let folderName = String(folderPrefix.dropLast())
+                        .components(separatedBy: "/").last ?? folderPrefix
+                    let destFolderPrefix = destPrefix + folderName + "/"
+                    try await service.copyFolder(
+                        sourceBucket: clipboard.sourceBucket, sourcePrefix: folderPrefix,
+                        destinationBucket: bucket.name, destinationPrefix: destFolderPrefix)
+                }
+                loadObjects(force: true)
+            } catch {
+                if let clientError = error as? LocalStackClientError,
+                   let svcError = clientError.serviceError {
+                    serviceError = svcError
+                }
+            }
+            isPasting = false
         }
     }
 
