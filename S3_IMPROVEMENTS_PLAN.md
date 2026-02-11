@@ -78,20 +78,21 @@
 
 ---
 
-## Phase 5: Empty Bucket Before Delete (Force Delete)
+## Phase 5: Empty Bucket Before Delete (Force Delete) ✅
 
 **Goal:** When deleting a non-empty bucket, offer to empty it first then delete.
 
-**Files:**
-- `S3BucketListView.swift` — When `deleteBucket` fails with `BucketNotEmpty` service error, show a second confirmation: "Bucket is not empty. Delete all objects and remove bucket?" with a "Force Delete" destructive button
-- `S3Service.swift` — Add `emptyBucket(bucket:)` that lists all objects (paginated) and deletes them all, then add `forceDeleteBucket(bucket:)` that calls `emptyBucket` then `deleteBucket`
-
-**Details:**
-- `emptyBucket` must handle pagination: loop `listObjects` with continuation tokens until not truncated, deleting all objects in each page
-- Also delete "folder" marker objects (keys ending in `/`)
-- Show progress: "Deleting objects..." spinner overlay or inline status while force-delete runs
-- Disabled in read-only mode
-- Use `serviceError` alert for any errors during the process
+**Completed:**
+- [x] `S3Service.emptyBucket(bucket:)` — lists all objects via `listAllObjects` (handles pagination) and deletes them all via `deleteObjects`
+- [x] `S3Service.forceDeleteBucket(bucket:)` — calls `emptyBucket` then `deleteBucket`
+- [x] `deleteBuckets()` catches `BucketNotEmpty` error code and triggers force-delete alert instead of generic error
+- [x] Force-delete alert: title "Bucket Not Empty" / "Buckets Not Empty", TextField requiring user to type "delete" to confirm
+- [x] Invalid confirmation (not "delete") re-shows the alert
+- [x] `performForceDelete()` — loops through targets, calls `forceDeleteBucket`, handles errors via `serviceError` alert
+- [x] Progress overlay: semi-transparent background with `ProgressView("Deleting...")` while force deleting, entire view disabled
+- [x] Auto-refresh guard: skips refresh when force-delete alert is showing or force delete is in progress
+- [x] Multi-bucket support: if multiple selected buckets are non-empty, all collected into `forceDeleteBuckets` for single confirmation
+- [x] Read-only mode: no changes needed — delete button already disabled, force-delete flow unreachable
 
 ---
 
@@ -343,7 +344,7 @@ Phases are independent and ordered by complexity (simplest first):
 2. ~~Multi-Select Delete~~ ✅ (Set-based selection, bulk delete, adapted context menus)
 3. ~~Copy Key / S3 URI~~ ✅ (Copy Key, Copy S3 URI, JSON array for multi-select, buckets + objects)
 4. ~~Quick Look Preview~~ ✅ (QLPreviewPanel, streaming download, size limit settings, eye button, spacebar)
-5. Force Delete Bucket — new service logic + two-step confirmation flow
+5. ~~Force Delete Bucket~~ ✅ (BucketNotEmpty detection, typed "delete" confirmation, emptyBucket + forceDeleteBucket, progress overlay)
 6. ~~S3 Search & Filter~~ ✅ (reusable SearchBarView, current-folder filter only)
 7. Folder Upload — drag-and-drop + NSOpenPanel, recursive enumerate, progress indicator, junk file filter
 8. ~~Duplicate Object~~ ✅ (server-side copy via `x-amz-copy-source`, Finder naming, collision check)
