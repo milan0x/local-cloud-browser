@@ -13,6 +13,7 @@ struct LocalStackNavigatorApp: App {
         NSApplication.shared.setActivationPolicy(.regular)
 
         Log.info("LocalStack Navigator starting", category: "App")
+        AppPreferences.cleanPreviewTempDirectory()
 
         let state = AppState()
         let store = ConnectionProfileStore()
@@ -48,6 +49,7 @@ struct LocalStackNavigatorApp: App {
 
         Settings {
             SettingsView()
+                .environmentObject(appState)
                 .environmentObject(appState.autoRefresh)
         }
     }

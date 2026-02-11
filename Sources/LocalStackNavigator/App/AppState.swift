@@ -9,7 +9,15 @@ final class AppState: ObservableObject {
     @Published var region: String = "us-east-1"
     @Published var activeConnectionName: String = "Default"
     @Published var connectionVersion: Int = 0
+    @Published var previewSizeLimitMB: Int = {
+        let stored = UserDefaults.standard.integer(forKey: AppPreferences.previewSizeLimitMBKey)
+        return stored > 0 ? stored : AppPreferences.defaultPreviewSizeLimitMB
+    }() {
+        didSet { UserDefaults.standard.set(previewSizeLimitMB, forKey: AppPreferences.previewSizeLimitMBKey) }
+    }
     let autoRefresh = AutoRefreshManager()
+
+    var previewSizeLimitBytes: Int64 { Int64(previewSizeLimitMB) * 1024 * 1024 }
 
     func applyProfile(_ profile: ConnectionProfile) {
         endpoint = profile.endpoint

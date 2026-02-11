@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @AppStorage("showFolderDetailsOnDelete") private var showFolderDetailsOnDelete = false
     @EnvironmentObject private var autoRefresh: AutoRefreshManager
+    @EnvironmentObject private var appState: AppState
 
     var body: some View {
         Form {
@@ -23,6 +24,15 @@ struct SettingsView: View {
                     Text("30 seconds").tag(30)
                     Text("60 seconds").tag(60)
                 }
+            }
+
+            Section("Quick Look Preview") {
+                Stepper("Preview size limit: \(appState.previewSizeLimitMB) MB", value: $appState.previewSizeLimitMB, in: 1...50)
+                Text(
+                    "Files larger than this will prompt before downloading. Files over 300 MB cannot be previewed."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
