@@ -4,7 +4,6 @@ enum AppPreferences {
     static let showFolderDetailsOnDeleteKey = "showFolderDetailsOnDelete"
     static let autoRefreshIntervalKey = "autoRefreshInterval"
     static let previewSizeLimitMBKey = "previewSizeLimitMB"
-    static let regionKey = "region"
 
     /// Default preview size limit in megabytes.
     static let defaultPreviewSizeLimitMB = 10
