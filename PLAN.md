@@ -66,7 +66,7 @@
 - [x] Download folder as ZIP: right-click "Download as ZIP" on folders. Downloads all objects preserving directory structure, zips with `/usr/bin/ditto`, NSSavePanel for save location. Progress indicator in status bar ("Downloading folder... 12/47"). Empty folder alert. Zero-byte folder markers filtered out. Temp cleanup after save/cancel.
 - [x] "Date Added" column renamed to "Date Modified" — more accurate for S3's `LastModified` semantics
 - [x] Delete button safety: bucket delete disabled when objects are selected (prevents accidental bucket deletion), tooltip explains "Click on the bucket you want to delete — objects are currently selected". Toolbar delete button red when enabled. `PaneClickDetector` (NSViewRepresentable + NSEvent monitor) on bucket list clears browser object selection on any click.
-- [x] Intra-app copy/paste: clipboard-based copy/paste using server-side copy (`x-amz-copy-source`). Right-click → "Copy" on files, folders, or multi-select. "Paste" on empty area, "Paste Here" on folders. Works across buckets and windows (clipboard stored on `AppState`). `S3Clipboard` model, `S3Service.copyFolder()` for recursive copy.
+- [x] Intra-app copy/paste: clipboard-based copy/paste using server-side copy (`x-amz-copy-source`). Right-click → "Copy" on files, folders, or multi-select. "Paste" on empty area, "Paste Here" on folders. Works across buckets and windows (clipboard stored on `AppState`). `S3Clipboard` model, `S3Service.copyFolder()` for recursive copy. Keyboard shortcuts: Cmd+C (copy), Cmd+V (paste), Cmd+Backspace (delete selected). Uses `FocusedValues` + `CommandGroup(replacing: .pasteboard)` with text field detection to fall through to standard text behavior in search bar, rename sheets, etc.
 - [x] Collision detection — comprehensive safety system to prevent silent S3 PUT overwrites:
   - **Rename:** inline validation in rename sheet — checks new name against existing files/folders, disables "Rename" button with red warning text
   - **Create folder:** inline validation in create folder sheet — checks name against existing folders and files, disables "Create" button with red warning text
@@ -108,5 +108,5 @@
 - [x] Bucket list auto-refreshes alongside object browser
 - [ ] Connection health check (ping LocalStack)
 - [ ] Error handling improvements
-- [ ] Keyboard shortcuts
+- [x] Keyboard shortcuts: Cmd+C/V for S3 copy/paste, Cmd+Backspace for delete (objects only, shows confirmation dialog)
 - [ ] Menu bar integration

@@ -124,6 +124,9 @@ struct S3ObjectBrowserView: View {
     var body: some View {
         mainContent
             .serviceErrorAlert(error: $serviceError)
+            .focusedSceneValue(\.s3CopyAction, s3CopyAction)
+            .focusedSceneValue(\.s3PasteAction, s3PasteAction)
+            .focusedSceneValue(\.s3DeleteAction, s3DeleteAction)
             .task(id: bucket.id) {
                 pathComponents = []
                 navigationHistory = [[]]
@@ -1943,6 +1946,28 @@ struct S3ObjectBrowserView: View {
     }
 
     // MARK: - Copy/Paste
+
+    private var s3CopyAction: (() -> Void)? {
+        let actionableIDs = selectedRowIDs.subtracting([Self.parentRowID])
+        guard !actionableIDs.isEmpty else { return nil }
+        return {
+            let items = actionableIDs.compactMap { id in sortedRowItems.first(where: { $0.id == id }) }
+            let fileKeys = items.filter { !$0.isFolder }.map(\.fullKey)
+            let folderKeys = items.filter { $0.isFolder }.map(\.fullKey)
+            copyItemsToClipboard(objectKeys: fileKeys, folderPrefixes: folderKeys)
+        }
+    }
+
+    private var s3PasteAction: (() -> Void)? {
+        guard appState.s3Clipboard != nil && !appState.isReadOnly && !isPasting else { return nil }
+        return { requestPaste() }
+    }
+
+    private var s3DeleteAction: (() -> Void)? {
+        let actionableIDs = selectedRowIDs.subtracting([Self.parentRowID])
+        guard !actionableIDs.isEmpty && !appState.isReadOnly && !isDeletingObjects && !isDeletingFolders else { return nil }
+        return { deleteSelectedItems() }
+    }
 
     private func copyItemsToClipboard(objectKeys: [String] = [], folderPrefixes: [String] = []) {
         appState.s3Clipboard = S3Clipboard(
