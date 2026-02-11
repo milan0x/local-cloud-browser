@@ -10,6 +10,9 @@ final class S3ToolbarState: ObservableObject {
     @Published var hasSelection = false
     @Published var isDeleting = false
 
+    // Bucket list interaction — clears browser object selection
+    @Published var clearSelectionTrigger = 0
+
     // Action trigger — written by toolbar, consumed by browser view
     @Published var pendingAction: Action?
 
@@ -75,11 +78,13 @@ struct S3Toolbar: ToolbarContent {
             .disabled(!hasBucket || isReadOnly)
         }
         ToolbarItem(placement: .primaryAction) {
+            let disabled = !hasBucket || isReadOnly || !state.hasSelection || state.isDeleting
             Button { state.pendingAction = .deleteSelected } label: {
                 Label("Delete", systemImage: "trash")
+                    .foregroundStyle(disabled ? .gray : .red)
             }
             .help("Delete Selected")
-            .disabled(!hasBucket || isReadOnly || !state.hasSelection || state.isDeleting)
+            .disabled(disabled)
         }
     }
 }
