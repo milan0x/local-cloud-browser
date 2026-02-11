@@ -68,6 +68,7 @@
 - [x] Delete button safety: bucket delete disabled when objects are selected (prevents accidental bucket deletion), tooltip explains "Click on the bucket you want to delete — objects are currently selected". Toolbar delete button red when enabled. `PaneClickDetector` (NSViewRepresentable + NSEvent monitor) on bucket list clears browser object selection on any click.
 - [x] Intra-app copy/paste: clipboard-based copy/paste using server-side copy (`x-amz-copy-source`). Right-click → "Copy" on files, folders, or multi-select. "Paste" on empty area, "Paste Here" on folders. Works across buckets and windows (clipboard stored on `AppState`). `S3Clipboard` model, `S3Service.copyFolder()` for recursive copy.
 - [x] Rename collision detection: rename sheet validates new name against existing files/folders in the current directory. Disables "Rename" button and shows red warning when name already exists. Prevents silent S3 PUT overwrite.
+- [x] Create folder collision detection: create folder sheet validates name against existing folders and files. Disables "Create" button and shows red warning when name already exists.
 
 ## Phase 3: SQS Module
 - [ ] List queues view
