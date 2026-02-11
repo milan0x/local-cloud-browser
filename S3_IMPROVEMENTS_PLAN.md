@@ -48,21 +48,32 @@
 
 ---
 
-## Phase 4: Inline Text Preview
+## Phase 4: Quick Look Preview ✅
 
-**Goal:** Show content preview for small text-based files in the metadata sheet.
+**Goal:** Preview S3 objects using macOS native Quick Look — supports text, images, PDFs, videos, audio, and more.
 
-**Files:**
-- `S3ObjectMetadataView.swift` — Add a "Preview" section below metadata that loads and shows file content for supported types
-- `S3Service.swift` — Already has `getObject()`, no changes needed
+**Completed:**
+- [x] **Spacebar** trigger — `.onKeyPress(.space)` on selected single file (macOS 14+)
+- [x] **Right-click → "Quick Look"** — context menu item for single files (after Download)
+- [x] **Eye button** — `eye` SF Symbol in row actions area (between Download and Metadata), files only
+- [x] **Size limit setting** — `Stepper` in Settings (1–50 MB, default 10 MB), stored as `previewSizeLimitMB` on `AppState` with `UserDefaults` persistence
+- [x] **Over-limit alert** (under 300 MB): "Preview Anyway" / "Open Settings" / "Cancel"
+- [x] **Hard cap alert** (over 300 MB): "File too large — use Download" with only "OK"
+- [x] **Streaming download** — `URLSession.shared.download(from:)` writes directly to disk (near-zero memory)
+- [x] **Temp file management** — `{NSTemporaryDirectory()}/localstack-navigator-preview/` subfolder, cleaned on app launch (`AppPreferences.cleanPreviewTempDirectory()` in app init)
+- [x] **Preview title** — `"filename.ext — Temporary Preview"` via `QLPreviewItem.previewItemTitle`
+- [x] **Download overlay** — `.ultraThinMaterial` background with spinner + "Downloading for preview..."
+- [x] **Download error alert** — shows error message if download fails
+- [x] **`S3QuickLookManager`** — `ObservableObject` managing download, `QLPreviewPanel` presentation, temp cleanup
+- [x] **`QuickLookPanelController`** — `@preconcurrency QLPreviewPanelDataSource` + `QLPreviewPanelDelegate` for Swift 6 concurrency compat
+- [x] Works in main window and new browser windows (client injected via `@EnvironmentObject`)
 
-**Details:**
-- Supported types: detect via content-type from HEAD response — `text/*`, `application/json`, `application/xml`, `application/yaml`, `application/javascript`
-- Size limit: only preview if `detail.size <= 512_000` (500 KB)
-- Show in a `ScrollView` with monospaced font, read-only `TextEditor` or `Text` with `.textSelection(.enabled)`
-- Loading state: show small spinner while fetching content
-- If content can't be decoded as UTF-8, show "Binary content — cannot preview"
-- Increase sheet frame height to accommodate preview (e.g., from 360 to ~500, or use a flexible layout)
+**Skipped:**
+- Custom syntax highlighting (Quick Look handles it natively)
+- Live/real-time refresh of preview content (close and re-preview to see updates)
+- Inline preview in metadata sheet (Quick Look is better)
+- Preview for folders
+- Multi-select preview
 
 ---
 
@@ -109,7 +120,7 @@ Phases are independent and ordered by complexity (simplest first):
 1. ~~Create Folder~~ ✅ (also includes move, back/forward, parent row, folder picker revamp)
 2. ~~Multi-Select Delete~~ ✅ (Set-based selection, bulk delete, adapted context menus)
 3. ~~Copy Key / S3 URI~~ ✅ (Copy Key, Copy S3 URI, JSON array for multi-select, buckets + objects)
-4. Inline Text Preview — extends existing metadata sheet
+4. ~~Quick Look Preview~~ ✅ (QLPreviewPanel, streaming download, size limit settings, eye button, spacebar)
 5. Force Delete Bucket — new service logic + two-step confirmation flow
 6. ~~S3 Search & Filter~~ ✅ (reusable SearchBarView, current-folder filter only)
 

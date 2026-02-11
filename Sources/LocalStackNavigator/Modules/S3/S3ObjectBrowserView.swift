@@ -2,6 +2,13 @@ import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 
+/// Alert data for previewing files that exceed the user's size limit.
+struct QuickLookSizeAlert: Identifiable {
+    let id = UUID()
+    let key: String
+    let sizeMB: Int
+}
+
 struct S3ObjectBrowserView: View {
     @ObservedObject var service: S3Service
     @EnvironmentObject private var appState: AppState
@@ -50,6 +57,12 @@ struct S3ObjectBrowserView: View {
     @State private var isDeletingFolders = false
     @AppStorage("showFolderDetailsOnDelete") private var showFolderDetailsOnDelete = false
     @EnvironmentObject private var autoRefresh: AutoRefreshManager
+    @EnvironmentObject private var client: LocalStackClient
+
+    // Quick Look preview
+    @StateObject private var quickLook = S3QuickLookManager()
+    @State private var quickLookSizeAlert: QuickLookSizeAlert?
+    @State private var quickLookHardCapAlert = false
 
     // Search & filter
     @State private var searchQuery = ""
@@ -126,6 +139,53 @@ struct S3ObjectBrowserView: View {
                 case .deleteSelected: deleteSelectedItems()
                 }
             }
+            // Spacebar → Quick Look
+            .onKeyPress(.space) {
+                guard selectedRowIDs.count == 1,
+                      let id = selectedRowIDs.first,
+                      id != Self.parentRowID,
+                      let item = sortedRowItems.first(where: { $0.id == id }),
+                      !item.isFolder else { return .ignored }
+                requestPreview(key: item.fullKey)
+                return .handled
+            }
+            // Quick Look size limit alert (over user limit, under hard cap)
+            .alert(
+                "File Too Large",
+                isPresented: Binding(
+                    get: { quickLookSizeAlert != nil },
+                    set: { if !$0 { quickLookSizeAlert = nil } }
+                )
+            ) {
+                if let alert = quickLookSizeAlert {
+                    Button("Preview Anyway") { forcePreview(key: alert.key) }
+                    Button("Open Settings") {
+                        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                    }
+                    Button("Cancel", role: .cancel) { quickLookSizeAlert = nil }
+                }
+            } message: {
+                if let alert = quickLookSizeAlert {
+                    Text("This file is \(alert.sizeMB) MB, which exceeds your preview limit of \(appState.previewSizeLimitMB) MB. You can preview it anyway, or adjust the limit in Settings.")
+                }
+            }
+            // Quick Look hard cap alert (over 300 MB)
+            .alert("File Too Large", isPresented: $quickLookHardCapAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("This file exceeds the 300 MB preview limit. Use Download to save it locally.")
+            }
+            // Quick Look download error
+            .alert("Preview Failed", isPresented: Binding(
+                get: { quickLook.downloadError != nil },
+                set: { if !$0 { quickLook.downloadError = nil } }
+            )) {
+                Button("OK", role: .cancel) { quickLook.downloadError = nil }
+            } message: {
+                if let err = quickLook.downloadError {
+                    Text(err)
+                }
+            }
     }
 
     private var mainContent: some View {
@@ -133,6 +193,19 @@ struct S3ObjectBrowserView: View {
             breadcrumbBar
             Divider()
             contentArea
+        }
+        .overlay {
+            if quickLook.isDownloading {
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .controlSize(.large)
+                    Text("Downloading for preview...")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(.ultraThinMaterial)
+            }
         }
         .sheet(item: $selectedObject) { obj in
             S3ObjectMetadataView(service: service, bucket: bucket.name, objectKey: obj.key)
@@ -497,6 +570,7 @@ struct S3ObjectBrowserView: View {
                     .disabled(appState.isReadOnly)
                 } else {
                     Button("Download") { downloadObject(key: item.fullKey) }
+                    Button("Quick Look") { requestPreview(key: item.fullKey) }
                     Button("Copy Key") { copyToClipboard(item.fullKey) }
                     Button("Copy S3 URI") { copyToClipboard(s3URI(for: item.fullKey)) }
                     Button("Copy as AWS JSON") { copyToClipboard(toAWSJSON([item.fullKey])) }
@@ -642,6 +716,12 @@ struct S3ObjectBrowserView: View {
                 }
                 .buttonStyle(.borderless)
                 .help("Download")
+
+                Button { requestPreview(key: item.fullKey) } label: {
+                    Image(systemName: "eye")
+                }
+                .buttonStyle(.borderless)
+                .help("Quick Look")
 
                 Button {
                     selectedObject = objects.first { $0.key == item.fullKey }
@@ -1485,5 +1565,24 @@ struct S3ObjectBrowserView: View {
             }
             isDeletingObjects = false
         }
+    }
+
+    // MARK: - Quick Look Preview
+
+    private func requestPreview(key: String) {
+        guard let obj = objects.first(where: { $0.key == key }) else { return }
+        let sizeCheck = quickLook.checkSize(obj.size, limitBytes: appState.previewSizeLimitBytes)
+        switch sizeCheck {
+        case .allowed:
+            Task { await quickLook.previewObject(bucket: bucket.name, key: key, using: client) }
+        case .overLimit(let sizeMB):
+            quickLookSizeAlert = QuickLookSizeAlert(key: key, sizeMB: sizeMB)
+        case .overHardCap:
+            quickLookHardCapAlert = true
+        }
+    }
+
+    private func forcePreview(key: String) {
+        Task { await quickLook.previewObject(bucket: bucket.name, key: key, using: client) }
     }
 }
