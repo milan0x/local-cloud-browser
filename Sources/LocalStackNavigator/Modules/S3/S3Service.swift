@@ -79,9 +79,7 @@ final class S3Service: ObservableObject {
     }
 
     func moveObject(bucket: String, sourceKey: String, destinationKey: String) async throws {
-        let detail = try await headObject(bucket: bucket, key: sourceKey)
-        let data = try await getObject(bucket: bucket, key: sourceKey)
-        try await putObject(bucket: bucket, key: destinationKey, data: data, contentType: detail.contentType)
+        try await serverSideCopy(sourceBucket: bucket, sourceKey: sourceKey, destinationBucket: bucket, destinationKey: destinationKey)
         try await deleteObject(bucket: bucket, key: sourceKey)
     }
 
@@ -106,11 +104,59 @@ final class S3Service: ObservableObject {
         return objects.count
     }
 
-    /// Copies an object within the same bucket or across buckets using GET + PUT.
+    /// Server-side copy between any two buckets (or within the same bucket).
+    func serverSideCopy(sourceBucket: String, sourceKey: String, destinationBucket: String, destinationKey: String) async throws {
+        let encodedSource = "/\(sourceBucket)/\(sourceKey)"
+            .addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? "/\(sourceBucket)/\(sourceKey)"
+        _ = try await client.s3Request(
+            method: "PUT",
+            path: "/\(destinationBucket)/\(destinationKey)",
+            headers: ["x-amz-copy-source": encodedSource]
+        )
+    }
+
+    /// Duplicates an object within the same bucket using server-side copy.
+    func duplicateObject(bucket: String, sourceKey: String, destinationKey: String) async throws {
+        try await serverSideCopy(sourceBucket: bucket, sourceKey: sourceKey, destinationBucket: bucket, destinationKey: destinationKey)
+    }
+
+    /// Duplicates all objects under a prefix to a new prefix using server-side copy.
+    @discardableResult
+    func duplicateFolder(bucket: String, sourcePrefix: String, destinationPrefix: String) async throws -> Int {
+        let objects = try await listAllObjects(bucket: bucket, prefix: sourcePrefix)
+        for obj in objects {
+            let relativePath = String(obj.key.dropFirst(sourcePrefix.count))
+            let newKey = destinationPrefix + relativePath
+            try await duplicateObject(bucket: bucket, sourceKey: obj.key, destinationKey: newKey)
+        }
+        return objects.count
+    }
+
+    /// Renames an object within the same bucket using server-side copy + delete.
+    func renameObject(bucket: String, sourceKey: String, destinationKey: String) async throws {
+        try await serverSideCopy(sourceBucket: bucket, sourceKey: sourceKey, destinationBucket: bucket, destinationKey: destinationKey)
+        try await deleteObject(bucket: bucket, key: sourceKey)
+    }
+
+    /// Renames a folder by copying all objects to the new prefix, then deleting originals.
+    /// Copy-all-then-delete-all is safer: if a copy fails midway, originals remain intact.
+    @discardableResult
+    func renameFolder(bucket: String, sourcePrefix: String, destinationPrefix: String) async throws -> Int {
+        let objects = try await listAllObjects(bucket: bucket, prefix: sourcePrefix)
+        for obj in objects {
+            let relativePath = String(obj.key.dropFirst(sourcePrefix.count))
+            let newKey = destinationPrefix + relativePath
+            try await serverSideCopy(sourceBucket: bucket, sourceKey: obj.key, destinationBucket: bucket, destinationKey: newKey)
+        }
+        for obj in objects {
+            try await deleteObject(bucket: bucket, key: obj.key)
+        }
+        return objects.count
+    }
+
+    /// Copies an object within the same bucket or across buckets using server-side copy.
     func copyObject(sourceBucket: String, sourceKey: String, destinationBucket: String, destinationKey: String) async throws {
-        let detail = try await headObject(bucket: sourceBucket, key: sourceKey)
-        let data = try await getObject(bucket: sourceBucket, key: sourceKey)
-        try await putObject(bucket: destinationBucket, key: destinationKey, data: data, contentType: detail.contentType)
+        try await serverSideCopy(sourceBucket: sourceBucket, sourceKey: sourceKey, destinationBucket: destinationBucket, destinationKey: destinationKey)
     }
 
     /// Moves an object from one bucket to another using copy + delete.

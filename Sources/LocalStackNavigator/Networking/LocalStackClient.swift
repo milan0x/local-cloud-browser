@@ -128,7 +128,8 @@ final class LocalStackClient: ObservableObject {
         path: String,
         queryParams: [String: String] = [:],
         body: Data? = nil,
-        contentType: String? = nil
+        contentType: String? = nil,
+        headers: [String: String] = [:]
     ) async throws -> Data {
         let response = try await executeRequest(
             method: method,
@@ -136,7 +137,8 @@ final class LocalStackClient: ObservableObject {
             queryParams: queryParams,
             body: body,
             contentType: contentType,
-            baseURLOverride: s3BaseURL
+            baseURLOverride: s3BaseURL,
+            headers: headers
         )
         return response.data
     }
@@ -159,7 +161,8 @@ final class LocalStackClient: ObservableObject {
         queryParams: [String: String],
         body: Data?,
         contentType: String?,
-        baseURLOverride: String? = nil
+        baseURLOverride: String? = nil,
+        headers: [String: String] = [:]
     ) async throws -> HTTPResponse {
         let effectiveBase = baseURLOverride ?? baseURL
 
@@ -191,6 +194,9 @@ final class LocalStackClient: ObservableObject {
             urlRequest.setValue(contentType, forHTTPHeaderField: "Content-Type")
         } else if body != nil {
             urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+        for (key, value) in headers {
+            urlRequest.setValue(value, forHTTPHeaderField: key)
         }
 
         let data: Data

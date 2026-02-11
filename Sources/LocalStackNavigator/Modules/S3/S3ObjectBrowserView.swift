@@ -64,6 +64,10 @@ struct S3ObjectBrowserView: View {
     @State private var quickLookSizeAlert: QuickLookSizeAlert?
     @State private var quickLookHardCapAlert = false
 
+    // Rename
+    @State private var itemToRename: RowItem?
+    @State private var renameText = ""
+
     // Search & filter
     @State private var searchQuery = ""
 
@@ -101,6 +105,7 @@ struct S3ObjectBrowserView: View {
             || !objectsToDelete.isEmpty
             || !folderDeleteItems.isEmpty
             || selectedFolderPrefix != nil
+            || itemToRename != nil
     }
 
     var body: some View {
@@ -223,6 +228,9 @@ struct S3ObjectBrowserView: View {
         }
         .sheet(isPresented: $showCreateFolder) {
             createFolderSheet
+        }
+        .sheet(item: $itemToRename) { item in
+            renameSheet(for: item)
         }
         .sheet(isPresented: Binding(
             get: { !objectsToMove.isEmpty || !foldersToMove.isEmpty },
@@ -521,7 +529,7 @@ struct S3ObjectBrowserView: View {
                 Text(item.size)
             }
             .width(min: 60, ideal: 80)
-            TableColumn("Date Added", value: \.dateValue) { item in
+            TableColumn("Date Modified", value: \.dateValue) { item in
                 Text(item.lastModified)
             }
             .width(min: 100, ideal: 130)
@@ -556,6 +564,12 @@ struct S3ObjectBrowserView: View {
                     Button("Copy S3 URI") { copyToClipboard(s3URI(for: item.fullKey)) }
                     Button("Copy as AWS JSON") { copyToClipboard(toAWSJSON([item.fullKey])) }
                     Divider()
+                    Button("Rename") {
+                        let folderName = String(item.fullKey.dropLast()).components(separatedBy: "/").last ?? item.fullKey
+                        renameText = folderName
+                        itemToRename = item
+                    }
+                    .disabled(appState.isReadOnly)
                     Button("Move...") {
                         foldersToMove = [item.fullKey]
                         moveDestination = currentPrefix
@@ -563,6 +577,10 @@ struct S3ObjectBrowserView: View {
                     .disabled(appState.isReadOnly)
                     folderMoveToMenu(for: [item.fullKey])
                         .disabled(appState.isReadOnly)
+                    Button("Duplicate") {
+                        duplicateItem(item)
+                    }
+                    .disabled(appState.isReadOnly)
                     Divider()
                     Button("Delete Folder", role: .destructive) {
                         requestFolderDeletion(prefixes: [item.fullKey])
@@ -578,6 +596,11 @@ struct S3ObjectBrowserView: View {
                     Button("Metadata") {
                         selectedObject = objects.first { $0.key == item.fullKey }
                     }
+                    Button("Rename") {
+                        renameText = item.name
+                        itemToRename = item
+                    }
+                    .disabled(appState.isReadOnly)
                     Button("Move...") {
                         if let obj = objects.first(where: { $0.key == item.fullKey }) {
                             objectsToMove = [obj]
@@ -589,6 +612,10 @@ struct S3ObjectBrowserView: View {
                         moveToMenu(for: [obj])
                             .disabled(appState.isReadOnly)
                     }
+                    Button("Duplicate") {
+                        duplicateItem(item)
+                    }
+                    .disabled(appState.isReadOnly)
                     Divider()
                     Button("Delete", role: .destructive) {
                         objectsToDelete = objects.filter { $0.key == item.fullKey }
@@ -976,6 +1003,71 @@ struct S3ObjectBrowserView: View {
         Task {
             do {
                 try await service.createFolder(bucket: bucket.name, prefix: currentPrefix, name: name)
+                loadObjects(force: true)
+            } catch {
+                if let clientError = error as? LocalStackClientError,
+                   let parsed = clientError.serviceError {
+                    serviceError = parsed
+                } else {
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    // MARK: - Rename Sheet
+
+    private func renameSheet(for item: RowItem) -> some View {
+        let isFolder = item.isFolder
+        let currentName = isFolder
+            ? String(item.fullKey.dropLast()).components(separatedBy: "/").last ?? item.fullKey
+            : item.name
+        let isValid: Bool = {
+            let trimmed = renameText.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty { return false }
+            if trimmed == currentName { return false }
+            if trimmed.contains("/") { return false }
+            return true
+        }()
+
+        return VStack(spacing: 16) {
+            Text(isFolder ? "Rename Folder" : "Rename")
+                .font(.headline)
+            Text(currentName)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            TextField("New name", text: $renameText)
+                .textFieldStyle(.roundedBorder)
+                .onSubmit { if isValid { performRename(item: item) } }
+            HStack {
+                Button("Cancel") {
+                    itemToRename = nil
+                    renameText = ""
+                }
+                .keyboardShortcut(.cancelAction)
+                Spacer()
+                Button("Rename") { performRename(item: item) }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!isValid)
+            }
+        }
+        .padding()
+        .frame(width: 320)
+    }
+
+    private func performRename(item: RowItem) {
+        let newName = renameText.trimmingCharacters(in: .whitespaces)
+        itemToRename = nil
+        renameText = ""
+        Task {
+            do {
+                if item.isFolder {
+                    let newPrefix = currentPrefix + newName + "/"
+                    try await service.renameFolder(bucket: bucket.name, sourcePrefix: item.fullKey, destinationPrefix: newPrefix)
+                } else {
+                    let newKey = currentPrefix + newName
+                    try await service.renameObject(bucket: bucket.name, sourceKey: item.fullKey, destinationKey: newKey)
+                }
                 loadObjects(force: true)
             } catch {
                 if let clientError = error as? LocalStackClientError,
@@ -1564,6 +1656,58 @@ struct S3ObjectBrowserView: View {
                 }
             }
             isDeletingObjects = false
+        }
+    }
+
+    // MARK: - Duplicate
+
+    private func duplicateName(for name: String, existingNames: Set<String>) -> String {
+        let stem: String
+        let ext: String
+        if let dotIndex = name.lastIndex(of: ".") {
+            stem = String(name[name.startIndex..<dotIndex])
+            ext = String(name[dotIndex...])
+        } else {
+            stem = name
+            ext = ""
+        }
+
+        let candidate = "\(stem) copy\(ext)"
+        if !existingNames.contains(candidate) { return candidate }
+
+        for n in 2...99 {
+            let numbered = "\(stem) copy \(n)\(ext)"
+            if !existingNames.contains(numbered) { return numbered }
+        }
+        return "\(stem) copy\(ext)"
+    }
+
+    private func duplicateItem(_ item: RowItem) {
+        Task {
+            do {
+                if item.isFolder {
+                    let folderPrefix = item.fullKey
+                    let folderName = String(folderPrefix.dropLast()).components(separatedBy: "/").last ?? folderPrefix
+                    let existingNames = Set(prefixes.map(\.displayName))
+                    let newName = duplicateName(for: folderName, existingNames: existingNames)
+                    let newPrefix = currentPrefix + newName + "/"
+                    try await service.duplicateFolder(bucket: bucket.name, sourcePrefix: folderPrefix, destinationPrefix: newPrefix)
+                } else {
+                    let filename = item.fullKey.components(separatedBy: "/").last ?? item.fullKey
+                    let existingNames = Set(objects.filter { $0.key != currentPrefix }.map(\.displayName))
+                    let newName = duplicateName(for: filename, existingNames: existingNames)
+                    let newKey = currentPrefix + newName
+                    try await service.duplicateObject(bucket: bucket.name, sourceKey: item.fullKey, destinationKey: newKey)
+                }
+                loadObjects(force: true)
+            } catch {
+                if let clientError = error as? LocalStackClientError,
+                   let parsed = clientError.serviceError {
+                    serviceError = parsed
+                } else {
+                    errorMessage = error.localizedDescription
+                }
+            }
         }
     }
 
