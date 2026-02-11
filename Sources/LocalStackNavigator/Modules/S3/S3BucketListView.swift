@@ -96,7 +96,7 @@ struct S3BucketListView: View {
 
             Button { showCreateSheet = true } label: {
                 Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.white)
+                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
             }
             .buttonStyle(.borderless)
             .disabled(appState.isReadOnly)
