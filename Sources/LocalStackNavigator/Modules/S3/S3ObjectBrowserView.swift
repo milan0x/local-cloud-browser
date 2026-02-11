@@ -29,6 +29,7 @@ struct S3ObjectBrowserView: View {
     @State private var lastLoadTime: Date?
     @State private var sortOrder: [KeyPathComparator<RowItem>] = [KeyPathComparator(\RowItem.dateValue, order: .reverse)]
     @State private var isDropTargeted = false
+    @State private var showFolderDropWarning = false
     @State private var selectedRowIDs: Set<RowItem.ID> = []
     @State private var serviceError: ServiceError?
     @State private var showCreateFolder = false
@@ -342,6 +343,11 @@ struct S3ObjectBrowserView: View {
             let names = collisionItems.joined(separator: "\n")
             Text("The destination already contains items with these names:\n\n\(names)\n\n• Matching items will be replaced\n• Other existing items will remain untouched\n• New items will be added")
         }
+        .alert("Folder Upload Not Supported", isPresented: $showFolderDropWarning) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Dropping folders is not supported yet. You can drop one or multiple files at once instead.")
+        }
     }
 
     private var browsePickerSheet: some View {
@@ -491,17 +497,25 @@ struct S3ObjectBrowserView: View {
                 guard !validProviders.isEmpty else { return false }
                 Task {
                     var urls: [URL] = []
+                    var hasFolder = false
                     for provider in validProviders {
                         if let url: URL = await withCheckedContinuation({ continuation in
                             _ = provider.loadObject(ofClass: URL.self) { url, _ in
                                 continuation.resume(returning: url)
                             }
                         }) {
-                            urls.append(url)
+                            if url.hasDirectoryPath {
+                                hasFolder = true
+                            } else {
+                                urls.append(url)
+                            }
                         }
                     }
                     if !urls.isEmpty {
                         await uploadFiles(from: urls)
+                    }
+                    if hasFolder {
+                        showFolderDropWarning = true
                     }
                 }
                 return true
@@ -660,8 +674,10 @@ struct S3ObjectBrowserView: View {
                     }
                     .disabled(appState.isReadOnly || appState.s3Clipboard == nil || isPasting)
                     Divider()
-                    Button("Delete Folder", role: .destructive) {
+                    Button(role: .destructive) {
                         requestFolderDeletion(prefixes: [item.fullKey])
+                    } label: {
+                        Label("Delete Folder", systemImage: "trash")
                     }
                     .disabled(appState.isReadOnly)
                 } else {
@@ -698,8 +714,10 @@ struct S3ObjectBrowserView: View {
                     }
                     .disabled(appState.isReadOnly)
                     Divider()
-                    Button("Delete", role: .destructive) {
+                    Button(role: .destructive) {
                         objectsToDelete = objects.filter { $0.key == item.fullKey }
+                    } label: {
+                        Label("Delete", systemImage: "trash")
                     }
                     .disabled(appState.isReadOnly)
                 }
@@ -745,7 +763,7 @@ struct S3ObjectBrowserView: View {
                 if !selectedItems.isEmpty {
                     Divider()
                     let totalCount = selectedItems.count
-                    Button("Delete \(totalCount) Items", role: .destructive) {
+                    Button(role: .destructive) {
                         let fileObjs = fileItems.compactMap { item in
                             objects.first { $0.key == item.fullKey }
                         }
@@ -755,6 +773,8 @@ struct S3ObjectBrowserView: View {
                             standaloneObjectsToDelete = fileObjs
                             requestFolderDeletion(prefixes: folderItems.map(\.fullKey))
                         }
+                    } label: {
+                        Label("Delete \(totalCount) Items", systemImage: "trash")
                     }
                     .disabled(appState.isReadOnly)
                 }

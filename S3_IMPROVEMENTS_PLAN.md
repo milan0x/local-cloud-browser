@@ -369,6 +369,7 @@ Phases are independent and ordered by complexity (simplest first):
 ## Future Considerations
 
 - **"Copy to" context menu** — A "Copy to" submenu mirroring the existing "Move to" logic: quick options for parent folder (`..`) and visible subfolders, plus a "Browse..." option opening the folder picker for cross-bucket/arbitrary destination selection. Uses `serverSideCopy` (no download/re-upload). Difference from intra-app copy/paste: "Copy to" is a single-action shortcut (right-click → pick destination → done) vs. the two-step copy-then-paste workflow. Same collision detection pattern as move (`checkCollisions()` before executing). Supports single files, single folders (recursive), and multi-select.
+- **Folder upload** — Upload entire folders via drag-and-drop from Finder and toolbar Upload button (NSOpenPanel with `canChooseDirectories: true`). Recursively enumerate folder contents with `FileManager.enumerator`, preserve directory structure as S3 key prefixes, create zero-byte folder markers for empty subdirectories. Must filter macOS junk files (`.DS_Store`, `._*`, `__MACOSX`), skip symbolic links (prevent infinite loops), show upload progress ("Uploading 12 of 47 files..."), continue on individual file errors (show summary at end). Currently dropping a folder shows a "Folder Upload Not Supported" alert. See Phase 7 for full implementation details.
 
 ## Verification
 
