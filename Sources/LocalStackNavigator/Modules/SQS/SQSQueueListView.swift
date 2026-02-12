@@ -18,7 +18,6 @@ struct SQSQueueListView: View {
     @State private var serviceError: ServiceError?
     @State private var lastLoadTime: Date?
     @State private var queueToShowAttributes: SQSQueue?
-    @State private var doubleClickMonitor: Any?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -241,23 +240,13 @@ struct SQSQueueListView: View {
                 }
                 .disabled(appState.isReadOnly)
             }
-            .onAppear {
-                doubleClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
-                    if event.clickCount == 2,
-                       selectedQueueIDs.count == 1,
-                       let id = selectedQueueIDs.first,
-                       let queue = queues.first(where: { $0.id == id }) {
-                        queueToShowAttributes = queue
-                    }
-                    return event
+            .background(QueueDoubleClickDetector {
+                if selectedQueueIDs.count == 1,
+                   let id = selectedQueueIDs.first,
+                   let queue = queues.first(where: { $0.id == id }) {
+                    queueToShowAttributes = queue
                 }
-            }
-            .onDisappear {
-                if let monitor = doubleClickMonitor {
-                    NSEvent.removeMonitor(monitor)
-                    doubleClickMonitor = nil
-                }
-            }
+            })
         }
     }
 
@@ -342,5 +331,48 @@ struct SQSQueueListView: View {
     private func copyToClipboard(_ string: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(string, forType: .string)
+    }
+}
+
+/// Detects double-clicks within its own bounds using an NSEvent monitor.
+/// Placed as `.background` on the queue list — doesn't intercept clicks,
+/// just observes double-clicks to trigger a callback.
+private struct QueueDoubleClickDetector: NSViewRepresentable {
+    let onDoubleClick: () -> Void
+
+    func makeNSView(context: Context) -> DoubleClickNSView {
+        let view = DoubleClickNSView()
+        view.onDoubleClick = onDoubleClick
+        return view
+    }
+
+    func updateNSView(_ nsView: DoubleClickNSView, context: Context) {
+        nsView.onDoubleClick = onDoubleClick
+    }
+
+    final class DoubleClickNSView: NSView {
+        var onDoubleClick: (() -> Void)?
+        private var monitor: Any?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            monitor.flatMap { NSEvent.removeMonitor($0) }
+            monitor = nil
+            guard window != nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
+                guard let self, event.clickCount == 2 else { return event }
+                let pointInSelf = self.convert(event.locationInWindow, from: nil)
+                if self.bounds.contains(pointInSelf) {
+                    self.onDoubleClick?()
+                }
+                return event
+            }
+        }
+
+        override func removeFromSuperview() {
+            monitor.flatMap { NSEvent.removeMonitor($0) }
+            monitor = nil
+            super.removeFromSuperview()
+        }
     }
 }
