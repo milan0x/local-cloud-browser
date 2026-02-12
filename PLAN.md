@@ -110,8 +110,8 @@
 - [x] "Connection lost" bubble notification: small floating bubble above sidebar bottom bar when connection fails (2+ consecutive failures). Shows orange warning icon + "Connection lost" text + close button. Persists until dismissed or connection recovers. Dismissed state resets when connection recovers, so a fresh failure cycle shows the bubble again.
 - [ ] Error handling improvements
 - [x] Keyboard shortcuts: Cmd+C/V for S3 copy/paste, Cmd+Backspace for delete (objects only, shows confirmation dialog)
-- [x] Searchable region picker: `AWSRegion` static data model (39 regions), reusable `SearchableDropdown` popover component (filter-as-you-type, checkmark selection, auto-scroll), `AWSRegionPicker` convenience wrapper. Replaces free-text `TextField` in S3 create bucket dialog and connection profile editor. Only valid AWS region codes selectable. Create bucket dialog restructured from plain VStack to `Form` with `.formStyle(.grouped)` matching the connection profile editor — info label in its own `Section`, `Divider` + button bar below, 380pt width.
-- [x] Clickable toolbar region badge: for non-S3 modules (SQS, SNS, Secrets Manager), the region badge is now a clickable button with chevron hint that opens a searchable region picker popover directly (filter + scrollable list, no extra click). S3 keeps the static dimmed "Global" badge. Selecting a region updates `appState.region` immediately.
+- [x] Region picker: `AWSRegion` static data model (39 regions). `AWSRegionPicker` convenience wrapper using native SwiftUI `Picker` for form contexts (S3 create bucket dialog, connection profile editor). Only valid AWS region codes selectable. Create bucket dialog restructured from plain VStack to `Form` with `.formStyle(.grouped)` matching the connection profile editor — info label in its own `Section`, `Divider` + button bar below, 380pt width.
+- [x] Clickable toolbar region badge: for non-S3 modules (SQS, SNS, Secrets Manager), the region badge is a native `Menu` dropdown listing all regions. S3 keeps the static dimmed "Global" badge. Selecting a region updates `appState.region` immediately. macOS menus support type-to-jump natively (start typing to highlight matching items). See "Known macOS SwiftUI Limitations" for why a popover with a text filter field was not used.
 - [x] Region persistence via profile: toolbar region picker updates the active connection profile's region (single source of truth). Removed `UserDefaults`-based region persistence (`regionKey`, `didSet`, startup override hack). On launch, `applyProfile()` sets region from the active profile. On toolbar change, both `appState.region` and the active profile are updated and saved.
 - [x] Keychain credential storage: `accessKeyId` and `secretAccessKey` moved from plaintext UserDefaults to macOS Keychain (Security framework). `KeychainHelper` utility wraps `SecItemAdd`/`SecItemUpdate`/`SecItemCopyMatching`/`SecItemDelete` with service name `"LocalStackNavigator"`, keyed by profile UUID. `ConnectionProfile.CodingKeys` excludes credential fields from JSON serialization — UserDefaults only stores non-sensitive data (id, name, endpoint, region). `ConnectionProfileStore` hydrates credentials from Keychain on load, saves to Keychain on add/update, deletes from Keychain on profile delete. One-time migration (`CredentialsMigratedToKeychain` flag): reads old plaintext credentials from UserDefaults via `LegacyProfile` struct, moves to Keychain, re-saves profiles without credentials.
 - [x] Smart Keychain: skip Keychain for default LocalStack credentials (`test`/`test`) — no password prompts on launch for typical users. `KeychainHelper.isDefaultCredentials()` gates all save/load paths. `saveCredentials()` removes any existing Keychain entry when credentials match defaults (cleans up entries from previous versions). `ConnectionProfile.init(from:)` decoder falls back to `KeychainHelper.defaultAccessKeyId`/`defaultSecretAccessKey` instead of empty strings. Default profile creation skips `saveCredentials()` entirely. `KeychainHelper.save()` uses update-or-add pattern (`SecItemUpdate` then `SecItemAdd`) instead of delete-then-add to minimize Keychain operations. Migration flag set on default profile creation to prevent unnecessary legacy migration on second launch. Keychain only activated when users add custom (non-default) credentials.
@@ -124,3 +124,30 @@
 - [x] Editor frame height: 440pt when editing (both delete button and info note cases), 380pt when adding a new profile.
 - [x] Deleted unused `ConnectionSettings.swift` — dead code, fully replaced by `ConnectionProfile`
 - [ ] Menu bar integration
+
+## Known macOS SwiftUI Limitations
+
+These are platform-level issues that cannot be worked around cleanly. Documented here so future attempts don't repeat the same investigation.
+
+### NSPopover cannot accept keyboard input (text fields inside popovers)
+
+**Root cause:** `NSPopover`'s internal window (`_NSPopoverWindow`) returns `false` from `canBecomeKey`. This means the popover window can never become the key window, so all keyboard events are routed to the main window instead (e.g. the sidebar's type-to-select in `NavigationSplitView`). This is a macOS AppKit limitation, not a SwiftUI bug — it affects both SwiftUI `.popover()` and manually created `NSPopover` instances.
+
+**Symptom:** A `TextField` inside a `.popover` appears but cannot be typed into. Keystrokes go to the sidebar (changing selection), cause the popover to close and reopen, or are silently dropped.
+
+**Approaches tried and why they failed:**
+1. **SwiftUI `@FocusState` + `.focused()`** — Focus state has no effect because the popover window cannot become key. The focus request is silently ignored.
+2. **`NSViewRepresentable` wrapping `NSTextField` with `window.makeKey()`** (`PopoverTextField`) — `makeKey()` is a no-op when `canBecomeKey` returns `false`. The NSTextField gets created but never receives keyboard events.
+3. **Custom `NSPopover` with `.semitransient` behavior** (`KeyboardPopover` modifier) — `.semitransient` prevents auto-dismiss on outside clicks but does NOT change `canBecomeKey`. The popover still can't receive keyboard events.
+4. **`popoverDidShow` delegate + `popoverWindow.makeKey()`** — Same issue: `makeKey()` is silently ignored because `canBecomeKey` is `false`.
+5. **`NSEvent.addLocalMonitorForEvents(.keyDown)` key interception** — Captures key events at app level and forwards them to the text field via `interpretKeyEvents`. The text field updates, but this triggers a SwiftUI state change → view re-evaluation → `NSHostingController.rootView` update → the popover content is rebuilt, causing visual flicker (popover closes and reopens) on every keystroke.
+
+**Current solution:** Use native `Menu` (NSMenu) for the toolbar region picker — macOS menus support type-to-jump natively. For form contexts (sheets/dialogs), use native SwiftUI `Picker` which renders as a standard macOS popup button. Neither requires a text field inside a popover.
+
+**If a searchable popover is needed in the future:** The only reliable approaches would be: (a) a custom `NSPanel` subclass positioned near the anchor view (NSPanel can become key), or (b) a `.sheet` presentation which is a proper modal window.
+
+**Removed files:** `SearchableDropdown.swift` (custom popover dropdown with filter), `KeyboardPopover.swift` (NSPopover wrapper), `PopoverTextField` struct (NSTextField wrapper with event monitor). All replaced by native `Menu` / `Picker`.
+
+### Toolbar display mode persistence
+
+`toolbar(id:)` only persists item customization, not display mode. KVO on `NSToolbar.displayMode` via NSViewRepresentable fails because SwiftUI manages the toolbar lifecycle opaquely — the observer never reliably attaches. Would require NSWindowController or full AppKit toolbar ownership. Low priority.
