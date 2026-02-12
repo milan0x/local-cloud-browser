@@ -13,6 +13,18 @@ struct SettingsView: View {
                 Text("Restore the last viewed service, bucket, or queue when the app launches. Switching between services always remembers your selection.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                Picker("Health check interval", selection: $appState.healthCheckInterval) {
+                    Text("1 second").tag(1.0)
+                    Text("1.5 seconds").tag(1.5)
+                    Text("2 seconds").tag(2.0)
+                    Text("3 seconds").tag(3.0)
+                    Text("4 seconds").tag(4.0)
+                    Text("5 seconds").tag(5.0)
+                }
+                Text("How often to check the LocalStack connection status. Lower values detect connection changes faster.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("S3 Browser") {

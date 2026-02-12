@@ -154,8 +154,15 @@ struct SQSQueueListView: View {
     @ViewBuilder
     private var queueListContent: some View {
         if isLoading && queues.isEmpty {
-            ProgressView("Loading queues...")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack(spacing: 12) {
+                ProgressView("Loading queues...")
+                if appState.connectionError != nil {
+                    Label("Connection lost — retrying...", systemImage: "bolt.horizontal.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let errorMessage {
             VStack(spacing: 8) {
                 Image(systemName: "exclamationmark.triangle")
@@ -236,6 +243,11 @@ struct SQSQueueListView: View {
                     }
                 }
             }
+            .overlay(alignment: .bottom) {
+                if errorMessage != nil {
+                    connectionLostBanner
+                }
+            }
             .contextMenu {
                 Button("Create Queue") {
                     showCreateSheet = true
@@ -250,6 +262,21 @@ struct SQSQueueListView: View {
                 }
             })
         }
+    }
+
+    private var connectionLostBanner: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "bolt.horizontal.circle")
+                .font(.caption)
+            Text("Connection lost — showing cached data")
+                .font(.caption)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity)
+        .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 6))
+        .padding(6)
     }
 
     // MARK: - Data

@@ -5,6 +5,8 @@ enum AppPreferences {
     static let autoRefreshIntervalKey = "autoRefreshInterval"
     static let previewSizeLimitMBKey = "previewSizeLimitMB"
     static let restoreLastSessionKey = "restoreLastSession"
+    static let healthCheckIntervalKey = "healthCheckInterval"
+    static let defaultHealthCheckInterval: Double = 2.0
 
     /// Default preview size limit in megabytes.
     static let defaultPreviewSizeLimitMB = 10

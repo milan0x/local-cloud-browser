@@ -45,6 +45,15 @@ final class AppState: ObservableObject {
     }() {
         didSet { UserDefaults.standard.set(previewSizeLimitMB, forKey: AppPreferences.previewSizeLimitMBKey) }
     }
+    @Published var healthCheckInterval: Double = {
+        let stored = UserDefaults.standard.double(forKey: AppPreferences.healthCheckIntervalKey)
+        return stored > 0 ? stored : AppPreferences.defaultHealthCheckInterval
+    }() {
+        didSet {
+            UserDefaults.standard.set(healthCheckInterval, forKey: AppPreferences.healthCheckIntervalKey)
+            startHealthCheck()
+        }
+    }
     let autoRefresh = AutoRefreshManager()
     private var healthCheckTask: Task<Void, Never>?
     private var consecutiveFailures = 0
@@ -68,7 +77,7 @@ final class AppState: ObservableObject {
         healthCheckTask = Task {
             while !Task.isCancelled {
                 await performHealthCheck()
-                try? await Task.sleep(for: .seconds(3))
+                try? await Task.sleep(for: .seconds(healthCheckInterval))
             }
         }
     }
@@ -141,6 +150,17 @@ final class AppState: ObservableObject {
             }
             if healthInfo != nil { healthInfo = nil }
         }
+    }
+
+    /// Called by LocalStackClient when any API request succeeds.
+    /// Immediately flips the health indicator to connected without waiting
+    /// for the next health check cycle.
+    func notifyConnectionAlive() {
+        if connectionStatus != .connected {
+            connectionStatus = .connected
+        }
+        if consecutiveFailures != 0 { consecutiveFailures = 0 }
+        if connectionError != nil { connectionError = nil }
     }
 
     var isLocalEndpoint: Bool {
