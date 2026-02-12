@@ -143,6 +143,7 @@
 - [x] Persist settings to UserDefaults
 - [x] Auto-refresh: reusable `AutoRefreshManager` on `AppState`, internal Task-based timer, `refreshTrigger` pattern
 - [x] Auto-refresh indicator in S3 breadcrumb bar (countdown only)
+- [x] Auto-refresh indicator click target expansion: added `.padding(.horizontal, 4)` + `.padding(.vertical, 2)` + `.contentShape(Rectangle())` inside the button label so the entire padded area is clickable, not just the icon and text pixels
 - [x] Auto-refresh menu (single toolbar button: Refresh Now + interval picker)
 - [x] Bucket list auto-refreshes alongside object browser
 - [x] Auto-refresh selection stability fix (deselection during mouse-hold):

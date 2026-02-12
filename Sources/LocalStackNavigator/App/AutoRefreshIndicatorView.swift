@@ -16,6 +16,9 @@ struct AutoRefreshIndicatorView: View {
                 }
                 .font(.caption)
                 .foregroundStyle(Color.accentColor)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Click to refresh now")
