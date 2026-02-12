@@ -28,6 +28,7 @@ struct S3ObjectBrowserView: View {
     @State private var isDeletingObjects = false
     @State private var lastLoadTime: Date?
     @State private var sortOrder: [KeyPathComparator<RowItem>] = [KeyPathComparator(\RowItem.dateValue, order: .reverse)]
+    @SceneStorage("S3ObjectColumns") private var columnCustomization: TableColumnCustomization<RowItem>
     @State private var isDropTargeted = false
     @State private var showFolderDropWarning = false
     @State private var selectedRowIDs: Set<RowItem.ID> = []
@@ -590,7 +591,7 @@ struct S3ObjectBrowserView: View {
     }
 
     private var listView: some View {
-        Table(sortedRowItems, selection: $selectedRowIDs, sortOrder: $sortOrder) {
+        Table(sortedRowItems, selection: $selectedRowIDs, sortOrder: $sortOrder, columnCustomization: $columnCustomization) {
             TableColumn("Name", value: \.name) { item in
                 HStack(spacing: 6) {
                     Image(systemName: item.icon)
@@ -598,23 +599,28 @@ struct S3ObjectBrowserView: View {
                     Text(item.name)
                 }
             }
+            .customizationID("name")
             TableColumn("Kind", value: \.kind) { item in
                 Text(item.kind)
                     .foregroundStyle(.secondary)
             }
             .width(min: 60, ideal: 90)
+            .customizationID("kind")
             TableColumn("Size", value: \.sizeBytes) { item in
                 Text(item.size)
             }
             .width(min: 60, ideal: 80)
+            .customizationID("size")
             TableColumn("Date Modified", value: \.dateValue) { item in
                 Text(item.lastModified)
             }
             .width(min: 100, ideal: 130)
+            .customizationID("dateModified")
             TableColumn("Actions") { item in
                 actionsForRow(item)
             }
             .width(min: 60, ideal: 80)
+            .customizationID("actions")
         }
         .contextMenu(forSelectionType: RowItem.ID.self) { ids in
             if ids.isEmpty {

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SQSMessageDetailView: View {
     let message: SQSMessage
+    let queueName: String
     @Environment(\.dismiss) private var dismiss
 
     private static let dateFormatter: DateFormatter = {
@@ -15,15 +16,26 @@ struct SQSMessageDetailView: View {
         VStack(spacing: 0) {
             Form {
                 Section("Details") {
+                    LabeledContent("Queue") {
+                        CopyableValue(text: queueName)
+                    }
                     LabeledContent("Message ID") {
                         CopyableValue(text: message.messageId, monospaced: true, allowsWrapping: true)
                     }
-                    LabeledContent("MD5") {
-                        CopyableValue(text: message.md5OfBody, monospaced: true, allowsWrapping: true)
+                    LabeledContent("Type") {
+                        Text(message.bodyType)
                     }
                     if let date = message.sentTimestamp {
                         LabeledContent("Sent") {
                             CopyableValue(text: Self.dateFormatter.string(from: date))
+                        }
+                    }
+                    LabeledContent("Size") {
+                        Text(SQSMessage.formattedSize(message.bodySize))
+                    }
+                    if let groupId = message.messageGroupId {
+                        LabeledContent("Group ID") {
+                            CopyableValue(text: groupId, monospaced: true, allowsWrapping: true)
                         }
                     }
                     if let date = message.firstReceiveTimestamp {
@@ -34,16 +46,8 @@ struct SQSMessageDetailView: View {
                     LabeledContent("Receive Count") {
                         CopyableValue(text: "\(message.approximateReceiveCount)")
                     }
-                    LabeledContent("Type") {
-                        Text(message.bodyType)
-                    }
-                    LabeledContent("Size") {
-                        Text(SQSMessage.formattedSize(message.bodySize))
-                    }
-                    if let groupId = message.messageGroupId {
-                        LabeledContent("Group ID") {
-                            CopyableValue(text: groupId, monospaced: true, allowsWrapping: true)
-                        }
+                    LabeledContent("MD5") {
+                        CopyableValue(text: message.md5OfBody, monospaced: true, allowsWrapping: true)
                     }
                 }
 

@@ -22,6 +22,7 @@ struct SQSMessageBrowserView: View {
     @State private var showAttributesSheet = false
     @State private var lastLoadTime: Date?
     @State private var sortOrder = [KeyPathComparator(\SQSMessage.sentTimestampMillis, order: .reverse)]
+    @SceneStorage("SQSMessageColumns") private var columnCustomization: TableColumnCustomization<SQSMessage>
 
     // Favorites
     @State private var armedFavoriteId: UUID?
@@ -70,7 +71,7 @@ struct SQSMessageBrowserView: View {
             }
         }
         .sheet(item: $messageToView) { message in
-            SQSMessageDetailView(message: message)
+            SQSMessageDetailView(message: message, queueName: queue.queueName)
         }
         .sheet(isPresented: $showAttributesSheet) {
             SQSQueueAttributesView(service: service, queue: queue)
@@ -187,24 +188,14 @@ struct SQSMessageBrowserView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            Table(sortedMessages, selection: $selectedMessageIDs, sortOrder: $sortOrder) {
+            Table(sortedMessages, selection: $selectedMessageIDs, sortOrder: $sortOrder, columnCustomization: $columnCustomization) {
                 TableColumn("Message ID", value: \.messageId) { msg in
                     Text(msg.truncatedId)
                         .font(.system(.body, design: .monospaced))
                         .help(msg.messageId)
                 }
-                .width(min: 130, ideal: 160)
-
-                TableColumn("Type", value: \.bodyType) { msg in
-                    Text(msg.bodyType)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(bodyTypeBadgeColor(msg.bodyType), in: Capsule())
-                        .foregroundStyle(bodyTypeForegroundColor(msg.bodyType))
-                }
-                .width(min: 45, ideal: 55)
+                .width(min: 100, ideal: 115)
+                .customizationID("messageId")
 
                 TableColumn("Body") { msg in
                     Text(msg.body.prefix(100).replacingOccurrences(of: "\n", with: " "))
@@ -212,12 +203,19 @@ struct SQSMessageBrowserView: View {
                         .help(msg.body.prefix(500))
                 }
                 .width(min: 150)
+                .customizationID("body")
 
-                TableColumn("Size", value: \.bodySize) { msg in
-                    Text(SQSMessage.formattedSize(msg.bodySize))
-                        .foregroundStyle(.secondary)
+                TableColumn("Type", value: \.bodyType) { msg in
+                    Text(msg.bodyType)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .frame(width: 36)
+                        .padding(.vertical, 1)
+                        .background(bodyTypeBadgeColor(msg.bodyType), in: Capsule())
+                        .foregroundStyle(bodyTypeForegroundColor(msg.bodyType))
                 }
-                .width(min: 50, ideal: 65)
+                .width(min: 40, ideal: 45)
+                .customizationID("type")
 
                 TableColumn("Sent", value: \.sentTimestampMillis) { msg in
                     if let date = msg.sentTimestamp {
@@ -228,14 +226,24 @@ struct SQSMessageBrowserView: View {
                             .foregroundStyle(.tertiary)
                     }
                 }
-                .width(min: 80, ideal: 100)
+                .width(min: 60, ideal: 75)
+                .customizationID("sent")
+
+                TableColumn("Size", value: \.bodySize) { msg in
+                    Text(SQSMessage.formattedSize(msg.bodySize))
+                        .foregroundStyle(.secondary)
+                }
+                .width(min: 40, ideal: 50)
+                .customizationID("size")
 
                 TableColumn("Receives", value: \.approximateReceiveCount) { msg in
                     Text("\(msg.approximateReceiveCount)")
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
-                .width(min: 60, ideal: 70)
+                .width(min: 45, ideal: 55)
+                .customizationID("receives")
+                .defaultVisibility(.hidden)
 
                 TableColumn("Group ID") { msg in
                     if let groupId = msg.messageGroupId {
@@ -249,6 +257,8 @@ struct SQSMessageBrowserView: View {
                     }
                 }
                 .width(min: 70, ideal: 90)
+                .customizationID("groupId")
+                .defaultVisibility(.hidden)
 
                 TableColumn("First Received") { msg in
                     if let date = msg.firstReceiveTimestamp {
@@ -260,6 +270,8 @@ struct SQSMessageBrowserView: View {
                     }
                 }
                 .width(min: 80, ideal: 110)
+                .customizationID("firstReceived")
+                .defaultVisibility(.hidden)
             }
             .contextMenu(forSelectionType: SQSMessage.ID.self) { selection in
                 if let id = selection.first, let msg = messages.first(where: { $0.id == id }) {
