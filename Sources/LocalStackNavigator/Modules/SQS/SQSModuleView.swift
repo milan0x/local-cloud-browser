@@ -15,7 +15,7 @@ struct SQSModuleView: View {
 
     init() {
         _service = StateObject(wrappedValue: SQSService(client: LocalStackClient(appState: AppState())))
-        if LastSessionStore.isEnabled, let saved = LastSessionStore.load() {
+        if let saved = LastSessionStore.load() {
             _restoreQueueName = State(initialValue: saved.sqsQueueName)
         }
     }
@@ -60,9 +60,7 @@ struct SQSModuleView: View {
         }
         .onChange(of: activeQueue) {
             toolbarState.reset()
-            if LastSessionStore.isEnabled {
-                LastSessionStore.saveSQSQueue(activeQueue?.queueName)
-            }
+            LastSessionStore.saveSQSQueue(activeQueue?.queueName)
         }
         .onAppear {
             service.updateClient(client)

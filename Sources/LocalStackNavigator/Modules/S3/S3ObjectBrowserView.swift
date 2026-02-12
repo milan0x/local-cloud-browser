@@ -154,9 +154,7 @@ struct S3ObjectBrowserView: View {
                 loadObjects(force: true, silent: true)
             }
             .onChange(of: pathComponents) {
-                if LastSessionStore.isEnabled {
-                    LastSessionStore.saveS3Path(pathComponents)
-                }
+                LastSessionStore.saveS3Path(pathComponents)
             }
             // Sync toolbar display state
             .onChange(of: isLoading) { toolbarState.isLoading = isLoading }

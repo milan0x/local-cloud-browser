@@ -20,7 +20,6 @@ struct ContentView: View {
             }
         }
         .onChange(of: appState.selectedRoute) {
-            guard LastSessionStore.isEnabled else { return }
             LastSessionStore.saveRoute(appState.selectedRoute)
         }
     }
