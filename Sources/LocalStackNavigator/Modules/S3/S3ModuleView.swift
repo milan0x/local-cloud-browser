@@ -17,7 +17,7 @@ struct S3ModuleView: View {
     init() {
         // Placeholder — real client injected via onAppear
         _service = StateObject(wrappedValue: S3Service(client: LocalStackClient(appState: AppState())))
-        if let saved = LastSessionStore.load() {
+        if LastSessionStore.isEnabled, let saved = LastSessionStore.load() {
             _restoreBucketName = State(initialValue: saved.s3BucketName)
             _restorePath = State(initialValue: saved.s3Path)
         }
