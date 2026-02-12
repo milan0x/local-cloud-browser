@@ -5,6 +5,7 @@ struct SQSModuleView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var service: SQSService
     @StateObject private var toolbarState = SQSToolbarState()
+    @StateObject private var favoriteStore = SQSFavoriteStore()
 
     @State private var selectedQueueIDs: Set<SQSQueue.ID> = []
     @State private var activeQueue: SQSQueue?
@@ -27,7 +28,8 @@ struct SQSModuleView: View {
                     SQSMessageBrowserView(
                         service: service,
                         queue: queue,
-                        toolbarState: toolbarState
+                        toolbarState: toolbarState,
+                        favoriteStore: favoriteStore
                     )
                 } else {
                     VStack(spacing: 8) {

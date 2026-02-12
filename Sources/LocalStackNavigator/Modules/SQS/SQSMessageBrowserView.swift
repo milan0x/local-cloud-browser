@@ -5,6 +5,7 @@ struct SQSMessageBrowserView: View {
     @ObservedObject var service: SQSService
     let queue: SQSQueue
     @ObservedObject var toolbarState: SQSToolbarState
+    @ObservedObject var favoriteStore: SQSFavoriteStore
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var autoRefresh: AutoRefreshManager
 
@@ -15,11 +16,20 @@ struct SQSMessageBrowserView: View {
     @State private var serviceError: ServiceError?
     @State private var searchQuery = ""
     @State private var showSendSheet = false
+    @State private var editingFavorite: SavedSQSFavorite?
     @State private var messageToView: SQSMessage?
     @State private var messagesToDelete: [SQSMessage] = []
     @State private var showAttributesSheet = false
     @State private var lastLoadTime: Date?
     @State private var sortOrder = [KeyPathComparator(\SQSMessage.sentTimestampMillis, order: .reverse)]
+
+    // Favorites
+    @State private var armedFavoriteId: UUID?
+    @State private var sendingFavoriteId: UUID?
+
+    private var queueFavorites: [SavedSQSFavorite] {
+        favoriteStore.favorites(for: queue.queueUrl)
+    }
 
     private var sortedMessages: [SQSMessage] {
         let filtered: [SQSMessage]
@@ -42,10 +52,22 @@ struct SQSMessageBrowserView: View {
             messageContent
             Divider()
             messageStatusBar
+            if !queueFavorites.isEmpty {
+                Divider()
+                favoritesBar
+            }
         }
         .sheet(isPresented: $showSendSheet) {
-            SQSSendMessageView(service: service, queue: queue)
-                .onDisappear { receiveMessages(force: true) }
+            SQSSendMessageView(
+                service: service,
+                queue: queue,
+                favoriteStore: favoriteStore,
+                editingFavorite: editingFavorite
+            )
+            .onDisappear {
+                editingFavorite = nil
+                receiveMessages(force: true)
+            }
         }
         .sheet(item: $messageToView) { message in
             SQSMessageDetailView(message: message)
@@ -80,6 +102,8 @@ struct SQSMessageBrowserView: View {
             messages = []
             selectedMessageIDs = []
             lastLoadTime = nil
+            armedFavoriteId = nil
+            sendingFavoriteId = nil
             receiveMessages()
         }
         .onChange(of: autoRefresh.refreshTrigger) {
@@ -88,6 +112,7 @@ struct SQSMessageBrowserView: View {
         }
         .onChange(of: selectedMessageIDs) {
             toolbarState.hasSelection = !selectedMessageIDs.isEmpty
+            armedFavoriteId = nil
         }
         .onChange(of: toolbarState.pendingAction) {
             guard let action = toolbarState.pendingAction else { return }
@@ -288,6 +313,78 @@ struct SQSMessageBrowserView: View {
         .padding(.vertical, 4)
     }
 
+    // MARK: - Favorites Bar
+
+    private var favoritesBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(queueFavorites) { fav in
+                    FavoriteChip(
+                        favorite: fav,
+                        isArmed: armedFavoriteId == fav.id,
+                        isSending: sendingFavoriteId == fav.id,
+                        isReadOnly: appState.isReadOnly
+                    ) {
+                        chipTapped(fav)
+                    }
+                    .contextMenu {
+                        Button("Send") { sendFavorite(fav) }
+                            .disabled(appState.isReadOnly)
+                        Button("Edit") {
+                            editingFavorite = fav
+                            showSendSheet = true
+                        }
+                        Divider()
+                        Button("Delete", role: .destructive) {
+                            favoriteStore.delete(id: fav.id)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+        }
+        .frame(height: 36)
+        .background(.bar)
+    }
+
+    // MARK: - Favorite Actions
+
+    private func chipTapped(_ favorite: SavedSQSFavorite) {
+        guard !appState.isReadOnly else { return }
+        if armedFavoriteId == favorite.id {
+            sendFavorite(favorite)
+        } else {
+            armedFavoriteId = favorite.id
+        }
+    }
+
+    private func sendFavorite(_ favorite: SavedSQSFavorite) {
+        guard !appState.isReadOnly else { return }
+        armedFavoriteId = nil
+        sendingFavoriteId = favorite.id
+        Task {
+            do {
+                _ = try await service.sendMessage(
+                    queueUrl: queue.queueUrl,
+                    body: favorite.messageBody,
+                    delaySeconds: favorite.delaySeconds,
+                    messageGroupId: favorite.messageGroupId,
+                    messageDeduplicationId: favorite.messageDeduplicationId
+                )
+                receiveMessages(force: true)
+            } catch {
+                if let clientError = error as? LocalStackClientError,
+                   let parsed = clientError.serviceError {
+                    serviceError = parsed
+                } else {
+                    errorMessage = error.localizedDescription
+                }
+            }
+            sendingFavoriteId = nil
+        }
+    }
+
     // MARK: - Data
 
     private func receiveMessages(force: Bool = false) {
@@ -357,5 +454,46 @@ struct SQSMessageBrowserView: View {
         case "XML": return .orange
         default: return .secondary
         }
+    }
+}
+
+// MARK: - FavoriteChip
+
+private struct FavoriteChip: View {
+    let favorite: SavedSQSFavorite
+    let isArmed: Bool
+    let isSending: Bool
+    let isReadOnly: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 4) {
+                if isSending {
+                    ProgressView()
+                        .controlSize(.mini)
+                } else {
+                    Image(systemName: "star.fill")
+                        .font(.caption2)
+                }
+                Text(isArmed ? "Click to Send" : favorite.name)
+                    .font(.caption)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isArmed ? Color.accentColor.opacity(0.15) : Color.gray.opacity(0.1))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(isArmed ? Color.accentColor : Color.clear, lineWidth: 1)
+            )
+            .foregroundStyle(isReadOnly ? Color.secondary : isArmed ? Color.accentColor : Color.primary)
+        }
+        .buttonStyle(.plain)
+        .disabled(isReadOnly)
+        .help(favorite.messageBody.prefix(200).description)
     }
 }
