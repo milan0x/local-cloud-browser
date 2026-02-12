@@ -52,6 +52,12 @@ final class AutoRefreshManager: ObservableObject {
         lastRefreshFailed = true
     }
 
+    /// Fire the refresh trigger immediately and reset the countdown.
+    func triggerNow() {
+        refreshTrigger += 1
+        countdownRemaining = interval
+    }
+
     func resetCountdown() {
         countdownRemaining = interval
     }
