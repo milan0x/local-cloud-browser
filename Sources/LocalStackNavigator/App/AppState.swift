@@ -11,14 +11,14 @@ enum ConnectionError {
     case networkError(String)
 }
 
-struct ServiceHealth: Identifiable {
+struct ServiceHealth: Identifiable, Equatable {
     let id: String   // service name (e.g. "s3", "sqs")
     let status: String // raw value (e.g. "running", "error", "disabled")
 
     var isHealthy: Bool { status == "available" || status == "running" }
 }
 
-struct HealthInfo {
+struct HealthInfo: Equatable {
     let version: String
     let edition: String
     let services: [ServiceHealth]
@@ -121,18 +121,25 @@ final class AppState: ObservableObject {
             return first
         }
 
+        // Only update @Published properties when values actually change.
+        // Unconditional assignment fires objectWillChange on every health check cycle,
+        // which causes ContentView to re-render and dismiss popovers (e.g. region picker).
         if result.0 != connectionStatus {
             Log.info("Health check: \(result.0)", category: "App")
+            connectionStatus = result.0
         }
-        connectionStatus = result.0
-        healthInfo = result.1
 
         if result.0 == .connected {
-            consecutiveFailures = 0
-            connectionError = nil
+            if consecutiveFailures != 0 { consecutiveFailures = 0 }
+            if connectionError != nil { connectionError = nil }
+            if healthInfo != result.1 { healthInfo = result.1 }
         } else {
             consecutiveFailures += 1
-            connectionError = consecutiveFailures >= 2 ? result.2 : nil
+            let newError = consecutiveFailures >= 2 ? result.2 : nil
+            if connectionError == nil && newError != nil || connectionError != nil && newError == nil {
+                connectionError = newError
+            }
+            if healthInfo != nil { healthInfo = nil }
         }
     }
 

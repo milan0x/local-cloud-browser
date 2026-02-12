@@ -6,15 +6,30 @@ struct ServiceError: Identifiable {
     let code: String
     let message: String
 
-    /// Attempts to parse an AWS-style XML error response.
+    /// Attempts to parse an AWS-style error response (XML or JSON).
     ///
-    /// Expected format:
+    /// XML format:
     /// ```xml
     /// <Error><Code>BucketNotEmpty</Code><Message>The bucket you tried to delete is not empty</Message></Error>
     /// ```
+    /// JSON format (SQS/JSON protocol):
+    /// ```json
+    /// {"__type": "com.amazonaws.sqs#QueueDoesNotExist", "message": "..."}
+    /// ```
     static func parse(from data: Data) -> ServiceError? {
-        let parser = ErrorXMLParser(data: data)
-        return parser.parse()
+        // Try XML first (S3, legacy protocols)
+        let xmlResult = ErrorXMLParser(data: data).parse()
+        if xmlResult != nil { return xmlResult }
+
+        // Try JSON (SQS JSON protocol)
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        let rawType = json["__type"] as? String
+        let message = (json["message"] as? String) ?? (json["Message"] as? String)
+        guard let rawType, let message else { return nil }
+        let code = rawType.components(separatedBy: "#").last ?? rawType
+        return ServiceError(code: code, message: message)
     }
 }
 
