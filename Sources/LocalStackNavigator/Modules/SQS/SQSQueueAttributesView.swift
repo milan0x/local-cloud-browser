@@ -75,7 +75,7 @@ struct SQSQueueAttributesView: View {
             }
             .padding()
         }
-        .frame(width: 520)
+        .frame(width: 580)
         .frame(minHeight: 500)
         .task { loadAttributes() }
     }
@@ -85,18 +85,16 @@ struct SQSQueueAttributesView: View {
         Form {
             Section("Queue Info") {
                 LabeledContent("ARN") {
-                    Text(attrs.queueArn)
-                        .font(.system(.caption, design: .monospaced))
-                        .textSelection(.enabled)
+                    CopyableValue(text: attrs.queueArn, monospaced: true, allowsWrapping: true)
                 }
                 if let created = attrs.createdTimestamp {
                     LabeledContent("Created") {
-                        Text(Self.dateFormatter.string(from: created))
+                        CopyableValue(text: Self.dateFormatter.string(from: created))
                     }
                 }
                 if let modified = attrs.lastModifiedTimestamp {
                     LabeledContent("Last Modified") {
-                        Text(Self.dateFormatter.string(from: modified))
+                        CopyableValue(text: Self.dateFormatter.string(from: modified))
                     }
                 }
             }
@@ -114,67 +112,92 @@ struct SQSQueueAttributesView: View {
             }
 
             Section("Configuration") {
-                LabeledContent("Visibility Timeout (s)") {
-                    TextField("0-43200", text: $visibilityTimeout)
-                        .frame(width: 80)
-                        .multilineTextAlignment(.trailing)
-                        .disabled(appState.isReadOnly)
-                        .onChange(of: visibilityTimeout) { isDirty = true }
+                LabeledContent("Visibility Timeout") {
+                    HStack(spacing: 4) {
+                        TextField("", text: $visibilityTimeout)
+                            .frame(width: 80)
+                            .multilineTextAlignment(.trailing)
+                            .disabled(appState.isReadOnly)
+                            .onChange(of: visibilityTimeout) { isDirty = true }
+                        Text("seconds")
+                            .foregroundStyle(.secondary)
+                    }
+                    .fixedSize()
                 }
                 if !isValidRange(visibilityTimeout, 0...43200) {
-                    Text("Must be 0–43200")
+                    Text("Must be 0–43,200 seconds (0–12 hours)")
                         .foregroundStyle(.red)
                         .font(.caption)
                 }
 
-                LabeledContent("Delay Seconds") {
-                    TextField("0-900", text: $delaySeconds)
-                        .frame(width: 80)
-                        .multilineTextAlignment(.trailing)
-                        .disabled(appState.isReadOnly)
-                        .onChange(of: delaySeconds) { isDirty = true }
+                LabeledContent("Delay") {
+                    HStack(spacing: 4) {
+                        TextField("", text: $delaySeconds)
+                            .frame(width: 80)
+                            .multilineTextAlignment(.trailing)
+                            .disabled(appState.isReadOnly)
+                            .onChange(of: delaySeconds) { isDirty = true }
+                        Text("seconds")
+                            .foregroundStyle(.secondary)
+                    }
+                    .fixedSize()
                 }
                 if !isValidRange(delaySeconds, 0...900) {
-                    Text("Must be 0–900")
+                    Text("Must be 0–900 seconds (0–15 minutes)")
                         .foregroundStyle(.red)
                         .font(.caption)
                 }
 
-                LabeledContent("Max Message Size (bytes)") {
-                    TextField("1024-262144", text: $maximumMessageSize)
-                        .frame(width: 80)
-                        .multilineTextAlignment(.trailing)
-                        .disabled(appState.isReadOnly)
-                        .onChange(of: maximumMessageSize) { isDirty = true }
+                LabeledContent("Max Message Size") {
+                    HStack(spacing: 4) {
+                        TextField("", text: $maximumMessageSize)
+                            .frame(width: 80)
+                            .multilineTextAlignment(.trailing)
+                            .disabled(appState.isReadOnly)
+                            .onChange(of: maximumMessageSize) { isDirty = true }
+                        Text("bytes")
+                            .foregroundStyle(.secondary)
+                    }
+                    .fixedSize()
                 }
                 if !isValidRange(maximumMessageSize, 1024...262144) {
-                    Text("Must be 1024–262144")
+                    Text("Must be 1,024–262,144 bytes (1 KB–256 KB)")
                         .foregroundStyle(.red)
                         .font(.caption)
                 }
 
-                LabeledContent("Retention Period (s)") {
-                    TextField("60-1209600", text: $messageRetentionPeriod)
-                        .frame(width: 80)
-                        .multilineTextAlignment(.trailing)
-                        .disabled(appState.isReadOnly)
-                        .onChange(of: messageRetentionPeriod) { isDirty = true }
+                LabeledContent("Retention Period") {
+                    HStack(spacing: 4) {
+                        TextField("", text: $messageRetentionPeriod)
+                            .frame(width: 80)
+                            .multilineTextAlignment(.trailing)
+                            .disabled(appState.isReadOnly)
+                            .onChange(of: messageRetentionPeriod) { isDirty = true }
+                        Text("seconds")
+                            .foregroundStyle(.secondary)
+                    }
+                    .fixedSize()
                 }
                 if !isValidRange(messageRetentionPeriod, 60...1209600) {
-                    Text("Must be 60–1209600")
+                    Text("Must be 60–1,209,600 seconds (1 min–14 days)")
                         .foregroundStyle(.red)
                         .font(.caption)
                 }
 
-                LabeledContent("Receive Wait Time (s)") {
-                    TextField("0-20", text: $receiveMessageWaitTimeSeconds)
-                        .frame(width: 80)
-                        .multilineTextAlignment(.trailing)
-                        .disabled(appState.isReadOnly)
-                        .onChange(of: receiveMessageWaitTimeSeconds) { isDirty = true }
+                LabeledContent("Receive Wait Time") {
+                    HStack(spacing: 4) {
+                        TextField("", text: $receiveMessageWaitTimeSeconds)
+                            .frame(width: 80)
+                            .multilineTextAlignment(.trailing)
+                            .disabled(appState.isReadOnly)
+                            .onChange(of: receiveMessageWaitTimeSeconds) { isDirty = true }
+                        Text("seconds")
+                            .foregroundStyle(.secondary)
+                    }
+                    .fixedSize()
                 }
                 if !isValidRange(receiveMessageWaitTimeSeconds, 0...20) {
-                    Text("Must be 0–20")
+                    Text("Must be 0–20 seconds")
                         .foregroundStyle(.red)
                         .font(.caption)
                 }

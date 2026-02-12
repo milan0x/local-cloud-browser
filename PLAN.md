@@ -78,12 +78,51 @@
 - [x] Force delete non-empty buckets: catches `BucketNotEmpty` error when deleting, shows confirmation alert requiring user to type "delete". `S3Service.emptyBucket()` lists all objects (paginated) and deletes them, `forceDeleteBucket()` empties then deletes. Progress overlay with `ProgressView("Deleting...")` while running. Multi-bucket support.
 
 ## Phase 3: SQS Module
-- [ ] List queues view
-- [ ] Create/delete queue
-- [ ] Send message
-- [ ] Receive/peek messages
-- [ ] Queue attributes viewer
-- [ ] Dead letter queue configuration
+- [x] List queues view
+- [x] Create/delete queue (standard and FIFO)
+- [x] Send message (with optional delay, message group ID, deduplication ID for FIFO)
+- [x] Receive/peek messages: uses `ReceiveMessage` with `VisibilityTimeout=0` so messages stay visible to real consumers (peek mode). Accumulates messages across refreshes with deduplication by `messageId` — new receives merge with existing list, replacing duplicates with the latest version.
+- [x] Queue attributes viewer (visibility timeout, delay, max size, retention, wait time, ARN, FIFO settings)
+- [x] Dead letter queue configuration (redrive policy editor)
+- [x] SQS JSON protocol: uses `X-Amz-Target: AmazonSQS.<Action>` headers with JSON payloads (not Query/XML like older AWS SDKs). `LocalStackClient.sqsRequest(action:payload:)` handles this.
+- [x] Read-only mode: checked at SQS action level, not HTTP method level. A whitelist of safe actions (ListQueues, GetQueueUrl, GetQueueAttributes, ReceiveMessage, ListQueueTags, ListDeadLetterSourceQueues) bypasses the HTTP read-only check via `skipReadOnlyCheck`, since SQS uses POST for everything including reads.
+- [x] `ServiceError.parse(from:)` extended to handle SQS JSON error format (`__type` + `message` fields) alongside the existing S3 XML error format (`<Code>` + `<Message>`).
+- [x] Message browser — rich Table view with 8 columns providing at-a-glance information for debugging and monitoring:
+  - **Message ID:** Truncated display (`first 8...last 4` chars, e.g. `a1b2c3d4...7890`) to show recognizable bookends of the UUID without wasting horizontal space. Full ID available on hover tooltip and via right-click "Copy Message ID". Sortable column.
+  - **Type:** Colored capsule badge detecting body content format — "JSON" (blue) if body starts with `{` or `[`, "XML" (orange) if body starts with `<`, "Text" (gray) otherwise. Helps quickly identify message payload format without reading the body. Sortable column.
+  - **Body:** First 100 characters with newlines replaced by spaces for single-line preview. Full body (up to 500 chars) shown on hover tooltip. Double-click opens detail view with full body and JSON pretty-printing.
+  - **Size:** Body size in bytes/KB (`body.utf8.count`). Useful for spotting unexpectedly large or empty messages at a glance. Sortable column.
+  - **Sent:** Relative timestamp (e.g. "5 min ago") from the `SentTimestamp` system attribute. Shows when the message was originally published to the queue. Sortable column — **default sort is newest-first** (sent timestamp descending) so the most recent messages appear at the top, which is the natural expectation when monitoring a queue for new activity.
+  - **Receives:** `ApproximateReceiveCount` — how many times a consumer has received this message. High counts indicate processing failures or visibility timeout issues. Useful for identifying "poison pill" messages that keep failing. Sortable column with monospaced digits for alignment.
+  - **Group ID:** `MessageGroupId` attribute — only populated for FIFO queues, shows which message group the message belongs to (FIFO queues guarantee ordering within a group). Shows "—" for standard queues. Helps debug FIFO partitioning.
+  - **First Received:** `ApproximateFirstReceiveTimestamp` — when a consumer first picked up this message. Comparing this to "Sent" reveals queue latency (how long the message sat before being processed). Shows "—" if the message has never been received by a consumer.
+- [x] Message browser sort stability fix: messages are deduplicated via a dictionary (`[messageId: SQSMessage]`) after each receive poll to merge new messages with existing ones. Previously, `Array(dict.values)` produced random order because Swift dictionaries have no guaranteed iteration order — messages would visibly jump positions on every refresh. Fixed by applying `sortOrder` (an array of `KeyPathComparator`) to the filtered results. Default sort is `sentTimestampMillis` descending (newest first). Users can click any sortable column header to re-sort, and click again to reverse direction. The sort is stable across refreshes because the same comparators are applied every time the computed property is evaluated.
+- [x] Message context menu: View Details, Copy Message ID, Copy Body, Delete (single or multi-select). Delete shows native `.alert()` confirmation.
+- [x] Toolbar: shared `SQSToolbarState` (ObservableObject bridge) with pending action pattern — Send Message, Receive, Delete Selected, Show Attributes. Each module defines its own toolbar independently.
+- [x] Queue attributes view UI polish:
+  - **Font consistency:** ARN value upgraded from `.caption` monospaced to `.body` monospaced — was too small to read. All monospaced values across SQS views now use `.body` size consistently.
+  - **Label overflow fix:** Configuration section labels shortened — removed inline units from labels ("Visibility Timeout (s)" → "Visibility Timeout"). Unit text ("seconds", "bytes") spelled out and placed next to each text field in an `HStack` with `.fixedSize()` to prevent line breaks. Previously the label + placeholder + text field exceeded the row width, causing values like "0-43200" to wrap to a second line despite available space.
+  - **Text field placeholders:** Removed range-hint placeholders (e.g. "60-1209600") — redundant with the unit label and validation text. Empty placeholder keeps the field clean.
+  - **Validation messages:** Now include human-readable equivalents, e.g. "Must be 60–1,209,600 seconds (1 min–14 days)" with thousands separators.
+  - **Sheet width:** 520pt → 580pt for more breathing room on all rows.
+  - **ARN wrapping:** `lineLimit(nil)` + `fixedSize(horizontal: false, vertical: true)` so long ARNs wrap cleanly instead of truncating.
+- [x] Message detail view UI polish:
+  - **Font consistency:** All monospaced values (Message ID, MD5, Group ID, raw attributes) upgraded to `.body` monospaced. Previously used a mix of `.caption` and `.callout` which looked inconsistent.
+  - **Wrapping:** All long values (Message ID, MD5, Group ID, attribute values) have `lineLimit(nil)` + `fixedSize(horizontal: false, vertical: true)` so they wrap naturally to the next line.
+  - **New fields:** Added First Received, Type, Size, and Group ID (for FIFO queues) to the Details section — matches the columns available in the message browser table.
+  - **Sheet dimensions:** 550×400pt → 580×450pt to accommodate the additional fields.
+- [x] Click-to-copy with blur overlay (`CopyableValue` component, `Navigation/CopyableValue.swift`):
+  - **Reusable view** wrapping any value text as a `Button` with `.plain` style for reliable click handling.
+  - **Hover state:** Entire value text blurs (3pt gaussian blur, smooth `.easeInOut` animation), "Copy to Clipboard" label with `doc.on.doc` icon appears centered as an overlay. Pointer hand cursor via `NSCursor.pointingHand.push()`/`.pop()`.
+  - **Click state:** Copies value to `NSPasteboard`, overlay smoothly transitions to green "Copied to Clipboard" with `checkmark` icon for 1.2 seconds, then text unblurs back to normal.
+  - **Implementation details:** Overlay uses `.allowsHitTesting(false)` so it doesn't intercept clicks or show a text cursor. `Button(.plain)` avoids the Form's default text cursor on hover. `isActive` computed property drives both blur and overlay from `isHovered || showCopied`.
+  - **Applied to:** Queue Attributes (ARN, Created, Last Modified) and Message Detail (Message ID, MD5, Sent, First Received, Receive Count, Group ID, all raw attributes).
+  - **Excluded:** Type and Size fields — too small/short for the blur overlay to be useful.
+- [x] Body copy button (`CopyButton` component):
+  - Standalone copy button placed in the Body section header (next to the "Body" label text).
+  - Fixed-size `ZStack` with opacity-swapped icons (`doc.on.doc` ↔ `checkmark`) in a 16×16 frame — prevents layout shifts that previously caused the scroll view to flicker and the scrollbar to flash when the "Copied" text appeared/disappeared.
+  - Green checkmark feedback for 1.5 seconds, then fades back to copy icon.
+  - Replaced the old "Copy Body" button from the bottom button bar — copy is now accessible directly from the section header.
 
 ## Phase 4: SNS Module
 - [ ] List topics view

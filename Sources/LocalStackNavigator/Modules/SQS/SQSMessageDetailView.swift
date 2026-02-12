@@ -1,5 +1,4 @@
 import SwiftUI
-import AppKit
 
 struct SQSMessageDetailView: View {
     let message: SQSMessage
@@ -17,26 +16,38 @@ struct SQSMessageDetailView: View {
             Form {
                 Section("Details") {
                     LabeledContent("Message ID") {
-                        Text(message.messageId)
-                            .font(.system(.body, design: .monospaced))
-                            .textSelection(.enabled)
+                        CopyableValue(text: message.messageId, monospaced: true, allowsWrapping: true)
                     }
                     LabeledContent("MD5") {
-                        Text(message.md5OfBody)
-                            .font(.system(.caption, design: .monospaced))
-                            .textSelection(.enabled)
+                        CopyableValue(text: message.md5OfBody, monospaced: true, allowsWrapping: true)
                     }
                     if let date = message.sentTimestamp {
                         LabeledContent("Sent") {
-                            Text(Self.dateFormatter.string(from: date))
+                            CopyableValue(text: Self.dateFormatter.string(from: date))
+                        }
+                    }
+                    if let date = message.firstReceiveTimestamp {
+                        LabeledContent("First Received") {
+                            CopyableValue(text: Self.dateFormatter.string(from: date))
                         }
                     }
                     LabeledContent("Receive Count") {
-                        Text("\(message.approximateReceiveCount)")
+                        CopyableValue(text: "\(message.approximateReceiveCount)")
+                    }
+                    LabeledContent("Type") {
+                        Text(message.bodyType)
+                    }
+                    LabeledContent("Size") {
+                        Text(SQSMessage.formattedSize(message.bodySize))
+                    }
+                    if let groupId = message.messageGroupId {
+                        LabeledContent("Group ID") {
+                            CopyableValue(text: groupId, monospaced: true, allowsWrapping: true)
+                        }
                     }
                 }
 
-                Section("Body") {
+                Section {
                     ScrollView {
                         Text(formattedBody)
                             .font(.system(.body, design: .monospaced))
@@ -44,15 +55,19 @@ struct SQSMessageDetailView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .frame(minHeight: 120, maxHeight: 300)
+                } header: {
+                    HStack {
+                        Text("Body")
+                        Spacer()
+                        CopyButton(text: message.body)
+                    }
                 }
 
                 if !message.attributes.isEmpty {
                     Section("Attributes") {
                         ForEach(message.attributes.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
                             LabeledContent(key) {
-                                Text(value)
-                                    .font(.caption)
-                                    .textSelection(.enabled)
+                                CopyableValue(text: value, monospaced: true, allowsWrapping: true)
                             }
                         }
                     }
@@ -63,18 +78,14 @@ struct SQSMessageDetailView: View {
             Divider()
 
             HStack {
-                Button("Copy Body") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(message.body, forType: .string)
-                }
                 Spacer()
                 Button("Done") { dismiss() }
                     .keyboardShortcut(.defaultAction)
             }
             .padding()
         }
-        .frame(width: 550)
-        .frame(minHeight: 400)
+        .frame(width: 580)
+        .frame(minHeight: 450)
     }
 
     private var formattedBody: String {
