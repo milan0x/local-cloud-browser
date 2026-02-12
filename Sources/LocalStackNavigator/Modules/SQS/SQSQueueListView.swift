@@ -18,6 +18,7 @@ struct SQSQueueListView: View {
     @State private var serviceError: ServiceError?
     @State private var lastLoadTime: Date?
     @State private var queueToShowAttributes: SQSQueue?
+    @State private var doubleClickMonitor: Any?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -201,15 +202,7 @@ struct SQSQueueListView: View {
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
                 .tag(queue.id)
-                .simultaneousGesture(
-                    TapGesture(count: 2)
-                        .onEnded {
-                            queueToShowAttributes = queue
-                        }
-                )
                 .contextMenu {
                     Button("View Attributes") {
                         queueToShowAttributes = queue
@@ -247,6 +240,23 @@ struct SQSQueueListView: View {
                     showCreateSheet = true
                 }
                 .disabled(appState.isReadOnly)
+            }
+            .onAppear {
+                doubleClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
+                    if event.clickCount == 2,
+                       selectedQueueIDs.count == 1,
+                       let id = selectedQueueIDs.first,
+                       let queue = queues.first(where: { $0.id == id }) {
+                        queueToShowAttributes = queue
+                    }
+                    return event
+                }
+            }
+            .onDisappear {
+                if let monitor = doubleClickMonitor {
+                    NSEvent.removeMonitor(monitor)
+                    doubleClickMonitor = nil
+                }
             }
         }
     }
