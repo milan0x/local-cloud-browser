@@ -19,15 +19,20 @@ struct SQSMessageBrowserView: View {
     @State private var messagesToDelete: [SQSMessage] = []
     @State private var showAttributesSheet = false
     @State private var lastLoadTime: Date?
-    @State private var sortOrder = [KeyPathComparator(\SQSMessage.messageId)]
+    @State private var sortOrder = [KeyPathComparator(\SQSMessage.sentTimestampMillis, order: .reverse)]
 
-    private var filteredMessages: [SQSMessage] {
-        guard !searchQuery.isEmpty else { return messages }
-        let query = searchQuery.lowercased()
-        return messages.filter {
-            $0.messageId.lowercased().contains(query)
-                || $0.body.lowercased().contains(query)
+    private var sortedMessages: [SQSMessage] {
+        let filtered: [SQSMessage]
+        if searchQuery.isEmpty {
+            filtered = messages
+        } else {
+            let query = searchQuery.lowercased()
+            filtered = messages.filter {
+                $0.messageId.lowercased().contains(query)
+                    || $0.body.lowercased().contains(query)
+            }
         }
+        return filtered.sorted(using: sortOrder)
     }
 
     var body: some View {
@@ -157,13 +162,24 @@ struct SQSMessageBrowserView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            Table(filteredMessages, selection: $selectedMessageIDs, sortOrder: $sortOrder) {
+            Table(sortedMessages, selection: $selectedMessageIDs, sortOrder: $sortOrder) {
                 TableColumn("Message ID", value: \.messageId) { msg in
-                    Text(msg.messageId.prefix(12) + "...")
+                    Text(msg.truncatedId)
                         .font(.system(.body, design: .monospaced))
                         .help(msg.messageId)
                 }
-                .width(min: 120, ideal: 150)
+                .width(min: 130, ideal: 160)
+
+                TableColumn("Type", value: \.bodyType) { msg in
+                    Text(msg.bodyType)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(bodyTypeBadgeColor(msg.bodyType), in: Capsule())
+                        .foregroundStyle(bodyTypeForegroundColor(msg.bodyType))
+                }
+                .width(min: 45, ideal: 55)
 
                 TableColumn("Body") { msg in
                     Text(msg.body.prefix(100).replacingOccurrences(of: "\n", with: " "))
@@ -172,7 +188,13 @@ struct SQSMessageBrowserView: View {
                 }
                 .width(min: 150)
 
-                TableColumn("Sent") { msg in
+                TableColumn("Size", value: \.bodySize) { msg in
+                    Text(SQSMessage.formattedSize(msg.bodySize))
+                        .foregroundStyle(.secondary)
+                }
+                .width(min: 50, ideal: 65)
+
+                TableColumn("Sent", value: \.sentTimestampMillis) { msg in
                     if let date = msg.sentTimestamp {
                         Text(date, style: .relative)
                             .foregroundStyle(.secondary)
@@ -183,11 +205,36 @@ struct SQSMessageBrowserView: View {
                 }
                 .width(min: 80, ideal: 100)
 
-                TableColumn("Receives") { msg in
+                TableColumn("Receives", value: \.approximateReceiveCount) { msg in
                     Text("\(msg.approximateReceiveCount)")
                         .foregroundStyle(.secondary)
+                        .monospacedDigit()
                 }
                 .width(min: 60, ideal: 70)
+
+                TableColumn("Group ID") { msg in
+                    if let groupId = msg.messageGroupId {
+                        Text(groupId)
+                            .font(.system(.body, design: .monospaced))
+                            .lineLimit(1)
+                            .help(groupId)
+                    } else {
+                        Text("—")
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .width(min: 70, ideal: 90)
+
+                TableColumn("First Received") { msg in
+                    if let date = msg.firstReceiveTimestamp {
+                        Text(date, style: .relative)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("—")
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .width(min: 80, ideal: 110)
             }
             .contextMenu(forSelectionType: SQSMessage.ID.self) { selection in
                 if let id = selection.first, let msg = messages.first(where: { $0.id == id }) {
@@ -227,7 +274,7 @@ struct SQSMessageBrowserView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             if !searchQuery.isEmpty {
-                Text("(\(filteredMessages.count) shown)")
+                Text("(\(sortedMessages.count) shown)")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -294,5 +341,21 @@ struct SQSMessageBrowserView: View {
     private func copyToClipboard(_ string: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(string, forType: .string)
+    }
+
+    private func bodyTypeBadgeColor(_ type: String) -> Color {
+        switch type {
+        case "JSON": return Color.blue.opacity(0.15)
+        case "XML": return Color.orange.opacity(0.15)
+        default: return Color.gray.opacity(0.15)
+        }
+    }
+
+    private func bodyTypeForegroundColor(_ type: String) -> Color {
+        switch type {
+        case "JSON": return .blue
+        case "XML": return .orange
+        default: return .secondary
+        }
     }
 }
