@@ -134,9 +134,9 @@ struct SidebarView: View {
             } else if appState.connectionError != nil {
                 connectionErrorButton
             } else {
-                Image(systemName: "circle")
-                    .font(.caption2)
-                    .foregroundStyle(Color.gray)
+                Image(systemName: "questionmark.circle.fill")
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(Color.orange, Color.gray.opacity(0.4))
             }
 
             Button {
@@ -175,6 +175,8 @@ struct SidebarView: View {
             Image(systemName: hasIssues ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
                 .font(.caption2)
                 .foregroundStyle(hasIssues ? Color.orange : Color.green)
+                .padding(4)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help(hasIssues ? "Some services have issues" : "Connected to \(appState.endpoint)")
@@ -190,6 +192,8 @@ struct SidebarView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.caption2)
                 .foregroundStyle(Color.orange)
+                .padding(4)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help("Connection error — click for details")

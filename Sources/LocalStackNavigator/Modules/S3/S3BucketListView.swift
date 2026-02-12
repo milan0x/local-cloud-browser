@@ -191,8 +191,15 @@ struct S3BucketListView: View {
     @ViewBuilder
     private var bucketListContent: some View {
         if isLoading && buckets.isEmpty {
-            ProgressView("Loading buckets...")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack(spacing: 12) {
+                ProgressView("Loading buckets...")
+                if appState.connectionError != nil {
+                    Label("Connection lost — retrying...", systemImage: "bolt.horizontal.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let errorMessage {
             VStack(spacing: 8) {
                 Image(systemName: "exclamationmark.triangle")
@@ -266,6 +273,11 @@ struct S3BucketListView: View {
                     }
                 }
             }
+            .overlay(alignment: .bottom) {
+                if errorMessage != nil {
+                    connectionLostBanner
+                }
+            }
             .contextMenu {
                 Button("Create Bucket") {
                     showCreateSheet = true
@@ -273,6 +285,21 @@ struct S3BucketListView: View {
                 .disabled(appState.isReadOnly)
             }
         }
+    }
+
+    private var connectionLostBanner: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "bolt.horizontal.circle")
+                .font(.caption)
+            Text("Connection lost — showing cached data")
+                .font(.caption)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity)
+        .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 6))
+        .padding(6)
     }
 
     // MARK: - Data

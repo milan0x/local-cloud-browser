@@ -19,7 +19,7 @@ enum LocalStackClientError: Error, LocalizedError {
                 "HTTP error \(statusCode)"
             }
         case .networkError(let underlying):
-            "Network error: \(underlying.localizedDescription)"
+            "Network error: \(underlying.localizedDescription)\n\nCheck that your Docker container is running and the LocalStack endpoint is reachable."
         }
     }
 
@@ -257,6 +257,10 @@ final class LocalStackClient: ObservableObject {
         }
 
         Log.info("\(method) \(path) -> \(httpResponse.statusCode)", category: "HTTP")
+
+        if (200..<300).contains(httpResponse.statusCode) {
+            appState.notifyConnectionAlive()
+        }
 
         if !(200..<300).contains(httpResponse.statusCode) {
             let bodyPreview = String(data: data, encoding: .utf8)?.prefix(200) ?? "<binary>"
