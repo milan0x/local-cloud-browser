@@ -17,6 +17,7 @@ struct SQSQueueListView: View {
     @State private var queueToPurge: SQSQueue?
     @State private var serviceError: ServiceError?
     @State private var lastLoadTime: Date?
+    @State private var queueToShowAttributes: SQSQueue?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -72,10 +73,13 @@ struct SQSQueueListView: View {
                 Text("This will permanently delete ALL messages in \"\(queue.queueName)\".\n\nThis cannot be undone.")
             }
         }
+        .sheet(item: $queueToShowAttributes) { queue in
+            SQSQueueAttributesView(service: service, queue: queue)
+        }
         .serviceErrorAlert(error: $serviceError)
         .task { loadQueues() }
         .onChange(of: autoRefresh.refreshTrigger) {
-            guard !showCreateSheet && queuesToDelete.isEmpty && queueToPurge == nil && !isLoading else { return }
+            guard !showCreateSheet && queuesToDelete.isEmpty && queueToPurge == nil && queueToShowAttributes == nil && !isLoading else { return }
             loadQueues(force: true)
         }
         .onChange(of: appState.connectionVersion) {
@@ -198,7 +202,14 @@ struct SQSQueueListView: View {
                     }
                 }
                 .tag(queue.id)
+                .onTapGesture(count: 2) {
+                    queueToShowAttributes = queue
+                }
                 .contextMenu {
+                    Button("View Attributes") {
+                        queueToShowAttributes = queue
+                    }
+                    Divider()
                     Button("Copy Queue URL") { copyToClipboard(queue.queueUrl) }
                     Button("Copy Queue Name") { copyToClipboard(queue.queueName) }
                     Divider()
