@@ -15,11 +15,6 @@ struct LastSessionState: Codable {
 enum LastSessionStore {
     private static let key = "lastSessionState"
 
-    /// Set to `true` after app launch completes. Module `init()` uses this
-    /// to distinguish a fresh launch (respect `isEnabled`) from an in-session
-    /// route switch (always restore).
-    @MainActor static var sessionStarted = false
-
     static var isEnabled: Bool {
         UserDefaults.standard.bool(forKey: AppPreferences.restoreLastSessionKey)
     }
@@ -55,6 +50,18 @@ enum LastSessionStore {
     static func saveSQSQueue(_ name: String?) {
         var state = load() ?? LastSessionState()
         state.sqsQueueName = name
+        save(state)
+    }
+
+    /// Clears per-module sub-resource fields (bucket, path, queue) while
+    /// keeping the route. Called on launch when cross-launch restore is
+    /// disabled so modules start fresh. In-session onChange handlers
+    /// repopulate these fields as the user makes selections.
+    static func clearSubResources() {
+        var state = load() ?? LastSessionState()
+        state.s3BucketName = nil
+        state.s3Path = nil
+        state.sqsQueueName = nil
         save(state)
     }
 }
