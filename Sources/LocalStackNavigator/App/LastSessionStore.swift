@@ -15,6 +15,11 @@ struct LastSessionState: Codable {
 enum LastSessionStore {
     private static let key = "lastSessionState"
 
+    /// Set to `true` after app launch completes. Module `init()` uses this
+    /// to distinguish a fresh launch (respect `isEnabled`) from an in-session
+    /// route switch (always restore).
+    @MainActor static var sessionStarted = false
+
     static var isEnabled: Bool {
         UserDefaults.standard.bool(forKey: AppPreferences.restoreLastSessionKey)
     }
