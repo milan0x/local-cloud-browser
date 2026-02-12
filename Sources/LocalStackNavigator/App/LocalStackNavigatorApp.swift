@@ -29,6 +29,7 @@ struct LocalStackNavigatorApp: App {
         if LastSessionStore.isEnabled, let saved = LastSessionStore.load() {
             state.selectedRoute = saved.route
         }
+        LastSessionStore.sessionStarted = true
         _appState = StateObject(wrappedValue: state)
         _client = StateObject(wrappedValue: LocalStackClient(appState: state))
         _profileStore = StateObject(wrappedValue: store)
