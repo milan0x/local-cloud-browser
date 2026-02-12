@@ -204,9 +204,12 @@ struct SQSQueueListView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
                 .tag(queue.id)
-                .onTapGesture(count: 2) {
-                    queueToShowAttributes = queue
-                }
+                .simultaneousGesture(
+                    TapGesture(count: 2)
+                        .onEnded {
+                            queueToShowAttributes = queue
+                        }
+                )
                 .contextMenu {
                     Button("View Attributes") {
                         queueToShowAttributes = queue
