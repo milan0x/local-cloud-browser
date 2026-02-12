@@ -65,7 +65,7 @@ struct SQSSendMessageView: View {
             }
             .padding()
         }
-        .frame(width: 500, height: 520)
+        .frame(width: 500, height: 580)
     }
 
     private var isValid: Bool {
