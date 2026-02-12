@@ -201,6 +201,8 @@ struct SQSQueueListView: View {
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
                 .tag(queue.id)
                 .onTapGesture(count: 2) {
                     queueToShowAttributes = queue
