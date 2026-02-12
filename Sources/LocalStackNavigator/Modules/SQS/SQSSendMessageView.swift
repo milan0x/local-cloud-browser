@@ -16,12 +16,6 @@ struct SQSSendMessageView: View {
     var body: some View {
         VStack(spacing: 0) {
             Form {
-                Section("Message Body") {
-                    TextEditor(text: $messageBody)
-                        .font(.system(.body, design: .monospaced))
-                        .frame(minHeight: 120)
-                }
-
                 Section("Options") {
                     TextField("Delay (seconds, 0-900)", text: $delaySeconds)
                         .help("Number of seconds to delay the message (0-900)")
@@ -32,6 +26,12 @@ struct SQSSendMessageView: View {
                         TextField("Message Group ID (required)", text: $messageGroupId)
                         TextField("Deduplication ID (optional)", text: $messageDeduplicationId)
                     }
+                }
+
+                Section("Message Body") {
+                    TextEditor(text: $messageBody)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(minHeight: 180)
                 }
             }
             .formStyle(.grouped)
@@ -55,7 +55,7 @@ struct SQSSendMessageView: View {
             }
             .padding()
         }
-        .frame(width: 450, height: 380)
+        .frame(width: 480, height: 460)
     }
 
     private var isValid: Bool {
