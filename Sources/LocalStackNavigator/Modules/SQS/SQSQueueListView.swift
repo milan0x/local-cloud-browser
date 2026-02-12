@@ -4,7 +4,6 @@ import AppKit
 struct SQSQueueListView: View {
     @ObservedObject var service: SQSService
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var autoRefresh: AutoRefreshManager
     @Binding var selectedQueueIDs: Set<SQSQueue.ID>
     @Binding var activeQueue: SQSQueue?
     var restoreQueueName: String?
@@ -80,9 +79,9 @@ struct SQSQueueListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadQueues() }
-        .onChange(of: autoRefresh.refreshTrigger) {
+        .onReceive(appState.autoRefresh.triggerPublisher) {
             guard !showCreateSheet && queuesToDelete.isEmpty && queueToPurge == nil && queueToShowAttributes == nil && !isLoading else { return }
-            loadQueues(force: true)
+            loadQueues(force: true, silent: true)
         }
         .onChange(of: appState.connectionVersion) {
             selectedQueueIDs = []
@@ -118,7 +117,7 @@ struct SQSQueueListView: View {
             Text("Queues")
                 .font(.headline)
 
-            AutoRefreshIndicatorView(manager: autoRefresh) {
+            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadQueues(force: true)
             }
 
@@ -131,7 +130,7 @@ struct SQSQueueListView: View {
             .buttonStyle(.borderless)
             .disabled(appState.isReadOnly)
 
-            AutoRefreshMenuView(interval: $autoRefresh.interval) {
+            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadQueues(force: true)
             }
 
@@ -281,17 +280,22 @@ struct SQSQueueListView: View {
 
     // MARK: - Data
 
-    private func loadQueues(force: Bool = false) {
+    private func loadQueues(force: Bool = false, silent: Bool = false) {
         guard !isLoading else { return }
         if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
             return
         }
-        isLoading = true
-        errorMessage = nil
+        if !silent {
+            isLoading = true
+            errorMessage = nil
+        }
         Task {
             do {
                 let loaded = try await service.listQueues()
-                queues = loaded.sorted { $0.queueName.localizedStandardCompare($1.queueName) == .orderedAscending }
+                let freshQueues = loaded.sorted { $0.queueName.localizedStandardCompare($1.queueName) == .orderedAscending }
+                if queues != freshQueues {
+                    queues = freshQueues
+                }
                 if !hasRestoredSession, let savedName = restoreQueueName,
                    let queue = queues.first(where: { $0.queueName == savedName }) {
                     selectedQueueIDs = [queue.id]
@@ -300,10 +304,14 @@ struct SQSQueueListView: View {
                 hasRestoredSession = true
                 await fetchMessageCounts()
             } catch {
-                errorMessage = error.localizedDescription
+                if !silent {
+                    errorMessage = error.localizedDescription
+                }
             }
-            isLoading = false
-            lastLoadTime = Date()
+            if !silent {
+                isLoading = false
+                lastLoadTime = Date()
+            }
         }
     }
 

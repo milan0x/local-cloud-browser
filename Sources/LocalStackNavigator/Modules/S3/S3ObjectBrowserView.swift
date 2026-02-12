@@ -60,7 +60,6 @@ struct S3ObjectBrowserView: View {
     @State private var isFetchingFolderDetails = false
     @State private var isDeletingFolders = false
     @AppStorage("showFolderDetailsOnDelete") private var showFolderDetailsOnDelete = false
-    @EnvironmentObject private var autoRefresh: AutoRefreshManager
     @EnvironmentObject private var client: LocalStackClient
 
     // Quick Look preview
@@ -145,11 +144,11 @@ struct S3ObjectBrowserView: View {
                 navigationHistory = [restoredPath]
                 historyIndex = 0
                 clearSearch()
-                autoRefresh.resetState()
+                appState.autoRefresh.resetState()
                 resetPagination()
                 loadObjects(force: true)
             }
-            .onChange(of: autoRefresh.refreshTrigger) {
+            .onReceive(appState.autoRefresh.triggerPublisher) {
                 guard !anySheetOpen && !isLoading else { return }
                 loadObjects(force: true, silent: true)
             }
@@ -1673,8 +1672,8 @@ struct S3ObjectBrowserView: View {
         if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
             return
         }
-        isLoading = true
         if !silent {
+            isLoading = true
             errorMessage = nil
             objects = []
             prefixes = []
@@ -1686,10 +1685,16 @@ struct S3ObjectBrowserView: View {
                     prefix: currentPrefix,
                     continuationToken: continuationToken
                 )
-                objects = result.objects
-                prefixes = result.commonPrefixes
+                if objects != result.objects {
+                    objects = result.objects
+                }
+                if prefixes != result.commonPrefixes {
+                    prefixes = result.commonPrefixes
+                }
                 errorMessage = nil
-                autoRefresh.reportSuccess()
+                if !silent {
+                    appState.autoRefresh.reportSuccess()
+                }
                 isTruncated = result.isTruncated
                 totalItemsOnPage = result.keyCount
                 // Store the next token for pagination
@@ -1701,11 +1706,13 @@ struct S3ObjectBrowserView: View {
             } catch {
                 if !silent {
                     errorMessage = error.localizedDescription
+                    appState.autoRefresh.reportFailure()
                 }
-                autoRefresh.reportFailure()
             }
-            isLoading = false
-            lastLoadTime = Date()
+            if !silent {
+                isLoading = false
+                lastLoadTime = Date()
+            }
         }
     }
 

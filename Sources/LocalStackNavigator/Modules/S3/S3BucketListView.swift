@@ -4,7 +4,6 @@ import AppKit
 struct S3BucketListView: View {
     @ObservedObject var service: S3Service
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var autoRefresh: AutoRefreshManager
     @Binding var selectedBucketIDs: Set<S3Bucket.ID>
     @Binding var activeBucket: S3Bucket?
     @ObservedObject var toolbarState: S3ToolbarState
@@ -115,9 +114,9 @@ struct S3BucketListView: View {
             }
         }
         .task { loadBuckets() }
-        .onChange(of: autoRefresh.refreshTrigger) {
+        .onReceive(appState.autoRefresh.triggerPublisher) {
             guard !showCreateSheet && bucketsToDelete.isEmpty && forceDeleteBuckets.isEmpty && !isForceDeleting && !isLoading else { return }
-            loadBuckets(force: true)
+            loadBuckets(force: true, silent: true)
         }
         .onChange(of: appState.connectionVersion) {
             selectedBucketIDs = []
@@ -155,7 +154,7 @@ struct S3BucketListView: View {
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
 
-            AutoRefreshIndicatorView(manager: autoRefresh) {
+            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadBuckets(force: true)
             }
 
@@ -168,7 +167,7 @@ struct S3BucketListView: View {
             .buttonStyle(.borderless)
             .disabled(appState.isReadOnly)
 
-            AutoRefreshMenuView(interval: $autoRefresh.interval) {
+            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadBuckets(force: true)
             }
 
@@ -304,22 +303,27 @@ struct S3BucketListView: View {
 
     // MARK: - Data
 
-    private func loadBuckets(force: Bool = false) {
+    private func loadBuckets(force: Bool = false, silent: Bool = false) {
         guard !isLoading else { return }
         if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
             return
         }
-        isLoading = true
-        errorMessage = nil
+        if !silent {
+            isLoading = true
+            errorMessage = nil
+        }
         Task {
             do {
-                buckets = try await service.listBuckets().sorted { a, b in
+                let freshBuckets = try await service.listBuckets().sorted { a, b in
                     switch (a.creationDate, b.creationDate) {
                     case let (dateA?, dateB?): return dateA > dateB
                     case (_?, nil): return true
                     case (nil, _?): return false
                     case (nil, nil): return a.name.localizedStandardCompare(b.name) == .orderedAscending
                     }
+                }
+                if buckets != freshBuckets {
+                    buckets = freshBuckets
                 }
                 if !hasRestoredSession, let savedName = restoreBucketName,
                    let bucket = buckets.first(where: { $0.name == savedName }) {
@@ -328,10 +332,14 @@ struct S3BucketListView: View {
                 }
                 hasRestoredSession = true
             } catch {
-                errorMessage = error.localizedDescription
+                if !silent {
+                    errorMessage = error.localizedDescription
+                }
             }
-            isLoading = false
-            lastLoadTime = Date()
+            if !silent {
+                isLoading = false
+                lastLoadTime = Date()
+            }
         }
     }
 

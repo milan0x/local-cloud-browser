@@ -1,7 +1,12 @@
+import Combine
 import Foundation
 
 @MainActor
 final class AutoRefreshManager: ObservableObject {
+    /// Fires only when the refresh trigger activates (at countdown zero or manual trigger).
+    /// Module views subscribe to this via `.onReceive` to avoid subscribing to `objectWillChange`
+    /// (which fires every second for the countdown and causes unnecessary Table re-renders).
+    let triggerPublisher = PassthroughSubject<Void, Never>()
     @Published var interval: Int {
         didSet {
             UserDefaults.standard.set(interval, forKey: "autoRefreshInterval")
@@ -40,6 +45,7 @@ final class AutoRefreshManager: ObservableObject {
         if countdownRemaining <= 0 {
             refreshTrigger += 1
             countdownRemaining = interval
+            triggerPublisher.send()
         }
     }
 
@@ -56,6 +62,7 @@ final class AutoRefreshManager: ObservableObject {
     func triggerNow() {
         refreshTrigger += 1
         countdownRemaining = interval
+        triggerPublisher.send()
     }
 
     func resetCountdown() {
