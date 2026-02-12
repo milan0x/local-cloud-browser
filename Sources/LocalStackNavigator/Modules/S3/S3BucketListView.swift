@@ -8,9 +8,11 @@ struct S3BucketListView: View {
     @Binding var selectedBucketIDs: Set<S3Bucket.ID>
     @Binding var activeBucket: S3Bucket?
     @ObservedObject var toolbarState: S3ToolbarState
+    var restoreBucketName: String?
 
     @Environment(\.openWindow) private var openWindow
     @State private var buckets: [S3Bucket] = []
+    @State private var hasRestoredSession = false
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showCreateSheet = false
@@ -292,6 +294,12 @@ struct S3BucketListView: View {
                     case (nil, nil): return a.name.localizedStandardCompare(b.name) == .orderedAscending
                     }
                 }
+                if !hasRestoredSession, let savedName = restoreBucketName,
+                   let bucket = buckets.first(where: { $0.name == savedName }) {
+                    selectedBucketIDs = [bucket.id]
+                    activeBucket = bucket
+                }
+                hasRestoredSession = true
             } catch {
                 errorMessage = error.localizedDescription
             }

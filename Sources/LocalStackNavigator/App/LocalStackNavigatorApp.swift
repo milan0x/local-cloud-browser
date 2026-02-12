@@ -15,12 +15,19 @@ struct LocalStackNavigatorApp: App {
         Log.info("LocalStack Navigator starting", category: "App")
         AppPreferences.cleanPreviewTempDirectory()
 
+        UserDefaults.standard.register(defaults: [
+            AppPreferences.restoreLastSessionKey: true,
+        ])
+
         let state = AppState()
         let store = ConnectionProfileStore()
         if let active = store.activeProfile {
             state.applyProfile(active)
         } else {
             state.startHealthCheck()
+        }
+        if LastSessionStore.isEnabled, let saved = LastSessionStore.load() {
+            state.selectedRoute = saved.route
         }
         _appState = StateObject(wrappedValue: state)
         _client = StateObject(wrappedValue: LocalStackClient(appState: state))

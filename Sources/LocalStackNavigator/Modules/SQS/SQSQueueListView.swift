@@ -7,8 +7,10 @@ struct SQSQueueListView: View {
     @EnvironmentObject private var autoRefresh: AutoRefreshManager
     @Binding var selectedQueueIDs: Set<SQSQueue.ID>
     @Binding var activeQueue: SQSQueue?
+    var restoreQueueName: String?
 
     @State private var queues: [SQSQueue] = []
+    @State private var hasRestoredSession = false
     @State private var messageCounts: [String: Int] = [:]  // queueUrl -> count
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -263,6 +265,12 @@ struct SQSQueueListView: View {
             do {
                 let loaded = try await service.listQueues()
                 queues = loaded.sorted { $0.queueName.localizedStandardCompare($1.queueName) == .orderedAscending }
+                if !hasRestoredSession, let savedName = restoreQueueName,
+                   let queue = queues.first(where: { $0.queueName == savedName }) {
+                    selectedQueueIDs = [queue.id]
+                    activeQueue = queue
+                }
+                hasRestoredSession = true
                 await fetchMessageCounts()
             } catch {
                 errorMessage = error.localizedDescription
