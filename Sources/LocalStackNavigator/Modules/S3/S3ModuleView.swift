@@ -17,7 +17,7 @@ struct S3ModuleView: View {
     init() {
         // Placeholder — real client injected via onAppear
         _service = StateObject(wrappedValue: S3Service(client: LocalStackClient(appState: AppState())))
-        if LastSessionStore.isEnabled, let saved = LastSessionStore.load() {
+        if let saved = LastSessionStore.load() {
             _restoreBucketName = State(initialValue: saved.s3BucketName)
             _restorePath = State(initialValue: saved.s3Path)
         }
@@ -67,9 +67,7 @@ struct S3ModuleView: View {
         }
         .onChange(of: activeBucket) {
             toolbarState.reset()
-            if LastSessionStore.isEnabled {
-                LastSessionStore.saveS3Bucket(activeBucket?.name)
-            }
+            LastSessionStore.saveS3Bucket(activeBucket?.name)
         }
         .onAppear {
             service.updateClient(client)

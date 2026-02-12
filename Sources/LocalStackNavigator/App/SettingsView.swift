@@ -10,7 +10,7 @@ struct SettingsView: View {
         Form {
             Section("General") {
                 Toggle("Open where I left off", isOn: $restoreLastSession)
-                Text("Restore the last viewed service, bucket, or queue when the app launches.")
+                Text("Restore the last viewed service, bucket, or queue when the app launches. Switching between services always remembers your selection.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
