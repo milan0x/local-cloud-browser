@@ -10,8 +10,14 @@ struct SQSModuleView: View {
     @State private var selectedQueueIDs: Set<SQSQueue.ID> = []
     @State private var activeQueue: SQSQueue?
 
+    // Session restore: captured once when the view is created
+    @State private var restoreQueueName: String?
+
     init() {
         _service = StateObject(wrappedValue: SQSService(client: LocalStackClient(appState: AppState())))
+        if LastSessionStore.isEnabled, let saved = LastSessionStore.load() {
+            _restoreQueueName = State(initialValue: saved.sqsQueueName)
+        }
     }
 
     var body: some View {
@@ -19,7 +25,8 @@ struct SQSModuleView: View {
             SQSQueueListView(
                 service: service,
                 selectedQueueIDs: $selectedQueueIDs,
-                activeQueue: $activeQueue
+                activeQueue: $activeQueue,
+                restoreQueueName: restoreQueueName
             )
             .frame(width: 260)
 
@@ -53,6 +60,9 @@ struct SQSModuleView: View {
         }
         .onChange(of: activeQueue) {
             toolbarState.reset()
+            if LastSessionStore.isEnabled {
+                LastSessionStore.saveSQSQueue(activeQueue?.queueName)
+            }
         }
         .onAppear {
             service.updateClient(client)

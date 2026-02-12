@@ -128,6 +128,7 @@
 - [ ] Publish message
 - [ ] Manage subscriptions
 - [ ] Subscription filter policies
+- [ ] Session restore: add `snsTopicArn: String?` to `LastSessionState`, `saveSNSTopic(_:)` to `LastSessionStore`, snapshot capture in `SNSModuleView.init()`, `restoreTopicArn` param on topic list view, restore logic after loading topics (see S3/SQS pattern)
 
 ## Phase 5: Secrets Manager Module
 - [ ] List secrets view
@@ -135,6 +136,7 @@
 - [ ] View secret value (with reveal toggle)
 - [ ] Delete secret
 - [ ] Version history
+- [ ] Session restore: add `secretName: String?` to `LastSessionState`, `saveSecretName(_:)` to `LastSessionStore`, snapshot capture in `SecretsManagerModuleView.init()`, `restoreSecretName` param on secrets list view, restore logic after loading secrets (see S3/SQS pattern)
 
 ## Phase 6: Settings & Polish
 - [x] Settings UI (endpoint, region, auto-refresh interval, folder delete details toggle)
@@ -145,6 +147,7 @@
 - [x] Bucket list auto-refreshes alongside object browser
 - [x] Connection health check: polls `/_localstack/health` every 3 seconds with a 5-second manual Task-race timeout (ephemeral URLSession per check, invalidated after). Two-state `ConnectionStatus` enum: `.connected` (200 response), `.disconnected` (timeout/error). Parses full health JSON into `HealthInfo` on `AppState`: version, edition, and all services. "available" and "running" are healthy; anything else is unhealthy. `ConnectionError` enum captures failure reason: `.timeout`, `.httpError(Int)`, `.networkError(String)`. Consecutive failure tracking: first failure shows gray unfilled `checkmark.circle` (transient blip), second consecutive failure sets `connectionError` and shows orange `exclamationmark.triangle.fill` — clickable popover shows error reason + endpoint. Connected resets counter immediately. Four visual states: connected+healthy (green `checkmark.circle.fill`, service dashboard popover), connected+issues (orange `exclamationmark.triangle.fill`, service dashboard), disconnected first failure (gray `checkmark.circle`, no popover), disconnected 2+ failures (orange `exclamationmark.triangle.fill`, error details popover). Profile switch resets `consecutiveFailures` and `connectionError`.
 - [x] "Connection lost" bubble notification: small floating bubble above sidebar bottom bar when connection fails (2+ consecutive failures). Shows orange warning icon + "Connection lost" text + close button. Persists until dismissed or connection recovers. Dismissed state resets when connection recovers, so a fresh failure cycle shows the bubble again.
+- [x] Session restore ("Open where I left off"): saves and restores navigation state across launches and route switches. `LastSessionState` Codable model stored as JSON in UserDefaults. `LastSessionStore` enum with per-field save methods (`saveRoute`, `saveS3Bucket`, `saveS3Path`, `saveSQSQueue`). Route saved via `ContentView.onChange(of: selectedRoute)` — automatic for all routes. S3 bucket/path and SQS queue saved via `onChange` in module views. On launch, `LocalStackNavigatorApp.init` restores the saved route. Each module view (`S3ModuleView`, `SQSModuleView`) captures a snapshot from `LastSessionStore` in its `init()` via `@State`, then passes restore params to children (`restoreBucketName`, `restorePath`, `restoreQueueName`). Children use a `@State hasRestoredSession/hasRestoredPath` flag to consume once per view lifecycle. Collision safety: `S3ObjectBrowserView` checks `restoreBucketName == bucket.name` before restoring path, preventing stale paths from bleeding into wrong buckets. Deleted resources: `first(where:)` returns nil → no selection, user sees the list. Default enabled (`true`) via `UserDefaults.register(defaults:)`. Toggle in Settings > General.
 - [ ] Error handling improvements
 - [x] Keyboard shortcuts: Cmd+C/V for S3 copy/paste, Cmd+Backspace for delete (objects only, shows confirmation dialog)
 - [x] Region picker: `AWSRegion` static data model (39 regions). `AWSRegionPicker` convenience wrapper using native SwiftUI `Picker` for form contexts (S3 create bucket dialog, connection profile editor). Only valid AWS region codes selectable. Create bucket dialog restructured from plain VStack to `Form` with `.formStyle(.grouped)` matching the connection profile editor — info label in its own `Section`, `Divider` + button bar below, 380pt width.

@@ -2,11 +2,19 @@ import SwiftUI
 
 struct SettingsView: View {
     @AppStorage("showFolderDetailsOnDelete") private var showFolderDetailsOnDelete = false
+    @AppStorage(AppPreferences.restoreLastSessionKey) private var restoreLastSession = true
     @EnvironmentObject private var autoRefresh: AutoRefreshManager
     @EnvironmentObject private var appState: AppState
 
     var body: some View {
         Form {
+            Section("General") {
+                Toggle("Open where I left off", isOn: $restoreLastSession)
+                Text("Restore the last viewed service, bucket, or queue when the app launches.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("S3 Browser") {
                 Toggle("Show folder item count and size before deletion", isOn: $showFolderDetailsOnDelete)
                 Text(

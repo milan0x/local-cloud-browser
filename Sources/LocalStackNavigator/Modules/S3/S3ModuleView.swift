@@ -9,9 +9,18 @@ struct S3ModuleView: View {
     @State private var selectedBucketIDs: Set<S3Bucket.ID> = []
     @State private var activeBucket: S3Bucket?
 
+    // Session restore: captured once when the view is created (route switch or launch).
+    // Passed to children so they can restore without reading stale data from LastSessionStore.
+    @State private var restoreBucketName: String?
+    @State private var restorePath: [String]?
+
     init() {
         // Placeholder — real client injected via onAppear
         _service = StateObject(wrappedValue: S3Service(client: LocalStackClient(appState: AppState())))
+        if LastSessionStore.isEnabled, let saved = LastSessionStore.load() {
+            _restoreBucketName = State(initialValue: saved.s3BucketName)
+            _restorePath = State(initialValue: saved.s3Path)
+        }
     }
 
     var body: some View {
@@ -20,7 +29,8 @@ struct S3ModuleView: View {
                 service: service,
                 selectedBucketIDs: $selectedBucketIDs,
                 activeBucket: $activeBucket,
-                toolbarState: toolbarState
+                toolbarState: toolbarState,
+                restoreBucketName: restoreBucketName
             )
             .frame(width: 260)
 
@@ -31,7 +41,9 @@ struct S3ModuleView: View {
                         service: service,
                         bucket: bucket,
                         paneID: "main",
-                        toolbarState: toolbarState
+                        toolbarState: toolbarState,
+                        restoreBucketName: restoreBucketName,
+                        restorePath: restorePath
                     )
                 } else {
                     VStack(spacing: 8) {
@@ -55,6 +67,9 @@ struct S3ModuleView: View {
         }
         .onChange(of: activeBucket) {
             toolbarState.reset()
+            if LastSessionStore.isEnabled {
+                LastSessionStore.saveS3Bucket(activeBucket?.name)
+            }
         }
         .onAppear {
             service.updateClient(client)

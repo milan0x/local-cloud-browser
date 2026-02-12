@@ -19,6 +19,10 @@ struct ContentView: View {
                 regionBadge
             }
         }
+        .onChange(of: appState.selectedRoute) {
+            guard LastSessionStore.isEnabled else { return }
+            LastSessionStore.saveRoute(appState.selectedRoute)
+        }
     }
 
     private var isGlobalService: Bool {

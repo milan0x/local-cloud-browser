@@ -16,6 +16,8 @@ struct S3ObjectBrowserView: View {
     let bucket: S3Bucket
     var paneID: String = "main"
     @ObservedObject var toolbarState: S3ToolbarState
+    var restoreBucketName: String?
+    var restorePath: [String]?
 
     @State private var objects: [S3Object] = []
     @State private var prefixes: [S3Prefix] = []
@@ -81,6 +83,9 @@ struct S3ObjectBrowserView: View {
     @State private var collisionItems: [String] = []
     @State private var collisionAction: (() -> Void)?
 
+    // Session restore
+    @State private var hasRestoredPath = false
+
     // Search & filter
     @State private var searchQuery = ""
 
@@ -129,8 +134,15 @@ struct S3ObjectBrowserView: View {
             .focusedSceneValue(\.s3PasteAction, s3PasteAction)
             .focusedSceneValue(\.s3DeleteAction, s3DeleteAction)
             .task(id: bucket.id) {
-                pathComponents = []
-                navigationHistory = [[]]
+                var restoredPath: [String] = []
+                if !hasRestoredPath,
+                   let name = restoreBucketName, name == bucket.name,
+                   let path = restorePath, !path.isEmpty {
+                    restoredPath = path
+                }
+                hasRestoredPath = true
+                pathComponents = restoredPath
+                navigationHistory = [restoredPath]
                 historyIndex = 0
                 clearSearch()
                 autoRefresh.resetState()
@@ -140,6 +152,11 @@ struct S3ObjectBrowserView: View {
             .onChange(of: autoRefresh.refreshTrigger) {
                 guard !anySheetOpen && !isLoading else { return }
                 loadObjects(force: true, silent: true)
+            }
+            .onChange(of: pathComponents) {
+                if LastSessionStore.isEnabled {
+                    LastSessionStore.saveS3Path(pathComponents)
+                }
             }
             // Sync toolbar display state
             .onChange(of: isLoading) { toolbarState.isLoading = isLoading }
