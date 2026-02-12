@@ -133,9 +133,13 @@ final class AppState: ObservableObject {
         // Only update @Published properties when values actually change.
         // Unconditional assignment fires objectWillChange on every health check cycle,
         // which causes ContentView to re-render and dismiss popovers (e.g. region picker).
+        let wasDisconnected = connectionStatus == .disconnected
         if result.0 != connectionStatus {
             Log.info("Health check: \(result.0)", category: "App")
             connectionStatus = result.0
+        }
+        if wasDisconnected && result.0 == .connected {
+            autoRefresh.triggerNow()
         }
 
         if result.0 == .connected {
