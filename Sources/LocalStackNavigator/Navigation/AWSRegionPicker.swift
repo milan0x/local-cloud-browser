@@ -3,15 +3,14 @@ import SwiftUI
 struct AWSRegionPicker: View {
     @Binding var regionCode: String
 
-    private static let items: [SearchableDropdownItem] = AWSRegion.allRegions.map {
-        SearchableDropdownItem(id: $0.code, label: $0.code, description: $0.displayName)
-    }
-
     var body: some View {
-        SearchableDropdown(
-            items: Self.items,
-            selectedID: $regionCode,
-            placeholder: "Select region..."
-        )
+        Picker(selection: $regionCode) {
+            ForEach(AWSRegion.allRegions, id: \.code) { region in
+                Text("\(region.code) — \(region.displayName)")
+                    .tag(region.code)
+            }
+        } label: {
+            EmptyView()
+        }
     }
 }
