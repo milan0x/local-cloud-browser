@@ -80,7 +80,7 @@
 ## Phase 3: SQS Module
 - [x] List queues view
 - [x] Create/delete queue (standard and FIFO)
-- [x] Send message (with optional delay, message group ID, deduplication ID for FIFO)
+- [x] Send message (with optional delay, message group ID, deduplication ID for FIFO). Sheet 480×460pt — Options and FIFO settings at the top, message body TextEditor (monospaced, 180pt min height) at the bottom for natural top-to-bottom flow.
 - [x] Receive/peek messages: uses `ReceiveMessage` with `VisibilityTimeout=0` so messages stay visible to real consumers (peek mode). Accumulates messages across refreshes with deduplication by `messageId` — new receives merge with existing list, replacing duplicates with the latest version.
 - [x] Queue attributes viewer (visibility timeout, delay, max size, retention, wait time, ARN, FIFO settings)
 - [x] Dead letter queue configuration (redrive policy editor)
