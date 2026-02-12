@@ -17,14 +17,24 @@ struct SQSSendMessageView: View {
         VStack(spacing: 0) {
             Form {
                 Section("Options") {
-                    TextField("Delay (seconds, 0-900)", text: $delaySeconds)
-                        .help("Number of seconds to delay the message (0-900)")
+                    LabeledContent("Delay") {
+                        TextField("", text: $delaySeconds, prompt: Text("0–900 seconds"))
+                            .frame(width: 160)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    .help("Number of seconds to delay the message (0–900)")
                 }
 
                 if queue.isFifo {
                     Section("FIFO Settings") {
-                        TextField("Message Group ID (required)", text: $messageGroupId)
-                        TextField("Deduplication ID (optional)", text: $messageDeduplicationId)
+                        LabeledContent("Group ID") {
+                            TextField("", text: $messageGroupId, prompt: Text("Enter message group ID"))
+                                .multilineTextAlignment(.trailing)
+                        }
+                        LabeledContent("Deduplication ID") {
+                            TextField("", text: $messageDeduplicationId, prompt: Text("Enter deduplication ID (optional)"))
+                                .multilineTextAlignment(.trailing)
+                        }
                     }
                 }
 
@@ -55,7 +65,7 @@ struct SQSSendMessageView: View {
             }
             .padding()
         }
-        .frame(width: 480, height: 460)
+        .frame(width: 500, height: 520)
     }
 
     private var isValid: Bool {
