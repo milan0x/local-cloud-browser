@@ -84,6 +84,9 @@ struct SQSQueueAttributesView: View {
     private func attributesForm(_ attrs: SQSQueueAttributes) -> some View {
         Form {
             Section("Queue Info") {
+                LabeledContent("Name") {
+                    CopyableValue(text: queue.queueName)
+                }
                 LabeledContent("ARN") {
                     CopyableValue(text: attrs.queueArn, monospaced: true, allowsWrapping: true)
                 }
