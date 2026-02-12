@@ -155,6 +155,48 @@ final class LocalStackClient: ObservableObject {
         return response.headers
     }
 
+    // MARK: - SQS (JSON protocol)
+
+    /// Read-only whitelist for SQS actions — these are safe even though they use POST.
+    private static let sqsReadActions: Set<String> = [
+        "ListQueues", "GetQueueUrl", "GetQueueAttributes", "ReceiveMessage",
+        "ListQueueTags", "ListDeadLetterSourceQueues",
+    ]
+
+    func sqsRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.sqsReadActions.contains(action) {
+            Log.warn("Blocked SQS \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "SQS:\(action)")
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        // LocalStack uses the region from the SigV4 Authorization header to scope
+        // SQS queries. We send a minimal (unsigned) credential so LocalStack knows
+        // which region we're targeting. Signatures are not validated.
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/sqs/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-amz-json-1.0",
+            headers: [
+                "X-Amz-Target": "AmazonSQS.\(action)",
+                "Authorization": auth,
+            ],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
+    private static let iso8601DateOnly: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyyMMdd"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
     private func executeRequest(
         method: String,
         path: String,
@@ -162,11 +204,12 @@ final class LocalStackClient: ObservableObject {
         body: Data?,
         contentType: String?,
         baseURLOverride: String? = nil,
-        headers: [String: String] = [:]
+        headers: [String: String] = [:],
+        skipReadOnlyCheck: Bool = false
     ) async throws -> HTTPResponse {
         let effectiveBase = baseURLOverride ?? baseURL
 
-        guard ReadOnlyInterceptor.allowsRequest(method: method, isReadOnly: appState.isReadOnly) else {
+        guard skipReadOnlyCheck || ReadOnlyInterceptor.allowsRequest(method: method, isReadOnly: appState.isReadOnly) else {
             Log.warn("Blocked \(method) \(path) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: method)
         }
