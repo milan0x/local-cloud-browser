@@ -7,7 +7,6 @@ struct SQSMessageBrowserView: View {
     @ObservedObject var toolbarState: SQSToolbarState
     @ObservedObject var favoriteStore: SQSFavoriteStore
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var autoRefresh: AutoRefreshManager
 
     @State private var messages: [SQSMessage] = []
     @State private var selectedMessageIDs: Set<SQSMessage.ID> = []
@@ -107,9 +106,9 @@ struct SQSMessageBrowserView: View {
             sendingFavoriteId = nil
             receiveMessages()
         }
-        .onChange(of: autoRefresh.refreshTrigger) {
+        .onReceive(appState.autoRefresh.triggerPublisher) {
             guard !showSendSheet && messagesToDelete.isEmpty && messageToView == nil && !showAttributesSheet && !isLoading else { return }
-            receiveMessages(force: true)
+            receiveMessages(force: true, silent: true)
         }
         .onChange(of: selectedMessageIDs) {
             toolbarState.hasSelection = !selectedMessageIDs.isEmpty
@@ -399,28 +398,40 @@ struct SQSMessageBrowserView: View {
 
     // MARK: - Data
 
-    private func receiveMessages(force: Bool = false) {
+    private func receiveMessages(force: Bool = false, silent: Bool = false) {
         guard !isLoading else { return }
         if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
             return
         }
-        isLoading = true
-        errorMessage = nil
-        toolbarState.isLoading = true
+        if !silent {
+            isLoading = true
+            errorMessage = nil
+            toolbarState.isLoading = true
+        }
         Task {
             do {
                 let received = try await service.receiveMessages(queueUrl: queue.queueUrl)
-                // Deduplicate by messageId, keeping latest
+                // Deduplicate by messageId, keeping latest receipt handle
                 var byId: [String: SQSMessage] = [:]
                 for msg in messages { byId[msg.messageId] = msg }
                 for msg in received { byId[msg.messageId] = msg }
-                messages = Array(byId.values)
+                // Only update the array if the set of message IDs changed
+                // (receiptHandle changes every receive, so full equality always fails)
+                let freshIDs = Set(byId.keys)
+                let currentIDs = Set(messages.map(\.messageId))
+                if freshIDs != currentIDs {
+                    messages = Array(byId.values)
+                }
             } catch {
-                errorMessage = error.localizedDescription
+                if !silent {
+                    errorMessage = error.localizedDescription
+                }
             }
-            isLoading = false
-            toolbarState.isLoading = false
-            lastLoadTime = Date()
+            if !silent {
+                isLoading = false
+                toolbarState.isLoading = false
+                lastLoadTime = Date()
+            }
         }
     }
 
