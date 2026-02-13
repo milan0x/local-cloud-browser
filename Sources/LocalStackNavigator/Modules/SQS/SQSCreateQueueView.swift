@@ -6,7 +6,7 @@ struct SQSCreateQueueView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var queueName = ""
     @State private var isFifo = false
-    @State private var errorMessage: String?
+    @State private var serviceError: ServiceError?
     @State private var isCreating = false
     var existingQueueNames: Set<String>
 
@@ -45,13 +45,6 @@ struct SQSCreateQueueView: View {
                     .padding(.horizontal)
             }
 
-            if let errorMessage {
-                Text(errorMessage)
-                    .foregroundStyle(.red)
-                    .font(.caption)
-                    .padding(.horizontal)
-            }
-
             Divider()
 
             HStack {
@@ -65,6 +58,7 @@ struct SQSCreateQueueView: View {
             .padding()
         }
         .frame(width: 380)
+        .serviceErrorAlert(error: $serviceError)
     }
 
     private var effectiveName: String {
@@ -91,13 +85,13 @@ struct SQSCreateQueueView: View {
 
     private func create() {
         isCreating = true
-        errorMessage = nil
+        serviceError = nil
         Task {
             do {
                 _ = try await service.createQueue(name: effectiveName, isFifo: isFifo)
                 dismiss()
             } catch {
-                errorMessage = error.localizedDescription
+                serviceError = error.asServiceError
                 isCreating = false
             }
         }

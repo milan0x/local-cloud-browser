@@ -340,7 +340,7 @@ struct SQSQueueListView: View {
                 )
                 messageCounts[queue.queueUrl] = Int(attrs["ApproximateNumberOfMessages"] ?? "") ?? 0
             } catch {
-                // Silently skip — counts are supplementary
+                Log.warn("Failed to fetch message count for \(queue.queueName): \(error.localizedDescription)", category: "SQS")
             }
         }
     }
@@ -353,12 +353,7 @@ struct SQSQueueListView: View {
                     try await service.deleteQueue(queueUrl: queue.queueUrl)
                     deletedIDs.insert(queue.id)
                 } catch {
-                    if let clientError = error as? LocalStackClientError,
-                       let parsed = clientError.serviceError {
-                        serviceError = parsed
-                    } else {
-                        errorMessage = error.localizedDescription
-                    }
+                    serviceError = error.asServiceError
                 }
             }
             if !deletedIDs.isEmpty {
@@ -377,12 +372,7 @@ struct SQSQueueListView: View {
                 try await service.purgeQueue(queueUrl: queue.queueUrl)
                 loadQueues(force: true)
             } catch {
-                if let clientError = error as? LocalStackClientError,
-                   let parsed = clientError.serviceError {
-                    serviceError = parsed
-                } else {
-                    errorMessage = error.localizedDescription
-                }
+                serviceError = error.asServiceError
             }
         }
     }

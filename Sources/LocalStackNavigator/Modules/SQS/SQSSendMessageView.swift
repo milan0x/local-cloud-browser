@@ -465,12 +465,7 @@ struct SQSSendMessageView: View {
                 }
                 dismiss()
             } catch {
-                if let clientError = error as? LocalStackClientError,
-                   let parsed = clientError.serviceError {
-                    serviceError = parsed
-                } else {
-                    serviceError = ServiceError(code: "SendError", message: error.localizedDescription)
-                }
+                serviceError = error.asServiceError
                 isSending = false
             }
         }

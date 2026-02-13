@@ -6,7 +6,7 @@ struct S3CreateBucketView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var bucketName = ""
     @State private var region = ""
-    @State private var errorMessage: String?
+    @State private var serviceError: ServiceError?
     @State private var isCreating = false
     var existingBucketNames: Set<String> = []
 
@@ -33,13 +33,6 @@ struct S3CreateBucketView: View {
                     .padding(.horizontal)
             }
 
-            if let errorMessage {
-                Text(errorMessage)
-                    .foregroundStyle(.red)
-                    .font(.caption)
-                    .padding(.horizontal)
-            }
-
             Divider()
 
             HStack {
@@ -53,6 +46,7 @@ struct S3CreateBucketView: View {
             .padding()
         }
         .frame(width: 380)
+        .serviceErrorAlert(error: $serviceError)
         .onAppear { region = appState.region }
     }
 
@@ -73,14 +67,14 @@ struct S3CreateBucketView: View {
     private func create() {
         let name = bucketName.trimmingCharacters(in: .whitespaces)
         isCreating = true
-        errorMessage = nil
+        serviceError = nil
         Task {
             do {
                 let regionValue = region.trimmingCharacters(in: .whitespaces)
                 try await service.createBucket(name: name, region: regionValue.isEmpty ? nil : regionValue)
                 dismiss()
             } catch {
-                errorMessage = error.localizedDescription
+                serviceError = error.asServiceError
                 isCreating = false
             }
         }

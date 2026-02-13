@@ -441,12 +441,7 @@ struct SQSMessageBrowserView: View {
                 receiveMessages(force: true)
             } catch {
                 sendingFavoriteId = nil
-                if let clientError = error as? LocalStackClientError,
-                   let parsed = clientError.serviceError {
-                    serviceError = parsed
-                } else {
-                    errorMessage = error.localizedDescription
-                }
+                serviceError = error.asServiceError
             }
         }
     }
@@ -498,12 +493,7 @@ struct SQSMessageBrowserView: View {
                     try await service.deleteMessage(queueUrl: queue.queueUrl, receiptHandle: msg.receiptHandle)
                     deletedIDs.insert(msg.id)
                 } catch {
-                    if let clientError = error as? LocalStackClientError,
-                       let parsed = clientError.serviceError {
-                        serviceError = parsed
-                    } else {
-                        errorMessage = error.localizedDescription
-                    }
+                    serviceError = error.asServiceError
                 }
             }
             if !deletedIDs.isEmpty {
