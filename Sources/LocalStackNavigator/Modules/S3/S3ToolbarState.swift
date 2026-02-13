@@ -59,6 +59,7 @@ struct S3Toolbar: ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Button { state.pendingAction = .showPolicy } label: {
                 Label("Policy", systemImage: "doc.text")
+                    .toolbarHitTarget()
             }
             .help("Bucket Policy")
             .disabled(!hasBucket)
@@ -66,6 +67,7 @@ struct S3Toolbar: ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Button { state.pendingAction = .createFolder } label: {
                 Label("Folder", systemImage: "folder.badge.plus")
+                    .toolbarHitTarget()
             }
             .help("Create Folder")
             .disabled(!hasBucket || isReadOnly)
@@ -73,6 +75,7 @@ struct S3Toolbar: ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Button { state.pendingAction = .upload } label: {
                 Label("Upload", systemImage: "plus")
+                    .toolbarHitTarget()
             }
             .help("Upload File")
             .disabled(!hasBucket || isReadOnly)
@@ -82,6 +85,7 @@ struct S3Toolbar: ToolbarContent {
             Button { state.pendingAction = .deleteSelected } label: {
                 Label("Delete", systemImage: "trash")
                     .foregroundStyle(disabled ? .gray : .red)
+                    .toolbarHitTarget()
             }
             .help("Delete Selected")
             .disabled(disabled)

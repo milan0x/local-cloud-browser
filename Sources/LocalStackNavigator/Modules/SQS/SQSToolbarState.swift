@@ -31,6 +31,7 @@ struct SQSToolbar: ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Button { state.pendingAction = .showAttributes } label: {
                 Label("Attributes", systemImage: "info.circle")
+                    .toolbarHitTarget()
             }
             .help("Queue Attributes")
             .disabled(!hasQueue)
@@ -38,6 +39,7 @@ struct SQSToolbar: ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Button { state.pendingAction = .sendMessage } label: {
                 Label("Send", systemImage: "paperplane")
+                    .toolbarHitTarget()
             }
             .help("Send Message")
             .disabled(!hasQueue || isReadOnly)
@@ -45,6 +47,7 @@ struct SQSToolbar: ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Button { state.pendingAction = .receiveMessages } label: {
                 Label("Receive", systemImage: "tray.and.arrow.down")
+                    .toolbarHitTarget()
             }
             .help("Receive Messages")
             .disabled(!hasQueue)
@@ -52,6 +55,7 @@ struct SQSToolbar: ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Button { state.pendingAction = .purgeSelected } label: {
                 Label("Purge", systemImage: "arrow.counterclockwise")
+                    .toolbarHitTarget()
             }
             .help("Purge Queue")
             .disabled(!hasQueue || isReadOnly)
@@ -61,6 +65,7 @@ struct SQSToolbar: ToolbarContent {
             Button { state.pendingAction = .deleteSelected } label: {
                 Label("Delete", systemImage: "trash")
                     .foregroundStyle(disabled ? .gray : .red)
+                    .toolbarHitTarget()
             }
             .help("Delete Selected Messages")
             .disabled(disabled)
