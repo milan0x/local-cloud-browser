@@ -414,7 +414,7 @@ private struct QueueDoubleClickDetector: NSViewRepresentable {
             monitor = nil
             guard window != nil else { return }
             monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
-                guard let self, event.clickCount == 2 else { return event }
+                guard let self, event.clickCount == 2, event.window == self.window else { return event }
                 let pointInSelf = self.convert(event.locationInWindow, from: nil)
                 if self.bounds.contains(pointInSelf) {
                     self.onDoubleClick?()
