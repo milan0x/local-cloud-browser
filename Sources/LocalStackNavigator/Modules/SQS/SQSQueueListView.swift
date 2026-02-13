@@ -216,6 +216,11 @@ struct SQSQueueListView: View {
                     }
                     Divider()
                     Button("Copy Queue URL") { copyToClipboard(queue.queueUrl) }
+                    Button("Copy Queue ARN") {
+                        if let arn = queue.queueArn(region: appState.region) {
+                            copyToClipboard(arn)
+                        }
+                    }
                     Button("Copy Queue Name") { copyToClipboard(queue.queueName) }
                     Menu("Copy as AWS CLI") {
                         Button("Send Message") {

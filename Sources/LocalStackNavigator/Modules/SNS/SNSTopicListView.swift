@@ -1,0 +1,385 @@
+import SwiftUI
+import AppKit
+
+struct SNSTopicListView: View {
+    @ObservedObject var service: SNSService
+    @EnvironmentObject private var appState: AppState
+    @Binding var selectedTopicIDs: Set<SNSTopic.ID>
+    @Binding var activeTopic: SNSTopic?
+    var restoreTopicArn: String?
+
+    @State private var topics: [SNSTopic] = []
+    @State private var hasRestoredSession = false
+    @State private var subscriptionCounts: [String: Int] = [:]  // topicArn -> count
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var showCreateSheet = false
+    @State private var topicsToDelete: [SNSTopic] = []
+    @State private var serviceError: ServiceError?
+    @State private var lastLoadTime: Date?
+    @State private var topicToShowAttributes: SNSTopic?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            topicListHeader
+            Divider()
+            topicListContent
+        }
+        .sheet(isPresented: $showCreateSheet) {
+            SNSCreateTopicView(service: service, existingTopicNames: Set(topics.map(\.topicName)))
+                .onDisappear { loadTopics(force: true) }
+        }
+        .alert(
+            topicsToDelete.count == 1
+                ? "Delete Topic"
+                : "Delete \(topicsToDelete.count) Topics",
+            isPresented: Binding(
+                get: { !topicsToDelete.isEmpty },
+                set: { if !$0 { topicsToDelete = [] } }
+            )
+        ) {
+            Button("Delete", role: .destructive) {
+                deleteTopics(topicsToDelete)
+            }
+            Button("Cancel", role: .cancel) {
+                topicsToDelete = []
+            }
+        } message: {
+            if topicsToDelete.count == 1, let topic = topicsToDelete.first {
+                Text("Are you sure you want to delete \"\(topic.topicName)\"?\n\nAll subscriptions will be removed. This cannot be undone.")
+            } else {
+                let names = topicsToDelete.map(\.topicName).joined(separator: "\n")
+                Text("Are you sure you want to delete these topics?\n\n\(names)\n\nAll subscriptions will be removed. This cannot be undone.")
+            }
+        }
+        .sheet(item: $topicToShowAttributes) { topic in
+            SNSTopicAttributesView(service: service, topic: topic)
+        }
+        .serviceErrorAlert(error: $serviceError)
+        .task { loadTopics() }
+        .onReceive(appState.autoRefresh.triggerPublisher) {
+            guard !showCreateSheet && topicsToDelete.isEmpty && topicToShowAttributes == nil && !isLoading else { return }
+            loadTopics(force: true, silent: true)
+        }
+        .onChange(of: appState.connectionVersion) {
+            selectedTopicIDs = []
+            activeTopic = nil
+            topics = []
+            subscriptionCounts = [:]
+            loadTopics(force: true)
+        }
+        .onChange(of: appState.region) {
+            selectedTopicIDs = []
+            activeTopic = nil
+            topics = []
+            subscriptionCounts = [:]
+            loadTopics(force: true)
+        }
+        .onChange(of: selectedTopicIDs) {
+            if selectedTopicIDs.count == 1, let id = selectedTopicIDs.first {
+                activeTopic = topics.first { $0.id == id }
+            } else {
+                activeTopic = nil
+            }
+        }
+    }
+
+    private var topicDeleteDisabled: Bool {
+        appState.isReadOnly || selectedTopicIDs.isEmpty
+    }
+
+    // MARK: - Header
+
+    private var topicListHeader: some View {
+        HStack {
+            Text("Topics")
+                .font(.headline)
+
+            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
+                loadTopics(force: true)
+            }
+
+            Spacer()
+
+            Button { showCreateSheet = true } label: {
+                Image(systemName: "plus")
+                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            }
+            .buttonStyle(.borderless)
+            .disabled(appState.isReadOnly)
+
+            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
+                loadTopics(force: true)
+            }
+
+            Button {
+                topicsToDelete = topics.filter { selectedTopicIDs.contains($0.id) }
+            } label: {
+                Image(systemName: "trash")
+                    .foregroundStyle(topicDeleteDisabled ? .gray : .red)
+            }
+            .buttonStyle(.borderless)
+            .disabled(topicDeleteDisabled)
+            .help(selectedTopicIDs.count <= 1 ? "Delete Topic" : "Delete \(selectedTopicIDs.count) Topics")
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+
+    // MARK: - Content
+
+    @ViewBuilder
+    private var topicListContent: some View {
+        if isLoading && topics.isEmpty {
+            VStack(spacing: 12) {
+                ProgressView("Loading topics...")
+                if appState.connectionError != nil {
+                    Label("Connection lost — retrying...", systemImage: "bolt.horizontal.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let errorMessage {
+            VStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.title)
+                    .foregroundStyle(.secondary)
+                Text(errorMessage)
+                    .foregroundStyle(.secondary)
+                Button("Retry") { loadTopics(force: true) }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if topics.isEmpty {
+            VStack(spacing: 8) {
+                Image(systemName: "bell")
+                    .font(.title)
+                    .foregroundStyle(.secondary)
+                Text("No topics")
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .contextMenu {
+                Button("Create Topic") {
+                    showCreateSheet = true
+                }
+                .disabled(appState.isReadOnly)
+            }
+        } else {
+            List(topics, selection: $selectedTopicIDs) { topic in
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(topic.topicName)
+                        .fontWeight(.medium)
+                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text(topic.isFifo ? "FIFO" : "Standard")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(topic.isFifo ? Color.blue.opacity(0.15) : Color.gray.opacity(0.15), in: Capsule())
+                            .foregroundStyle(topic.isFifo ? .blue : .secondary)
+                        if let count = subscriptionCounts[topic.topicArn] {
+                            Text("\(count) sub\(count == 1 ? "" : "s")")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .tag(topic.id)
+                .contextMenu {
+                    Button("View Attributes") {
+                        topicToShowAttributes = topic
+                    }
+                    Divider()
+                    Button("Copy Topic ARN") { copyToClipboard(topic.topicArn) }
+                    Button("Copy Topic Name") { copyToClipboard(topic.topicName) }
+                    Menu("Copy as AWS CLI") {
+                        Button("Publish") {
+                            copyToClipboard(topic.publishCLI(endpointUrl: appState.endpoint, region: appState.region))
+                        }
+                        Button("List Subscriptions") {
+                            copyToClipboard(topic.listSubscriptionsCLI(endpointUrl: appState.endpoint, region: appState.region))
+                        }
+                        Button("Get Attributes") {
+                            copyToClipboard(topic.getAttributesCLI(endpointUrl: appState.endpoint, region: appState.region))
+                        }
+                    }
+                    Divider()
+                    Button("Create Topic") {
+                        showCreateSheet = true
+                    }
+                    .disabled(appState.isReadOnly)
+                    Divider()
+                    if selectedTopicIDs.count > 1 && selectedTopicIDs.contains(topic.id) {
+                        let selected = topics.filter { selectedTopicIDs.contains($0.id) }
+                        Button("Delete \(selected.count) Topics", role: .destructive) {
+                            topicsToDelete = selected
+                        }
+                        .disabled(appState.isReadOnly)
+                    } else {
+                        Button("Delete", role: .destructive) {
+                            topicsToDelete = [topic]
+                        }
+                        .disabled(appState.isReadOnly)
+                    }
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if errorMessage != nil {
+                    connectionLostBanner
+                }
+            }
+            .contextMenu {
+                Button("Create Topic") {
+                    showCreateSheet = true
+                }
+                .disabled(appState.isReadOnly)
+            }
+            .background(TopicDoubleClickDetector {
+                if selectedTopicIDs.count == 1,
+                   let id = selectedTopicIDs.first,
+                   let topic = topics.first(where: { $0.id == id }) {
+                    topicToShowAttributes = topic
+                }
+            })
+        }
+    }
+
+    private var connectionLostBanner: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "bolt.horizontal.circle")
+                .font(.caption)
+            Text("Connection lost — showing cached data")
+                .font(.caption)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity)
+        .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 6))
+        .padding(6)
+    }
+
+    // MARK: - Data
+
+    private func loadTopics(force: Bool = false, silent: Bool = false) {
+        guard !isLoading else { return }
+        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
+            return
+        }
+        if !silent {
+            isLoading = true
+            errorMessage = nil
+        }
+        Task {
+            do {
+                let loaded = try await service.listTopics()
+                let freshTopics = loaded.sorted { $0.topicName.localizedStandardCompare($1.topicName) == .orderedAscending }
+                if topics != freshTopics {
+                    topics = freshTopics
+                }
+                if !hasRestoredSession, let savedArn = restoreTopicArn,
+                   let topic = topics.first(where: { $0.topicArn == savedArn }) {
+                    selectedTopicIDs = [topic.id]
+                    activeTopic = topic
+                }
+                hasRestoredSession = true
+                await fetchSubscriptionCounts()
+            } catch {
+                if !silent {
+                    errorMessage = error.localizedDescription
+                }
+            }
+            if !silent {
+                isLoading = false
+                lastLoadTime = Date()
+            }
+        }
+    }
+
+    private func fetchSubscriptionCounts() async {
+        for topic in topics {
+            do {
+                let attrs = try await service.getTopicAttributes(topicArn: topic.topicArn)
+                let count = Int(attrs["SubscriptionsConfirmed"] ?? "") ?? 0
+                subscriptionCounts[topic.topicArn] = count
+            } catch {
+                // Silently skip — counts are supplementary
+            }
+        }
+    }
+
+    private func deleteTopics(_ targets: [SNSTopic]) {
+        Task {
+            var deletedIDs: Set<SNSTopic.ID> = []
+            for topic in targets {
+                do {
+                    try await service.deleteTopic(topicArn: topic.topicArn)
+                    deletedIDs.insert(topic.id)
+                } catch {
+                    if let clientError = error as? LocalStackClientError,
+                       let parsed = clientError.serviceError {
+                        serviceError = parsed
+                    } else {
+                        errorMessage = error.localizedDescription
+                    }
+                }
+            }
+            if !deletedIDs.isEmpty {
+                selectedTopicIDs.subtract(deletedIDs)
+                if let active = activeTopic, deletedIDs.contains(active.id) {
+                    activeTopic = nil
+                }
+                loadTopics(force: true)
+            }
+        }
+    }
+
+    private func copyToClipboard(_ string: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(string, forType: .string)
+    }
+}
+
+/// Detects double-clicks within its own bounds using an NSEvent monitor.
+private struct TopicDoubleClickDetector: NSViewRepresentable {
+    let onDoubleClick: () -> Void
+
+    func makeNSView(context: Context) -> TopicDoubleClickNSView {
+        let view = TopicDoubleClickNSView()
+        view.onDoubleClick = onDoubleClick
+        return view
+    }
+
+    func updateNSView(_ nsView: TopicDoubleClickNSView, context: Context) {
+        nsView.onDoubleClick = onDoubleClick
+    }
+
+    final class TopicDoubleClickNSView: NSView {
+        var onDoubleClick: (() -> Void)?
+        private var monitor: Any?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            monitor.flatMap { NSEvent.removeMonitor($0) }
+            monitor = nil
+            guard window != nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
+                guard let self, event.clickCount == 2, event.window == self.window else { return event }
+                let pointInSelf = self.convert(event.locationInWindow, from: nil)
+                if self.bounds.contains(pointInSelf) {
+                    self.onDoubleClick?()
+                }
+                return event
+            }
+        }
+
+        override func removeFromSuperview() {
+            monitor.flatMap { NSEvent.removeMonitor($0) }
+            monitor = nil
+            super.removeFromSuperview()
+        }
+    }
+}
