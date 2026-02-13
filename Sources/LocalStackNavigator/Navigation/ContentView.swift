@@ -37,8 +37,8 @@ struct ContentView: View {
                     Text("Global")
                 }
             }
+            .foregroundStyle(.secondary)
             .disabled(true)
-            .opacity(0.7)
             .help("S3 buckets are global on LocalStack, not region-specific")
         } else {
             Menu {
