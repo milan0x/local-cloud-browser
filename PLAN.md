@@ -152,6 +152,9 @@
 - [x] Modal height increased from 580 to 650 (non-JSON-helper mode) so the "Save as Quick Message" section is visible without scrolling.
 - [x] `DisableSmartSubstitutions` extended with optional `textContainerInset: NSSize?` parameter — sets `NSTextView.textContainerInset` during initial configuration. Default nil preserves existing behavior.
 - [x] "Read-Only" badge restyled: orange text on light orange background (`Color.orange.opacity(0.25)`) for better visibility when JSON Helper is active. Previously gray/secondary which was too subtle.
+- [x] Text input visual consistency: both message body and JSON helper input now have matching `textBackgroundColor` fill + `separatorColor` rounded border (6pt corners) so they read clearly as editable areas within the Form section card.
+- [x] JSON helper input padding matched to message body: `CodeTextEditor.textContainerInset` increased from `NSSize(width: 4, height: 6)` to `NSSize(width: 6, height: 10)` so text offset matches between both editors. Placeholder padding adjusted accordingly.
+- [x] Double-click to close JSON helper now focuses message body: `@FocusState` on the TextEditor, set with a 150ms delay after closing the helper (allows SwiftUI to re-enable the TextEditor before requesting focus).
 
 ## Phase 4: SNS Module
 - [ ] List topics view
