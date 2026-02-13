@@ -34,13 +34,9 @@ struct ContentView: View {
             Menu { } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "globe")
-                        .font(.caption)
                     Text("Global")
-                        .font(.caption)
-                        .fontWeight(.medium)
                 }
             }
-            .menuStyle(.borderlessButton)
             .disabled(true)
             .opacity(0.5)
             .help("S3 buckets are global on LocalStack, not region-specific")
@@ -60,16 +56,9 @@ struct ContentView: View {
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "globe")
-                        .font(.caption)
                     Text(appState.region)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
                 }
             }
-            .menuStyle(.borderlessButton)
             .help("Region: \(appState.region) — Click to change")
         }
     }
