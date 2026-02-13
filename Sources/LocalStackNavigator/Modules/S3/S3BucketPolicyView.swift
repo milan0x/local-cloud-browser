@@ -32,6 +32,7 @@ struct S3BucketPolicyView: View {
                 TextEditor(text: $policyJSON)
                     .font(.system(.body, design: .monospaced))
                     .padding(8)
+                    .disableSmartSubstitutions()
 
                 Divider()
 
