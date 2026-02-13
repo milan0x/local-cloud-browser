@@ -240,6 +240,11 @@ struct S3ObjectBrowserView: View {
             Divider()
             contentArea
         }
+        .onChange(of: searchQuery) {
+            if !searchQuery.isEmpty {
+                selectedRowIDs = []
+            }
+        }
         .overlay {
             if quickLook.isDownloading {
                 VStack(spacing: 12) {
@@ -552,11 +557,20 @@ struct S3ObjectBrowserView: View {
         return "\(rowItems.count) items"
     }
 
+    private var selectionCount: Int {
+        selectedRowIDs.subtracting([Self.parentRowID]).count
+    }
+
     private var statusBar: some View {
         HStack {
             Text(statusBarText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            if selectionCount > 1 {
+                Text("(\(selectionCount) selected)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             Spacer()
 
