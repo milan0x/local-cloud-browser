@@ -26,6 +26,7 @@ struct SQSMessageBrowserView: View {
     // Favorites
     @State private var armedFavoriteId: UUID?
     @State private var sendingFavoriteId: UUID?
+    @State private var sentFavoriteId: UUID?
 
     private var queueFavorites: [SavedSQSFavorite] {
         favoriteStore.favorites(for: queue.queueUrl)
@@ -104,6 +105,7 @@ struct SQSMessageBrowserView: View {
             lastLoadTime = nil
             armedFavoriteId = nil
             sendingFavoriteId = nil
+            sentFavoriteId = nil
             receiveMessages()
         }
         .onReceive(appState.autoRefresh.triggerPublisher) {
@@ -380,6 +382,7 @@ struct SQSMessageBrowserView: View {
                         favorite: fav,
                         isArmed: armedFavoriteId == fav.id,
                         isSending: sendingFavoriteId == fav.id,
+                        showSent: sentFavoriteId == fav.id,
                         isReadOnly: appState.isReadOnly
                     ) {
                         chipTapped(fav)
@@ -429,8 +432,15 @@ struct SQSMessageBrowserView: View {
                     messageGroupId: favorite.messageGroupId,
                     messageDeduplicationId: favorite.messageDeduplicationId
                 )
+                sendingFavoriteId = nil
+                sentFavoriteId = favorite.id
+                try? await Task.sleep(for: .seconds(0.8))
+                if sentFavoriteId == favorite.id {
+                    sentFavoriteId = nil
+                }
                 receiveMessages(force: true)
             } catch {
+                sendingFavoriteId = nil
                 if let clientError = error as? LocalStackClientError,
                    let parsed = clientError.serviceError {
                     serviceError = parsed
@@ -438,7 +448,6 @@ struct SQSMessageBrowserView: View {
                     errorMessage = error.localizedDescription
                 }
             }
-            sendingFavoriteId = nil
         }
     }
 
@@ -539,8 +548,17 @@ private struct FavoriteChip: View {
     let favorite: SavedSQSFavorite
     let isArmed: Bool
     let isSending: Bool
+    let showSent: Bool
     let isReadOnly: Bool
     let onTap: () -> Void
+
+    @State private var isHovering = false
+
+    private var chipBackground: Color {
+        if isArmed { return Color.accentColor.opacity(0.15) }
+        if isHovering && !isReadOnly { return Color.gray.opacity(0.18) }
+        return Color.gray.opacity(0.1)
+    }
 
     var body: some View {
         Button(action: onTap) {
@@ -549,16 +567,20 @@ private struct FavoriteChip: View {
                     ProgressView()
                         .controlSize(.mini)
                         .opacity(isSending ? 1 : 0)
-                    Image(systemName: "star.fill")
+                    Image(systemName: showSent ? "checkmark" : "star.fill")
                         .font(.caption2)
+                        .foregroundStyle(showSent ? Color.green : Color.primary)
                         .opacity(isSending ? 0 : 1)
                 }
                 .frame(width: 12, height: 12)
                 ZStack {
                     Text(favorite.name)
-                        .opacity(isArmed ? 0 : 1)
+                        .opacity(isArmed || showSent ? 0 : 1)
                     Text("Click to Send")
-                        .opacity(isArmed ? 1 : 0)
+                        .opacity(isArmed && !showSent ? 1 : 0)
+                    Text("Sent")
+                        .foregroundStyle(.green)
+                        .opacity(showSent ? 1 : 0)
                 }
                 .font(.caption)
                 .lineLimit(1)
@@ -567,18 +589,21 @@ private struct FavoriteChip: View {
             .padding(.vertical, 4)
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(isArmed ? Color.accentColor.opacity(0.15) : Color.gray.opacity(0.1))
+                    .fill(showSent ? Color.green.opacity(0.12) : chipBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
-                    .strokeBorder(isArmed ? Color.accentColor : Color.clear, lineWidth: 1)
+                    .strokeBorder(showSent ? Color.green.opacity(0.4) : isArmed ? Color.accentColor : Color.clear, lineWidth: 1)
             )
             .foregroundStyle(isReadOnly ? Color.secondary : isArmed ? Color.accentColor : Color.primary)
             .animation(.easeInOut(duration: 0.15), value: isArmed)
             .animation(.easeInOut(duration: 0.15), value: isSending)
+            .animation(.easeInOut(duration: 0.15), value: showSent)
+            .animation(.easeInOut(duration: 0.12), value: isHovering)
         }
         .buttonStyle(.plain)
         .disabled(isReadOnly)
+        .onHover { isHovering = $0 }
         .help(favorite.messageBody.prefix(200).description)
     }
 }
