@@ -3,6 +3,7 @@ import SwiftUI
 
 struct CodeTextEditor: NSViewRepresentable {
     @Binding var text: String
+    var isEditable: Bool = true
 
     func makeCoordinator() -> Coordinator {
         Coordinator(text: $text)
@@ -18,17 +19,21 @@ struct CodeTextEditor: NSViewRepresentable {
         textView.isAutomaticSpellingCorrectionEnabled = false
         textView.allowsUndo = true
         textView.isRichText = false
-        textView.backgroundColor = .textBackgroundColor
+        textView.drawsBackground = false
+        textView.isEditable = isEditable
         textView.isVerticallyResizable = true
-        textView.isHorizontallyResizable = false
+        textView.isHorizontallyResizable = true
         textView.autoresizingMask = [.width]
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.textContainerInset = NSSize(width: 6, height: 10)
-        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.textContainer?.widthTracksTextView = false
         textView.string = text
 
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
-        scrollView.hasHorizontalScroller = false
+        scrollView.hasHorizontalScroller = true
+        scrollView.autohidesScrollers = true
         scrollView.documentView = textView
         scrollView.drawsBackground = false
 
@@ -47,6 +52,13 @@ struct CodeTextEditor: NSViewRepresentable {
             context.coordinator.isUpdating = true
             textView.string = text
             context.coordinator.isUpdating = false
+        }
+        let wasEditable = textView.isEditable
+        textView.isEditable = isEditable
+        if isEditable && !wasEditable {
+            DispatchQueue.main.async {
+                textView.window?.makeFirstResponder(textView)
+            }
         }
     }
 
