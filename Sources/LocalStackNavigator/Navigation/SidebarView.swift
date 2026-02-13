@@ -150,6 +150,9 @@ struct SidebarView: View {
                         .font(.system(size: 8))
                         .foregroundStyle(.tertiary)
                 }
+                .padding(.trailing, 8)
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .popover(isPresented: $showProfilePicker, arrowEdge: .top) {

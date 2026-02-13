@@ -218,6 +218,7 @@
 - [x] Editor text field auto-select fix: added `@FocusState` (starts nil) to the name `TextField` so no field is auto-focused when the editor opens — prevents macOS from selecting/highlighting the entire name text on appear.
 - [x] Editor frame height: 440pt when editing (both delete button and info note cases), 380pt when adding a new profile.
 - [x] Deleted unused `ConnectionSettings.swift` — dead code, fully replaced by `ConnectionProfile`
+- [x] Connection profile picker hit target: expanded clickable area to cover both connection name text and chevron icon (`.contentShape(Rectangle())` + padding). Previously only the text registered clicks.
 - [ ] Menu bar integration
 
 ## Known macOS SwiftUI Limitations
