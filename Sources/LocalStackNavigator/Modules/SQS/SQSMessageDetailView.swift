@@ -93,13 +93,68 @@ struct SQSMessageDetailView: View {
     }
 
     private var formattedBody: String {
-        // Try to pretty-print JSON
-        guard let data = message.body.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data),
-              let pretty = try? JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .withoutEscapingSlashes]),
-              let formatted = String(data: pretty, encoding: .utf8) else {
+        let trimmed = message.body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("{") || trimmed.hasPrefix("["),
+              let data = trimmed.data(using: .utf8),
+              (try? JSONSerialization.jsonObject(with: data)) != nil else {
             return message.body
         }
-        return formatted
+        // Pretty-print at string level to preserve original key order
+        // (JSONSerialization round-trip uses NSDictionary which scrambles order)
+        return Self.prettyPrintJSON(trimmed)
+    }
+
+    /// Indent JSON string without parsing into a dictionary, preserving key order.
+    private static func prettyPrintJSON(_ json: String) -> String {
+        var result = ""
+        var indent = 0
+        var inString = false
+        var escaped = false
+        let tab = "  "
+
+        for char in json {
+            if escaped {
+                result.append(char)
+                escaped = false
+                continue
+            }
+            if char == "\\" && inString {
+                result.append(char)
+                escaped = true
+                continue
+            }
+            if char == "\"" {
+                inString.toggle()
+                result.append(char)
+                continue
+            }
+            if inString {
+                result.append(char)
+                continue
+            }
+            switch char {
+            case "{", "[":
+                result.append(char)
+                indent += 1
+                result.append("\n")
+                result.append(String(repeating: tab, count: indent))
+            case "}", "]":
+                indent -= 1
+                result.append("\n")
+                result.append(String(repeating: tab, count: indent))
+                result.append(char)
+            case ",":
+                result.append(char)
+                result.append("\n")
+                result.append(String(repeating: tab, count: indent))
+            case ":":
+                result.append(": ")
+            case " ", "\n", "\r", "\t":
+                break // skip existing whitespace outside strings
+            default:
+                result.append(char)
+            }
+        }
+        return result
     }
 }
