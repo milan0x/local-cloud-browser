@@ -322,6 +322,213 @@ Button { ... } label: {
 
 `toolbar(id:)` only persists item customization, not display mode. KVO on `NSToolbar.displayMode` via NSViewRepresentable fails because SwiftUI manages the toolbar lifecycle opaquely — the observer never reliably attaches. Would require NSWindowController or full AppKit toolbar ownership. Low priority.
 
+## Phase 7: Testing
+
+Automated test suite for the project. The codebase has strong separation between pure logic and UI, so most tests can be added **without modifying existing code**. Tests are organized in waves — start with pure-logic unit tests (zero changes needed), then extract a few embedded functions for additional coverage.
+
+### Wave 1: Test Infrastructure Setup
+- [ ] Add `testTarget` to `Package.swift`: name `LocalStackNavigatorTests`, dependency on `LocalStackNavigator`, path `Tests/LocalStackNavigatorTests`
+- [ ] Verify `swift test` runs with an empty test file
+- [ ] Establish test file naming convention: `<SourceFileName>Tests.swift` (e.g. `SNSXMLParserTests.swift`)
+
+### Wave 2: Parser Tests (Pure Logic — No Code Changes)
+
+All parsers are static/instance methods that take data in and return structured results. Highest-value tests because parsers handle external data (XML/JSON from LocalStack).
+
+#### SNSXMLParser (`Modules/SNS/SNSXMLParser.swift`)
+- [ ] Parse leaf values: `<ListTopicsResponse><ListTopicsResult><Topics><member><TopicArn>arn:...</TopicArn></member></Topics></ListTopicsResult></ListTopicsResponse>` → `first("TopicArn")` returns ARN
+- [ ] Parse `all()`: multiple `<TopicArn>` elements → returns array of all ARNs
+- [ ] Parse attribute dict: `<entry><key>K</key><value>V</value></entry>` pairs → `attributeDict` returns `[String: String]`
+- [ ] Parse member groups: multiple `<member>` blocks with sub-elements → `memberDicts` returns array of `[String: String]`
+- [ ] Error case: malformed XML → `parse()` throws `SNSXMLParseError.parseFailure`
+- [ ] Empty response: valid XML with no data → empty results, no crash
+
+#### S3XMLParser (`Modules/S3/S3XMLParser.swift`)
+- [ ] `S3BucketListParser.parse(data:)`: standard `<ListAllMyBucketsResult>` XML → array of `S3Bucket` with name and creation date
+- [ ] `S3ObjectListParser.parse(data:)`: `<ListBucketResult>` XML → `S3ObjectListResult` with objects, prefixes, pagination fields
+- [ ] Pagination fields: `isTruncated`, `nextContinuationToken`, `keyCount`, `maxKeys` parsed correctly
+- [ ] ISO8601 date parsing with fractional seconds (e.g. `2024-01-15T10:30:45.123Z`)
+- [ ] Empty bucket: valid XML with no `<Contents>` → empty objects array, no crash
+- [ ] Common prefixes: `<CommonPrefixes><Prefix>folder/</Prefix></CommonPrefixes>` → parsed as `S3Prefix`
+
+#### ServiceError (`Networking/ServiceError.swift`)
+- [ ] XML error format: `<Error><Code>BucketNotEmpty</Code><Message>...</Message></Error>` → `ServiceError` with code and message
+- [ ] JSON error format (SQS): `{"__type": "QueueDoesNotExist", "message": "..."}` → `ServiceError` with code and message
+- [ ] `friendlyMessage` mapping: test all mapped error codes (BucketNotEmpty, BucketAlreadyOwnedByYou, NoSuchBucket, NoSuchKey, QueueDoesNotExist, QueueAlreadyExists, InvalidParameterValue, InvalidAttributeValue, NonExistentQueue, TopicNotFound, NotFound, InvalidAddress)
+- [ ] Unknown error code → falls back to raw `code: message` format
+- [ ] Malformed data (not XML or JSON) → returns `nil`
+- [ ] Empty data → returns `nil`
+
+#### JSONHelperParser (`Modules/SQS/JSONHelperParser.swift`)
+- [ ] Simple object: `key "value"` → `{"key": "value"}`
+- [ ] Nested objects: indented children → nested JSON objects
+- [ ] Arrays: `- "item"` syntax → JSON arrays
+- [ ] All value types: strings, numbers (`42`, `3.14`, `-1`), booleans (`true`/`false`), `null`
+- [ ] Mixed nested structures: objects containing arrays containing objects
+- [ ] String escaping: newlines (`\n`), tabs (`\t`), quotes (`\"`), backslashes (`\\`) preserved correctly
+- [ ] Bidirectional: `parse(input)` → JSON → `fromJSON(json)` → DSL → `parse(dsl)` → same JSON (round-trip)
+- [ ] `fromJSON()` with valid JSON → helper DSL format
+- [ ] `fromJSON()` with invalid JSON → returns `nil`
+- [ ] Error: inconsistent indentation → error with line number
+- [ ] Error: unterminated string → error with line number
+- [ ] Error: invalid value (not string/number/bool/null) → error with line number
+- [ ] Empty input → empty JSON object or appropriate result
+- [ ] Default example: `JSONHelperParser.defaultJSON` parses without error
+
+### Wave 3: Model Computed Property Tests (Pure Logic — No Code Changes)
+
+All models are structs with computed properties — create instances with test data, assert computed values.
+
+#### SQSMessage (`Modules/SQS/SQSModels.swift`)
+- [ ] `bodyType`: `{...}` → "JSON", `<...>` → "XML", anything else → "Text"
+- [ ] `bodySize`: UTF-8 byte count of body
+- [ ] `truncatedId`: ID ≤ 16 chars → full ID; ID > 16 chars → "first8...last4"
+- [ ] `sentTimestampMillis`: present → epoch millis as Double; missing → `0`
+- [ ] `sentTimestamp`: millis → `Date`; missing → `nil`
+- [ ] `approximateReceiveCount`: parses from attributes string
+- [ ] `firstReceiveTimestamp`: parses millis from attributes → `Date`
+- [ ] `messageGroupId`: extracts from `MessageGroupId` attribute; absent → `nil`
+- [ ] `formattedSize(_:)`: bytes → "123 B", kilobytes → "1.5 KB"
+
+#### SQSQueue (`Modules/SQS/SQSModels.swift`)
+- [ ] `queueName`: extracts last path component from URL (e.g. `http://localhost:4566/000000000000/my-queue` → `my-queue`)
+- [ ] `isFifo`: name ends with `.fifo` → true; otherwise → false
+- [ ] `queueArn(region:)`: constructs `arn:aws:sqs:<region>:<account>:<name>` from URL path
+
+#### SQSQueueAttributes (`Modules/SQS/SQSModels.swift`)
+- [ ] `init(from:)`: parses all 16+ attribute fields from `[String: String]` dict
+- [ ] Timestamp conversion: Unix epoch string → `Date`
+- [ ] Boolean parsing: "true"/"false" strings → Bool
+- [ ] Redrive policy: nested JSON string `{"deadLetterTargetArn":"...","maxReceiveCount":3}` → `SQSRedrivePolicy`
+- [ ] Missing fields: absent keys → default values (nil, 0, false)
+
+#### SNSTopic (`Modules/SNS/SNSModels.swift`)
+- [ ] `topicName`: extracts from ARN (e.g. `arn:aws:sns:us-east-1:000000000000:my-topic` → `my-topic`)
+- [ ] `isFifo`: name ends with `.fifo` → true
+
+#### SNSSubscription (`Modules/SNS/SNSModels.swift`)
+- [ ] `isPending`: ARN == "PendingConfirmation" → true; real ARN → false
+- [ ] `truncatedArn`: short ARN → full; long ARN → "first12...last6"
+- [ ] `truncatedEndpoint`: short → full; long → "first30...last15"
+
+#### SNSTopicAttributes / SNSSubscriptionAttributes (`Modules/SNS/SNSModels.swift`)
+- [ ] `init(from:)`: parses all fields from `[String: String]` dict
+- [ ] Subscription count parsing (confirmed, pending, deleted) from string → Int
+- [ ] Boolean fields ("true"/"false" → Bool)
+
+#### S3Object (`Modules/S3/S3Models.swift`)
+- [ ] `isFolder`: key ends with `/` → true; otherwise → false
+- [ ] `displayName`: extracts filename from full key path (e.g. `folder/sub/file.txt` → `file.txt`)
+- [ ] `formattedSize`: uses ByteCountFormatter, folders → `"--"`
+
+#### S3Prefix (`Modules/S3/S3Models.swift`)
+- [ ] `displayName`: extracts folder name from prefix (e.g. `folder/subfolder/` → `subfolder`)
+
+#### S3FileKind (`Modules/S3/S3FileKind.swift`)
+- [ ] `kind(for:)`: common extensions → UTType descriptions
+- [ ] `icon(for:)`: folders → `"folder.fill"`, images → `"photo"`, videos → `"film"`, audio → `"music.note"`, archives → `"doc.zipper"`, PDF → `"doc.richtext"`, JSON/XML → `"doc.text"`, unknown → `"doc"`
+
+### Wave 4: CLI Helper Tests (Pure Logic — No Code Changes)
+
+All CLI generators are methods on model structs — create instance, call method, assert output string.
+
+#### SQS CLI Helpers
+- [ ] `SQSMessage.toAWSCLI()`: generates valid `aws sqs send-message` with queue URL, endpoint, region, body (shell-escaped)
+- [ ] Shell escaping: single quotes in body (`O'Reilly` → `O'\''Reilly`)
+- [ ] FIFO messages: includes `--message-group-id` flag
+- [ ] `SQSQueue.sendMessageCLI()`, `receiveMessageCLI()`, `getAttributesCLI()`: correct command structure with backslash continuations
+
+#### SNS CLI Helpers
+- [ ] `SNSTopic.publishCLI()`, `listSubscriptionsCLI()`, `getAttributesCLI()`: correct `aws sns` commands
+- [ ] FIFO topics: `publishCLI()` includes `--message-group-id`
+- [ ] `SNSSubscription.getAttributesCLI()`: correct `aws sns get-subscription-attributes` command
+- [ ] Shell escaping in all generators
+
+### Wave 5: Safety & Validation Tests (Pure Logic — No Code Changes)
+
+#### SafetyGuard (`Safety/SafetyGuard.swift`)
+- [ ] `http://localhost:4566` → `.local`
+- [ ] `http://127.0.0.1:4566` → `.local`
+- [ ] `http://[::1]:4566` → `.local`
+- [ ] `http://myserver.local:4566` → `.local`
+- [ ] `http://example.com` → `.cautionNonLocal`
+- [ ] `http://192.168.1.100:4566` → `.cautionNonLocal`
+- [ ] Malformed URL → `.cautionNonLocal`
+- [ ] Empty string → `.cautionNonLocal`
+
+#### ReadOnlyInterceptor (`Safety/ReadOnlyInterceptor.swift`)
+- [ ] GET when read-only → allowed
+- [ ] HEAD when read-only → allowed
+- [ ] POST when read-only → blocked
+- [ ] PUT when read-only → blocked
+- [ ] DELETE when read-only → blocked
+- [ ] PATCH when read-only → blocked
+- [ ] All methods when not read-only → allowed
+- [ ] Case insensitivity: `post` and `POST` both blocked
+
+### Wave 6: Codable Model Tests (Pure Logic — No Code Changes)
+
+Round-trip serialization tests ensure models survive encode/decode without data loss.
+
+#### Route (`Navigation/Route.swift`)
+- [ ] All cases: `rawValue` round-trips correctly
+- [ ] `displayName` returns expected string for each case
+- [ ] `systemImage` returns valid SF Symbol name for each case
+
+#### AWSRegion (`App/AWSRegion.swift`)
+- [ ] `isValid()`: all 44 region codes return true
+- [ ] `isValid()`: invalid code → false
+- [ ] `find()`: valid code → correct `AWSRegion`; invalid → `nil`
+
+#### LastSessionState (`App/LastSessionStore.swift`)
+- [ ] Encode → decode round-trip preserves all fields
+- [ ] `route` computed property: valid `routeRawValue` → `Route`; nil → nil; invalid → nil
+
+#### SavedSQSFavorite (`Modules/SQS/SavedSQSFavorite.swift`)
+- [ ] Encode → decode round-trip preserves all fields including optionals
+- [ ] Default values: optional fields absent in JSON → nil after decode
+
+#### ConnectionProfile (`Settings/ConnectionProfile.swift`)
+- [ ] Encode → decode: credentials (`accessKeyId`, `secretAccessKey`) are NOT in JSON output (excluded by CodingKeys)
+- [ ] Decode: missing credential fields → default values applied
+
+### Wave 7: Small Extractions for Additional Coverage
+
+These require extracting existing logic into testable static functions. Each is a ~5 line change — move logic out, call extracted function from original location. **No behavior change.**
+
+#### S3 URL Rewriting (extract from `LocalStackClient.s3BaseURL`)
+- [ ] Extract `static func rewriteS3Endpoint(_ endpoint: String) -> String` on `LocalStackClient`
+- [ ] `http://localhost:4566` → `http://s3.localhost.localstack.cloud:4566`
+- [ ] `http://127.0.0.1:4566` → `http://s3.localhost.localstack.cloud:4566`
+- [ ] `http://[::1]:4566` → `http://s3.localhost.localstack.cloud:4566`
+- [ ] Non-local endpoint → unchanged
+- [ ] Port preservation across all cases
+- [ ] HTTPS scheme preservation
+
+#### Form URL Encoding (extract from `LocalStackClient.snsRequest`)
+- [ ] Extract `static func encodeFormURLParameters(_ params: [String: String]) -> String` on `LocalStackClient`
+- [ ] Key-value pairs → `key1=value1&key2=value2` sorted by key
+- [ ] Special characters percent-encoded (RFC 3986)
+- [ ] Empty params → empty string
+- [ ] Values with spaces, ampersands, equals signs → correctly encoded
+
+#### SQS/SNS Read-Only Whitelists (make `internal` visibility)
+- [ ] Change `private static let sqsReadActions` → `static let sqsReadActions` (internal)
+- [ ] Change `private static let snsReadActions` → `static let snsReadActions` (internal)
+- [ ] Test: all whitelisted actions are in the set
+- [ ] Test: known mutating actions (SendMessage, DeleteQueue, CreateTopic, etc.) are NOT in the set
+
+### Wave 8: Integration Test Patterns (Optional — Requires Running LocalStack)
+
+These tests hit a real LocalStack instance. Useful for CI but not required for the initial test suite. Gated by an environment variable (e.g. `LOCALSTACK_TESTS=1`) so they don't run by default.
+
+- [ ] Add `LOCALSTACK_TESTS` environment variable check — skip integration tests when not set
+- [ ] S3: create bucket → list buckets → verify bucket exists → delete bucket → verify gone
+- [ ] S3: upload object → list objects → download object → verify content matches → delete
+- [ ] SQS: create queue → send message → receive message → verify body matches → delete queue
+- [ ] SNS: create topic → list topics → verify exists → delete topic → verify gone
+- [ ] Health check: `GET /_localstack/health` → parse response → verify version and services
+
 ## Future Ideas
 
 ### JSON Helper UX improvements (SQS Send Message)
