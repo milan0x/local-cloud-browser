@@ -22,7 +22,7 @@ struct CodeTextEditor: NSViewRepresentable {
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
-        textView.textContainerInset = NSSize(width: 4, height: 6)
+        textView.textContainerInset = NSSize(width: 6, height: 10)
         textView.textContainer?.widthTracksTextView = true
         textView.string = text
 
