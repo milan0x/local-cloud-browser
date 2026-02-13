@@ -206,14 +206,14 @@ struct SQSMessageBrowserView: View {
 
                 TableColumn("Type", value: \.bodyType) { msg in
                     Text(msg.bodyType)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .frame(width: 36)
-                        .padding(.vertical, 1)
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .frame(width: 38)
+                        .padding(.vertical, 2)
                         .background(bodyTypeBadgeColor(msg.bodyType), in: Capsule())
                         .foregroundStyle(bodyTypeForegroundColor(msg.bodyType))
                 }
-                .width(min: 40, ideal: 45)
+                .width(min: 42, ideal: 48)
                 .customizationID("type")
 
                 TableColumn("Sent", value: \.sentTimestampMillis) { msg in
@@ -232,7 +232,7 @@ struct SQSMessageBrowserView: View {
                     Text(SQSMessage.formattedSize(msg.bodySize))
                         .foregroundStyle(.secondary)
                 }
-                .width(min: 40, ideal: 50)
+                .width(min: 32, ideal: 38)
                 .customizationID("size")
 
                 TableColumn("Receives", value: \.approximateReceiveCount) { msg in
@@ -271,6 +271,38 @@ struct SQSMessageBrowserView: View {
                 .width(min: 80, ideal: 110)
                 .customizationID("firstReceived")
                 .defaultVisibility(.hidden)
+
+                TableColumn("Actions") { msg in
+                    HStack(spacing: 8) {
+                        Button {
+                            messageToView = msg
+                        } label: {
+                            Image(systemName: "eye")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("View Details")
+
+                        Button {
+                            copyToClipboard(msg.body)
+                        } label: {
+                            Image(systemName: "doc.on.doc")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Copy Body")
+
+                        Button(role: .destructive) {
+                            messagesToDelete = [msg]
+                        } label: {
+                            Image(systemName: "trash")
+                                .foregroundStyle(appState.isReadOnly ? .gray : .red)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Delete")
+                        .disabled(appState.isReadOnly)
+                    }
+                }
+                .width(min: 80, ideal: 100)
+                .customizationID("actions")
             }
             .contextMenu(forSelectionType: SQSMessage.ID.self) { selection in
                 if let id = selection.first, let msg = messages.first(where: { $0.id == id }) {
