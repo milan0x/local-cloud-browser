@@ -267,6 +267,19 @@ These are platform-level issues that cannot be worked around cleanly. Documented
 
 **Scope:** Only TextEditors used for structured data input need this. Single-line TextFields for names, numbers, paths, and IDs don't need it — quotes are virtually never typed in those fields, and the window field editor fix from the nearest `.disableSmartSubstitutions()` covers them anyway.
 
+### Toolbar button hit target mismatch
+
+SwiftUI toolbar buttons have a smaller click area than AppKit's `NSToolbarItem` hover/press circle. The circle highlight is rendered by AppKit (~32pt), but the SwiftUI `Button` only registers clicks on the `Label`/`Image` content (~16-20pt). Clicking the edge of the highlighted circle does nothing.
+
+**Solution (`Navigation/ToolbarHitTarget.swift`):** `.toolbarHitTarget()` View modifier — applies `.frame(width: 36, height: 36)` + `.contentShape(Rectangle())` to expand the SwiftUI hit area to cover the full AppKit circle. Apply to the `Label` inside every toolbar `Button`:
+```swift
+Button { ... } label: {
+    Label("Action", systemImage: "icon.name")
+        .toolbarHitTarget()
+}
+```
+**All new modules must apply `.toolbarHitTarget()` to their toolbar button labels.**
+
 ### Toolbar display mode persistence
 
 `toolbar(id:)` only persists item customization, not display mode. KVO on `NSToolbar.displayMode` via NSViewRepresentable fails because SwiftUI manages the toolbar lifecycle opaquely — the observer never reliably attaches. Would require NSWindowController or full AppKit toolbar ownership. Low priority.
