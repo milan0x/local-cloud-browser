@@ -16,6 +16,9 @@ struct SQSSendMessageView: View {
     @State private var isSending = false
     @State private var saveAsQuickMessage = false
     @State private var quickMessageName = ""
+    @State private var showJsonHelper = false
+    @State private var jsonHelperText = ""
+    @State private var jsonHelperParseError: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -49,33 +52,12 @@ struct SQSSendMessageView: View {
                         .font(.system(.body, design: .monospaced))
                         .frame(minHeight: 180)
                         .disableSmartSubstitutions()
+                        .disabled(showJsonHelper)
+                        .opacity(showJsonHelper ? 0.7 : 1.0)
+
+                    jsonHelperSection
                 } header: {
-                    HStack(spacing: 6) {
-                        Text("Message Body")
-                        if let type = detectedBodyType {
-                            Text(type)
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(bodyTypeBadgeColor(type), in: Capsule())
-                                .foregroundStyle(bodyTypeForegroundColor(type))
-                            if type != "Text" {
-                                let valid = isBodyValid(for: type)
-                                HStack(spacing: 2) {
-                                    Image(systemName: valid ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                        .font(.caption2)
-                                    Text(valid ? "Valid" : "Invalid")
-                                        .font(.caption2)
-                                        .fontWeight(.semibold)
-                                }
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background((valid ? Color.green : Color.red).opacity(0.15), in: Capsule())
-                                .foregroundStyle(valid ? Color.green : Color.red)
-                            }
-                        }
-                    }
+                    messageBodyHeader
                 }
 
                 Section("Quick Message") {
@@ -112,7 +94,8 @@ struct SQSSendMessageView: View {
             }
             .padding()
         }
-        .frame(width: 500, height: 580)
+        .frame(width: 500, height: showJsonHelper ? 850 : 580)
+        .animation(.easeInOut(duration: 0.2), value: showJsonHelper)
         .serviceErrorAlert(error: $serviceError)
         .onAppear {
             if let fav = editingFavorite {
@@ -134,6 +117,86 @@ struct SQSSendMessageView: View {
         .onChange(of: messageBody) {
             if saveAsQuickMessage && quickMessageName.isEmpty && editingFavorite == nil {
                 prefillName()
+            }
+        }
+        .onChange(of: jsonHelperText) {
+            let result = JSONHelperParser.parse(jsonHelperText)
+            if result.error != nil {
+                jsonHelperParseError = result.error
+            } else {
+                jsonHelperParseError = nil
+                messageBody = result.json
+            }
+        }
+        .onChange(of: showJsonHelper) {
+            if showJsonHelper && jsonHelperText.isEmpty {
+                jsonHelperText = JSONHelperParser.defaultExample
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var messageBodyHeader: some View {
+        HStack(spacing: 6) {
+            Text("Message Body")
+            if let type = detectedBodyType {
+                Text(type)
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(bodyTypeBadgeColor(type), in: Capsule())
+                    .foregroundStyle(bodyTypeForegroundColor(type))
+                if type != "Text" {
+                    let valid = isBodyValid(for: type)
+                    HStack(spacing: 2) {
+                        Image(systemName: valid ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .font(.caption2)
+                        Text(valid ? "Valid" : "Invalid")
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background((valid ? Color.green : Color.red).opacity(0.15), in: Capsule())
+                    .foregroundStyle(valid ? Color.green : Color.red)
+                }
+            }
+            if showJsonHelper {
+                Text("Read-Only")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.gray.opacity(0.15), in: Capsule())
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var jsonHelperSection: some View {
+        HStack {
+            Spacer()
+            Button {
+                showJsonHelper.toggle()
+            } label: {
+                Label(showJsonHelper ? "Hide JSON Helper" : "JSON Helper", systemImage: "curlybraces")
+                    .font(.caption)
+            }
+            .buttonStyle(.borderless)
+        }
+
+        if showJsonHelper {
+            TextEditor(text: $jsonHelperText)
+                .font(.system(.body, design: .monospaced))
+                .frame(minHeight: 180)
+                .disableSmartSubstitutions()
+
+            if let error = jsonHelperParseError {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
             }
         }
     }
