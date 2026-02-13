@@ -209,6 +209,16 @@ struct SNSSubscriptionListView: View {
 
                 TableColumn("Actions") { sub in
                     HStack(spacing: 8) {
+                        if !sub.isPending {
+                            Button {
+                                detailSubscription = sub
+                            } label: {
+                                Image(systemName: "eye")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("View Attributes")
+                        }
+
                         Button {
                             copyToClipboard(sub.endpoint)
                         } label: {
@@ -228,7 +238,7 @@ struct SNSSubscriptionListView: View {
                         .disabled(appState.isReadOnly || sub.isPending)
                     }
                 }
-                .width(min: 60, ideal: 80)
+                .width(min: 80, ideal: 110)
             }
             .contextMenu(forSelectionType: SNSSubscription.ID.self) { selection in
                 if let id = selection.first, let sub = subscriptions.first(where: { $0.id == id }) {
@@ -239,6 +249,13 @@ struct SNSSubscriptionListView: View {
                     Button("Copy Subscription ARN") { copyToClipboard(sub.subscriptionArn) }
                     Button("Copy Endpoint") { copyToClipboard(sub.endpoint) }
                     Button("Copy Protocol") { copyToClipboard(sub.protocol_) }
+                    if selection.count == 1 && !sub.isPending {
+                        Menu("Copy as AWS CLI") {
+                            Button("Get Subscription Attributes") {
+                                copyToClipboard(sub.getAttributesCLI(endpointUrl: appState.endpoint, region: appState.region))
+                            }
+                        }
+                    }
                     Divider()
                     if selection.count > 1 {
                         let selected = subscriptions.filter { selection.contains($0.id) && !$0.isPending }
