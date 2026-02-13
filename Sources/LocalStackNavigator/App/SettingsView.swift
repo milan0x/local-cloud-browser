@@ -83,14 +83,7 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-        }
-        .formStyle(.grouped)
-    }
 
-    // MARK: - S3
-
-    private var s3Settings: some View {
-        Form {
             Section("Auto-Refresh") {
                 Picker("Refresh interval", selection: $autoRefresh.interval) {
                     Text("Off").tag(0)
@@ -101,8 +94,18 @@ struct SettingsView: View {
                     Text("30 seconds").tag(30)
                     Text("60 seconds").tag(60)
                 }
+                Text("Automatically refreshes lists across all modules at the configured interval. Also editable via the refresh menu in each module's toolbar.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
+        }
+        .formStyle(.grouped)
+    }
 
+    // MARK: - S3
+
+    private var s3Settings: some View {
+        Form {
             Section("Quick Look") {
                 Stepper("Preview size limit: \(appState.previewSizeLimitMB) MB", value: $appState.previewSizeLimitMB, in: 1...50)
                 Text("Files larger than this will prompt before downloading. Files over 300 MB cannot be previewed.")
