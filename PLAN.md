@@ -146,6 +146,12 @@
 - [x] Queue context menu "Copy as AWS CLI": submenu with three items — Send Message, Receive Message, Get Attributes. Each generates a ready-to-paste `aws` CLI command with the queue URL, endpoint, and region from `appState`. FIFO queues include `--message-group-id` in the Send Message template.
 - [x] CLI helpers on `SQSQueue` model: `sendMessageCLI()`, `receiveMessageCLI()`, `getAttributesCLI()` — all take `endpointUrl` and `region` parameters, return multi-line `aws sqs` commands with backslash continuations. `SQSMessage.toAWSCLI()` generates `aws sqs send-message` with the actual message body (single-quote shell escaping: `'` → `'\''`), queue URL, endpoint, region, and optional `--message-group-id` for FIFO.
 
+### SQS Send Message Style Polish
+- [x] Message body TextEditor inner padding: `.scrollContentBackground(.hidden)` + `.padding(EdgeInsets(top: 10, leading: 6, bottom: 6, trailing: 6))` — hides TextEditor's own background (Form section card shows through seamlessly) and adds visual padding around text content. Previous `textContainerInset` approach via NSTextView was unreliable (SwiftUI reconfigures the underlying view).
+- [x] Message body header fixed height: `.frame(height: 18, alignment: .leading)` on the HStack — prevents layout shift when body type badges (JSON/XML/Text, Valid/Invalid) conditionally appear as user types. Without this, badge appearance changed header height and pushed section content up/down.
+- [x] Modal height increased from 580 to 650 (non-JSON-helper mode) so the "Save as Quick Message" section is visible without scrolling.
+- [x] `DisableSmartSubstitutions` extended with optional `textContainerInset: NSSize?` parameter — sets `NSTextView.textContainerInset` during initial configuration. Default nil preserves existing behavior.
+
 ## Phase 4: SNS Module
 - [ ] List topics view
 - [ ] Create/delete topic

@@ -61,6 +61,8 @@ struct SQSSendMessageView: View {
                     ZStack(alignment: .topLeading) {
                         TextEditor(text: $messageBody)
                             .font(.system(.body, design: .monospaced))
+                            .scrollContentBackground(.hidden)
+                            .padding(EdgeInsets(top: 10, leading: 6, bottom: 6, trailing: 6))
                             .disableSmartSubstitutions()
                             .disabled(showJsonHelper)
                             .opacity(showJsonHelper ? 0.7 : 1.0)
@@ -68,8 +70,8 @@ struct SQSSendMessageView: View {
                             Text(JSONHelperParser.defaultJSON)
                                 .font(.system(.body, design: .monospaced))
                                 .foregroundStyle(.placeholder)
-                                .padding(.leading, 6)
-                                .padding(.top, 8)
+                                .padding(.leading, 12)
+                                .padding(.top, 12)
                                 .allowsHitTesting(false)
                         }
                         if showJsonHelper && doubleClickHidesJsonHelper {
@@ -125,7 +127,7 @@ struct SQSSendMessageView: View {
             }
             .padding()
         }
-        .frame(width: 500, height: showJsonHelper ? 850 : 580)
+        .frame(width: 500, height: showJsonHelper ? 850 : 650)
         .animation(.easeInOut(duration: 0.2), value: showJsonHelper)
         .serviceErrorAlert(error: $serviceError)
         .onAppear {
@@ -206,6 +208,7 @@ struct SQSSendMessageView: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .frame(height: 18, alignment: .leading)
     }
 
     @ViewBuilder
