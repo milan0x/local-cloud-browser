@@ -21,6 +21,7 @@ struct SQSSendMessageView: View {
     @State private var jsonHelperParseError: String?
     @AppStorage("hasUsedJsonHelper") private var hasUsedJsonHelper = false
     @AppStorage(AppPreferences.doubleClickHidesJsonHelperKey) private var doubleClickHidesJsonHelper = false
+    @AppStorage(AppPreferences.disableSQSPlaceholdersKey) private var disablePlaceholders = false
     @State private var showExamplePopover = false
 
     var body: some View {
@@ -63,7 +64,7 @@ struct SQSSendMessageView: View {
                             .disableSmartSubstitutions()
                             .disabled(showJsonHelper)
                             .opacity(showJsonHelper ? 0.7 : 1.0)
-                        if messageBody.isEmpty && showJsonHelper {
+                        if messageBody.isEmpty && showJsonHelper && !disablePlaceholders {
                             Text(JSONHelperParser.defaultJSON)
                                 .font(.system(.body, design: .monospaced))
                                 .foregroundStyle(.placeholder)
@@ -236,7 +237,7 @@ struct SQSSendMessageView: View {
         if showJsonHelper {
             ZStack(alignment: .topLeading) {
                 CodeTextEditor(text: $jsonHelperText)
-                if jsonHelperText.isEmpty {
+                if jsonHelperText.isEmpty && !disablePlaceholders {
                     Text(JSONHelperParser.defaultExample)
                         .font(.system(.body, design: .monospaced))
                         .foregroundStyle(.placeholder)
