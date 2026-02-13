@@ -529,16 +529,23 @@ private struct FavoriteChip: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 4) {
-                if isSending {
+                ZStack {
                     ProgressView()
                         .controlSize(.mini)
-                } else {
+                        .opacity(isSending ? 1 : 0)
                     Image(systemName: "star.fill")
                         .font(.caption2)
+                        .opacity(isSending ? 0 : 1)
                 }
-                Text(isArmed ? "Click to Send" : favorite.name)
-                    .font(.caption)
-                    .lineLimit(1)
+                .frame(width: 12, height: 12)
+                ZStack {
+                    Text(favorite.name)
+                        .opacity(isArmed ? 0 : 1)
+                    Text("Click to Send")
+                        .opacity(isArmed ? 1 : 0)
+                }
+                .font(.caption)
+                .lineLimit(1)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
@@ -551,6 +558,8 @@ private struct FavoriteChip: View {
                     .strokeBorder(isArmed ? Color.accentColor : Color.clear, lineWidth: 1)
             )
             .foregroundStyle(isReadOnly ? Color.secondary : isArmed ? Color.accentColor : Color.primary)
+            .animation(.easeInOut(duration: 0.15), value: isArmed)
+            .animation(.easeInOut(duration: 0.15), value: isSending)
         }
         .buttonStyle(.plain)
         .disabled(isReadOnly)

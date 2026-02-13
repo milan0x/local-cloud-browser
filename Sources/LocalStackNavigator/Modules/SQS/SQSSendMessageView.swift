@@ -44,10 +44,38 @@ struct SQSSendMessageView: View {
                     }
                 }
 
-                Section("Message Body") {
+                Section {
                     TextEditor(text: $messageBody)
                         .font(.system(.body, design: .monospaced))
                         .frame(minHeight: 180)
+                        .disableSmartSubstitutions()
+                } header: {
+                    HStack(spacing: 6) {
+                        Text("Message Body")
+                        if let type = detectedBodyType {
+                            Text(type)
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(bodyTypeBadgeColor(type), in: Capsule())
+                                .foregroundStyle(bodyTypeForegroundColor(type))
+                            if type != "Text" {
+                                let valid = isBodyValid(for: type)
+                                HStack(spacing: 2) {
+                                    Image(systemName: valid ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                        .font(.caption2)
+                                    Text(valid ? "Valid" : "Invalid")
+                                        .font(.caption2)
+                                        .fontWeight(.semibold)
+                                }
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background((valid ? Color.green : Color.red).opacity(0.15), in: Capsule())
+                                .foregroundStyle(valid ? Color.green : Color.red)
+                            }
+                        }
+                    }
                 }
 
                 Section("Quick Message") {
@@ -76,7 +104,7 @@ struct SQSSendMessageView: View {
                 Spacer()
                 if saveAsQuickMessage && !quickMessageName.trimmingCharacters(in: .whitespaces).isEmpty {
                     Button(editingFavorite != nil ? "Update" : "Save") { saveFavorite() }
-                        .disabled(!isBodyValid)
+                        .disabled(!isBodyNonEmpty)
                 }
                 Button("Send") { send() }
                     .keyboardShortcut(.defaultAction)
@@ -110,12 +138,50 @@ struct SQSSendMessageView: View {
         }
     }
 
-    private var isBodyValid: Bool {
+    private var isBodyNonEmpty: Bool {
         !messageBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    private var detectedBodyType: String? {
+        let trimmed = messageBody.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if trimmed.hasPrefix("{") || trimmed.hasPrefix("[") {
+            return "JSON"
+        } else if trimmed.hasPrefix("<") {
+            return "XML"
+        }
+        return "Text"
+    }
+
+    private func isBodyValid(for type: String) -> Bool {
+        let trimmed = messageBody.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let data = trimmed.data(using: .utf8) else { return false }
+        if type == "JSON" {
+            return (try? JSONSerialization.jsonObject(with: data)) != nil
+        } else if type == "XML" {
+            return XMLParser(data: data).parse()
+        }
+        return true
+    }
+
+    private func bodyTypeBadgeColor(_ type: String) -> Color {
+        switch type {
+        case "JSON": return Color.blue.opacity(0.15)
+        case "XML": return Color.orange.opacity(0.15)
+        default: return Color.gray.opacity(0.15)
+        }
+    }
+
+    private func bodyTypeForegroundColor(_ type: String) -> Color {
+        switch type {
+        case "JSON": return .blue
+        case "XML": return .orange
+        default: return .secondary
+        }
+    }
+
     private var isValid: Bool {
-        guard isBodyValid else { return false }
+        guard isBodyNonEmpty else { return false }
         if !queue.isFifo {
             if let delay = Int(delaySeconds), (delay < 0 || delay > 900) { return false }
             if !delaySeconds.isEmpty && Int(delaySeconds) == nil { return false }
