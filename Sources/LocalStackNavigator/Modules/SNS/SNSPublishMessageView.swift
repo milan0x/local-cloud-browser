@@ -145,12 +145,7 @@ struct SNSPublishMessageView: View {
                 try? await Task.sleep(for: .seconds(0.6))
                 dismiss()
             } catch {
-                if let clientError = error as? LocalStackClientError,
-                   let parsed = clientError.serviceError {
-                    serviceError = parsed
-                } else {
-                    serviceError = ServiceError(code: "PublishError", message: error.localizedDescription)
-                }
+                serviceError = error.asServiceError
                 isPublishing = false
             }
         }

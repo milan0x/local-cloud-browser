@@ -8,7 +8,6 @@ struct SNSCreateSubscriptionView: View {
 
     @State private var selectedProtocol = "sqs"
     @State private var endpoint = ""
-    @State private var errorMessage: String?
     @State private var isSubscribing = false
     @State private var serviceError: ServiceError?
 
@@ -40,13 +39,6 @@ struct SNSCreateSubscriptionView: View {
                 }
             }
             .formStyle(.grouped)
-
-            if let errorMessage {
-                Text(errorMessage)
-                    .foregroundStyle(.red)
-                    .font(.caption)
-                    .padding(.horizontal)
-            }
 
             Divider()
 
@@ -111,7 +103,7 @@ struct SNSCreateSubscriptionView: View {
 
     private func subscribe() {
         isSubscribing = true
-        errorMessage = nil
+        serviceError = nil
         Task {
             do {
                 let trimmed = endpoint.trimmingCharacters(in: .whitespaces)
@@ -122,12 +114,7 @@ struct SNSCreateSubscriptionView: View {
                 )
                 dismiss()
             } catch {
-                if let clientError = error as? LocalStackClientError,
-                   let parsed = clientError.serviceError {
-                    serviceError = parsed
-                } else {
-                    errorMessage = error.localizedDescription
-                }
+                serviceError = error.asServiceError
                 isSubscribing = false
             }
         }

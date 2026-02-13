@@ -344,12 +344,7 @@ struct SNSSubscriptionListView: View {
                     try await service.unsubscribe(subscriptionArn: sub.subscriptionArn)
                     deletedIDs.insert(sub.id)
                 } catch {
-                    if let clientError = error as? LocalStackClientError,
-                       let parsed = clientError.serviceError {
-                        serviceError = parsed
-                    } else {
-                        errorMessage = error.localizedDescription
-                    }
+                    serviceError = error.asServiceError
                 }
             }
             if !deletedIDs.isEmpty {

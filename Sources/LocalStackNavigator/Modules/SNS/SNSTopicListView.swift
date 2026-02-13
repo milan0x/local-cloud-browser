@@ -306,7 +306,7 @@ struct SNSTopicListView: View {
                 let count = Int(attrs["SubscriptionsConfirmed"] ?? "") ?? 0
                 subscriptionCounts[topic.topicArn] = count
             } catch {
-                // Silently skip — counts are supplementary
+                Log.warn("Failed to fetch subscription count for \(topic.topicName): \(error.localizedDescription)", category: "SNS")
             }
         }
     }
@@ -319,12 +319,7 @@ struct SNSTopicListView: View {
                     try await service.deleteTopic(topicArn: topic.topicArn)
                     deletedIDs.insert(topic.id)
                 } catch {
-                    if let clientError = error as? LocalStackClientError,
-                       let parsed = clientError.serviceError {
-                        serviceError = parsed
-                    } else {
-                        errorMessage = error.localizedDescription
-                    }
+                    serviceError = error.asServiceError
                 }
             }
             if !deletedIDs.isEmpty {

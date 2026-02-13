@@ -14,7 +14,7 @@ private struct ServiceErrorAlertModifier: ViewModifier {
         ) { _ in
             Button("OK", role: .cancel) {}
         } message: { serviceError in
-            Text(serviceError.message)
+            Text(serviceError.friendlyMessage)
         }
     }
 }

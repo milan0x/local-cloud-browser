@@ -6,6 +6,33 @@ struct ServiceError: Identifiable {
     let code: String
     let message: String
 
+    /// Returns a user-friendly message for common AWS error codes,
+    /// falling back to the raw `message` for unrecognized codes.
+    var friendlyMessage: String {
+        switch code {
+        case "BucketNotEmpty":
+            return "The bucket is not empty. Delete all objects first or use Force Delete."
+        case "BucketAlreadyOwnedByYou", "BucketAlreadyExists":
+            return "A bucket with this name already exists."
+        case "NoSuchBucket":
+            return "This bucket no longer exists. It may have been deleted."
+        case "NoSuchKey":
+            return "This object no longer exists. It may have been deleted or moved."
+        case "QueueDoesNotExist":
+            return "This queue no longer exists. It may have been deleted."
+        case "QueueAlreadyExists":
+            return "A queue with this name already exists with different attributes."
+        case "NotFound":
+            return "The requested resource was not found."
+        case "InvalidParameterValue":
+            return "One or more parameter values are invalid. Check your input and try again."
+        case "AccessDenied":
+            return "Access denied. Check your LocalStack configuration."
+        default:
+            return message
+        }
+    }
+
     /// Attempts to parse an AWS-style error response (XML or JSON).
     ///
     /// XML format:
@@ -76,5 +103,19 @@ private final class ErrorXMLParser: NSObject, XMLParserDelegate {
             break
         }
         currentElement = nil
+    }
+}
+
+// MARK: - Error Extraction Helper
+
+extension Error {
+    /// Extracts a `ServiceError` from any error, unwrapping `LocalStackClientError`
+    /// if present, or falling back to a generic error with `localizedDescription`.
+    var asServiceError: ServiceError {
+        if let clientError = self as? LocalStackClientError,
+           let parsed = clientError.serviceError {
+            return parsed
+        }
+        return ServiceError(code: "Error", message: localizedDescription)
     }
 }
