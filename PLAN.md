@@ -43,7 +43,8 @@
 - [x] Parent directory `..` row pinned at top when inside subfolders
 - [x] Default sort order: date descending (newest first)
 - [x] Folder picker (Browse...): revamped to mirror browser Table layout with files greyed out, clickable destination bar
-- [x] Search & filter: reusable `SearchBarView` component, current-folder filter with extension matching, fixed-width bar (no layout shift)
+- [x] Search & filter: reusable `SearchBarView` component, current-folder filter with extension matching, fixed-width bar (no layout shift). Search clears selection to prevent accidental deletion of hidden (filtered-out) items.
+- [x] Status bar selection count: shows "(N selected)" next to item count when 2+ items selected (excludes `..` parent row). Applied to both S3 object browser and SQS message browser.
 - [x] Bucket list header rearranged: + button (white, before refresh menu), trash always visible (disabled until selection), pane widened to 260pt
 - [x] Delete dialogs: native macOS `.alert()` for all deletes (objects, folders, buckets), multi-delete lists items on separate lines
 - [x] Right-click context menus on empty areas: "Create Folder" + "Upload File" in empty object browser, "Create Bucket" in empty bucket list

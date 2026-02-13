@@ -314,6 +314,11 @@ struct SQSMessageBrowserView: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
+            if selectedMessageIDs.count > 1 {
+                Text("(\(selectedMessageIDs.count) selected)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Spacer()
             if isLoading {
                 ProgressView()
