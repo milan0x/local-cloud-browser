@@ -39,6 +39,8 @@ struct JSONHelperParser {
             - "swift"
         """
 
+    static let defaultJSON = parse(defaultExample).json
+
     static func parse(_ input: String) -> ParseResult {
         do {
             let lines = tokenize(input)
@@ -325,5 +327,192 @@ struct JSONHelperParser {
             }
         }
         return result
+    }
+
+    // MARK: - Reverse parser (JSON → Helper format)
+
+    static func fromJSON(_ json: String) -> String? {
+        let trimmed = json.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        var scanner = JSONScanner(trimmed)
+        guard let value = scanner.scanValue(), case .object = value else { return nil }
+        return renderHelper(value, indent: 0)
+    }
+
+    private static func renderHelper(_ node: JSONValue, indent: Int) -> String {
+        let pad = String(repeating: " ", count: indent)
+        guard case .object(let pairs) = node else { return "" }
+
+        return pairs.map { key, value in
+            switch value {
+            case .string(let s):
+                return "\(pad)\(key) \"\(escapeJSON(s))\""
+            case .number(let n):
+                return "\(pad)\(key) \(n)"
+            case .bool(let b):
+                return "\(pad)\(key) \(b)"
+            case .null:
+                return "\(pad)\(key) null"
+            case .object:
+                return "\(pad)\(key)\n\(renderHelper(value, indent: indent + 4))"
+            case .array(let items):
+                let lines = items.map { item -> String in
+                    switch item {
+                    case .string(let s):
+                        return "\(pad)    - \"\(escapeJSON(s))\""
+                    case .number(let n):
+                        return "\(pad)    - \(n)"
+                    case .bool(let b):
+                        return "\(pad)    - \(b)"
+                    case .null:
+                        return "\(pad)    - null"
+                    case .object:
+                        return "\(pad)    -\n\(renderHelper(item, indent: indent + 8))"
+                    case .array:
+                        return ""
+                    }
+                }
+                return "\(pad)\(key)\n\(lines.joined(separator: "\n"))"
+            }
+        }.joined(separator: "\n")
+    }
+
+    // Minimal ordered JSON parser — preserves key order unlike JSONSerialization
+    private struct JSONScanner {
+        let chars: [Character]
+        var i: Int
+
+        init(_ string: String) {
+            chars = Array(string)
+            i = 0
+        }
+
+        mutating func scanValue() -> JSONValue? {
+            skipWS()
+            guard i < chars.count else { return nil }
+            switch chars[i] {
+            case "{": return scanObject()
+            case "[": return scanArray()
+            case "\"": return scanString().map { .string($0) }
+            case "t", "f": return scanBool()
+            case "n": return scanNull()
+            default: return scanNumber()
+            }
+        }
+
+        private mutating func skipWS() {
+            while i < chars.count && chars[i].isWhitespace { i += 1 }
+        }
+
+        private mutating func scanObject() -> JSONValue? {
+            guard i < chars.count && chars[i] == "{" else { return nil }
+            i += 1
+            skipWS()
+            var pairs: [(String, JSONValue)] = []
+            if i < chars.count && chars[i] == "}" { i += 1; return .object(pairs) }
+            while true {
+                skipWS()
+                guard let key = scanString() else { return nil }
+                skipWS()
+                guard i < chars.count && chars[i] == ":" else { return nil }
+                i += 1
+                guard let value = scanValue() else { return nil }
+                pairs.append((key, value))
+                skipWS()
+                guard i < chars.count else { return nil }
+                if chars[i] == "}" { i += 1; return .object(pairs) }
+                if chars[i] == "," { i += 1; continue }
+                return nil
+            }
+        }
+
+        private mutating func scanArray() -> JSONValue? {
+            guard i < chars.count && chars[i] == "[" else { return nil }
+            i += 1
+            skipWS()
+            var items: [JSONValue] = []
+            if i < chars.count && chars[i] == "]" { i += 1; return .array(items) }
+            while true {
+                guard let value = scanValue() else { return nil }
+                items.append(value)
+                skipWS()
+                guard i < chars.count else { return nil }
+                if chars[i] == "]" { i += 1; return .array(items) }
+                if chars[i] == "," { i += 1; continue }
+                return nil
+            }
+        }
+
+        private mutating func scanString() -> String? {
+            skipWS()
+            guard i < chars.count && chars[i] == "\"" else { return nil }
+            i += 1
+            var result = ""
+            while i < chars.count && chars[i] != "\"" {
+                if chars[i] == "\\" {
+                    i += 1
+                    guard i < chars.count else { return nil }
+                    switch chars[i] {
+                    case "\"": result.append("\"")
+                    case "\\": result.append("\\")
+                    case "/": result.append("/")
+                    case "n": result.append("\n")
+                    case "t": result.append("\t")
+                    case "r": result.append("\r")
+                    case "b": result.append("\u{08}")
+                    case "f": result.append("\u{0C}")
+                    case "u":
+                        i += 1
+                        guard i + 3 < chars.count else { return nil }
+                        let hex = String(chars[i...i+3])
+                        guard let code = UInt32(hex, radix: 16),
+                              let scalar = Unicode.Scalar(code) else { return nil }
+                        result.append(Character(scalar))
+                        i += 3
+                    default: result.append(chars[i])
+                    }
+                } else {
+                    result.append(chars[i])
+                }
+                i += 1
+            }
+            guard i < chars.count && chars[i] == "\"" else { return nil }
+            i += 1
+            return result
+        }
+
+        private mutating func scanNumber() -> JSONValue? {
+            let start = i
+            if i < chars.count && chars[i] == "-" { i += 1 }
+            while i < chars.count && chars[i].isNumber { i += 1 }
+            if i < chars.count && chars[i] == "." {
+                i += 1
+                while i < chars.count && chars[i].isNumber { i += 1 }
+            }
+            if i < chars.count && (chars[i] == "e" || chars[i] == "E") {
+                i += 1
+                if i < chars.count && (chars[i] == "+" || chars[i] == "-") { i += 1 }
+                while i < chars.count && chars[i].isNumber { i += 1 }
+            }
+            guard i > start else { return nil }
+            return .number(String(chars[start..<i]))
+        }
+
+        private mutating func scanBool() -> JSONValue? {
+            if i + 4 <= chars.count && String(chars[i..<i+4]) == "true" {
+                i += 4; return .bool(true)
+            }
+            if i + 5 <= chars.count && String(chars[i..<i+5]) == "false" {
+                i += 5; return .bool(false)
+            }
+            return nil
+        }
+
+        private mutating func scanNull() -> JSONValue? {
+            if i + 4 <= chars.count && String(chars[i..<i+4]) == "null" {
+                i += 4; return .null
+            }
+            return nil
+        }
     }
 }
