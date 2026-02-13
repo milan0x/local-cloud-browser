@@ -87,6 +87,9 @@ struct S3ObjectBrowserView: View {
 
     // Search & filter
     @State private var searchQuery = ""
+    @State private var allPageObjects: [S3Object]?
+    @State private var allPagePrefixes: [S3Prefix]?
+    @State private var isLoadingAllPages = false
 
     // Navigation history
     @State private var navigationHistory: [[String]] = [[]]
@@ -243,6 +246,12 @@ struct S3ObjectBrowserView: View {
         .onChange(of: searchQuery) {
             if !searchQuery.isEmpty {
                 selectedRowIDs = []
+                if isTruncated && allPageObjects == nil && !isLoadingAllPages {
+                    fetchAllPages()
+                }
+            } else {
+                allPageObjects = nil
+                allPagePrefixes = nil
             }
         }
         .overlay {
@@ -552,6 +561,9 @@ struct S3ObjectBrowserView: View {
         if isSearchActive {
             let filtered = filteredRowItems.count
             let total = rowItems.count
+            if isLoadingAllPages {
+                return "Searching all pages..."
+            }
             return "\(filtered) of \(total) items"
         }
         return "\(rowItems.count) items"
@@ -563,9 +575,15 @@ struct S3ObjectBrowserView: View {
 
     private var statusBar: some View {
         HStack {
-            Text(statusBarText)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            HStack(spacing: 4) {
+                if isLoadingAllPages {
+                    ProgressView()
+                        .controlSize(.mini)
+                }
+                Text(statusBarText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             if selectionCount > 1 {
                 Text("(\(selectionCount) selected)")
                     .font(.caption)
@@ -584,7 +602,7 @@ struct S3ObjectBrowserView: View {
                 }
             }
 
-            if isTruncated || currentPage > 1 {
+            if !isSearchActive && (isTruncated || currentPage > 1) {
                 Spacer()
 
                 HStack(spacing: 12) {
@@ -1058,7 +1076,9 @@ struct S3ObjectBrowserView: View {
     }
 
     private var rowItems: [RowItem] {
-        let folderRows = prefixes.map { prefix in
+        let activePrefixes = allPagePrefixes ?? prefixes
+        let activeObjects = allPageObjects ?? objects
+        let folderRows = activePrefixes.map { prefix in
             RowItem(
                 id: prefix.prefix,
                 name: prefix.displayName,
@@ -1072,7 +1092,7 @@ struct S3ObjectBrowserView: View {
                 icon: S3FileKind.icon(for: prefix.displayName, isFolder: true)
             )
         }
-        let objectRows = objects.filter { $0.key != currentPrefix }.map { obj in
+        let objectRows = activeObjects.filter { $0.key != currentPrefix }.map { obj in
             RowItem(
                 id: obj.key,
                 name: obj.displayName,
@@ -1621,6 +1641,25 @@ struct S3ObjectBrowserView: View {
 
     private func clearSearch() {
         searchQuery = ""
+        allPageObjects = nil
+        allPagePrefixes = nil
+    }
+
+    private func fetchAllPages() {
+        isLoadingAllPages = true
+        Task {
+            do {
+                let result = try await service.listAllFolderContents(bucket: bucket.name, prefix: currentPrefix)
+                // Only apply if search is still active
+                if isSearchActive {
+                    allPageObjects = result.objects
+                    allPagePrefixes = result.prefixes
+                }
+            } catch {
+                // Silently fail — search falls back to current page data
+            }
+            isLoadingAllPages = false
+        }
     }
 
     // MARK: - Navigation History
