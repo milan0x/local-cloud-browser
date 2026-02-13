@@ -7,14 +7,18 @@ import SwiftUI
 ///
 /// Usage: `TextEditor(text: $body).disableSmartSubstitutions()`
 extension View {
-    func disableSmartSubstitutions() -> some View {
-        background(SmartSubstitutionsFixer())
+    func disableSmartSubstitutions(textContainerInset: NSSize? = nil) -> some View {
+        background(SmartSubstitutionsFixer(textContainerInset: textContainerInset))
     }
 }
 
 private struct SmartSubstitutionsFixer: NSViewRepresentable {
+    let textContainerInset: NSSize?
+
     func makeNSView(context: Context) -> NSView {
-        FixerView()
+        let view = FixerView()
+        view.textContainerInset = textContainerInset
+        return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {}
@@ -22,6 +26,7 @@ private struct SmartSubstitutionsFixer: NSViewRepresentable {
 
 private class FixerView: NSView {
     private var observer: NSObjectProtocol?
+    var textContainerInset: NSSize?
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
@@ -68,6 +73,9 @@ private class FixerView: NSView {
             guard let view = ancestor else { return }
             if let textView = Self.findTextView(in: view) {
                 Self.disableSubstitutions(on: textView)
+                if let inset = textContainerInset {
+                    textView.textContainerInset = inset
+                }
                 return
             }
             ancestor = view.superview
