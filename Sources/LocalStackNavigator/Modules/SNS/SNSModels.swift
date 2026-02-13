@@ -71,6 +71,15 @@ struct SNSSubscription: Identifiable, Hashable {
         return String(subscriptionArn.prefix(12)) + "..." + String(subscriptionArn.suffix(6))
     }
 
+    func getAttributesCLI(endpointUrl: String, region: String) -> String {
+        [
+            "aws sns get-subscription-attributes \\",
+            "  --subscription-arn \(subscriptionArn) \\",
+            "  --endpoint-url \(endpointUrl) \\",
+            "  --region \(region)"
+        ].joined(separator: "\n")
+    }
+
     var truncatedEndpoint: String {
         if endpoint.count <= 50 {
             return endpoint
