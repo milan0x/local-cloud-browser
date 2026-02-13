@@ -151,6 +151,7 @@
 - [x] Message body header fixed height: `.frame(height: 18, alignment: .leading)` on the HStack — prevents layout shift when body type badges (JSON/XML/Text, Valid/Invalid) conditionally appear as user types. Without this, badge appearance changed header height and pushed section content up/down.
 - [x] Modal height increased from 580 to 650 (non-JSON-helper mode) so the "Save as Quick Message" section is visible without scrolling.
 - [x] `DisableSmartSubstitutions` extended with optional `textContainerInset: NSSize?` parameter — sets `NSTextView.textContainerInset` during initial configuration. Default nil preserves existing behavior.
+- [x] "Read-Only" badge restyled: orange text on light orange background (`Color.orange.opacity(0.25)`) for better visibility when JSON Helper is active. Previously gray/secondary which was too subtle.
 
 ## Phase 4: SNS Module
 - [ ] List topics view

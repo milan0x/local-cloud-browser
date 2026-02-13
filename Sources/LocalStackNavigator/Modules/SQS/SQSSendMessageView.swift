@@ -204,8 +204,8 @@ struct SQSSendMessageView: View {
                     .fontWeight(.semibold)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color.gray.opacity(0.15), in: Capsule())
-                    .foregroundStyle(.secondary)
+                    .background(Color.orange.opacity(0.25), in: Capsule())
+                    .foregroundStyle(.orange)
             }
         }
         .frame(height: 18, alignment: .leading)
