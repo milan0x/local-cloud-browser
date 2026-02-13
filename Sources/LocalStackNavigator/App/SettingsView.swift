@@ -1,6 +1,31 @@
 import SwiftUI
 
+private enum SettingsTab: String, CaseIterable, Identifiable {
+    case general
+    case s3
+    case sqs
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .general: "General"
+        case .s3: "S3"
+        case .sqs: "SQS"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .general: "gear"
+        case .s3: "externaldrive"
+        case .sqs: "tray.2"
+        }
+    }
+}
+
 struct SettingsView: View {
+    @State private var selectedTab: SettingsTab = .general
     @AppStorage("showFolderDetailsOnDelete") private var showFolderDetailsOnDelete = false
     @AppStorage(AppPreferences.restoreLastSessionKey) private var restoreLastSession = true
     @AppStorage(AppPreferences.doubleClickHidesJsonHelperKey) private var doubleClickHidesJsonHelper = false
@@ -9,13 +34,43 @@ struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
 
     var body: some View {
+        HStack(spacing: 0) {
+            List(SettingsTab.allCases, selection: $selectedTab) { tab in
+                Label(tab.displayName, systemImage: tab.systemImage)
+                    .tag(tab)
+            }
+            .listStyle(.sidebar)
+            .frame(width: 150)
+
+            Divider()
+
+            Group {
+                switch selectedTab {
+                case .general:
+                    generalSettings
+                case .s3:
+                    s3Settings
+                case .sqs:
+                    sqsSettings
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(width: 600, height: 420)
+    }
+
+    // MARK: - General
+
+    private var generalSettings: some View {
         Form {
-            Section("General") {
+            Section("Session") {
                 Toggle("Open where I left off", isOn: $restoreLastSession)
                 Text("Restore the last viewed service, bucket, or queue when the app launches. Switching between services always remembers your selection.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
 
+            Section("Connection") {
                 Picker("Health check interval", selection: $appState.healthCheckInterval) {
                     Text("1 second").tag(1.0)
                     Text("1.5 seconds").tag(1.5)
@@ -28,16 +83,16 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+        }
+        .formStyle(.grouped)
+    }
 
-            Section("S3 Browser") {
-                Toggle("Show folder item count and size before deletion", isOn: $showFolderDetailsOnDelete)
-                Text(
-                    "When enabled, deleting a folder will first list all objects to show the total count and size. This requires additional API calls."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
+    // MARK: - S3
 
-                Picker("Auto-refresh interval", selection: $autoRefresh.interval) {
+    private var s3Settings: some View {
+        Form {
+            Section("Auto-Refresh") {
+                Picker("Refresh interval", selection: $autoRefresh.interval) {
                     Text("Off").tag(0)
                     Text("1 second").tag(1)
                     Text("3 seconds").tag(3)
@@ -48,28 +103,39 @@ struct SettingsView: View {
                 }
             }
 
-            Section("SQS") {
-                Toggle("Disable placeholders in Send Message", isOn: $disableSQSPlaceholders)
+            Section("Quick Look") {
+                Stepper("Preview size limit: \(appState.previewSizeLimitMB) MB", value: $appState.previewSizeLimitMB, in: 1...50)
+                Text("Files larger than this will prompt before downloading. Files over 300 MB cannot be previewed.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Folders") {
+                Toggle("Show item count and size before deletion", isOn: $showFolderDetailsOnDelete)
+                Text("When enabled, deleting a folder will first list all objects to show the total count and size. This requires additional API calls.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    // MARK: - SQS
+
+    private var sqsSettings: some View {
+        Form {
+            Section("Send Message") {
+                Toggle("Disable placeholders", isOn: $disableSQSPlaceholders)
                 Text("Hides placeholder text in the message body and JSON Helper editors.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Toggle("Double-click message body to close JSON Helper", isOn: $doubleClickHidesJsonHelper)
+                Toggle("Double-click body to close JSON Helper", isOn: $doubleClickHidesJsonHelper)
                 Text("When enabled, double-clicking the message body in the send message dialog will close the JSON Helper and let you edit the body directly.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-
-            Section("Quick Look Preview") {
-                Stepper("Preview size limit: \(appState.previewSizeLimitMB) MB", value: $appState.previewSizeLimitMB, in: 1...50)
-                Text(
-                    "Files larger than this will prompt before downloading. Files over 300 MB cannot be previewed."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
         }
         .formStyle(.grouped)
-        .frame(width: 450)
     }
 }

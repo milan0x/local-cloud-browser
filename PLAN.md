@@ -165,6 +165,7 @@
 ## Phase 6: Settings & Polish
 - [x] Settings UI (endpoint, region, auto-refresh interval, folder delete details toggle)
 - [x] Persist settings to UserDefaults
+- [x] Sidebar-style settings: redesigned SettingsView with fixed sidebar (General, S3, SQS tabs) and detail pane. Uses HStack + List(.sidebar) instead of NavigationSplitView to avoid toolbar/collapse controls. General: session restore, health check interval. S3: auto-refresh, Quick Look preview size, folder delete details. SQS: placeholders, double-click JSON Helper.
 - [x] Auto-refresh: reusable `AutoRefreshManager` on `AppState`, internal Task-based timer, `refreshTrigger` pattern
 - [x] Auto-refresh indicator in S3 breadcrumb bar (countdown only)
 - [x] Auto-refresh indicator click target expansion: added `.padding(.horizontal, 4)` + `.padding(.vertical, 2)` + `.contentShape(Rectangle())` inside the button label so the entire padded area is clickable, not just the icon and text pixels
