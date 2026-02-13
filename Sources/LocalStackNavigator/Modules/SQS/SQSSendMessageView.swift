@@ -19,6 +19,8 @@ struct SQSSendMessageView: View {
     @State private var showJsonHelper = false
     @State private var jsonHelperText = ""
     @State private var jsonHelperParseError: String?
+    @AppStorage("hasUsedJsonHelper") private var hasUsedJsonHelper = false
+    @State private var showExamplePopover = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -129,8 +131,9 @@ struct SQSSendMessageView: View {
             }
         }
         .onChange(of: showJsonHelper) {
-            if showJsonHelper && jsonHelperText.isEmpty {
+            if showJsonHelper && !hasUsedJsonHelper {
                 jsonHelperText = JSONHelperParser.defaultExample
+                hasUsedJsonHelper = true
             }
         }
     }
@@ -177,6 +180,22 @@ struct SQSSendMessageView: View {
     @ViewBuilder
     private var jsonHelperSection: some View {
         HStack {
+            if showJsonHelper {
+                Button {
+                    if jsonHelperText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        jsonHelperText = JSONHelperParser.defaultExample
+                    } else {
+                        showExamplePopover.toggle()
+                    }
+                } label: {
+                    Label("Example Data", systemImage: "text.badge.star")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+                .popover(isPresented: $showExamplePopover) {
+                    syntaxReferencePopover
+                }
+            }
             Spacer()
             Button {
                 showJsonHelper.toggle()
@@ -188,10 +207,8 @@ struct SQSSendMessageView: View {
         }
 
         if showJsonHelper {
-            TextEditor(text: $jsonHelperText)
-                .font(.system(.body, design: .monospaced))
+            CodeTextEditor(text: $jsonHelperText)
                 .frame(minHeight: 180)
-                .disableSmartSubstitutions()
 
             if let error = jsonHelperParseError {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
@@ -199,6 +216,57 @@ struct SQSSendMessageView: View {
                     .foregroundStyle(.red)
             }
         }
+    }
+
+    @ViewBuilder
+    private var syntaxReferencePopover: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Syntax Reference")
+                .font(.headline)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Group {
+                    Text("key \"string\"      \u{2192} string")
+                    Text("key 42            \u{2192} number")
+                    Text("key true/false    \u{2192} boolean")
+                    Text("key null          \u{2192} null")
+                    Text("key               \u{2192} nested object")
+                    Text("    child \"val\"     (indent children)")
+                    Text("    - \"item\"      \u{2192} array")
+                }
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.secondary)
+            }
+
+            Divider()
+
+            Text("Example")
+                .font(.subheadline)
+                .fontWeight(.medium)
+
+            Text("""
+                name "John Doe"
+                age 30
+                active true
+                address
+                    city "New York"
+                tags
+                    - "swift"
+                """)
+                .font(.system(.caption, design: .monospaced))
+
+            HStack {
+                Spacer()
+                Button("Fill Example Data") {
+                    jsonHelperText = JSONHelperParser.defaultExample
+                    showExamplePopover = false
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+        }
+        .padding()
+        .frame(width: 300)
     }
 
     private var isBodyNonEmpty: Bool {

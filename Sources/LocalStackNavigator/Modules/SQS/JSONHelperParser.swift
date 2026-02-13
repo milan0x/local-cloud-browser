@@ -34,11 +34,9 @@ struct JSONHelperParser {
         age 30
         active true
         address
-            street "123 Main St"
             city "New York"
         tags
             - "swift"
-            - "swiftui"
         """
 
     static func parse(_ input: String) -> ParseResult {
