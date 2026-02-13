@@ -4,6 +4,7 @@ struct SettingsView: View {
     @AppStorage("showFolderDetailsOnDelete") private var showFolderDetailsOnDelete = false
     @AppStorage(AppPreferences.restoreLastSessionKey) private var restoreLastSession = true
     @AppStorage(AppPreferences.doubleClickHidesJsonHelperKey) private var doubleClickHidesJsonHelper = false
+    @AppStorage(AppPreferences.disableSQSPlaceholdersKey) private var disableSQSPlaceholders = false
     @EnvironmentObject private var autoRefresh: AutoRefreshManager
     @EnvironmentObject private var appState: AppState
 
@@ -48,6 +49,11 @@ struct SettingsView: View {
             }
 
             Section("SQS") {
+                Toggle("Disable placeholders in Send Message", isOn: $disableSQSPlaceholders)
+                Text("Hides placeholder text in the message body and JSON Helper editors.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 Toggle("Double-click message body to close JSON Helper", isOn: $doubleClickHidesJsonHelper)
                 Text("When enabled, double-clicking the message body in the send message dialog will close the JSON Helper and let you edit the body directly.")
                     .font(.caption)
