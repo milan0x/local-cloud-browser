@@ -23,7 +23,6 @@ struct SQSSendMessageView: View {
     @AppStorage(AppPreferences.doubleClickHidesJsonHelperKey) private var doubleClickHidesJsonHelper = false
     @AppStorage(AppPreferences.disableSQSPlaceholdersKey) private var disablePlaceholders = false
     @State private var showExamplePopover = false
-    @FocusState private var isMessageBodyFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -60,13 +59,7 @@ struct SQSSendMessageView: View {
 
                 Section {
                     ZStack(alignment: .topLeading) {
-                        TextEditor(text: $messageBody)
-                            .font(.system(.body, design: .monospaced))
-                            .scrollContentBackground(.hidden)
-                            .padding(EdgeInsets(top: 10, leading: 6, bottom: 6, trailing: 6))
-                            .disableSmartSubstitutions()
-                            .focused($isMessageBodyFocused)
-                            .disabled(showJsonHelper)
+                        CodeTextEditor(text: $messageBody, isEditable: !showJsonHelper)
                             .opacity(showJsonHelper ? 0.7 : 1.0)
                         if messageBody.isEmpty && showJsonHelper && !disablePlaceholders {
                             Text(JSONHelperParser.defaultJSON)
@@ -81,9 +74,6 @@ struct SQSSendMessageView: View {
                                 .contentShape(Rectangle())
                                 .onTapGesture(count: 2) {
                                     showJsonHelper = false
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                                        isMessageBodyFocused = true
-                                    }
                                 }
                         }
                     }
