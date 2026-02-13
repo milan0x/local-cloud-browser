@@ -437,7 +437,7 @@ private struct PaneClickDetector: NSViewRepresentable {
             monitor = nil
             guard window != nil else { return }
             monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
-                guard let self else { return event }
+                guard let self, event.window == self.window else { return event }
                 let pointInSelf = self.convert(event.locationInWindow, from: nil)
                 if self.bounds.contains(pointInSelf) {
                     self.onClick?()
