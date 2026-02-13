@@ -12,6 +12,40 @@ struct SQSQueue: Identifiable, Hashable {
     var isFifo: Bool {
         queueName.hasSuffix(".fifo")
     }
+
+    func sendMessageCLI(endpointUrl: String, region: String) -> String {
+        var lines = [
+            "aws sqs send-message \\",
+            "  --queue-url \(queueUrl) \\",
+            "  --message-body '<message body>' \\"
+        ]
+        if isFifo {
+            lines.append("  --message-group-id '<group-id>' \\")
+        }
+        lines.append("  --endpoint-url \(endpointUrl) \\")
+        lines.append("  --region \(region)")
+        return lines.joined(separator: "\n")
+    }
+
+    func receiveMessageCLI(endpointUrl: String, region: String) -> String {
+        [
+            "aws sqs receive-message \\",
+            "  --queue-url \(queueUrl) \\",
+            "  --max-number-of-messages 1 \\",
+            "  --endpoint-url \(endpointUrl) \\",
+            "  --region \(region)"
+        ].joined(separator: "\n")
+    }
+
+    func getAttributesCLI(endpointUrl: String, region: String) -> String {
+        [
+            "aws sqs get-queue-attributes \\",
+            "  --queue-url \(queueUrl) \\",
+            "  --attribute-names All \\",
+            "  --endpoint-url \(endpointUrl) \\",
+            "  --region \(region)"
+        ].joined(separator: "\n")
+    }
 }
 
 struct SQSQueueAttributes {
@@ -138,4 +172,25 @@ struct SQSMessage: Identifiable, Hashable {
             return String(format: "%.1f KB", kb)
         }
     }
+
+    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
+    private static func shellEscape(_ s: String) -> String {
+        s.replacingOccurrences(of: "'", with: "'\\''")
+    }
+
+    func toAWSCLI(queueUrl: String, endpointUrl: String, region: String) -> String {
+        var lines = [
+            "aws sqs send-message \\",
+            "  --queue-url \(queueUrl) \\",
+            "  --message-body '\(Self.shellEscape(body))' \\"
+        ]
+        if let groupId = messageGroupId {
+            lines.append("  --message-group-id '\(Self.shellEscape(groupId))' \\")
+        }
+        lines.append("  --endpoint-url \(endpointUrl) \\")
+        lines.append("  --region \(region)")
+        return lines.joined(separator: "\n")
+    }
+
+
 }

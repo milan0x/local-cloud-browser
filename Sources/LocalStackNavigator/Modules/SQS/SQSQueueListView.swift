@@ -217,6 +217,17 @@ struct SQSQueueListView: View {
                     Divider()
                     Button("Copy Queue URL") { copyToClipboard(queue.queueUrl) }
                     Button("Copy Queue Name") { copyToClipboard(queue.queueName) }
+                    Menu("Copy as AWS CLI") {
+                        Button("Send Message") {
+                            copyToClipboard(queue.sendMessageCLI(endpointUrl: appState.endpoint, region: appState.region))
+                        }
+                        Button("Receive Message") {
+                            copyToClipboard(queue.receiveMessageCLI(endpointUrl: appState.endpoint, region: appState.region))
+                        }
+                        Button("Get Attributes") {
+                            copyToClipboard(queue.getAttributesCLI(endpointUrl: appState.endpoint, region: appState.region))
+                        }
+                    }
                     Divider()
                     Button("Create Queue") {
                         showCreateSheet = true
