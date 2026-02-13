@@ -360,8 +360,25 @@ struct SQSSendMessageView: View {
 
     private func prefillName() {
         let trimmed = messageBody.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmed.isEmpty {
-            quickMessageName = String(trimmed.prefix(SavedSQSFavorite.maxNameLength))
+        guard !trimmed.isEmpty else { return }
+
+        // For JSON bodies, try to extract a short descriptive value from common keys
+        if trimmed.hasPrefix("{"),
+           let data = trimmed.data(using: .utf8),
+           let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            let descriptiveKeys = ["type", "event", "action", "name", "command", "method", "subject", "title", "id"]
+            for key in descriptiveKeys {
+                if let value = obj[key] as? String, !value.isEmpty {
+                    quickMessageName = String(value.prefix(SavedSQSFavorite.maxNameLength))
+                    return
+                }
+            }
+        }
+
+        // Fallback: use the queue's short name
+        let queueName = queue.queueUrl.split(separator: "/").last.map(String.init) ?? ""
+        if !queueName.isEmpty {
+            quickMessageName = String(queueName.prefix(SavedSQSFavorite.maxNameLength))
         }
     }
 
