@@ -96,7 +96,7 @@ struct SQSMessageDetailView: View {
         // Try to pretty-print JSON
         guard let data = message.body.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data),
-              let pretty = try? JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys]),
+              let pretty = try? JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .withoutEscapingSlashes]),
               let formatted = String(data: pretty, encoding: .utf8) else {
             return message.body
         }

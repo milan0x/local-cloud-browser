@@ -197,7 +197,7 @@ struct SQSMessageBrowserView: View {
                 .customizationID("messageId")
 
                 TableColumn("Body") { msg in
-                    Text(msg.body.prefix(100).replacingOccurrences(of: "\n", with: " "))
+                    Text(bodyPreview(msg.body))
                         .lineLimit(1)
                         .help(msg.body.prefix(500))
                 }
@@ -288,7 +288,7 @@ struct SQSMessageBrowserView: View {
                             Image(systemName: "doc.on.doc")
                         }
                         .buttonStyle(.borderless)
-                        .help("Copy Body")
+                        .help("Copy Message Body")
 
                         Button(role: .destructive) {
                             messagesToDelete = [msg]
@@ -311,7 +311,16 @@ struct SQSMessageBrowserView: View {
                     }
                     Divider()
                     Button("Copy Message ID") { copyToClipboard(msg.messageId) }
-                    Button("Copy Body") { copyToClipboard(msg.body) }
+                    Button("Copy Message Body") { copyToClipboard(msg.body) }
+                    if selection.count <= 1 {
+                        Button("Copy as AWS CLI") {
+                            copyToClipboard(msg.toAWSCLI(
+                                queueUrl: queue.queueUrl,
+                                endpointUrl: appState.endpoint,
+                                region: appState.region
+                            ))
+                        }
+                    }
                     Divider()
                     if selection.count > 1 {
                         let selected = messages.filter { selection.contains($0.id) }
@@ -498,6 +507,13 @@ struct SQSMessageBrowserView: View {
     private func copyToClipboard(_ string: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(string, forType: .string)
+    }
+
+    private func bodyPreview(_ body: String) -> String {
+        body.prefix(200)
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .joined(separator: " ")
     }
 
     private func bodyTypeBadgeColor(_ type: String) -> Color {
