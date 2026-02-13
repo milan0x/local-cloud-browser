@@ -31,17 +31,17 @@ struct ContentView: View {
     @ViewBuilder
     private var regionBadge: some View {
         if isGlobalService {
-            HStack(spacing: 4) {
-                Image(systemName: "globe")
-                    .font(.caption)
-                Text("Global")
-                    .font(.caption)
-                    .fontWeight(.medium)
+            Menu { } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "globe")
+                        .font(.caption)
+                    Text("Global")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 5)
-            .background(.quaternary, in: Capsule())
-            .padding(3)
+            .menuStyle(.borderlessButton)
+            .disabled(true)
             .opacity(0.5)
             .help("S3 buckets are global on LocalStack, not region-specific")
         } else {
@@ -68,10 +68,6 @@ struct ContentView: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 5)
-                .background(.quaternary, in: Capsule())
-                .padding(3)
             }
             .menuStyle(.borderlessButton)
             .help("Region: \(appState.region) — Click to change")
