@@ -265,3 +265,14 @@ These are platform-level issues that cannot be worked around cleanly. Documented
 ### Toolbar display mode persistence
 
 `toolbar(id:)` only persists item customization, not display mode. KVO on `NSToolbar.displayMode` via NSViewRepresentable fails because SwiftUI manages the toolbar lifecycle opaquely — the observer never reliably attaches. Would require NSWindowController or full AppKit toolbar ownership. Low priority.
+
+## Future Ideas
+
+### JSON Helper UX improvements (SQS Send Message)
+- **Preserve helper text across sheet opens:** Currently `jsonHelperText` is `@State` — it resets when the sheet is dismissed and reopened. Consider persisting helper text (per queue or globally) so users can iterate on a message structure across multiple send sessions without retyping.
+- **Syntax highlighting:** Color-code keys, string values, numbers, booleans, and array markers (`-`) in the `CodeTextEditor` to make the DSL easier to scan. Could use `NSTextStorage` attributed string updates in `textDidChange`.
+- **Auto-closing quotes:** Typing `"` inserts `""` and places the cursor between them, similar to code editors. Would reduce keystrokes for string-heavy messages.
+- **Line numbers gutter:** Add a line number column to `CodeTextEditor` to help users match parse errors ("Line 5: invalid value") to their input.
+- **Undo across sessions:** The `CodeTextEditor` supports undo within a session (`allowsUndo = true`), but undo history is lost when the sheet closes. If helper text is persisted, consider whether undo history should also persist.
+- **Import from clipboard:** A button to paste clipboard content into the helper area and attempt to reverse-parse JSON → DSL. Complex (requires a JSON-to-DSL converter) but would let users start from existing JSON and tweak it in the simpler format.
+- **Template library:** Beyond the single default example, let users save their own DSL templates (like quick messages but for the helper format). Useful for teams that frequently send messages with the same structure but different values.
