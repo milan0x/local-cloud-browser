@@ -33,6 +33,11 @@ struct CodeTextEditor: NSViewRepresentable {
         scrollView.drawsBackground = false
 
         context.coordinator.textView = textView
+
+        DispatchQueue.main.async {
+            textView.window?.makeFirstResponder(textView)
+        }
+
         return scrollView
     }
 
