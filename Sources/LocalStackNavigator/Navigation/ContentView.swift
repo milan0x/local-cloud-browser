@@ -38,7 +38,7 @@ struct ContentView: View {
                 }
             }
             .disabled(true)
-            .opacity(0.5)
+            .opacity(0.7)
             .help("S3 buckets are global on LocalStack, not region-specific")
         } else {
             Menu {
