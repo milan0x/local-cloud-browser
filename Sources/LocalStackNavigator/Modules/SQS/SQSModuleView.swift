@@ -14,7 +14,7 @@ struct SQSModuleView: View {
     @State private var restoreQueueName: String?
 
     init() {
-        _service = StateObject(wrappedValue: SQSService(client: LocalStackClient(appState: AppState())))
+        _service = StateObject(wrappedValue: SQSService())
         if let saved = LastSessionStore.load() {
             _restoreQueueName = State(initialValue: saved.sqsQueueName)
         }

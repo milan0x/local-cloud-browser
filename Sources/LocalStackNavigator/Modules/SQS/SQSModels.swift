@@ -13,6 +13,16 @@ struct SQSQueue: Identifiable, Hashable {
         queueName.hasSuffix(".fifo")
     }
 
+    /// Derives the ARN from the queue URL: `http://host/<account>/<name>` → `arn:aws:sqs:<region>:<account>:<name>`
+    func queueArn(region: String) -> String? {
+        guard let url = URL(string: queueUrl) else { return nil }
+        let segments = url.pathComponents
+        guard segments.count >= 3 else { return nil }
+        let accountId = segments[segments.count - 2]
+        let name = segments[segments.count - 1]
+        return "arn:aws:sqs:\(region):\(accountId):\(name)"
+    }
+
     func sendMessageCLI(endpointUrl: String, region: String) -> String {
         var lines = [
             "aws sqs send-message \\",

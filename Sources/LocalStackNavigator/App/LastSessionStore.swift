@@ -5,6 +5,7 @@ struct LastSessionState: Codable {
     var s3BucketName: String?
     var s3Path: [String]?
     var sqsQueueName: String?
+    var snsTopicArn: String?
 
     var route: Route? {
         guard let raw = routeRawValue else { return nil }
@@ -53,7 +54,13 @@ enum LastSessionStore {
         save(state)
     }
 
-    /// Clears per-module sub-resource fields (bucket, path, queue) while
+    static func saveSNSTopic(_ arn: String?) {
+        var state = load() ?? LastSessionState()
+        state.snsTopicArn = arn
+        save(state)
+    }
+
+    /// Clears per-module sub-resource fields (bucket, path, queue, topic) while
     /// keeping the route. Called on launch when cross-launch restore is
     /// disabled so modules start fresh. In-session onChange handlers
     /// repopulate these fields as the user makes selections.
@@ -62,6 +69,7 @@ enum LastSessionStore {
         state.s3BucketName = nil
         state.s3Path = nil
         state.sqsQueueName = nil
+        state.snsTopicArn = nil
         save(state)
     }
 }

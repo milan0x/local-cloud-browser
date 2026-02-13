@@ -2,11 +2,7 @@ import Foundation
 
 @MainActor
 final class SQSService: ObservableObject {
-    private var client: LocalStackClient
-
-    init(client: LocalStackClient) {
-        self.client = client
-    }
+    private var client: LocalStackClient!
 
     func updateClient(_ newClient: LocalStackClient) {
         self.client = newClient
