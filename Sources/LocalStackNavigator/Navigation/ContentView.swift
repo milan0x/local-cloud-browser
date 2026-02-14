@@ -76,6 +76,8 @@ struct ContentView: View {
             SecretsManagerModuleView()
         case .dynamodb:
             DynamoDBModuleView()
+        case .ssm:
+            SSMModuleView()
         }
     }
 

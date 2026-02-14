@@ -299,6 +299,38 @@ final class LocalStackClient: ObservableObject {
         return response.data
     }
 
+    // MARK: - SSM Parameter Store (JSON protocol)
+
+    /// Read-only whitelist for SSM actions — these are safe even though they use POST.
+    private static let ssmReadActions: Set<String> = [
+        "DescribeParameters", "GetParameter", "GetParameters",
+        "GetParametersByPath", "ListTagsForResource",
+    ]
+
+    func ssmRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.ssmReadActions.contains(action) {
+            Log.warn("Blocked SSM \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "SSM:\(action)")
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/ssm/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-amz-json-1.1",
+            headers: [
+                "X-Amz-Target": "AmazonSSM.\(action)",
+                "Authorization": auth,
+            ],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
     private static let iso8601DateOnly: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyyMMdd"
