@@ -362,6 +362,37 @@ final class LocalStackClient: ObservableObject {
         return response.data
     }
 
+    // MARK: - EventBridge (JSON protocol)
+
+    /// Read-only whitelist for EventBridge actions — these are safe even though they use POST.
+    private static let eventBridgeReadActions: Set<String> = [
+        "ListEventBuses", "ListRules", "DescribeRule", "ListTargetsByRule", "ListTagsForResource",
+    ]
+
+    func eventBridgeRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.eventBridgeReadActions.contains(action) {
+            Log.warn("Blocked EventBridge \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "EventBridge:\(action)")
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/events/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-amz-json-1.1",
+            headers: [
+                "X-Amz-Target": "AWSEvents.\(action)",
+                "Authorization": auth,
+            ],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
     // MARK: - Lambda (REST API)
 
     /// Read-only whitelist for Lambda actions — Invoke is allowed (runs function but doesn't modify config).
