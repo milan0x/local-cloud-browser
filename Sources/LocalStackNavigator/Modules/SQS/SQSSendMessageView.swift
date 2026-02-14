@@ -21,7 +21,7 @@ struct SQSSendMessageView: View {
     @State private var jsonHelperParseError: String?
     @AppStorage("hasUsedJsonHelper") private var hasUsedJsonHelper = false
     @AppStorage(AppPreferences.doubleClickHidesJsonHelperKey) private var doubleClickHidesJsonHelper = false
-    @AppStorage(AppPreferences.disableSQSPlaceholdersKey) private var disablePlaceholders = false
+    @AppStorage(AppPreferences.disableJsonHelperPlaceholdersKey) private var disablePlaceholders = false
     @State private var showExamplePopover = false
 
     var body: some View {

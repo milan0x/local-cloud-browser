@@ -3,7 +3,6 @@ import SwiftUI
 private enum SettingsTab: String, CaseIterable, Identifiable {
     case general
     case s3
-    case sqs
 
     var id: String { rawValue }
 
@@ -11,7 +10,6 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         switch self {
         case .general: "General"
         case .s3: "S3"
-        case .sqs: "SQS"
         }
     }
 
@@ -19,7 +17,6 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         switch self {
         case .general: "gear"
         case .s3: "externaldrive"
-        case .sqs: "tray.2"
         }
     }
 }
@@ -29,7 +26,7 @@ struct SettingsView: View {
     @AppStorage("showFolderDetailsOnDelete") private var showFolderDetailsOnDelete = false
     @AppStorage(AppPreferences.restoreLastSessionKey) private var restoreLastSession = true
     @AppStorage(AppPreferences.doubleClickHidesJsonHelperKey) private var doubleClickHidesJsonHelper = false
-    @AppStorage(AppPreferences.disableSQSPlaceholdersKey) private var disableSQSPlaceholders = false
+    @AppStorage(AppPreferences.disableJsonHelperPlaceholdersKey) private var disablePlaceholders = false
     @EnvironmentObject private var autoRefresh: AutoRefreshManager
     @EnvironmentObject private var appState: AppState
 
@@ -50,8 +47,6 @@ struct SettingsView: View {
                     generalSettings
                 case .s3:
                     s3Settings
-                case .sqs:
-                    sqsSettings
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -98,6 +93,18 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            Section("JSON Helper") {
+                Toggle("Disable placeholders", isOn: $disablePlaceholders)
+                Text("Hides placeholder text in JSON input editors.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Toggle("Double-click body to close JSON Helper", isOn: $doubleClickHidesJsonHelper)
+                Text("When enabled, double-clicking the read-only editor when the JSON Helper is open will close the helper.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
     }
@@ -116,25 +123,6 @@ struct SettingsView: View {
             Section("Folders") {
                 Toggle("Show item count and size before deletion", isOn: $showFolderDetailsOnDelete)
                 Text("When enabled, deleting a folder will first list all objects to show the total count and size. This requires additional API calls.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .formStyle(.grouped)
-    }
-
-    // MARK: - SQS
-
-    private var sqsSettings: some View {
-        Form {
-            Section("Send Message") {
-                Toggle("Disable placeholders", isOn: $disableSQSPlaceholders)
-                Text("Hides placeholder text in the message body and JSON Helper editors.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Toggle("Double-click body to close JSON Helper", isOn: $doubleClickHidesJsonHelper)
-                Text("When enabled, double-clicking the message body in the send message dialog will close the JSON Helper and let you edit the body directly.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
