@@ -78,6 +78,10 @@ struct ContentView: View {
             DynamoDBModuleView()
         case .ssm:
             SSMModuleView()
+        case .lambda:
+            LambdaModuleView()
+        case .cloudwatchLogs:
+            CloudWatchLogsModuleView()
         }
     }
 

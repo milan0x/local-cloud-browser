@@ -331,6 +331,72 @@ final class LocalStackClient: ObservableObject {
         return response.data
     }
 
+    // MARK: - CloudWatch Logs (JSON protocol)
+
+    /// Read-only whitelist for CloudWatch Logs actions — these are safe even though they use POST.
+    private static let cloudWatchLogsReadActions: Set<String> = [
+        "DescribeLogGroups", "DescribeLogStreams", "GetLogEvents", "FilterLogEvents",
+    ]
+
+    func cloudWatchLogsRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.cloudWatchLogsReadActions.contains(action) {
+            Log.warn("Blocked CloudWatchLogs \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "CloudWatchLogs:\(action)")
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/logs/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-amz-json-1.1",
+            headers: [
+                "X-Amz-Target": "Logs_20140328.\(action)",
+                "Authorization": auth,
+            ],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
+    // MARK: - Lambda (REST API)
+
+    /// Read-only whitelist for Lambda actions — Invoke is allowed (runs function but doesn't modify config).
+    private static let lambdaReadActions: Set<String> = [
+        "ListFunctions", "GetFunction", "GetFunctionConfiguration", "Invoke",
+    ]
+
+    func lambdaRequest(
+        action: String,
+        method: String,
+        path: String,
+        body: Data? = nil
+    ) async throws -> HTTPResponse {
+        if appState.isReadOnly && !Self.lambdaReadActions.contains(action) {
+            Log.warn("Blocked Lambda \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "Lambda:\(action)")
+        }
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/lambda/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        var headers = ["Authorization": auth]
+        if body != nil {
+            headers["Content-Type"] = "application/json"
+        }
+        return try await executeRequest(
+            method: method,
+            path: "/2015-03-31" + path,
+            queryParams: [:],
+            body: body,
+            contentType: body != nil ? "application/json" : nil,
+            headers: headers,
+            skipReadOnlyCheck: true
+        )
+    }
+
     private static let iso8601DateOnly: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyyMMdd"

@@ -7,6 +7,8 @@ enum Route: String, CaseIterable, Identifiable {
     case secretsManager
     case dynamodb
     case ssm
+    case lambda
+    case cloudwatchLogs
 
     var id: String { rawValue }
 
@@ -18,6 +20,8 @@ enum Route: String, CaseIterable, Identifiable {
         case .secretsManager: "Secrets Manager"
         case .dynamodb: "DynamoDB"
         case .ssm: "Parameter Store"
+        case .lambda: "Lambda"
+        case .cloudwatchLogs: "CloudWatch Logs"
         }
     }
 
@@ -29,6 +33,8 @@ enum Route: String, CaseIterable, Identifiable {
         case .secretsManager: "key"
         case .dynamodb: "tablecells"
         case .ssm: "list.bullet.rectangle"
+        case .lambda: "function"
+        case .cloudwatchLogs: "doc.text.magnifyingglass"
         }
     }
 }

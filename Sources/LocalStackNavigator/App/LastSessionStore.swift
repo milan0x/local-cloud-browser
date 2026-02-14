@@ -9,6 +9,8 @@ struct LastSessionState: Codable {
     var secretName: String?
     var dynamodbTableName: String?
     var ssmParameterName: String?
+    var lambdaFunctionName: String?
+    var cloudWatchLogsLogGroupName: String?
 
     var route: Route? {
         guard let raw = routeRawValue else { return nil }
@@ -81,6 +83,18 @@ enum LastSessionStore {
         save(state)
     }
 
+    static func saveLambdaFunction(_ name: String?) {
+        var state = load() ?? LastSessionState()
+        state.lambdaFunctionName = name
+        save(state)
+    }
+
+    static func saveCloudWatchLogsLogGroup(_ name: String?) {
+        var state = load() ?? LastSessionState()
+        state.cloudWatchLogsLogGroupName = name
+        save(state)
+    }
+
     /// Clears per-module sub-resource fields (bucket, path, queue, topic) while
     /// keeping the route. Called on launch when cross-launch restore is
     /// disabled so modules start fresh. In-session onChange handlers
@@ -94,6 +108,8 @@ enum LastSessionStore {
         state.secretName = nil
         state.dynamodbTableName = nil
         state.ssmParameterName = nil
+        state.lambdaFunctionName = nil
+        state.cloudWatchLogsLogGroupName = nil
         save(state)
     }
 }
