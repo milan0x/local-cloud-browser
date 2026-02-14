@@ -11,6 +11,7 @@ struct DynamoDBItemBrowserView: View {
     // Item state
     @State private var items: [DynamoDBItem] = []
     @State private var selectedItemIDs: Set<String> = []
+    @State private var gridColumns: [GridColumn] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var lastEvaluatedKey: [String: Any]?
@@ -142,7 +143,11 @@ struct DynamoDBItemBrowserView: View {
             }
         }
         .serviceErrorAlert(error: $serviceError)
-        .task { executeScan() }
+        .task {
+            recomputeColumns()
+            executeScan()
+        }
+        .onChange(of: items) { recomputeColumns() }
         .onReceive(appState.autoRefresh.triggerPublisher) {
             guard browseMode == .scan && !showPutItemSheet && editingItem == nil
                     && itemsToDelete.isEmpty && itemToShowDetail == nil && !isLoading else { return }
@@ -293,132 +298,39 @@ struct DynamoDBItemBrowserView: View {
                     .disabled(appState.isReadOnly)
             }
         } else {
-            itemTableContent
-        }
-    }
-
-    @ViewBuilder
-    private var itemTableContent: some View {
-        if sortKeyName != nil {
-            itemTableWithSortKey
-        } else {
-            itemTableWithoutSortKey
-        }
-    }
-
-    private var itemTableWithSortKey: some View {
-        Table(items, selection: $selectedItemIDs) {
-            TableColumn(partitionKeyName) { item in
-                Text(item.keyValue(for: partitionKeyName))
-                    .lineLimit(1)
+            DynamoDBItemGrid(
+                columns: gridColumns,
+                items: items,
+                tableDetail: tableDetail,
+                isReadOnly: appState.isReadOnly,
+                selectedItemIDs: $selectedItemIDs,
+                onCellEdit: handleCellEdit,
+                onViewDetail: { itemToShowDetail = $0 },
+                onDeleteItems: { itemsToDelete = $0 },
+                onEditComplex: { editingItem = $0 },
+                onCopyJSON: { copyItemAsJSON($0) },
+                onCopyGetItemCLI: { item in
+                    copyToClipboard(item.getItemCLI(
+                        tableName: table.tableName,
+                        keySchema: tableDetail.keySchema,
+                        endpointUrl: appState.endpoint,
+                        region: appState.region
+                    ))
+                },
+                onCopyPutItemCLI: { item in
+                    copyToClipboard(item.putItemCLI(
+                        tableName: table.tableName,
+                        endpointUrl: appState.endpoint,
+                        region: appState.region
+                    ))
+                },
+                onPutItem: { showPutItemSheet = true }
+            )
+            .overlay(alignment: .bottom) {
+                if errorMessage != nil && !items.isEmpty {
+                    connectionLostBanner
+                }
             }
-            .width(min: 100, ideal: 150)
-
-            TableColumn(sortKeyName ?? "") { item in
-                Text(item.keyValue(for: sortKeyName ?? ""))
-                    .lineLimit(1)
-            }
-            .width(min: 80, ideal: 120)
-
-            TableColumn("Attributes") { item in
-                Text(item.attributesPreview(excluding: keyNames))
-                    .lineLimit(1)
-                    .foregroundStyle(.secondary)
-            }
-            .width(min: 200)
-
-            TableColumn("Actions") { item in
-                itemActionsRow(item)
-            }
-            .width(min: 80, ideal: 100)
-        }
-        .modifier(ItemTableContextMenuModifier(
-            items: items,
-            stableItemID: stableItemID,
-            table: table,
-            tableDetail: tableDetail,
-            appState: appState,
-            itemToShowDetail: $itemToShowDetail,
-            editingItem: $editingItem,
-            itemsToDelete: $itemsToDelete,
-            showPutItemSheet: $showPutItemSheet,
-            copyItemAsJSON: copyItemAsJSON,
-            copyToClipboard: copyToClipboard
-        ))
-        .overlay(alignment: .bottom) {
-            if errorMessage != nil && !items.isEmpty {
-                connectionLostBanner
-            }
-        }
-    }
-
-    private var itemTableWithoutSortKey: some View {
-        Table(items, selection: $selectedItemIDs) {
-            TableColumn(partitionKeyName) { item in
-                Text(item.keyValue(for: partitionKeyName))
-                    .lineLimit(1)
-            }
-            .width(min: 100, ideal: 150)
-
-            TableColumn("Attributes") { item in
-                Text(item.attributesPreview(excluding: keyNames))
-                    .lineLimit(1)
-                    .foregroundStyle(.secondary)
-            }
-            .width(min: 200)
-
-            TableColumn("Actions") { item in
-                itemActionsRow(item)
-            }
-            .width(min: 80, ideal: 100)
-        }
-        .modifier(ItemTableContextMenuModifier(
-            items: items,
-            stableItemID: stableItemID,
-            table: table,
-            tableDetail: tableDetail,
-            appState: appState,
-            itemToShowDetail: $itemToShowDetail,
-            editingItem: $editingItem,
-            itemsToDelete: $itemsToDelete,
-            showPutItemSheet: $showPutItemSheet,
-            copyItemAsJSON: copyItemAsJSON,
-            copyToClipboard: copyToClipboard
-        ))
-        .overlay(alignment: .bottom) {
-            if errorMessage != nil && !items.isEmpty {
-                connectionLostBanner
-            }
-        }
-    }
-
-    private func itemActionsRow(_ item: DynamoDBItem) -> some View {
-        HStack(spacing: 8) {
-            Button {
-                itemToShowDetail = item
-            } label: {
-                Image(systemName: "eye")
-            }
-            .buttonStyle(.borderless)
-            .help("View Details")
-
-            Button {
-                copyItemAsJSON(item)
-            } label: {
-                Image(systemName: "doc.on.doc")
-            }
-            .buttonStyle(.borderless)
-            .help("Copy as JSON")
-
-            Button(role: .destructive) {
-                itemsToDelete = [item]
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(appState.isReadOnly ? .gray : .red)
-            }
-            .buttonStyle(.borderless)
-            .help("Delete")
-            .disabled(appState.isReadOnly)
         }
     }
 
@@ -465,6 +377,47 @@ struct DynamoDBItemBrowserView: View {
         .frame(maxWidth: .infinity)
         .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 6))
         .padding(6)
+    }
+
+    // MARK: - Grid Support
+
+    private func recomputeColumns() {
+        gridColumns = computeGridColumns(items: items, tableDetail: tableDetail)
+    }
+
+    private func handleCellEdit(rowID: String, column: String, newValue: String) {
+        guard let itemIndex = items.firstIndex(where: { stableItemID($0) == rowID }) else { return }
+        let item = items[itemIndex]
+
+        // Build updated attributes
+        var updatedAttributes = item.attributes
+
+        // Determine the type to preserve (or default to String for new attributes)
+        let existingValue = item.attributes[column]
+        let newAttributeValue: AttributeValue
+        switch existingValue {
+        case .number:
+            newAttributeValue = .number(newValue)
+        case .bool:
+            newAttributeValue = .bool(newValue.lowercased() == "true")
+        default:
+            newAttributeValue = .string(newValue)
+        }
+
+        updatedAttributes[column] = newAttributeValue
+
+        // Save via putItem (immediate save like TablePlus)
+        Task {
+            do {
+                try await service.putItem(tableName: table.tableName, item: updatedAttributes)
+                // Update local state
+                items[itemIndex] = DynamoDBItem(attributes: updatedAttributes)
+            } catch {
+                serviceError = error.asServiceError
+                // Refresh to revert to server state
+                executeCurrentOperation(force: true)
+            }
+        }
     }
 
     // MARK: - Data Operations
@@ -621,71 +574,6 @@ struct DynamoDBItemBrowserView: View {
     private func copyToClipboard(_ string: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(string, forType: .string)
-    }
-}
-
-// MARK: - Shared context menu modifier for item tables
-
-private struct ItemTableContextMenuModifier: ViewModifier {
-    let items: [DynamoDBItem]
-    let stableItemID: (DynamoDBItem) -> String
-    let table: DynamoDBTable
-    let tableDetail: DynamoDBTableDetail
-    let appState: AppState
-    @Binding var itemToShowDetail: DynamoDBItem?
-    @Binding var editingItem: DynamoDBItem?
-    @Binding var itemsToDelete: [DynamoDBItem]
-    @Binding var showPutItemSheet: Bool
-    let copyItemAsJSON: (DynamoDBItem) -> Void
-    let copyToClipboard: (String) -> Void
-
-    func body(content: Content) -> some View {
-        content
-            .contextMenu(forSelectionType: String.self) { ids in
-                if ids.count == 1, let id = ids.first,
-                   let item = items.first(where: { stableItemID($0) == id }) {
-                    Button("View Details") { itemToShowDetail = item }
-                    Divider()
-                    Button("Copy as JSON") { copyItemAsJSON(item) }
-                    Menu("Copy as AWS CLI") {
-                        Button("Get Item") {
-                            copyToClipboard(item.getItemCLI(
-                                tableName: table.tableName,
-                                keySchema: tableDetail.keySchema,
-                                endpointUrl: appState.endpoint,
-                                region: appState.region
-                            ))
-                        }
-                        Button("Put Item") {
-                            copyToClipboard(item.putItemCLI(
-                                tableName: table.tableName,
-                                endpointUrl: appState.endpoint,
-                                region: appState.region
-                            ))
-                        }
-                    }
-                    Divider()
-                    Button("Edit") { editingItem = item }
-                        .disabled(appState.isReadOnly)
-                    Button("Delete", role: .destructive) { itemsToDelete = [item] }
-                        .disabled(appState.isReadOnly)
-                } else if ids.count > 1 {
-                    let selected = items.filter { ids.contains(stableItemID($0)) }
-                    Button("Delete \(selected.count) Items", role: .destructive) {
-                        itemsToDelete = selected
-                    }
-                    .disabled(appState.isReadOnly)
-                }
-            } primaryAction: { ids in
-                if ids.count == 1, let id = ids.first,
-                   let item = items.first(where: { stableItemID($0) == id }) {
-                    itemToShowDetail = item
-                }
-            }
-            .contextMenu {
-                Button("Put Item") { showPutItemSheet = true }
-                    .disabled(appState.isReadOnly)
-            }
     }
 }
 
