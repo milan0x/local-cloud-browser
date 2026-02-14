@@ -13,6 +13,8 @@ struct LastSessionState: Codable {
     var cloudWatchLogsLogGroupName: String?
     var eventBridgeBusName: String?
     var cloudFormationStackName: String?
+    var iamEntityType: String?
+    var iamEntityName: String?
 
     var route: Route? {
         guard let raw = routeRawValue else { return nil }
@@ -109,6 +111,13 @@ enum LastSessionStore {
         save(state)
     }
 
+    static func saveIAMEntity(type: String?, name: String?) {
+        var state = load() ?? LastSessionState()
+        state.iamEntityType = type
+        state.iamEntityName = name
+        save(state)
+    }
+
     /// Clears per-module sub-resource fields (bucket, path, queue, topic) while
     /// keeping the route. Called on launch when cross-launch restore is
     /// disabled so modules start fresh. In-session onChange handlers
@@ -126,6 +135,8 @@ enum LastSessionStore {
         state.cloudWatchLogsLogGroupName = nil
         state.eventBridgeBusName = nil
         state.cloudFormationStackName = nil
+        state.iamEntityType = nil
+        state.iamEntityName = nil
         save(state)
     }
 }

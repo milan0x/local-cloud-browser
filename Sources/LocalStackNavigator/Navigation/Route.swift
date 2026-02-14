@@ -11,6 +11,7 @@ enum Route: String, CaseIterable, Identifiable {
     case cloudwatchLogs
     case eventBridge
     case cloudFormation
+    case iam
 
     var id: String { rawValue }
 
@@ -26,6 +27,7 @@ enum Route: String, CaseIterable, Identifiable {
         case .cloudwatchLogs: "CloudWatch Logs"
         case .eventBridge: "EventBridge"
         case .cloudFormation: "CloudFormation"
+        case .iam: "IAM"
         }
     }
 
@@ -41,6 +43,7 @@ enum Route: String, CaseIterable, Identifiable {
         case .cloudwatchLogs: "doc.text.magnifyingglass"
         case .eventBridge: "bolt.horizontal"
         case .cloudFormation: "square.stack.3d.down.right"
+        case .iam: "person.2"
         }
     }
 }

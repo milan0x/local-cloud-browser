@@ -303,6 +303,20 @@
 - [x] `LocalStackClient.cloudFormationRequest()`: Query protocol, form-encoded POST, `cloudformation/aws4_request` credential. Read-only whitelist: ListStacks, DescribeStacks, DescribeStackResources, ListStackResources, DescribeStackEvents, GetTemplate.
 - [x] Route, ContentView, LastSessionStore wiring.
 
+## Phase 6h: IAM Module
+- [x] `IAMModels.swift`: `IAMUser`, `IAMRole`, `IAMPolicy`, `IAMAttachedPolicy`, `IAMGroup`, `IAMEntityType` enum. ISO 8601 date parsing (shared via `IAMUser.parseDate`). CLI helpers (`getUserCLI`, `getRoleCLI`, `getPolicyCLI`). Role `prettyTrustPolicy` (URL-decoded + pretty-printed JSON).
+- [x] `IAMService.swift`: service class with Query/XML protocol (same as SNS/CloudFormation). Users: `listUsers`, `createUser`, `deleteUser` (auto-detaches policies + removes from groups), `listAttachedUserPolicies`, `attachUserPolicy`, `detachUserPolicy`, `listGroupsForUser`, `addUserToGroup`, `removeUserFromGroup`. Roles: `listRoles`, `createRole`, `deleteRole` (auto-detaches policies), `listAttachedRolePolicies`, `attachRolePolicy`, `detachRolePolicy`. Policies: `listPolicies` (scope: Local), `createPolicy`, `deletePolicy` (auto-deletes non-default versions), `getPolicyVersion` (URL-decoded document), `listPolicyVersions`. Pagination via `IsTruncated`/`Marker`.
+- [x] `IAMModuleView.swift`: HSplitView with 260pt entity list + detail browser. Session restore via `LastSessionStore.saveIAMEntity(type:name:)`.
+- [x] `IAMEntityListView.swift`: segmented picker (Users / Roles / Policies) at top. Each tab: list with search, context menus (Copy Name/ARN/CLI, Create, Delete), multi-select delete. Parallel load of all three entity types. Auto-refresh, connection/region reset.
+- [x] `IAMDetailBrowserView.swift`: right pane showing entity details. User: info + attached policies (detach) + groups. Role: info + trust policy (CodeTextEditor) + attached policies (detach). Policy: info + policy document (pretty-printed CodeTextEditor). Attach Policy button for users/roles.
+- [x] `IAMCreateUserView.swift`: user name text field with IAM name validation (`[\w+=,.@-]+`), collision detection.
+- [x] `IAMCreateRoleView.swift`: role name + description + trust policy JSON (CodeTextEditor, default Lambda trust). JSON validation.
+- [x] `IAMCreatePolicyView.swift`: policy name + description + policy document JSON (CodeTextEditor, default S3 GetObject). JSON validation.
+- [x] `IAMAttachPolicyView.swift`: searchable policy picker showing unattached policies, attach to user or role.
+- [x] `IAMToolbarState.swift`: actions — createEntity, deleteSelected. Create/Delete disabled in read-only.
+- [x] `LocalStackClient.iamRequest()`: Query protocol, form-encoded POST, `iam/aws4_request` credential. Read-only whitelist: ListUsers, GetUser, ListRoles, GetRole, ListPolicies, GetPolicy, GetPolicyVersion, ListPolicyVersions, ListAttached*Policies, ListGroupsForUser, ListGroups, GetGroup.
+- [x] Route, ContentView, LastSessionStore wiring.
+
 ## Phase 6f: Shared JSON Input Section
 - [x] `JSONInputSection.swift`: reusable SwiftUI view encapsulating type/validation badges, `CodeTextEditor`, JSON Helper toggle + DSL editor, example data popover, bidirectional sync, and `isValidJSON()` static helper. Configured via `JSONInputConfig` presets (`.messageBody`, `.eventPattern`, `.eventDetail`, `.targetInput`, `.parameterValue`).
 - [x] Adopted in `SNSPublishMessageView`, `SSMCreateParameterView`, `EventBridgeCreateRuleView`, `EventBridgeAddTargetView`, `EventBridgePutEventView`. SQS keeps its own implementation (extra Quick Message complexity).
