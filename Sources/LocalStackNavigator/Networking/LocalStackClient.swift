@@ -393,6 +393,45 @@ final class LocalStackClient: ObservableObject {
         return response.data
     }
 
+    // MARK: - CloudFormation (Query protocol — form-encoded POST with Action= parameter)
+
+    /// Read-only whitelist for CloudFormation actions — these are safe even though they use POST.
+    private static let cloudFormationReadActions: Set<String> = [
+        "ListStacks", "DescribeStacks", "DescribeStackResources",
+        "ListStackResources", "DescribeStackEvents", "GetTemplate",
+    ]
+
+    func cloudFormationRequest(action: String, params: [String: String] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.cloudFormationReadActions.contains(action) {
+            Log.warn("Blocked CloudFormation \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "CloudFormation:\(action)")
+        }
+        var allParams = params
+        allParams["Action"] = action
+        let bodyString = allParams
+            .sorted { $0.key < $1.key }
+            .map {
+                let key = $0.key.addingPercentEncoding(withAllowedCharacters: Self.formURLAllowed) ?? $0.key
+                let val = $0.value.addingPercentEncoding(withAllowedCharacters: Self.formURLAllowed) ?? $0.value
+                return "\(key)=\(val)"
+            }
+            .joined(separator: "&")
+        let body = bodyString.data(using: .utf8)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/cloudformation/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-www-form-urlencoded",
+            headers: ["Authorization": auth],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
     // MARK: - Lambda (REST API)
 
     /// Read-only whitelist for Lambda actions — Invoke is allowed (runs function but doesn't modify config).

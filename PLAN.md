@@ -290,6 +290,19 @@
 - [x] Read-only mode: create/delete/enable/disable/put events disabled; browse and view details allowed.
 - [x] Session restore: `eventBridgeBusName` in `LastSessionState`.
 
+## Phase 6g: CloudFormation Module
+- [x] `CloudFormationModels.swift`: `CloudFormationStack`, `CloudFormationStackDetail`, `CFParameter`, `CFOutput`, `CloudFormationResource`, `CloudFormationEvent`. Status color coding (green=COMPLETE, blue=IN_PROGRESS, red=FAILED, orange=ROLLBACK). ISO 8601 date parsing. CLI helpers (`describeStackCLI`, `listResourcesCLI`).
+- [x] `CloudFormationService.swift`: service class with Query/XML protocol (same as SNS — form-encoded POST with `Action=` parameter). `listStacks` (status filter excludes DELETE_COMPLETE), `describeStack` (custom nested XML parser for parameters/outputs), `createStack`/`updateStack`/`deleteStack` (dot-notation params: `Parameters.member.N.ParameterKey`), `listStackResources`, `describeStackEvents`, `getTemplate`. Reuses `SNSXMLParser` for flat member dicts; custom `CloudFormationDetailParser` for nested DescribeStacks response.
+- [x] `CloudFormationModuleView.swift`: HSplitView with 260pt stack list + browser pane. Session restore via `LastSessionStore.cloudFormationStackName`.
+- [x] `CloudFormationStackListView.swift`: stack list with status capsule badges, creation date, search bar, context menus (View Details, Copy Name/Stack ID/AWS CLI, Delete), double-click detector, auto-refresh, connection/region reset.
+- [x] `CloudFormationStackBrowserView.swift`: segmented tab picker (Resources / Events / Outputs). Resources tab: type badge (short, strips `AWS::` prefix), logical/physical IDs, status badge. Events tab: newest-first timeline with timestamp, resource type, status badge, reason. Outputs tab: grouped outputs with descriptions/export names, parameters section.
+- [x] `CloudFormationCreateStackView.swift`: stack name + template body (`CodeTextEditor`, 250pt min height) + dynamic parameter key-value rows with +/- buttons. Name validation (letters, numbers, hyphens). Collision detection.
+- [x] `CloudFormationStackDetailView.swift`: grouped form with stack info, dates, capabilities, role ARN, parameters, outputs.
+- [x] `CloudFormationTemplateView.swift`: read-only template viewer (700x500pt) with JSON pretty-print and copy button.
+- [x] `CloudFormationToolbarState.swift`: actions — createStack, viewDetails, viewTemplate, deleteSelected. Create/Delete disabled in read-only.
+- [x] `LocalStackClient.cloudFormationRequest()`: Query protocol, form-encoded POST, `cloudformation/aws4_request` credential. Read-only whitelist: ListStacks, DescribeStacks, DescribeStackResources, ListStackResources, DescribeStackEvents, GetTemplate.
+- [x] Route, ContentView, LastSessionStore wiring.
+
 ## Phase 6f: Shared JSON Input Section
 - [x] `JSONInputSection.swift`: reusable SwiftUI view encapsulating type/validation badges, `CodeTextEditor`, JSON Helper toggle + DSL editor, example data popover, bidirectional sync, and `isValidJSON()` static helper. Configured via `JSONInputConfig` presets (`.messageBody`, `.eventPattern`, `.eventDetail`, `.targetInput`, `.parameterValue`).
 - [x] Adopted in `SNSPublishMessageView`, `SSMCreateParameterView`, `EventBridgeCreateRuleView`, `EventBridgeAddTargetView`, `EventBridgePutEventView`. SQS keeps its own implementation (extra Quick Message complexity).
