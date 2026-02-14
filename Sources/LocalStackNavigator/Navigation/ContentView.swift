@@ -86,6 +86,8 @@ struct ContentView: View {
             EventBridgeModuleView()
         case .cloudFormation:
             CloudFormationModuleView()
+        case .iam:
+            IAMModuleView()
         }
     }
 
