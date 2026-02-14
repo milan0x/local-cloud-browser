@@ -7,6 +7,7 @@ struct LastSessionState: Codable {
     var sqsQueueName: String?
     var snsTopicArn: String?
     var secretName: String?
+    var dynamodbTableName: String?
 
     var route: Route? {
         guard let raw = routeRawValue else { return nil }
@@ -67,6 +68,12 @@ enum LastSessionStore {
         save(state)
     }
 
+    static func saveDynamoDBTable(_ name: String?) {
+        var state = load() ?? LastSessionState()
+        state.dynamodbTableName = name
+        save(state)
+    }
+
     /// Clears per-module sub-resource fields (bucket, path, queue, topic) while
     /// keeping the route. Called on launch when cross-launch restore is
     /// disabled so modules start fresh. In-session onChange handlers
@@ -78,6 +85,7 @@ enum LastSessionStore {
         state.sqsQueueName = nil
         state.snsTopicArn = nil
         state.secretName = nil
+        state.dynamodbTableName = nil
         save(state)
     }
 }

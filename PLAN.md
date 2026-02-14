@@ -200,7 +200,29 @@
 - [x] `LocalStackClient.secretsManagerRequest()` — JSON protocol, `application/x-amz-json-1.1`, `secretsmanager.<Action>` target, read-only whitelist (ListSecrets, DescribeSecret, GetSecretValue)
 - [x] Read-only mode: all mutating actions disabled (grayed out, never hidden) — create, update, delete
 
-## Phase 6: Settings & Polish
+## Phase 6: DynamoDB Module
+- [x] `DynamoDBModels.swift`: `DynamoDBTable` (Identifiable, Hashable), `DynamoDBTableDetail` (full metadata from DescribeTable: key schema, indexes, item count, size, billing, throughput, creation date), `KeySchemaElement`, `AttributeDefinition`, `GlobalSecondaryIndex`, `LocalSecondaryIndex`, `ProvisionedThroughput`
+- [x] `AttributeValue` enum — recursive DynamoDB type system: `.string(String)`, `.number(String)`, `.binary(String)`, `.bool(Bool)`, `.null`, `.list([AttributeValue])`, `.map([String: AttributeValue])`, `.stringSet([String])`, `.numberSet([String])`, `.binarySet([String])`. Methods: `toJSON()`, `fromJSON()`, `displayString`, `typeBadge`. `fromJSON()` handles LocalStack quirks: N values may arrive as actual `NSNumber` instead of String, BOOL as `NSNumber` (0/1), NS as `[NSNumber]`.
+- [x] `DynamoDBItem` (Identifiable, Hashable): `attributes: [String: AttributeValue]`, `id` derived from all sorted attributes, `id(keySchema:)` for primary-key-based identity, `keyValue(for:)`, `attributesPreview(excluding:maxCount:)`, `primaryKey(keySchema:)`, `toJSON()`, `toDisplayJSON()`, `fromJSON()`. CLI helpers: `putItemCLI()`, `getItemCLI()` with shell escaping.
+- [x] `ScanResult`: items, count, scannedCount, lastEvaluatedKey, hasMorePages
+- [x] CLI helpers on `DynamoDBTable`: `describeTableCLI()`, `scanTableCLI()`, `deleteTableCLI()` — multi-line `aws dynamodb` commands with backslash continuations and shell escaping
+- [x] `DynamoDBService.swift`: `@MainActor` ObservableObject wrapping `LocalStackClient` (implicitly unwrapped optional pattern). Methods: `listTables()`, `describeTable(tableName:)`, `createTable(name:partitionKeyName:partitionKeyType:sortKeyName:sortKeyType:)`, `deleteTable(tableName:)`, `scan(tableName:limit:exclusiveStartKey:filterExpression:expressionAttributeValues:)`, `query(tableName:keyConditionExpression:expressionAttributeValues:indexName:limit:exclusiveStartKey:filterExpression:)`, `putItem(tableName:item:)`, `deleteItem(tableName:key:)`
+- [x] `LocalStackClient.dynamodbRequest(action:payload:)`: JSON protocol with `application/x-amz-json-1.0` content type and `X-Amz-Target: DynamoDB_20120810.<Action>` header. Read-only whitelist: ListTables, DescribeTable, Scan, Query, GetItem, DescribeTimeToLive, ListTagsOfResource. Minimal SigV4 Authorization header for region scoping. Uses `skipReadOnlyCheck: true` since DynamoDB uses POST for everything including reads.
+- [x] `Route.swift`: added `case dynamodb` with displayName "DynamoDB" and systemImage "tablecells"
+- [x] `ContentView.swift`: added `case .dynamodb: DynamoDBModuleView()` in `detailView(for:)`
+- [x] `LastSessionStore.swift`: added `dynamodbTableName: String?` to `LastSessionState`, `saveDynamoDBTable(_:)` method, included in `clearSubResources()`
+- [x] `DynamoDBToolbarState.swift`: ObservableObject bridge with pending action enum (showAttributes, putItem, createTable, deleteSelected). `DynamoDBToolbar` ToolbarContent with Attributes (info.circle) and Put Item (plus.square) buttons, all with `.toolbarHitTarget()`. Disabled states: attributes/putItem disabled when no table selected, all mutating actions disabled in read-only mode.
+- [x] `DynamoDBTableListView.swift`: 260pt table list pane with full CRUD. Search filter via `SearchBarView`. Session restore with `restoreTableName` + `hasRestoredSession` flag. Auto-refresh via `appState.autoRefresh.triggerPublisher` (silent mode). Context menu: View Attributes, Copy Table Name, Copy as AWS CLI (Describe Table, Scan, Delete Table), Create Table, Delete. Right-click empty area: "Create Table". Delete alert with native `.alert()`. Connection lost banner overlay. Double-click detector (NSViewRepresentable with scoped NSEvent monitor + window guard) opens attributes sheet. Status bar with table count + filter/selection info.
+- [x] `DynamoDBCreateTableView.swift`: sheet with partition key name + type (String/Number/Binary picker), optional sort key toggle + name + type. PAY_PER_REQUEST billing (LocalStack default). Validation: name 3-255 chars, key names required, inline collision detection against existing tables. Calls `service.createTable(...)` then triggers list reload.
+- [x] `DynamoDBTableAttributesView.swift`: 580pt sheet, `.formStyle(.grouped)`. Sections: Table Info (name CopyableValue, status colored badge, item count, size, creation date), Primary Key Schema (PK + SK with type badges), Attribute Definitions, Global Secondary Indexes (key schema + projection badges), Local Secondary Indexes, Billing & Throughput. Async loads via `service.describeTable()` with loading/error states.
+- [x] `DynamoDBItemBrowserView.swift`: most complex view. **Mode selector**: Segmented Picker (Scan | Query). **Scan controls**: optional filter expression, Execute Scan button. **Query controls**: index picker (primary + GSIs/LSIs from table detail), partition key value field, sort key condition (operator picker: =, <, >, <=, >=, begins_with, between), optional filter expression, Execute Query button. **Results display**: SwiftUI `Table` with PK column, SK column (conditional — two separate table views for with/without sort key to avoid macOS 14.4 TableColumnBuilder limitation), Attributes preview, Actions column (eye detail, trash delete). **Pagination**: status bar with "Items: X / Scanned: Y" + "Load More" button appending via `lastEvaluatedKey`. **Context menu**: View Details, Copy as JSON, Copy as AWS CLI (Get Item, Put Item), Delete. **Auto-refresh**: Scan mode only. Shared context menu via `ItemTableContextMenuModifier` ViewModifier.
+- [x] `DynamoDBItemDetailView.swift`: 580pt sheet, `.formStyle(.grouped)`. Primary Key section (PK + SK with CopyableValue and type badges). Attributes section (sorted alphabetically, each with name, value view, colored type badge). Type badge colors: S blue, N green, B orange, BOOL purple, NULL gray, L orange, M teal, SS/NS/BS cyan. Complex types (Map/List) show pretty-printed JSON with CopyButton. Footer: Copy as JSON, Edit (opens PutItem sheet), Delete (role: .destructive), Done. Edit/Delete disabled in read-only mode.
+- [x] `DynamoDBPutItemView.swift`: sheet for create/edit items. **Primary Key section**: `LabeledContent` with key name + type badge as Form label, value TextField as content — Form handles label/content alignment natively. SK same if exists. Key fields read-only in edit mode. **Attributes section**: each attribute gets its own Form `Section` card with proper Form-native controls — `TextField("Name", text:)`, `Picker("Type", selection:)`, value control (all with automatic Form label alignment). Remove button (red minus circle) in section header. Value field adapts by type: `TextField("Value", ...)` for String/Number (native form row), `TextField("Value", ..., prompt:)` for Sets (hint as prompt), `Picker("Value", ...).pickerStyle(.segmented)` for Boolean, `LabeledContent("Value") { TextEditor(...) }` for List/Map JSON, EmptyView for Null. No `.textFieldStyle(.roundedBorder)` on attribute fields — Form provides native styling. Type switch sets sensible defaults (Bool→"false", Null→"", List→"[]", Map→"{}"). "Add Attribute" button in its own section at bottom. **Validation**: key values required, attribute names unique, JSON valid for complex types, numbers valid for N type. **Edit mode**: pre-fills from existing item, decomposes AttributeValue back to form fields via `decomposeAttributeValue()`. Calls `service.putItem(tableName:item:)`.
+- [x] `DynamoDBModuleView.swift`: HSplitView with table list (260pt) | item browser or "Select a table" placeholder. `@StateObject` for service + toolbar state. Session restore via `LastSessionStore.load()` snapshot in `init()`. Loads table detail on `activeTable` change for passing to item browser. `.onAppear { service.updateClient(client) }`. `.onChange(of: activeTable) { LastSessionStore.saveDynamoDBTable(...) }`. Toolbar wired via `DynamoDBToolbar`. `DynamoDBModule` struct conforming to `LocalStackModule`.
+- [x] Read-only mode: all mutating actions disabled (grayed out, never hidden) — create table, delete table, put item, delete item. Consistent with S3/SQS/SNS/Secrets Manager pattern.
+- [x] Session restore: `dynamodbTableName` in `LastSessionState`, intra-session always on, cross-launch gated by `LastSessionStore.isEnabled`. Table name only — scan/query params and pagination state are ephemeral.
+
+## Phase 7: Settings & Polish
 - [x] Settings UI (endpoint, region, auto-refresh interval, folder delete details toggle)
 - [x] Persist settings to UserDefaults
 - [x] Sidebar-style settings: redesigned SettingsView with fixed sidebar (General, S3, SQS tabs) and detail pane. Uses HStack + List(.sidebar) instead of NavigationSplitView to avoid toolbar/collapse controls. General: session restore, health check interval, auto-refresh interval. S3: Quick Look preview size, folder delete details. SQS: placeholders, double-click JSON Helper.
@@ -329,7 +351,7 @@ Button { ... } label: {
 
 `toolbar(id:)` only persists item customization, not display mode. KVO on `NSToolbar.displayMode` via NSViewRepresentable fails because SwiftUI manages the toolbar lifecycle opaquely — the observer never reliably attaches. Would require NSWindowController or full AppKit toolbar ownership. Low priority.
 
-## Phase 7: Testing
+## Phase 8: Testing
 
 Automated test suite for the project. The codebase has strong separation between pure logic and UI, so most tests can be added **without modifying existing code**. Tests are organized in waves — start with pure-logic unit tests (zero changes needed), then extract a few embedded functions for additional coverage.
 
@@ -423,6 +445,30 @@ All models are structs with computed properties — create instances with test d
 - [ ] Subscription count parsing (confirmed, pending, deleted) from string → Int
 - [ ] Boolean fields ("true"/"false" → Bool)
 
+#### DynamoDBItem (`Modules/DynamoDB/DynamoDBModels.swift`)
+- [ ] `id`: stable identity from all sorted attributes
+- [ ] `id(keySchema:)`: identity from primary key values
+- [ ] `keyValue(for:)`: extracts display value for a key attribute
+- [ ] `attributesPreview(excluding:maxCount:)`: first N non-key attributes as string, "+N more" suffix
+- [ ] `primaryKey(keySchema:)`: extracts key dict for GetItem/DeleteItem
+- [ ] `toJSON()` / `toDisplayJSON()`: full item to DynamoDB JSON / pretty-printed JSON
+- [ ] `fromJSON()`: parses item from DynamoDB JSON response
+
+#### AttributeValue (`Modules/DynamoDB/DynamoDBModels.swift`)
+- [ ] `fromJSON()`: all 10 types (S, N, B, BOOL, NULL, L, M, SS, NS, BS)
+- [ ] `fromJSON()` LocalStack quirks: N as `NSNumber`, BOOL as `NSNumber` (0/1), NS as `[NSNumber]`
+- [ ] `toJSON()`: round-trip — `fromJSON(toJSON())` == original for all types
+- [ ] `displayString`: all types render expected text
+- [ ] `typeBadge`: S → "S", N → "N", BOOL → "BOOL", etc.
+- [ ] Nested types: list containing maps, maps containing lists
+- [ ] Unknown/empty dict → `fromJSON` returns `nil`
+
+#### DynamoDBTableDetail (`Modules/DynamoDB/DynamoDBModels.swift`)
+- [ ] `init(from:)`: parses all fields from `[String: Any]` dict
+- [ ] `partitionKey` / `sortKey`: extracts from keySchema by HASH/RANGE
+- [ ] `attributeType(for:)`: looks up type from attribute definitions
+- [ ] Missing fields: absent keys → default values
+
 #### S3Object (`Modules/S3/S3Models.swift`)
 - [ ] `isFolder`: key ends with `/` → true; otherwise → false
 - [ ] `displayName`: extracts filename from full key path (e.g. `folder/sub/file.txt` → `file.txt`)
@@ -444,6 +490,12 @@ All CLI generators are methods on model structs — create instance, call method
 - [ ] Shell escaping: single quotes in body (`O'Reilly` → `O'\''Reilly`)
 - [ ] FIFO messages: includes `--message-group-id` flag
 - [ ] `SQSQueue.sendMessageCLI()`, `receiveMessageCLI()`, `getAttributesCLI()`: correct command structure with backslash continuations
+
+#### DynamoDB CLI Helpers
+- [ ] `DynamoDBTable.describeTableCLI()`, `scanTableCLI()`, `deleteTableCLI()`: correct `aws dynamodb` commands with backslash continuations
+- [ ] `DynamoDBItem.putItemCLI()`: generates `aws dynamodb put-item` with item JSON (shell-escaped)
+- [ ] `DynamoDBItem.getItemCLI()`: generates `aws dynamodb get-item` with key JSON (shell-escaped)
+- [ ] Shell escaping: single quotes in table names and values
 
 #### SNS CLI Helpers
 - [ ] `SNSTopic.publishCLI()`, `listSubscriptionsCLI()`, `getAttributesCLI()`: correct `aws sns` commands
@@ -519,11 +571,12 @@ These require extracting existing logic into testable static functions. Each is 
 - [ ] Empty params → empty string
 - [ ] Values with spaces, ampersands, equals signs → correctly encoded
 
-#### SQS/SNS Read-Only Whitelists (make `internal` visibility)
+#### SQS/SNS/DynamoDB Read-Only Whitelists (make `internal` visibility)
 - [ ] Change `private static let sqsReadActions` → `static let sqsReadActions` (internal)
 - [ ] Change `private static let snsReadActions` → `static let snsReadActions` (internal)
+- [ ] Change `private static let dynamodbReadActions` → `static let dynamodbReadActions` (internal)
 - [ ] Test: all whitelisted actions are in the set
-- [ ] Test: known mutating actions (SendMessage, DeleteQueue, CreateTopic, etc.) are NOT in the set
+- [ ] Test: known mutating actions (SendMessage, DeleteQueue, CreateTopic, CreateTable, PutItem, DeleteItem, etc.) are NOT in the set
 
 ### Wave 8: Integration Test Patterns (Optional — Requires Running LocalStack)
 
@@ -534,6 +587,7 @@ These tests hit a real LocalStack instance. Useful for CI but not required for t
 - [ ] S3: upload object → list objects → download object → verify content matches → delete
 - [ ] SQS: create queue → send message → receive message → verify body matches → delete queue
 - [ ] SNS: create topic → list topics → verify exists → delete topic → verify gone
+- [ ] DynamoDB: create table → describe table → verify schema → put item → scan → verify item → delete item → delete table
 - [ ] Health check: `GET /_localstack/health` → parse response → verify version and services
 
 ## Future Ideas
