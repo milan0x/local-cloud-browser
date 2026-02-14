@@ -11,6 +11,7 @@ struct EventBridgePutEventView: View {
     @State private var detail = ""
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
+    @State private var showJsonHelper = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,11 +26,7 @@ struct EventBridgePutEventView: View {
 
                 TextField("Detail Type", text: $detailType, prompt: Text("OrderPlaced"))
 
-                Section("Detail (JSON)") {
-                    CodeTextEditor(text: $detail, isEditable: true)
-                        .frame(minHeight: 200)
-                        .disableSmartSubstitutions()
-                }
+                JSONInputSection(text: $detail, isHelperShown: $showJsonHelper, config: .eventDetail)
             }
             .formStyle(.grouped)
 
@@ -46,7 +43,8 @@ struct EventBridgePutEventView: View {
             .padding()
         }
         .frame(width: 520)
-        .frame(minHeight: 420)
+        .frame(minHeight: showJsonHelper ? 620 : 420)
+        .animation(.easeInOut(duration: 0.2), value: showJsonHelper)
         .serviceErrorAlert(error: $serviceError)
     }
 
@@ -54,11 +52,9 @@ struct EventBridgePutEventView: View {
         let src = source.trimmingCharacters(in: .whitespaces)
         let dt = detailType.trimmingCharacters(in: .whitespaces)
         guard !src.isEmpty && !dt.isEmpty else { return false }
-        // Validate detail is valid JSON if non-empty
         let trimmedDetail = detail.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedDetail.isEmpty {
-            guard let data = trimmedDetail.data(using: .utf8),
-                  (try? JSONSerialization.jsonObject(with: data)) != nil else {
+            guard JSONInputSection.isValidJSON(trimmedDetail) else {
                 return false
             }
         }

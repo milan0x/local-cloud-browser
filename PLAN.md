@@ -278,10 +278,28 @@
 - [x] Read-only mode: create/delete/write disabled; browse, search, and view details allowed. Consistent with all other modules.
 - [x] Session restore: `cloudWatchLogsLogGroupName` in `LastSessionState`, intra-session always on, cross-launch gated by `LastSessionStore.isEnabled`.
 
+## Phase 6e: EventBridge Module
+- [x] `EventBridgeService.swift`: service class with EventBridge API calls (PutRule, DeleteRule, DescribeRule, ListRules, PutTargets, RemoveTargets, ListTargetsByRule, PutEvents, EnableRule, DisableRule). JSON 1.1 protocol with `X-Amz-Target: AWSEvents.<Action>` header, PascalCase field names.
+- [x] `EventBridgeModuleView.swift`: module view with bus list → rule browser → target detail drill-down.
+- [x] `EventBridgeBusListView.swift`: bus list with search, context menus, auto-refresh, double-click to browse rules.
+- [x] `EventBridgeRuleBrowserView.swift`: S3-style drill-down via `@State activeRule`. Rule list mode with search, context menus. Rule detail mode with rule info, targets list, add/remove targets.
+- [x] `EventBridgeCreateRuleView.swift`: create rule sheet with event pattern or schedule type picker. Event pattern uses `JSONInputSection` with JSON Helper.
+- [x] `EventBridgeAddTargetView.swift`: add target sheet with target ID, ARN, role ARN, optional JSON input via `JSONInputSection`. Max 5 targets per rule.
+- [x] `EventBridgePutEventView.swift`: put event sheet with source, detail type, detail JSON via `JSONInputSection`.
+- [x] Enable/disable rules via context menu toggle.
+- [x] Read-only mode: create/delete/enable/disable/put events disabled; browse and view details allowed.
+- [x] Session restore: `eventBridgeBusName` in `LastSessionState`.
+
+## Phase 6f: Shared JSON Input Section
+- [x] `JSONInputSection.swift`: reusable SwiftUI view encapsulating type/validation badges, `CodeTextEditor`, JSON Helper toggle + DSL editor, example data popover, bidirectional sync, and `isValidJSON()` static helper. Configured via `JSONInputConfig` presets (`.messageBody`, `.eventPattern`, `.eventDetail`, `.targetInput`, `.parameterValue`).
+- [x] Adopted in `SNSPublishMessageView`, `SSMCreateParameterView`, `EventBridgeCreateRuleView`, `EventBridgeAddTargetView`, `EventBridgePutEventView`. SQS keeps its own implementation (extra Quick Message complexity).
+- [x] `AppPreferences`: renamed `disableSQSPlaceholdersKey` → `disableJsonHelperPlaceholdersKey` (same UserDefaults key for migration).
+- [x] `SettingsView`: removed SQS tab, moved JSON Helper settings (disable placeholders, double-click to close) into General tab with updated descriptions.
+
 ## Phase 7: Settings & Polish
 - [x] Settings UI (endpoint, region, auto-refresh interval, folder delete details toggle)
 - [x] Persist settings to UserDefaults
-- [x] Sidebar-style settings: redesigned SettingsView with fixed sidebar (General, S3, SQS tabs) and detail pane. Uses HStack + List(.sidebar) instead of NavigationSplitView to avoid toolbar/collapse controls. General: session restore, health check interval, auto-refresh interval. S3: Quick Look preview size, folder delete details. SQS: placeholders, double-click JSON Helper.
+- [x] Sidebar-style settings: redesigned SettingsView with fixed sidebar (General, S3 tabs) and detail pane. Uses HStack + List(.sidebar) instead of NavigationSplitView to avoid toolbar/collapse controls. General: session restore, health check interval, auto-refresh interval, JSON Helper settings (disable placeholders, double-click to close). S3: Quick Look preview size, folder delete details.
 - [x] Global auto-refresh: moved refresh interval from S3 settings to General — single interval applies to all modules. Toolbar `AutoRefreshMenuView` in each module reads/writes the same `appState.autoRefresh.interval`.
 - [x] Auto-refresh: reusable `AutoRefreshManager` on `AppState`, internal Task-based timer, `refreshTrigger` pattern
 - [x] Auto-refresh indicator in S3 breadcrumb bar (countdown only)

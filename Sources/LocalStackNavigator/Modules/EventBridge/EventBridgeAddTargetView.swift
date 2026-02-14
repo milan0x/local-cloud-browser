@@ -14,6 +14,7 @@ struct EventBridgeAddTargetView: View {
     @State private var input = ""
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
+    @State private var showJsonHelper = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -30,11 +31,7 @@ struct EventBridgeAddTargetView: View {
 
                 TextField("Role ARN (optional)", text: $roleArn)
 
-                Section("Input (optional JSON)") {
-                    CodeTextEditor(text: $input, isEditable: true)
-                        .frame(minHeight: 120)
-                        .disableSmartSubstitutions()
-                }
+                JSONInputSection(text: $input, isHelperShown: $showJsonHelper, config: .targetInput)
             }
             .formStyle(.grouped)
 
@@ -60,7 +57,8 @@ struct EventBridgeAddTargetView: View {
             .padding()
         }
         .frame(width: 480)
-        .frame(minHeight: 360)
+        .frame(minHeight: showJsonHelper ? 560 : 360)
+        .animation(.easeInOut(duration: 0.2), value: showJsonHelper)
         .serviceErrorAlert(error: $serviceError)
     }
 
@@ -70,11 +68,9 @@ struct EventBridgeAddTargetView: View {
         guard !id.isEmpty && arn.hasPrefix("arn:") && currentTargetCount < 5 else {
             return false
         }
-        // Validate input is valid JSON if non-empty
         let trimmedInput = input.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedInput.isEmpty {
-            guard let data = trimmedInput.data(using: .utf8),
-                  (try? JSONSerialization.jsonObject(with: data)) != nil else {
+            guard JSONInputSection.isValidJSON(trimmedInput) else {
                 return false
             }
         }

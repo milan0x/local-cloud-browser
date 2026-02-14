@@ -15,6 +15,7 @@ struct EventBridgeCreateRuleView: View {
     @State private var isEnabled = true
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
+    @State private var showJsonHelper = false
 
     private static let namePattern = try! NSRegularExpression(pattern: "^[\\.\\-_A-Za-z0-9]+$")
 
@@ -43,11 +44,7 @@ struct EventBridgeCreateRuleView: View {
                 }
 
                 if ruleType == .eventPattern {
-                    Section("Event Pattern (JSON)") {
-                        CodeTextEditor(text: $eventPattern, isEditable: true)
-                            .frame(minHeight: 200)
-                            .disableSmartSubstitutions()
-                    }
+                    JSONInputSection(text: $eventPattern, isHelperShown: $showJsonHelper, config: .eventPattern)
                 } else {
                     TextField("Schedule expression", text: $scheduleExpression, prompt: Text("rate(5 minutes) or cron(0 12 * * ? *)"))
                 }
@@ -86,8 +83,14 @@ struct EventBridgeCreateRuleView: View {
             .padding()
         }
         .frame(width: 520)
-        .frame(minHeight: 400)
+        .frame(minHeight: showJsonHelper ? 600 : 400)
+        .animation(.easeInOut(duration: 0.2), value: showJsonHelper)
         .serviceErrorAlert(error: $serviceError)
+        .onChange(of: ruleType) {
+            if ruleType == .schedule {
+                showJsonHelper = false
+            }
+        }
     }
 
     private var trimmedName: String {

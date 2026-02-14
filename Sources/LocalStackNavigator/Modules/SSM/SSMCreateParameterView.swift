@@ -9,6 +9,7 @@ struct SSMCreateParameterView: View {
     @State private var parameterType = "String"
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
+    @State private var showJsonHelper = false
     var existingParameterNames: Set<String>
 
     // Edit mode
@@ -45,27 +46,7 @@ struct SSMCreateParameterView: View {
 
                 TextField("Description (optional)", text: $parameterDescription)
 
-                Section("Parameter Value") {
-                    CodeTextEditor(text: $parameterValue, isEditable: true)
-                        .frame(minHeight: 150)
-                        .disableSmartSubstitutions()
-                }
-
-                if !parameterValue.isEmpty {
-                    Section {
-                        HStack {
-                            Text("Detected type:")
-                                .foregroundStyle(.secondary)
-                            Text(detectedType)
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(detectedTypeColor.opacity(0.15), in: Capsule())
-                                .foregroundStyle(detectedTypeColor)
-                        }
-                    }
-                }
+                JSONInputSection(text: $parameterValue, isHelperShown: $showJsonHelper, config: .parameterValue)
             }
             .formStyle(.grouped)
 
@@ -89,20 +70,9 @@ struct SSMCreateParameterView: View {
             .padding()
         }
         .frame(width: 480)
-        .frame(minHeight: 400)
+        .frame(minHeight: showJsonHelper ? 600 : 400)
+        .animation(.easeInOut(duration: 0.2), value: showJsonHelper)
         .serviceErrorAlert(error: $serviceError)
-    }
-
-    private var detectedType: String {
-        let trimmed = parameterValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.hasPrefix("{") || trimmed.hasPrefix("[") {
-            return "JSON"
-        }
-        return "Text"
-    }
-
-    private var detectedTypeColor: Color {
-        detectedType == "JSON" ? .blue : .gray
     }
 
     private var nameExists: Bool {
