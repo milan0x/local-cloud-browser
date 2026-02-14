@@ -236,6 +236,37 @@ final class LocalStackClient: ObservableObject {
         return response.data
     }
 
+    // MARK: - Secrets Manager (JSON protocol)
+
+    /// Read-only whitelist for Secrets Manager actions — these are safe even though they use POST.
+    private static let secretsManagerReadActions: Set<String> = [
+        "ListSecrets", "DescribeSecret", "GetSecretValue",
+    ]
+
+    func secretsManagerRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.secretsManagerReadActions.contains(action) {
+            Log.warn("Blocked SecretsManager \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "SecretsManager:\(action)")
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/secretsmanager/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-amz-json-1.1",
+            headers: [
+                "X-Amz-Target": "secretsmanager.\(action)",
+                "Authorization": auth,
+            ],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
     private static let iso8601DateOnly: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyyMMdd"

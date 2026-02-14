@@ -186,12 +186,19 @@
 - [ ] Subscription filter policies (deferred — advanced feature, not commonly used in LocalStack Community)
 
 ## Phase 5: Secrets Manager Module
-- [ ] List secrets view
-- [ ] Create/update secret
-- [ ] View secret value (with reveal toggle)
-- [ ] Delete secret
-- [ ] Version history
-- [ ] Session restore: add `secretName: String?` to `LastSessionState`, `saveSecretName(_:)` to `LastSessionStore`, add field to `clearSubResources()`, snapshot capture in `SecretsManagerModuleView.init()`, `restoreSecretName` param on secrets list view, restore logic after loading secrets (see S3/SQS pattern)
+- [x] List secrets view (HSplitView: 260pt list | secret value pane, search filter, status bar with count)
+- [x] Create/update secret (sheet with name, description, CodeTextEditor for value, body type detection, inline collision validation)
+- [x] View secret value (with reveal toggle, JSON pretty-print, type badge, version stages, size in status bar)
+- [x] Delete secret (native .alert(), multi-select aware, toolbar and context menu)
+- [x] Version history (detail sheet shows versionId → stages with AWSCURRENT/AWSPREVIOUS badges)
+- [x] Secret detail sheet (580pt, formStyle(.grouped): info, dates, value with reveal toggle, versions, tags, rotation status, edit button)
+- [x] Session restore: `secretName: String?` in `LastSessionState`, `saveSecretsManagerSecret(_:)` in `LastSessionStore`, `clearSubResources()` updated, snapshot capture in module `init()`, `restoreSecretName` param
+- [x] Toolbar: Details (info.circle), Create (+), Delete (trash) — toolbar state bridge pattern with `SecretsManagerToolbarState`
+- [x] Context menu: View Details, Copy ARN, Copy Name, Copy as AWS CLI (Get Secret Value, Describe Secret), Create, Delete
+- [x] Auto-refresh via `triggerPublisher`, silent: true, diff before assign
+- [x] Connection/region change handlers, connection lost banner, double-click detector (NSViewRepresentable)
+- [x] `LocalStackClient.secretsManagerRequest()` — JSON protocol, `application/x-amz-json-1.1`, `secretsmanager.<Action>` target, read-only whitelist (ListSecrets, DescribeSecret, GetSecretValue)
+- [x] Read-only mode: all mutating actions disabled (grayed out, never hidden) — create, update, delete
 
 ## Phase 6: Settings & Polish
 - [x] Settings UI (endpoint, region, auto-refresh interval, folder delete details toggle)
