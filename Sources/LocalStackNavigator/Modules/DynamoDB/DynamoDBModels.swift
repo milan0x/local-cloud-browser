@@ -10,6 +10,7 @@ struct DynamoDBTable: Identifiable, Hashable {
 
 struct DynamoDBTableDetail {
     let tableName: String
+    let tableArn: String
     let tableStatus: String
     let itemCount: Int
     let tableSizeBytes: Int
@@ -35,6 +36,7 @@ struct DynamoDBTableDetail {
 
     init(from dict: [String: Any]) {
         tableName = dict["TableName"] as? String ?? ""
+        tableArn = dict["TableArn"] as? String ?? ""
         tableStatus = dict["TableStatus"] as? String ?? ""
         itemCount = dict["ItemCount"] as? Int ?? 0
         tableSizeBytes = dict["TableSizeBytes"] as? Int ?? 0

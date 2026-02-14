@@ -20,8 +20,14 @@ final class EditableTextField: NSTextField {
     var rowIndex: Int = -1
     var isKeyColumn: Bool = false
     var isInlineEditable: Bool = true
+    var isDraftCell: Bool = false
 
     override func mouseDown(with event: NSEvent) {
+        // Draft cells: single click activates editing
+        if isDraftCell && isEnabled {
+            beginEditing()
+            return
+        }
         if event.clickCount == 2 && !isKeyColumn && isInlineEditable && isEnabled {
             beginEditing()
             return
@@ -53,6 +59,17 @@ final class EditableTextField: NSTextField {
     }
 }
 
+// MARK: - DraftRowView
+
+/// Custom row view with a subtle accent tint to distinguish the draft row.
+private final class DraftRowView: NSTableRowView {
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.controlAccentColor.withAlphaComponent(0.06).setFill()
+        bounds.fill()
+        super.draw(dirtyRect)
+    }
+}
+
 // MARK: - DynamoDBItemGrid
 
 struct DynamoDBItemGrid: NSViewRepresentable {
@@ -61,6 +78,12 @@ struct DynamoDBItemGrid: NSViewRepresentable {
     let tableDetail: DynamoDBTableDetail
     let isReadOnly: Bool
     @Binding var selectedItemIDs: Set<String>
+
+    // Inline draft row
+    var isDraftRowActive: Bool = false
+    var saveDraftCounter: Int = 0
+    var onSaveDraft: ([String: String]) -> Void = { _ in }
+    var onCancelDraft: () -> Void = {}
 
     // Callbacks
     var onCellEdit: (_ rowID: String, _ column: String, _ newValue: String) -> Void = { _, _, _ in }
@@ -112,11 +135,48 @@ struct DynamoDBItemGrid: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         let coordinator = context.coordinator
-        guard !coordinator.isUpdating else { return }
-
         coordinator.parent = self
 
         guard let tableView = coordinator.tableView else { return }
+
+        // Process save draft trigger (must run even during editing)
+        if saveDraftCounter != coordinator.lastSaveDraftCounter {
+            coordinator.lastSaveDraftCounter = saveDraftCounter
+            if isDraftRowActive {
+                tableView.window?.endEditing(for: nil)
+                coordinator.saveDraft()
+            }
+        }
+
+        guard !coordinator.isUpdating else { return }
+
+        // Handle draft state changes
+        let draftChanged = isDraftRowActive != coordinator.wasDraftActive
+        if draftChanged {
+            coordinator.wasDraftActive = isDraftRowActive
+            if isDraftRowActive {
+                coordinator.draftValues = [:]
+                coordinator.cachedItems = items
+                coordinator.isUpdating = true
+                tableView.reloadData()
+                coordinator.isUpdating = false
+                let draftRow = items.count
+                tableView.scrollRowToVisible(draftRow)
+                // Auto-focus PK cell
+                DispatchQueue.main.async {
+                    self.focusDraftPKCell(tableView: tableView, draftRow: draftRow)
+                }
+            } else {
+                coordinator.draftValues = [:]
+                coordinator.cachedItems = items
+                coordinator.isUpdating = true
+                tableView.reloadData()
+                coordinator.isUpdating = false
+                syncSelectionToTableView(tableView: tableView, coordinator: coordinator)
+            }
+            coordinator.isReadOnly = isReadOnly
+            return
+        }
 
         // Skip reload if actively editing a cell
         if tableView.currentEditor() != nil { return }
@@ -148,6 +208,16 @@ struct DynamoDBItemGrid: NSViewRepresentable {
         coordinator.isReadOnly = isReadOnly
     }
 
+    private func focusDraftPKCell(tableView: EditableTableView, draftRow: Int) {
+        let pkName = tableDetail.partitionKey?.attributeName ?? ""
+        let pkColIdx = tableView.column(withIdentifier: NSUserInterfaceItemIdentifier(pkName))
+        if pkColIdx >= 0,
+           let cellView = tableView.view(atColumn: pkColIdx, row: draftRow, makeIfNecessary: true) as? NSTableCellView,
+           let tf = cellView.textField as? EditableTextField {
+            tf.beginEditing()
+        }
+    }
+
     private func syncSelectionToTableView(tableView: EditableTableView, coordinator: Coordinator) {
         coordinator.isUpdating = true
         let indexes = NSMutableIndexSet()
@@ -171,6 +241,11 @@ struct DynamoDBItemGrid: NSViewRepresentable {
         var isUpdating = false
         var isReadOnly = false
         private var committedEdit = false
+
+        // Draft row state
+        var draftValues: [String: String] = [:]
+        var wasDraftActive = false
+        var lastSaveDraftCounter: Int = 0
 
         init(parent: DynamoDBItemGrid) {
             self.parent = parent
@@ -212,15 +287,16 @@ struct DynamoDBItemGrid: NSViewRepresentable {
         // MARK: NSTableViewDataSource
 
         @objc func numberOfRows(in tableView: NSTableView) -> Int {
-            parent.items.count
+            parent.items.count + (parent.isDraftRowActive ? 1 : 0)
         }
 
         @objc func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-            guard let tableColumn, row < parent.items.count else { return nil }
+            guard let tableColumn else { return nil }
 
             let columnName = tableColumn.identifier.rawValue
-            let item = parent.items[row]
-            let value = item.attributes[columnName]
+            let isDraftRow = parent.isDraftRowActive && row == parent.items.count
+
+            guard isDraftRow || row < parent.items.count else { return nil }
 
             let cellID = NSUserInterfaceItemIdentifier("DynamoDBCell")
             let cellView: NSTableCellView
@@ -256,34 +332,60 @@ struct DynamoDBItemGrid: NSViewRepresentable {
                 textField = tf
             }
 
-            // Configure
+            // Configure common properties
             textField.delegate = self
             textField.columnIdentifier = columnName
             textField.rowIndex = row
             textField.font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
 
-            // Determine if this is a key column
-            let isKey = parent.columns.first(where: { $0.name == columnName })
-                .map { $0.isPartitionKey || $0.isSortKey } ?? false
-            textField.isKeyColumn = isKey
+            if isDraftRow {
+                // Draft row: all cells editable, no type badge, placeholder text
+                textField.isDraftCell = true
+                textField.isKeyColumn = false
+                textField.isInlineEditable = true
+                textField.isEnabled = true
+                textField.placeholderString = columnName
 
-            if let value {
-                textField.isInlineEditable = value.isInlineEditable && !isKey
-                textField.attributedStringValue = attributedString(for: value)
-                textField.toolTip = value.displayString
-                textField.isEnabled = !isReadOnly
-            } else {
-                // Attribute not present on this item
-                textField.isInlineEditable = false
-                textField.attributedStringValue = NSAttributedString(
-                    string: "--",
-                    attributes: [
-                        .foregroundColor: NSColor.tertiaryLabelColor,
-                        .font: NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular),
-                    ]
-                )
+                if let draftVal = draftValues[columnName], !draftVal.isEmpty {
+                    textField.attributedStringValue = NSAttributedString(
+                        string: draftVal,
+                        attributes: [
+                            .foregroundColor: NSColor.labelColor,
+                            .font: NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular),
+                        ]
+                    )
+                } else {
+                    textField.stringValue = ""
+                }
                 textField.toolTip = nil
-                textField.isEnabled = false
+            } else {
+                // Normal item row
+                textField.isDraftCell = false
+                textField.placeholderString = nil
+                let item = parent.items[row]
+                let value = item.attributes[columnName]
+
+                let isKey = parent.columns.first(where: { $0.name == columnName })
+                    .map { $0.isPartitionKey || $0.isSortKey } ?? false
+                textField.isKeyColumn = isKey
+
+                if let value {
+                    textField.isInlineEditable = value.isInlineEditable && !isKey
+                    textField.attributedStringValue = attributedString(for: value)
+                    textField.toolTip = value.displayString
+                    textField.isEnabled = !isReadOnly
+                } else {
+                    textField.isInlineEditable = false
+                    textField.attributedStringValue = NSAttributedString(
+                        string: "--",
+                        attributes: [
+                            .foregroundColor: NSColor.tertiaryLabelColor,
+                            .font: NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular),
+                        ]
+                    )
+                    textField.toolTip = nil
+                    textField.isEnabled = false
+                }
             }
 
             // Ensure clean state (no leftover editing state from reuse)
@@ -366,15 +468,22 @@ struct DynamoDBItemGrid: NSViewRepresentable {
 
         @objc func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
             guard let textField = control as? EditableTextField else { return false }
+            let isDraft = textField.isDraftCell
 
             if commandSelector == #selector(NSResponder.insertNewline(_:)) {
                 // Enter → commit edit
                 committedEdit = true
                 let newValue = textField.stringValue
-                let rowID = itemIDForRow(textField.rowIndex)
+                let currentCol = textField.columnIdentifier
                 textField.endEditing(revert: false)
-                if let rowID, newValue != textField.originalValue {
-                    parent.onCellEdit(rowID, textField.columnIdentifier, newValue)
+                if isDraft {
+                    draftValues[currentCol] = newValue
+                    moveToNextDraftCell(from: currentCol, forward: true)
+                } else {
+                    let rowID = itemIDForRow(textField.rowIndex)
+                    if let rowID, newValue != textField.originalValue {
+                        parent.onCellEdit(rowID, currentCol, newValue)
+                    }
                 }
                 return true
             }
@@ -390,13 +499,18 @@ struct DynamoDBItemGrid: NSViewRepresentable {
                 // Tab → commit and move to next editable cell
                 committedEdit = true
                 let newValue = textField.stringValue
-                let rowID = itemIDForRow(textField.rowIndex)
                 let currentCol = textField.columnIdentifier
                 textField.endEditing(revert: false)
-                if let rowID, newValue != textField.originalValue {
-                    parent.onCellEdit(rowID, currentCol, newValue)
+                if isDraft {
+                    draftValues[currentCol] = newValue
+                    moveToNextDraftCell(from: currentCol, forward: true)
+                } else {
+                    let rowID = itemIDForRow(textField.rowIndex)
+                    if let rowID, newValue != textField.originalValue {
+                        parent.onCellEdit(rowID, currentCol, newValue)
+                    }
+                    moveToNextEditableCell(from: textField.rowIndex, column: currentCol, forward: true)
                 }
-                moveToNextEditableCell(from: textField.rowIndex, column: currentCol, forward: true)
                 return true
             }
 
@@ -404,13 +518,18 @@ struct DynamoDBItemGrid: NSViewRepresentable {
                 // Shift-Tab → commit and move to previous editable cell
                 committedEdit = true
                 let newValue = textField.stringValue
-                let rowID = itemIDForRow(textField.rowIndex)
                 let currentCol = textField.columnIdentifier
                 textField.endEditing(revert: false)
-                if let rowID, newValue != textField.originalValue {
-                    parent.onCellEdit(rowID, currentCol, newValue)
+                if isDraft {
+                    draftValues[currentCol] = newValue
+                    moveToNextDraftCell(from: currentCol, forward: false)
+                } else {
+                    let rowID = itemIDForRow(textField.rowIndex)
+                    if let rowID, newValue != textField.originalValue {
+                        parent.onCellEdit(rowID, currentCol, newValue)
+                    }
+                    moveToNextEditableCell(from: textField.rowIndex, column: currentCol, forward: false)
                 }
-                moveToNextEditableCell(from: textField.rowIndex, column: currentCol, forward: false)
                 return true
             }
 
@@ -425,10 +544,14 @@ struct DynamoDBItemGrid: NSViewRepresentable {
                 return
             }
             let newValue = textField.stringValue
-            let rowID = itemIDForRow(textField.rowIndex)
             textField.endEditing(revert: false)
-            if let rowID, newValue != textField.originalValue {
-                parent.onCellEdit(rowID, textField.columnIdentifier, newValue)
+            if textField.isDraftCell {
+                draftValues[textField.columnIdentifier] = newValue
+            } else {
+                let rowID = itemIDForRow(textField.rowIndex)
+                if let rowID, newValue != textField.originalValue {
+                    parent.onCellEdit(rowID, textField.columnIdentifier, newValue)
+                }
             }
         }
 
@@ -482,6 +605,49 @@ struct DynamoDBItemGrid: NSViewRepresentable {
             }
         }
 
+        // MARK: Draft Row Helpers
+
+        private func moveToNextDraftCell(from column: String, forward: Bool) {
+            guard tableView != nil else { return }
+            let colNames = cachedColumnNames
+            guard let colIdx = colNames.firstIndex(of: column) else { return }
+            let draftRow = parent.items.count
+
+            var c = colIdx
+            if forward {
+                c += 1
+                if c >= colNames.count { return }
+            } else {
+                c -= 1
+                if c < 0 { return }
+            }
+
+            let colName = colNames[c]
+            DispatchQueue.main.async { [weak self] in
+                guard let tableView = self?.tableView else { return }
+                let nsColIdx = tableView.column(withIdentifier: NSUserInterfaceItemIdentifier(colName))
+                guard nsColIdx >= 0 else { return }
+                if let cellView = tableView.view(atColumn: nsColIdx, row: draftRow, makeIfNecessary: true) as? NSTableCellView,
+                   let tf = cellView.textField as? EditableTextField {
+                    tf.beginEditing()
+                }
+            }
+        }
+
+        func saveDraft() {
+            guard parent.isDraftRowActive else { return }
+            parent.onSaveDraft(draftValues)
+        }
+
+        // MARK: Row View (draft row background)
+
+        @objc func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+            if parent.isDraftRowActive && row == parent.items.count {
+                return DraftRowView()
+            }
+            return nil
+        }
+
         // MARK: NSMenuDelegate (context menu)
 
         @objc func menuNeedsUpdate(_ menu: NSMenu) {
@@ -490,6 +656,19 @@ struct DynamoDBItemGrid: NSViewRepresentable {
 
             let clickedRow = tableView.clickedRow
             let selectedRows = tableView.selectedRowIndexes
+
+            // Right-click on draft row
+            if parent.isDraftRowActive && clickedRow == parent.items.count {
+                let save = NSMenuItem(title: "Save New Item", action: #selector(menuSaveDraft(_:)), keyEquivalent: "")
+                save.target = self
+                save.isEnabled = !isReadOnly
+                menu.addItem(save)
+
+                let cancel = NSMenuItem(title: "Cancel New Item", action: #selector(menuCancelDraft(_:)), keyEquivalent: "")
+                cancel.target = self
+                menu.addItem(cancel)
+                return
+            }
 
             if clickedRow < 0 {
                 // Right-click on empty area
@@ -600,6 +779,14 @@ struct DynamoDBItemGrid: NSViewRepresentable {
 
         @objc private func menuPutItem(_ sender: NSMenuItem) {
             parent.onPutItem()
+        }
+
+        @objc private func menuSaveDraft(_ sender: NSMenuItem) {
+            saveDraft()
+        }
+
+        @objc private func menuCancelDraft(_ sender: NSMenuItem) {
+            parent.onCancelDraft()
         }
     }
 }

@@ -36,6 +36,13 @@ struct DynamoDBItemBrowserView: View {
     @State private var itemsToDelete: [DynamoDBItem] = []
     @State private var serviceError: ServiceError?
 
+    // Attributes sheet
+    @State private var showAttributesSheet = false
+
+    // Inline draft row
+    @State private var isDraftRowActive = false
+    @State private var saveDraftCounter = 0
+
     enum BrowseMode: String, CaseIterable {
         case scan = "Scan"
         case query = "Query"
@@ -97,6 +104,9 @@ struct DynamoDBItemBrowserView: View {
             Divider()
             statusBar
         }
+        .sheet(isPresented: $showAttributesSheet) {
+            DynamoDBTableAttributesView(service: service, table: table)
+        }
         .sheet(item: $itemToShowDetail) { item in
             DynamoDBItemDetailView(
                 item: item,
@@ -150,7 +160,8 @@ struct DynamoDBItemBrowserView: View {
         .onChange(of: items) { recomputeColumns() }
         .onReceive(appState.autoRefresh.triggerPublisher) {
             guard browseMode == .scan && !showPutItemSheet && editingItem == nil
-                    && itemsToDelete.isEmpty && itemToShowDetail == nil && !isLoading else { return }
+                    && itemsToDelete.isEmpty && itemToShowDetail == nil && !isLoading
+                    && !isDraftRowActive else { return }
             executeCurrentOperation(force: true, silent: true)
         }
         .onChange(of: toolbarState.pendingAction) {
@@ -160,7 +171,8 @@ struct DynamoDBItemBrowserView: View {
                 toolbarState.pendingAction = nil
                 showPutItemSheet = true
             case .showAttributes:
-                break // handled by table list
+                toolbarState.pendingAction = nil
+                showAttributesSheet = true
             case .createTable:
                 break // handled by table list
             case .deleteSelected:
@@ -183,6 +195,14 @@ struct DynamoDBItemBrowserView: View {
                 .frame(width: 180)
 
                 Spacer()
+
+                Button {
+                    showAttributesSheet = true
+                } label: {
+                    Image(systemName: "info.circle")
+                }
+                .buttonStyle(.borderless)
+                .help("Table Attributes")
 
                 Button("Execute") {
                     executeCurrentOperation(force: true)
@@ -270,10 +290,10 @@ struct DynamoDBItemBrowserView: View {
 
     @ViewBuilder
     private var itemTable: some View {
-        if isLoading && items.isEmpty {
+        if isLoading && items.isEmpty && !isDraftRowActive {
             ProgressView("Loading items...")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, items.isEmpty {
+        } else if let errorMessage, items.isEmpty && !isDraftRowActive {
             VStack(spacing: 8) {
                 Image(systemName: "exclamationmark.triangle")
                     .font(.title)
@@ -283,7 +303,7 @@ struct DynamoDBItemBrowserView: View {
                 Button("Retry") { executeCurrentOperation(force: true) }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if items.isEmpty {
+        } else if items.isEmpty && !isDraftRowActive {
             VStack(spacing: 8) {
                 Image(systemName: "tray")
                     .font(.title)
@@ -304,6 +324,10 @@ struct DynamoDBItemBrowserView: View {
                 tableDetail: tableDetail,
                 isReadOnly: appState.isReadOnly,
                 selectedItemIDs: $selectedItemIDs,
+                isDraftRowActive: isDraftRowActive,
+                saveDraftCounter: saveDraftCounter,
+                onSaveDraft: handleSaveDraft,
+                onCancelDraft: { isDraftRowActive = false },
                 onCellEdit: handleCellEdit,
                 onViewDetail: { itemToShowDetail = $0 },
                 onDeleteItems: { itemsToDelete = $0 },
@@ -338,26 +362,51 @@ struct DynamoDBItemBrowserView: View {
 
     private var statusBar: some View {
         HStack {
-            Text("Items: \(items.count)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if totalScanned > items.count {
-                Text("Scanned: \(totalScanned)")
+            if isDraftRowActive {
+                Image(systemName: "pencil.line")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            }
-            if selectedItemIDs.count > 1 {
-                Text("(\(selectedItemIDs.count) selected)")
+                Text("New item")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            }
-            Spacer()
-            if lastEvaluatedKey != nil {
-                Button("Load More") {
-                    loadMoreItems()
+                Text("— ⌘S to save")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                Spacer()
+                Button("Cancel") {
+                    isDraftRowActive = false
                 }
                 .font(.caption)
-                .disabled(isLoading)
+                Button {
+                    saveDraftCounter += 1
+                } label: {
+                    Label("Save", systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                }
+                .keyboardShortcut("s")
+                .disabled(appState.isReadOnly)
+            } else {
+                Text("Items: \(items.count)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if totalScanned > items.count {
+                    Text("Scanned: \(totalScanned)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if selectedItemIDs.count > 1 {
+                    Text("(\(selectedItemIDs.count) selected)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if lastEvaluatedKey != nil {
+                    Button("Load More") {
+                        loadMoreItems()
+                    }
+                    .font(.caption)
+                    .disabled(isLoading)
+                }
             }
         }
         .padding(.horizontal, 12)
@@ -377,6 +426,50 @@ struct DynamoDBItemBrowserView: View {
         .frame(maxWidth: .infinity)
         .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 6))
         .padding(6)
+    }
+
+    // MARK: - Inline Draft
+
+    private func handleSaveDraft(_ values: [String: String]) {
+        let pkName = tableDetail.partitionKey?.attributeName ?? ""
+        let skName = tableDetail.sortKey?.attributeName
+
+        // Validate keys
+        guard let pkValue = values[pkName], !pkValue.isEmpty else {
+            serviceError = ServiceError(code: "ValidationError", message: "Partition key (\(pkName)) is required.")
+            return
+        }
+        if let skName, (values[skName] ?? "").isEmpty {
+            serviceError = ServiceError(code: "ValidationError", message: "Sort key (\(skName)) is required.")
+            return
+        }
+
+        // Build item
+        var item: [String: AttributeValue] = [:]
+
+        let pkType = tableDetail.attributeType(for: pkName) ?? "S"
+        item[pkName] = pkType == "N" ? .number(pkValue) : .string(pkValue)
+
+        if let skName, let skValue = values[skName], !skValue.isEmpty {
+            let skType = tableDetail.attributeType(for: skName) ?? "S"
+            item[skName] = skType == "N" ? .number(skValue) : .string(skValue)
+        }
+
+        for (key, value) in values {
+            if key == pkName || key == skName { continue }
+            if value.isEmpty { continue }
+            item[key] = .string(value)
+        }
+
+        Task {
+            do {
+                try await service.putItem(tableName: table.tableName, item: item)
+                isDraftRowActive = false
+                executeCurrentOperation(force: true)
+            } catch {
+                serviceError = error.asServiceError
+            }
+        }
     }
 
     // MARK: - Grid Support
