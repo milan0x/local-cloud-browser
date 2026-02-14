@@ -5,6 +5,7 @@ enum Route: String, CaseIterable, Identifiable {
     case sqs
     case sns
     case secretsManager
+    case dynamodb
 
     var id: String { rawValue }
 
@@ -14,6 +15,7 @@ enum Route: String, CaseIterable, Identifiable {
         case .sqs: "SQS"
         case .sns: "SNS"
         case .secretsManager: "Secrets Manager"
+        case .dynamodb: "DynamoDB"
         }
     }
 
@@ -23,6 +25,7 @@ enum Route: String, CaseIterable, Identifiable {
         case .sqs: "tray.2"
         case .sns: "bell"
         case .secretsManager: "key"
+        case .dynamodb: "tablecells"
         }
     }
 }

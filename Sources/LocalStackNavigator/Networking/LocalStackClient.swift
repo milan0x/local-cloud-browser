@@ -236,6 +236,38 @@ final class LocalStackClient: ObservableObject {
         return response.data
     }
 
+    // MARK: - DynamoDB (JSON protocol)
+
+    /// Read-only whitelist for DynamoDB actions — these are safe even though they use POST.
+    private static let dynamodbReadActions: Set<String> = [
+        "ListTables", "DescribeTable", "Scan", "Query", "GetItem",
+        "DescribeTimeToLive", "ListTagsOfResource",
+    ]
+
+    func dynamodbRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.dynamodbReadActions.contains(action) {
+            Log.warn("Blocked DynamoDB \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "DynamoDB:\(action)")
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/dynamodb/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-amz-json-1.0",
+            headers: [
+                "X-Amz-Target": "DynamoDB_20120810.\(action)",
+                "Authorization": auth,
+            ],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
     // MARK: - Secrets Manager (JSON protocol)
 
     /// Read-only whitelist for Secrets Manager actions — these are safe even though they use POST.
