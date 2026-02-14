@@ -165,6 +165,15 @@ enum AttributeValue: Hashable {
         }
     }
 
+    /// Whether this value type supports inline text editing in the grid.
+    /// True for string, number, bool. False for complex types (map, list, sets, null, binary).
+    var isInlineEditable: Bool {
+        switch self {
+        case .string, .number, .bool: return true
+        default: return false
+        }
+    }
+
     var displayString: String {
         switch self {
         case .string(let s): return s
