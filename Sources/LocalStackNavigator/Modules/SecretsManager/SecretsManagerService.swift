@@ -45,6 +45,7 @@ final class SecretsManagerService: ObservableObject {
         var payload: [String: Any] = [
             "Name": name,
             "SecretString": secretString,
+            "ClientRequestToken": UUID().uuidString,
         ]
         if let description, !description.isEmpty {
             payload["Description"] = description
@@ -59,6 +60,7 @@ final class SecretsManagerService: ObservableObject {
             payload: [
                 "SecretId": secretId,
                 "SecretString": secretString,
+                "ClientRequestToken": UUID().uuidString,
             ]
         )
         // Update description if provided
