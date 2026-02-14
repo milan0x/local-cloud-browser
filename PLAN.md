@@ -6,7 +6,7 @@
 - [x] Route enum with all service cases
 - [x] NavigationSplitView shell (ContentView + SidebarView)
 - [x] Module protocol definition
-- [x] Stub module views (S3, SQS, SNS, Secrets Manager)
+- [x] Stub module views (S3, SQS, SNS, Secrets Manager, SSM Parameter Store)
 - [x] SafetyGuard endpoint validation
 - [x] ReadOnlyInterceptor
 - [x] LocalStackClient (async HTTP)
@@ -198,6 +198,7 @@
 - [x] Auto-refresh via `triggerPublisher`, silent: true, diff before assign
 - [x] Connection/region change handlers, connection lost banner, double-click detector (NSViewRepresentable)
 - [x] `LocalStackClient.secretsManagerRequest()` — JSON protocol, `application/x-amz-json-1.1`, `secretsmanager.<Action>` target, read-only whitelist (ListSecrets, DescribeSecret, GetSecretValue)
+- [x] `ClientRequestToken: UUID().uuidString` in `CreateSecret` and `PutSecretValue` payloads — required by AWS API for idempotency
 - [x] Read-only mode: all mutating actions disabled (grayed out, never hidden) — create, update, delete
 
 ## Phase 6: DynamoDB Module
@@ -223,6 +224,22 @@
 - [x] `DynamoDBModuleView.swift`: HSplitView with table list (260pt) | item browser or "Select a table" placeholder. `@StateObject` for service + toolbar state. Session restore via `LastSessionStore.load()` snapshot in `init()`. Loads table detail on `activeTable` change for passing to item browser. `.onAppear { service.updateClient(client) }`. `.onChange(of: activeTable) { LastSessionStore.saveDynamoDBTable(...) }`. Toolbar wired via `DynamoDBToolbar`. `DynamoDBModule` struct conforming to `LocalStackModule`.
 - [x] Read-only mode: all mutating actions disabled (grayed out, never hidden) — create table, delete table, put item, delete item. Consistent with S3/SQS/SNS/Secrets Manager pattern.
 - [x] Session restore: `dynamodbTableName` in `LastSessionState`, intra-session always on, cross-launch gated by `LastSessionStore.isEnabled`. Table name only — scan/query params and pagination state are ephemeral.
+
+## Phase 6b: SSM Parameter Store Module
+- [x] `SSMModels.swift`: `SSMParameter` (Identifiable, Hashable) with name, type, version, description, tier, dataType, arn, lastModifiedDate. `init(from:)` dict parser. CLI helpers: `getParameterCLI()`, `describeParametersCLI()` with shell escaping. Computed: `displayType`, `isSecureString`. `SSMParameterValue` with name, type, value, version, lastModifiedDate, arn. `init(from:)` unwraps `Parameter` key from `GetParameter` response. Computed: `isJSON`, `prettyPrinted`, `displayValue`.
+- [x] `SSMService.swift`: `@MainActor` ObservableObject wrapping `LocalStackClient` (implicitly unwrapped optional pattern). Methods: `describeParameters()` (paginated via `NextToken`), `getParameter(name:, withDecryption:)`, `putParameter(name:, value:, type:, description:, overwrite:)`, `deleteParameter(name:)`.
+- [x] `LocalStackClient.ssmRequest(action:payload:)`: JSON protocol with `application/x-amz-json-1.1` content type and `X-Amz-Target: AmazonSSM.<Action>` header. Read-only whitelist: DescribeParameters, GetParameter, GetParameters, GetParametersByPath, ListTagsForResource. Minimal SigV4 Authorization header for region scoping. Uses `skipReadOnlyCheck: true` since SSM uses POST for everything including reads.
+- [x] `Route.swift`: added `case ssm` with displayName "Parameter Store" and systemImage "list.bullet.rectangle"
+- [x] `ContentView.swift`: added `case .ssm: SSMModuleView()` in `detailView(for:)`
+- [x] `LastSessionStore.swift`: added `ssmParameterName: String?` to `LastSessionState`, `saveSSMParameter(_:)` method, included in `clearSubResources()`
+- [x] `SSMToolbarState.swift`: ObservableObject bridge with pending action enum (viewDetails, createParameter, deleteSelected). `SSMToolbar` ToolbarContent with Details (info.circle), Create (+), Delete (trash) buttons, all with `.toolbarHitTarget()`. Disabled states: details disabled when no parameter selected, all mutating actions disabled in read-only mode.
+- [x] `SSMModuleView.swift`: HSplitView with parameter list (260pt) | value pane or "Select a parameter" placeholder. `@StateObject` for service + toolbar state. Session restore via `LastSessionStore.load()` snapshot in `init()`. `.onAppear { service.updateClient(client) }`. `.onChange(of: activeParameter) { LastSessionStore.saveSSMParameter(...) }`. `SSMModule` struct conforming to `LocalStackModule`.
+- [x] `SSMParameterListView.swift`: 260pt parameter list pane with full CRUD. Search filter via `SearchBarView`. Session restore with `restoreParameterName` + `hasRestoredSession` flag. Auto-refresh via `appState.autoRefresh.triggerPublisher` (silent mode). Context menu: View Details, Copy Name, Copy ARN, Copy as AWS CLI (Get Parameter, Describe Parameters), Create Parameter, Delete. Right-click empty area: "Create Parameter". Delete alert with native `.alert()`. Connection lost banner overlay. Double-click detector (NSViewRepresentable with scoped NSEvent monitor). Status bar with parameter count + selection info. Type badges in list rows: String (gray), StringList (purple), SecureString (orange).
+- [x] `SSMParameterValuePaneView.swift`: right pane showing parameter value. Header: parameter name + type badge + description. SecureString: eye icon reveal/hide (like Secrets Manager). String/StringList: show value directly. JSON detection + pretty-print + copy button. Status bar: version badge + value size. Toolbar `.viewDetails` action opens detail sheet.
+- [x] `SSMParameterDetailView.swift`: 580pt sheet, `.formStyle(.grouped)`. Parameter Info section (name, ARN, type badge, version, description, tier, data type). Dates section. Parameter Value section with reveal/hide for SecureString, JSON badge + CopyButton for revealed values. Footer: Edit + Done. Edit disabled in read-only mode.
+- [x] `SSMCreateParameterView.swift`: create/edit sheet (480pt wide, minHeight 400). Fields: parameter name (disabled when editing), type picker (String/StringList/SecureString, disabled when editing), description (optional), value (CodeTextEditor). Collision detection against existing parameter names. Type detection pill (JSON/Text). Create calls `PutParameter` with `Overwrite: false`, Update calls with `Overwrite: true`.
+- [x] Read-only mode: all mutating actions disabled (grayed out, never hidden) — create, update, delete. Consistent with all other modules.
+- [x] Session restore: `ssmParameterName` in `LastSessionState`, intra-session always on, cross-launch gated by `LastSessionStore.isEnabled`.
 
 ## Phase 7: Settings & Polish
 - [x] Settings UI (endpoint, region, auto-refresh interval, folder delete details toggle)
@@ -465,6 +482,18 @@ All models are structs with computed properties — create instances with test d
 - [ ] Nested types: list containing maps, maps containing lists
 - [ ] Unknown/empty dict → `fromJSON` returns `nil`
 
+#### SSMParameter / SSMParameterValue (`Modules/SSM/SSMModels.swift`)
+- [ ] `SSMParameter.init(from:)`: parses all fields from `[String: Any]` dict
+- [ ] `SSMParameter.isSecureString`: type == "SecureString" → true; otherwise → false
+- [ ] `SSMParameter.displayType`: returns type string
+- [ ] `SSMParameter.getParameterCLI()`: generates valid `aws ssm get-parameter` with name, endpoint, region; SecureString includes `--with-decryption`
+- [ ] `SSMParameter.describeParametersCLI()`: generates valid `aws ssm describe-parameters` with filter
+- [ ] Shell escaping: single quotes in parameter names
+- [ ] `SSMParameterValue.init(from:)`: unwraps `Parameter` key from GetParameter response
+- [ ] `SSMParameterValue.isJSON`: `{...}` or `[...` → true
+- [ ] `SSMParameterValue.prettyPrinted`: valid JSON → formatted; non-JSON → nil
+- [ ] `SSMParameterValue.displayValue`: prettyPrinted if JSON, raw value otherwise
+
 #### DynamoDBTableDetail (`Modules/DynamoDB/DynamoDBModels.swift`)
 - [ ] `init(from:)`: parses all fields from `[String: Any]` dict
 - [ ] `partitionKey` / `sortKey`: extracts from keySchema by HASH/RANGE
@@ -504,6 +533,12 @@ All CLI generators are methods on model structs — create instance, call method
 - [ ] FIFO topics: `publishCLI()` includes `--message-group-id`
 - [ ] `SNSSubscription.getAttributesCLI()`: correct `aws sns get-subscription-attributes` command
 - [ ] Shell escaping in all generators
+
+#### SSM CLI Helpers
+- [ ] `SSMParameter.getParameterCLI()`: correct `aws ssm get-parameter` with backslash continuations
+- [ ] `SSMParameter.describeParametersCLI()`: correct `aws ssm describe-parameters` with filter
+- [ ] SecureString parameter: `getParameterCLI()` includes `--with-decryption`
+- [ ] Shell escaping: single quotes in parameter names
 
 ### Wave 5: Safety & Validation Tests (Pure Logic — No Code Changes)
 
@@ -577,8 +612,9 @@ These require extracting existing logic into testable static functions. Each is 
 - [ ] Change `private static let sqsReadActions` → `static let sqsReadActions` (internal)
 - [ ] Change `private static let snsReadActions` → `static let snsReadActions` (internal)
 - [ ] Change `private static let dynamodbReadActions` → `static let dynamodbReadActions` (internal)
+- [ ] Change `private static let ssmReadActions` → `static let ssmReadActions` (internal)
 - [ ] Test: all whitelisted actions are in the set
-- [ ] Test: known mutating actions (SendMessage, DeleteQueue, CreateTopic, CreateTable, PutItem, DeleteItem, etc.) are NOT in the set
+- [ ] Test: known mutating actions (SendMessage, DeleteQueue, CreateTopic, CreateTable, PutItem, DeleteItem, PutParameter, DeleteParameter, etc.) are NOT in the set
 
 ### Wave 8: Integration Test Patterns (Optional — Requires Running LocalStack)
 
@@ -590,6 +626,8 @@ These tests hit a real LocalStack instance. Useful for CI but not required for t
 - [ ] SQS: create queue → send message → receive message → verify body matches → delete queue
 - [ ] SNS: create topic → list topics → verify exists → delete topic → verify gone
 - [ ] DynamoDB: create table → describe table → verify schema → put item → scan → verify item → delete item → delete table
+- [ ] SSM: put parameter (String) → describe parameters → verify exists → get parameter → verify value → delete parameter → verify gone
+- [ ] SSM: put parameter (SecureString) → get parameter with decryption → verify value
 - [ ] Health check: `GET /_localstack/health` → parse response → verify version and services
 
 ## Future Ideas
