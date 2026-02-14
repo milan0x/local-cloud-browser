@@ -82,6 +82,8 @@ struct ContentView: View {
             LambdaModuleView()
         case .cloudwatchLogs:
             CloudWatchLogsModuleView()
+        case .eventBridge:
+            EventBridgeModuleView()
         }
     }
 
