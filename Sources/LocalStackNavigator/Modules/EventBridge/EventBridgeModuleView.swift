@@ -4,48 +4,65 @@ struct EventBridgeModuleView: View {
     @EnvironmentObject private var client: LocalStackClient
     @EnvironmentObject private var appState: AppState
     @StateObject private var service: EventBridgeService
+    @StateObject private var schedulerService: EventBridgeSchedulerService
     @StateObject private var toolbarState = EventBridgeToolbarState()
 
+    @State private var tab: EventBridgeTab = .events
+
+    // Events selection
     @State private var selectedBusIDs: Set<EventBridgeBus.ID> = []
     @State private var activeBus: EventBridgeBus?
 
-    // Session restore: captured once when the view is created
+    // Schedules selection
+    @State private var selectedGroupIDs: Set<SchedulerScheduleGroup.ID> = []
+    @State private var activeGroup: SchedulerScheduleGroup?
+
+    // Session restore
     @State private var restoreBusName: String?
+    @State private var restoreTab: EventBridgeTab?
+    @State private var restoreGroupName: String?
+    @State private var restoreScheduleName: String?
 
     init() {
         _service = StateObject(wrappedValue: EventBridgeService())
+        _schedulerService = StateObject(wrappedValue: EventBridgeSchedulerService())
         if let saved = LastSessionStore.load() {
             _restoreBusName = State(initialValue: saved.eventBridgeBusName)
+            if let tabStr = saved.eventBridgeTab, let tab = EventBridgeTab(rawValue: tabStr) {
+                _restoreTab = State(initialValue: tab)
+            }
+            _restoreGroupName = State(initialValue: saved.eventBridgeScheduleGroupName)
+            _restoreScheduleName = State(initialValue: saved.eventBridgeScheduleName)
         }
     }
 
     var body: some View {
         HSplitView {
-            EventBridgeBusListView(
-                service: service,
-                toolbarState: toolbarState,
-                selectedBusIDs: $selectedBusIDs,
-                activeBus: $activeBus,
-                restoreBusName: restoreBusName
-            )
-            .frame(width: 260)
+            leftPane
+                .frame(width: 260)
 
             Group {
-                if let bus = activeBus {
-                    EventBridgeRuleBrowserView(
-                        service: service,
-                        bus: bus,
-                        toolbarState: toolbarState
-                    )
-                } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "bolt.horizontal")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select an event bus")
-                            .foregroundStyle(.secondary)
+                if tab == .events {
+                    if let bus = activeBus {
+                        EventBridgeRuleBrowserView(
+                            service: service,
+                            bus: bus,
+                            toolbarState: toolbarState
+                        )
+                    } else {
+                        emptyDetail("Select an event bus", icon: "bolt.horizontal")
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    if let group = activeGroup {
+                        EventBridgeScheduleBrowserView(
+                            service: schedulerService,
+                            group: group,
+                            toolbarState: toolbarState,
+                            restoreScheduleName: restoreScheduleName
+                        )
+                    } else {
+                        emptyDetail("Select a schedule group", icon: "calendar.badge.clock")
+                    }
                 }
             }
             .frame(minWidth: 400)
@@ -54,16 +71,95 @@ struct EventBridgeModuleView: View {
             EventBridgeToolbar(
                 state: toolbarState,
                 isReadOnly: appState.isReadOnly,
-                hasBus: activeBus != nil
+                tab: tab,
+                hasBus: activeBus != nil,
+                hasScheduleGroup: activeGroup != nil
             )
+        }
+        .onChange(of: tab) {
+            if tab == .events {
+                selectedGroupIDs = []
+                activeGroup = nil
+            } else {
+                selectedBusIDs = []
+                activeBus = nil
+            }
+            toolbarState.reset()
+            saveSession()
         }
         .onChange(of: activeBus) {
             toolbarState.reset()
-            LastSessionStore.saveEventBridgeBus(activeBus?.name)
+            saveSession()
+        }
+        .onChange(of: activeGroup) {
+            toolbarState.reset()
+            saveSession()
         }
         .onAppear {
             service.updateClient(client)
+            schedulerService.updateClient(client)
+            if let restoreTab {
+                tab = restoreTab
+            }
         }
+    }
+
+    // MARK: - Left Pane
+
+    private var leftPane: some View {
+        VStack(spacing: 0) {
+            Picker("Tab", selection: $tab) {
+                ForEach(EventBridgeTab.allCases, id: \.self) { t in
+                    Text(t.rawValue).tag(t)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+
+            Divider()
+
+            switch tab {
+            case .events:
+                EventBridgeBusListView(
+                    service: service,
+                    toolbarState: toolbarState,
+                    selectedBusIDs: $selectedBusIDs,
+                    activeBus: $activeBus,
+                    restoreBusName: restoreBusName
+                )
+            case .schedules:
+                EventBridgeScheduleGroupListView(
+                    service: schedulerService,
+                    toolbarState: toolbarState,
+                    selectedGroupIDs: $selectedGroupIDs,
+                    activeGroup: $activeGroup,
+                    restoreGroupName: restoreGroupName
+                )
+            }
+        }
+    }
+
+    private func emptyDetail(_ text: String, icon: String) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 40))
+                .foregroundStyle(.secondary)
+            Text(text)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Session
+
+    private func saveSession() {
+        LastSessionStore.saveEventBridge(
+            tab: tab.rawValue,
+            busName: activeBus?.name,
+            scheduleGroupName: activeGroup?.name,
+            scheduleName: nil
+        )
     }
 }
 

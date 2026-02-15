@@ -9,6 +9,9 @@ final class EventBridgeToolbarState: ObservableObject {
         case putEvent
         case createRule
         case deleteSelected
+        // Scheduler actions
+        case createSchedule
+        case deleteSelectedGroup
     }
 
     func reset() {
@@ -19,9 +22,20 @@ final class EventBridgeToolbarState: ObservableObject {
 struct EventBridgeToolbar: ToolbarContent {
     @ObservedObject var state: EventBridgeToolbarState
     let isReadOnly: Bool
+    let tab: EventBridgeTab
     let hasBus: Bool
+    let hasScheduleGroup: Bool
 
     var body: some ToolbarContent {
+        if tab == .events {
+            eventsToolbar
+        } else {
+            schedulesToolbar
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var eventsToolbar: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Button { state.pendingAction = .viewDetails } label: {
                 Label("Details", systemImage: "info.circle")
@@ -54,6 +68,28 @@ struct EventBridgeToolbar: ToolbarContent {
                     .toolbarHitTarget()
             }
             .help("Delete Event Bus")
+            .disabled(disabled)
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var schedulesToolbar: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            Button { state.pendingAction = .createSchedule } label: {
+                Label("Create Schedule", systemImage: "plus")
+                    .toolbarHitTarget()
+            }
+            .help("Create Schedule")
+            .disabled(isReadOnly || !hasScheduleGroup)
+        }
+        ToolbarItem(placement: .primaryAction) {
+            let disabled = !hasScheduleGroup || isReadOnly
+            Button { state.pendingAction = .deleteSelectedGroup } label: {
+                Label("Delete Group", systemImage: "trash")
+                    .foregroundStyle(disabled ? .gray : .red)
+                    .toolbarHitTarget()
+            }
+            .help("Delete Schedule Group")
             .disabled(disabled)
         }
     }

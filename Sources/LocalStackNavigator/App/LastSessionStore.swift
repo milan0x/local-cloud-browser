@@ -12,6 +12,9 @@ struct LastSessionState: Codable {
     var lambdaFunctionName: String?
     var cloudWatchLogsLogGroupName: String?
     var eventBridgeBusName: String?
+    var eventBridgeTab: String?
+    var eventBridgeScheduleGroupName: String?
+    var eventBridgeScheduleName: String?
     var cloudFormationStackName: String?
     var iamEntityType: String?
     var iamEntityName: String?
@@ -123,6 +126,15 @@ enum LastSessionStore {
         save(state)
     }
 
+    static func saveEventBridge(tab: String?, busName: String?, scheduleGroupName: String?, scheduleName: String?) {
+        var state = load() ?? LastSessionState()
+        state.eventBridgeTab = tab
+        state.eventBridgeBusName = busName
+        state.eventBridgeScheduleGroupName = scheduleGroupName
+        state.eventBridgeScheduleName = scheduleName
+        save(state)
+    }
+
     static func saveCloudFormationStack(_ name: String?) {
         var state = load() ?? LastSessionState()
         state.cloudFormationStackName = name
@@ -225,6 +237,9 @@ enum LastSessionStore {
         state.lambdaFunctionName = nil
         state.cloudWatchLogsLogGroupName = nil
         state.eventBridgeBusName = nil
+        state.eventBridgeTab = nil
+        state.eventBridgeScheduleGroupName = nil
+        state.eventBridgeScheduleName = nil
         state.cloudFormationStackName = nil
         state.iamEntityType = nil
         state.iamEntityName = nil

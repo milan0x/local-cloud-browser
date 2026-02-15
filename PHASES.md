@@ -17,28 +17,9 @@ Implemented: Tabbed HSplitView (Instances/Security Groups/Key Pairs), instance C
 
 ---
 
-## Phase 3 — EventBridge Scheduler: Timed Automation
+## Phase 3 — EventBridge Scheduler ✅
 
-**Protocol:** JSON 1.1, `X-Amz-Target: AWSScheduler.<Action>`, credential service: `scheduler`
-
-**LocalStack support:** `CreateSchedule`, `GetSchedule`, `UpdateSchedule`, `DeleteSchedule`, `ListSchedules`, schedule groups CRUD. Schedules stored but **NOT executed**.
-
-**Layout:** Tab within existing EventBridge module (Buses / Rules / **Schedules**), or standalone HSplitView.
-
-**Features:**
-- Schedule CRUD with state badge (ENABLED / DISABLED)
-- Cron/rate expression with human-readable preview below input
-- "Next 5 occurrences" computed client-side
-- Target ARN + IAM role fields
-- Enable/disable toggle
-- Schedule groups CRUD
-- Warning banner: "Schedules are stored but will NOT execute"
-
-**UI details:**
-- Cron preview: translate `cron(0 9 * * ? *)` → "Every day at 9:00 AM UTC" inline
-- Target type badges (Lambda / StepFunctions / SQS / SNS) with service-specific colors
-- Next-occurrence table — makes abstract cron tangible
-- Extends EventBridge as 3rd tab rather than new sidebar entry
+Implemented: Tabbed EventBridge module (Events | Schedules), schedule group CRUD, schedule CRUD with cron/rate/one-time expressions, human-readable expression preview, next 5 occurrences computation, target type badges (Lambda/StepFunctions/SQS/SNS), enable/disable toggle, flexible time window, warning banner for non-executing schedules, session restore for tab + group + schedule.
 
 ---
 
@@ -143,7 +124,7 @@ Mock-only ticket list (CreateCase/DescribeCases/ResolveCase). Minimal UI surface
 |-------|---------|-------------|--------|------------|-------|
 | 1 ✅ | Step Functions | Full execution | ★★★★★ | High | Highest |
 | 2 ✅ | EC2 | Mock CRUD | ★★★★☆ | High | High |
-| 3 | EventBridge Scheduler | Mock (no exec) | ★★★☆☆ | Medium | Medium-High |
+| 3 ✅ | EventBridge Scheduler | Mock (no exec) | ★★★☆☆ | Medium | Medium-High |
 | 4 | Elasticsearch | Real clusters | ★★★☆☆ | Medium | Medium |
 | 5 | AWS Config | Mock CRUD | ★★☆☆☆ | Low | Medium-Low |
 | 6 | Resource Groups | Tag queries | ★★☆☆☆ | Low | Low |

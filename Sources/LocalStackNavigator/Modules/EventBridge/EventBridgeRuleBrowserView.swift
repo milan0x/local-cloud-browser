@@ -121,6 +121,8 @@ struct EventBridgeRuleBrowserView: View {
                 showCreateRuleSheet = true
             case .deleteSelected:
                 break // handled by bus list
+            case .createSchedule, .deleteSelectedGroup:
+                break // handled by scheduler views
             }
         }
     }
