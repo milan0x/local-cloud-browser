@@ -224,22 +224,17 @@ struct Route53RecordSetBrowserView: View {
         VStack(alignment: .leading, spacing: 6) {
             if let alias = record.aliasTarget {
                 labeledRow("Alias Target") {
-                    Text(alias.dnsName)
-                        .font(.caption.monospaced())
-                        .textSelection(.enabled)
+                    CopyableValue(text: alias.dnsName, font: .system(.caption, design: .monospaced))
                 }
                 labeledRow("Alias Zone") {
-                    Text(alias.hostedZoneId)
-                        .font(.caption.monospaced())
+                    CopyableValue(text: alias.hostedZoneId, font: .system(.caption, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
             } else {
                 labeledRow("Values") {
                     VStack(alignment: .leading, spacing: 2) {
                         ForEach(record.values, id: \.self) { value in
-                            Text(value)
-                                .font(.caption.monospaced())
-                                .textSelection(.enabled)
+                            CopyableValue(text: value, font: .system(.caption, design: .monospaced))
                         }
                     }
                 }
