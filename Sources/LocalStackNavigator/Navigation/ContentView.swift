@@ -112,6 +112,8 @@ struct ContentView: View {
             EC2ModuleView()
         case .sts:
             STSModuleView()
+        case .config:
+            ConfigModuleView()
         }
     }
 

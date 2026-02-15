@@ -1,0 +1,286 @@
+import SwiftUI
+import AppKit
+
+struct ConfigDeliveryChannelListView: View {
+    @ObservedObject var service: ConfigService
+    @ObservedObject var toolbarState: ConfigToolbarState
+    @EnvironmentObject private var appState: AppState
+    @Binding var selectedChannelIDs: Set<DeliveryChannel.ID>
+    @Binding var activeChannel: DeliveryChannel?
+    var restoreChannelName: String?
+
+    @State private var channels: [DeliveryChannel] = []
+    @State private var hasRestoredSession = false
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var showCreateSheet = false
+    @State private var channelsToDelete: [DeliveryChannel] = []
+    @State private var serviceError: ServiceError?
+    @State private var lastLoadTime: Date?
+    @State private var searchText = ""
+
+    var body: some View {
+        VStack(spacing: 0) {
+            channelListContent
+        }
+        .sheet(isPresented: $showCreateSheet) {
+            ConfigCreateDeliveryChannelView(service: service)
+                .onDisappear { loadChannels(force: true) }
+        }
+        .alert(
+            channelsToDelete.count == 1
+                ? "Delete Delivery Channel"
+                : "Delete \(channelsToDelete.count) Delivery Channels",
+            isPresented: Binding(
+                get: { !channelsToDelete.isEmpty },
+                set: { if !$0 { channelsToDelete = [] } }
+            )
+        ) {
+            Button("Delete", role: .destructive) {
+                deleteChannels(channelsToDelete)
+            }
+            Button("Cancel", role: .cancel) {
+                channelsToDelete = []
+            }
+        } message: {
+            if channelsToDelete.count == 1, let channel = channelsToDelete.first {
+                Text("Are you sure you want to delete delivery channel \"\(channel.name)\"?\n\nThis action cannot be undone.")
+            } else {
+                Text("Are you sure you want to delete \(channelsToDelete.count) delivery channels?\n\nThis action cannot be undone.")
+            }
+        }
+        .serviceErrorAlert(error: $serviceError)
+        .task { loadChannels() }
+        .onReceive(appState.autoRefresh.triggerPublisher) {
+            guard !showCreateSheet && channelsToDelete.isEmpty && !isLoading else { return }
+            loadChannels(force: true, silent: true)
+        }
+        .onChange(of: appState.connectionVersion) {
+            selectedChannelIDs = []
+            activeChannel = nil
+            channels = []
+            loadChannels(force: true)
+        }
+        .onChange(of: appState.region) {
+            selectedChannelIDs = []
+            activeChannel = nil
+            channels = []
+            loadChannels(force: true)
+        }
+        .onChange(of: selectedChannelIDs) {
+            if selectedChannelIDs.count == 1, let id = selectedChannelIDs.first {
+                activeChannel = channels.first { $0.id == id }
+            } else {
+                activeChannel = nil
+            }
+        }
+        .onChange(of: toolbarState.pendingAction) {
+            guard let action = toolbarState.pendingAction else { return }
+            switch action {
+            case .createChannel:
+                toolbarState.pendingAction = nil
+                showCreateSheet = true
+            case .deleteChannel:
+                toolbarState.pendingAction = nil
+                if let active = activeChannel {
+                    channelsToDelete = [active]
+                }
+            case .createRecorder, .deleteRecorder:
+                break
+            }
+        }
+    }
+
+    private var filteredChannels: [DeliveryChannel] {
+        guard !searchText.isEmpty else { return channels }
+        let query = searchText.lowercased()
+        return channels.filter {
+            $0.name.lowercased().contains(query)
+        }
+    }
+
+    // MARK: - Content
+
+    @ViewBuilder
+    private var channelListContent: some View {
+        if isLoading && channels.isEmpty {
+            VStack(spacing: 12) {
+                ProgressView("Loading delivery channels...")
+                if appState.connectionError != nil {
+                    Label("Connection lost — retrying...", systemImage: "bolt.horizontal.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let errorMessage, channels.isEmpty {
+            VStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.title)
+                    .foregroundStyle(.secondary)
+                Text(errorMessage)
+                    .foregroundStyle(.secondary)
+                Button("Retry") { loadChannels(force: true) }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if channels.isEmpty {
+            VStack(spacing: 8) {
+                Image(systemName: "tray.and.arrow.down")
+                    .font(.title)
+                    .foregroundStyle(.secondary)
+                Text("No delivery channels")
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .contextMenu {
+                Button("Create Delivery Channel") {
+                    showCreateSheet = true
+                }
+                .disabled(appState.isReadOnly)
+            }
+        } else {
+            VStack(spacing: 0) {
+                if channels.count > 5 {
+                    SearchBarView(query: $searchText, placeholder: "Filter channels")
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                    Divider()
+                }
+                List(filteredChannels, selection: $selectedChannelIDs) { channel in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(channel.name)
+                            .fontWeight(.medium)
+                            .lineLimit(1)
+                        if !channel.s3BucketName.isEmpty {
+                            Text(channel.s3BucketName)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .tag(channel.id)
+                    .contextMenu {
+                        Button("Copy Name") { copyToClipboard(channel.name) }
+                        Menu("Copy as AWS CLI") {
+                            Button("Describe Channel") {
+                                copyToClipboard(channel.describeChannelCLI(endpointUrl: appState.endpoint, region: appState.region))
+                            }
+                            Button("List Channels") {
+                                copyToClipboard(DeliveryChannel.listChannelsCLI(endpointUrl: appState.endpoint, region: appState.region))
+                            }
+                        }
+                        Divider()
+                        Button("Create Delivery Channel") {
+                            showCreateSheet = true
+                        }
+                        .disabled(appState.isReadOnly)
+                        Divider()
+                        Button("Delete", role: .destructive) {
+                            channelsToDelete = [channel]
+                        }
+                        .disabled(appState.isReadOnly)
+                    }
+                }
+                .overlay(alignment: .bottom) {
+                    if errorMessage != nil {
+                        connectionLostBanner
+                    }
+                }
+                .contextMenu {
+                    Button("Create Delivery Channel") {
+                        showCreateSheet = true
+                    }
+                    .disabled(appState.isReadOnly)
+                }
+
+                Divider()
+                HStack {
+                    Text("\(channels.count) channel\(channels.count == 1 ? "" : "s")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+            }
+        }
+    }
+
+    private var connectionLostBanner: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "bolt.horizontal.circle")
+                .font(.caption)
+            Text("Connection lost — showing cached data")
+                .font(.caption)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity)
+        .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 6))
+        .padding(6)
+    }
+
+    // MARK: - Data
+
+    private func loadChannels(force: Bool = false, silent: Bool = false) {
+        guard !isLoading else { return }
+        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
+            return
+        }
+        if !silent {
+            isLoading = true
+            errorMessage = nil
+        }
+        Task {
+            do {
+                let loaded = try await service.describeDeliveryChannels()
+                let freshChannels = loaded.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+                if channels != freshChannels {
+                    channels = freshChannels
+                }
+                if !hasRestoredSession, let savedName = restoreChannelName,
+                   let channel = channels.first(where: { $0.name == savedName }) {
+                    selectedChannelIDs = [channel.id]
+                    activeChannel = channel
+                }
+                hasRestoredSession = true
+            } catch {
+                if !silent {
+                    errorMessage = error.localizedDescription
+                }
+            }
+            if !silent {
+                isLoading = false
+                lastLoadTime = Date()
+            }
+        }
+    }
+
+    private func deleteChannels(_ targets: [DeliveryChannel]) {
+        Task {
+            var deletedIDs: Set<DeliveryChannel.ID> = []
+            for channel in targets {
+                do {
+                    try await service.deleteDeliveryChannel(name: channel.name)
+                    deletedIDs.insert(channel.id)
+                } catch {
+                    serviceError = error.asServiceError
+                }
+            }
+            if !deletedIDs.isEmpty {
+                selectedChannelIDs.subtract(deletedIDs)
+                if let active = activeChannel, deletedIDs.contains(active.id) {
+                    activeChannel = nil
+                }
+                loadChannels(force: true)
+            }
+        }
+    }
+
+    private func copyToClipboard(_ string: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(string, forType: .string)
+    }
+}
