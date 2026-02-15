@@ -121,26 +121,17 @@ struct SecretsListView: View {
 
             Spacer()
 
-            Button { showCreateSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showCreateSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadSecrets(force: true)
             }
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: secretDeleteDisabled, help: selectedSecretIDs.count <= 1 ? "Delete Secret" : "Delete \(selectedSecretIDs.count) Secrets") {
                 secretsToDelete = secrets.filter { selectedSecretIDs.contains($0.id) }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(secretDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(secretDeleteDisabled)
-            .help(selectedSecretIDs.count <= 1 ? "Delete Secret" : "Delete \(selectedSecretIDs.count) Secrets")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

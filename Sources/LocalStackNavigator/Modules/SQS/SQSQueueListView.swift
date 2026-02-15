@@ -123,26 +123,17 @@ struct SQSQueueListView: View {
 
             Spacer()
 
-            Button { showCreateSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showCreateSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadQueues(force: true)
             }
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: queueDeleteDisabled, help: selectedQueueIDs.count <= 1 ? "Delete Queue" : "Delete \(selectedQueueIDs.count) Queues") {
                 queuesToDelete = queues.filter { selectedQueueIDs.contains($0.id) }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(queueDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(queueDeleteDisabled)
-            .help(selectedQueueIDs.count <= 1 ? "Delete Queue" : "Delete \(selectedQueueIDs.count) Queues")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

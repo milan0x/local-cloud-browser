@@ -121,26 +121,17 @@ struct SESIdentityListView: View {
 
             Spacer()
 
-            Button { showVerifySheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showVerifySheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadIdentities(force: true)
             }
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: identityDeleteDisabled, help: selectedIdentityIDs.count <= 1 ? "Delete Identity" : "Delete \(selectedIdentityIDs.count) Identities") {
                 identitiesToDelete = identities.filter { selectedIdentityIDs.contains($0.id) }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(identityDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(identityDeleteDisabled)
-            .help(selectedIdentityIDs.count <= 1 ? "Delete Identity" : "Delete \(selectedIdentityIDs.count) Identities")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

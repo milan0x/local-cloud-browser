@@ -129,26 +129,17 @@ struct DynamoDBTableListView: View {
 
             Spacer()
 
-            Button { showCreateSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showCreateSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadTables(force: true)
             }
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: tableDeleteDisabled, help: selectedTableIDs.count <= 1 ? "Delete Table" : "Delete \(selectedTableIDs.count) Tables") {
                 tablesToDelete = tables.filter { selectedTableIDs.contains($0.id) }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(tableDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(tableDeleteDisabled)
-            .help(selectedTableIDs.count <= 1 ? "Delete Table" : "Delete \(selectedTableIDs.count) Tables")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

@@ -160,26 +160,17 @@ struct S3BucketListView: View {
 
             Spacer()
 
-            Button { showCreateSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showCreateSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadBuckets(force: true)
             }
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: bucketDeleteDisabled, help: bucketDeleteHelp) {
                 bucketsToDelete = buckets.filter { selectedBucketIDs.contains($0.id) }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(bucketDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(bucketDeleteDisabled)
-            .help(bucketDeleteHelp)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

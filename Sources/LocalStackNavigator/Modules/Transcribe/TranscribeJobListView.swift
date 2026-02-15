@@ -118,26 +118,17 @@ struct TranscribeJobListView: View {
 
             Spacer()
 
-            Button { showCreateSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showCreateSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadJobs(force: true)
             }
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: jobDeleteDisabled, help: selectedJobIDs.count <= 1 ? "Delete Transcription Job" : "Delete \(selectedJobIDs.count) Jobs") {
                 jobsToDelete = jobs.filter { selectedJobIDs.contains($0.id) }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(jobDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(jobDeleteDisabled)
-            .help(selectedJobIDs.count <= 1 ? "Delete Transcription Job" : "Delete \(selectedJobIDs.count) Jobs")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

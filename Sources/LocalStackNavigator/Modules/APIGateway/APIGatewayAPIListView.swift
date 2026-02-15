@@ -118,26 +118,17 @@ struct APIGatewayAPIListView: View {
 
             Spacer()
 
-            Button { showCreateSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showCreateSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadAPIs(force: true)
             }
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: apiDeleteDisabled, help: selectedAPIIDs.count <= 1 ? "Delete API" : "Delete \(selectedAPIIDs.count) APIs") {
                 apisToDelete = apis.filter { selectedAPIIDs.contains($0.id) }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(apiDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(apiDeleteDisabled)
-            .help(selectedAPIIDs.count <= 1 ? "Delete API" : "Delete \(selectedAPIIDs.count) APIs")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

@@ -117,26 +117,17 @@ struct OpenSearchDomainListView: View {
 
             Spacer()
 
-            Button { showCreateSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showCreateSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadDomains(force: true)
             }
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: domainDeleteDisabled, help: selectedDomainIDs.count <= 1 ? "Delete Domain" : "Delete \(selectedDomainIDs.count) Domains") {
                 domainsToDelete = domains.filter { selectedDomainIDs.contains($0.id) }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(domainDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(domainDeleteDisabled)
-            .help(selectedDomainIDs.count <= 1 ? "Delete Domain" : "Delete \(selectedDomainIDs.count) Domains")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

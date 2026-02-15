@@ -122,29 +122,20 @@ struct EventBridgeBusListView: View {
 
             Spacer()
 
-            Button { showCreateSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showCreateSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadBuses(force: true)
             }
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: busDeleteDisabled, help: selectedBusIDs.count <= 1 ? "Delete Event Bus" : "Delete \(selectedBusIDs.count) Event Buses") {
                 let deletable = buses.filter { selectedBusIDs.contains($0.id) && !$0.isDefault }
                 if !deletable.isEmpty {
                     busesToDelete = deletable
                 }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(busDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(busDeleteDisabled)
-            .help(selectedBusIDs.count <= 1 ? "Delete Event Bus" : "Delete \(selectedBusIDs.count) Event Buses")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

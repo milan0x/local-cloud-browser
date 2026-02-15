@@ -117,26 +117,17 @@ struct RedshiftClusterListView: View {
 
             Spacer()
 
-            Button { showCreateSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showCreateSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadClusters(force: true)
             }
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: clusterDeleteDisabled, help: selectedClusterIDs.count <= 1 ? "Delete Cluster" : "Delete \(selectedClusterIDs.count) Clusters") {
                 clustersToDelete = clusters.filter { selectedClusterIDs.contains($0.id) }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(clusterDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(clusterDeleteDisabled)
-            .help(selectedClusterIDs.count <= 1 ? "Delete Cluster" : "Delete \(selectedClusterIDs.count) Clusters")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

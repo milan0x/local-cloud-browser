@@ -123,26 +123,17 @@ struct KMSKeyListView: View {
 
             Spacer()
 
-            Button { showCreateSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showCreateSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadKeys(force: true)
             }
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: keyDeleteDisabled, help: selectedKeyIDs.count <= 1 ? "Schedule Key Deletion" : "Schedule \(selectedKeyIDs.count) Key Deletions") {
                 keysToDelete = keys.filter { selectedKeyIDs.contains($0.id) }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(keyDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(keyDeleteDisabled)
-            .help(selectedKeyIDs.count <= 1 ? "Schedule Key Deletion" : "Schedule \(selectedKeyIDs.count) Key Deletions")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
