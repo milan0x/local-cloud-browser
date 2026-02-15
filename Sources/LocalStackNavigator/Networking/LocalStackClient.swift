@@ -633,6 +633,37 @@ final class LocalStackClient: ObservableObject {
         return response.data
     }
 
+    // MARK: - Kinesis Firehose (JSON protocol)
+
+    /// Read-only whitelist for Kinesis Firehose actions — these are safe even though they use POST.
+    private static let firehoseReadActions: Set<String> = [
+        "ListDeliveryStreams", "DescribeDeliveryStream",
+    ]
+
+    func firehoseRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.firehoseReadActions.contains(action) {
+            Log.warn("Blocked Firehose \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "Firehose:\(action)")
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/firehose/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-amz-json-1.1",
+            headers: [
+                "X-Amz-Target": "Firehose_20150804.\(action)",
+                "Authorization": auth,
+            ],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
     // MARK: - KMS (JSON protocol)
 
     /// Read-only whitelist for KMS actions — these are safe even though they use POST.

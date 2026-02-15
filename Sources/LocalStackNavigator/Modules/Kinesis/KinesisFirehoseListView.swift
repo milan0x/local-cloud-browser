@@ -1,20 +1,20 @@
 import SwiftUI
 import AppKit
 
-struct KinesisStreamListView: View {
-    @ObservedObject var service: KinesisService
+struct KinesisFirehoseListView: View {
+    @ObservedObject var service: KinesisFirehoseService
     @ObservedObject var toolbarState: KinesisToolbarState
     @EnvironmentObject private var appState: AppState
-    @Binding var selectedStreamIDs: Set<KinesisStreamSummary.ID>
-    @Binding var activeStream: KinesisStreamSummary?
-    var restoreStreamName: String?
+    @Binding var selectedStreamIDs: Set<FirehoseDeliveryStreamSummary.ID>
+    @Binding var activeStream: FirehoseDeliveryStreamSummary?
+    var restoreDeliveryStreamName: String?
 
-    @State private var streams: [KinesisStreamSummary] = []
+    @State private var streams: [FirehoseDeliveryStreamSummary] = []
     @State private var hasRestoredSession = false
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showCreateSheet = false
-    @State private var streamsToDelete: [KinesisStreamSummary] = []
+    @State private var streamsToDelete: [FirehoseDeliveryStreamSummary] = []
     @State private var showPutRecordSheet = false
     @State private var serviceError: ServiceError?
     @State private var lastLoadTime: Date?
@@ -25,18 +25,18 @@ struct KinesisStreamListView: View {
             streamListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            KinesisCreateStreamView(service: service)
+            KinesisFirehoseCreateView(service: service)
                 .onDisappear { loadStreams(force: true) }
         }
         .sheet(isPresented: $showPutRecordSheet) {
             if let stream = activeStream {
-                KinesisPutRecordView(service: service, streamName: stream.streamName)
+                KinesisFirehosePutRecordView(service: service, deliveryStreamName: stream.deliveryStreamName)
             }
         }
         .alert(
             streamsToDelete.count == 1
-                ? "Delete Stream"
-                : "Delete \(streamsToDelete.count) Streams",
+                ? "Delete Delivery Stream"
+                : "Delete \(streamsToDelete.count) Delivery Streams",
             isPresented: Binding(
                 get: { !streamsToDelete.isEmpty },
                 set: { if !$0 { streamsToDelete = [] } }
@@ -50,9 +50,9 @@ struct KinesisStreamListView: View {
             }
         } message: {
             if streamsToDelete.count == 1, let stream = streamsToDelete.first {
-                Text("Are you sure you want to delete stream \"\(stream.streamName)\"?\n\nThis action cannot be undone.")
+                Text("Are you sure you want to delete delivery stream \"\(stream.deliveryStreamName)\"?\n\nThis action cannot be undone.")
             } else {
-                Text("Are you sure you want to delete \(streamsToDelete.count) streams?\n\nThis action cannot be undone.")
+                Text("Are you sure you want to delete \(streamsToDelete.count) delivery streams?\n\nThis action cannot be undone.")
             }
         }
         .serviceErrorAlert(error: $serviceError)
@@ -83,30 +83,34 @@ struct KinesisStreamListView: View {
         .onChange(of: toolbarState.pendingAction) {
             guard let action = toolbarState.pendingAction else { return }
             switch action {
-            case .createStream:
+            case .createDeliveryStream:
                 toolbarState.pendingAction = nil
                 showCreateSheet = true
-            case .putRecord:
+            case .putFirehoseRecord:
                 toolbarState.pendingAction = nil
                 if activeStream != nil {
                     showPutRecordSheet = true
                 }
-            case .deleteStream:
+            case .deleteDeliveryStream:
                 toolbarState.pendingAction = nil
                 if let active = activeStream {
                     streamsToDelete = [active]
                 }
-            case .createDeliveryStream, .putFirehoseRecord, .deleteDeliveryStream:
+            case .createStream, .putRecord, .deleteStream:
                 break
             }
         }
     }
 
-    private var filteredStreams: [KinesisStreamSummary] {
+    private var deleteDisabled: Bool {
+        appState.isReadOnly || selectedStreamIDs.isEmpty
+    }
+
+    private var filteredStreams: [FirehoseDeliveryStreamSummary] {
         guard !searchText.isEmpty else { return streams }
         let query = searchText.lowercased()
         return streams.filter {
-            $0.streamName.lowercased().contains(query)
+            $0.deliveryStreamName.lowercased().contains(query)
         }
     }
 
@@ -116,7 +120,7 @@ struct KinesisStreamListView: View {
     private var streamListContent: some View {
         if isLoading && streams.isEmpty {
             VStack(spacing: 12) {
-                ProgressView("Loading streams...")
+                ProgressView("Loading delivery streams...")
                 if appState.connectionError != nil {
                     Label("Connection lost — retrying...", systemImage: "bolt.horizontal.circle")
                         .font(.caption)
@@ -136,16 +140,16 @@ struct KinesisStreamListView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if streams.isEmpty {
             VStack(spacing: 8) {
-                Image(systemName: "arrow.right.arrow.left.square")
+                Image(systemName: "flame")
                     .font(.title)
                     .foregroundStyle(.secondary)
-                Text("No streams")
+                Text("No delivery streams")
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
             .contextMenu {
-                Button("Create Stream") {
+                Button("Create Delivery Stream") {
                     showCreateSheet = true
                 }
                 .disabled(appState.isReadOnly)
@@ -153,37 +157,37 @@ struct KinesisStreamListView: View {
         } else {
             VStack(spacing: 0) {
                 if streams.count > 5 {
-                    SearchBarView(query: $searchText, placeholder: "Filter streams")
+                    SearchBarView(query: $searchText, placeholder: "Filter delivery streams")
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                     Divider()
                 }
                 List(filteredStreams, selection: $selectedStreamIDs) { stream in
                     HStack {
-                        Text(stream.streamName)
+                        Text(stream.deliveryStreamName)
                             .fontWeight(.medium)
                             .lineLimit(1)
                         Spacer()
-                        modeBadge(stream.streamMode)
-                        statusBadge(stream.streamStatus)
+                        typeBadge(stream.deliveryStreamType)
+                        statusBadge(stream.deliveryStreamStatus)
                     }
                     .tag(stream.id)
                     .contextMenu {
-                        Button("Copy Name") { copyToClipboard(stream.streamName) }
-                        Button("Copy ARN") { copyToClipboard(stream.streamARN) }
+                        Button("Copy Name") { copyToClipboard(stream.deliveryStreamName) }
+                        Button("Copy ARN") { copyToClipboard(stream.deliveryStreamARN) }
                         Menu("Copy as AWS CLI") {
-                            Button("Describe Stream") {
+                            Button("Describe Delivery Stream") {
                                 copyToClipboard(stream.describeStreamCLI(endpointUrl: appState.endpoint, region: appState.region))
                             }
-                            Button("List Streams") {
-                                copyToClipboard(KinesisStreamSummary.listStreamsCLI(endpointUrl: appState.endpoint, region: appState.region))
+                            Button("List Delivery Streams") {
+                                copyToClipboard(FirehoseDeliveryStreamSummary.listStreamsCLI(endpointUrl: appState.endpoint, region: appState.region))
                             }
-                            Button("Delete Stream") {
+                            Button("Delete Delivery Stream") {
                                 copyToClipboard(stream.deleteStreamCLI(endpointUrl: appState.endpoint, region: appState.region))
                             }
                         }
                         Divider()
-                        Button("Create Stream") {
+                        Button("Create Delivery Stream") {
                             showCreateSheet = true
                         }
                         .disabled(appState.isReadOnly)
@@ -208,7 +212,7 @@ struct KinesisStreamListView: View {
                     }
                 }
                 .contextMenu {
-                    Button("Create Stream") {
+                    Button("Create Delivery Stream") {
                         showCreateSheet = true
                     }
                     .disabled(appState.isReadOnly)
@@ -217,7 +221,7 @@ struct KinesisStreamListView: View {
                 // Status bar
                 Divider()
                 HStack {
-                    Text("\(streams.count) stream\(streams.count == 1 ? "" : "s")")
+                    Text("\(streams.count) delivery stream\(streams.count == 1 ? "" : "s")")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     if selectedStreamIDs.count > 1 {
@@ -247,25 +251,24 @@ struct KinesisStreamListView: View {
         switch status {
         case "ACTIVE": .green
         case "CREATING": .orange
-        case "DELETING": .red
-        case "UPDATING": .blue
+        case "DELETING", "DELETING_FAILED", "CREATING_FAILED": .red
         default: .gray
         }
     }
 
-    private func modeBadge(_ mode: String) -> some View {
-        Text(mode)
+    private func typeBadge(_ type: String) -> some View {
+        Text(type)
             .font(.caption2)
             .fontWeight(.medium)
             .padding(.horizontal, 5)
             .padding(.vertical, 1)
-            .background(modeColor(mode).opacity(0.15), in: Capsule())
-            .foregroundStyle(modeColor(mode))
+            .background(typeColor(type).opacity(0.15), in: Capsule())
+            .foregroundStyle(typeColor(type))
     }
 
-    private func modeColor(_ mode: String) -> Color {
-        switch mode {
-        case "ON_DEMAND": .purple
+    private func typeColor(_ type: String) -> Color {
+        switch type {
+        case "KinesisStreamAsSource": .purple
         default: .gray
         }
     }
@@ -298,13 +301,13 @@ struct KinesisStreamListView: View {
         }
         Task {
             do {
-                let loaded = try await service.listStreams()
-                let freshStreams = loaded.sorted { $0.streamName.localizedStandardCompare($1.streamName) == .orderedAscending }
+                let loaded = try await service.listDeliveryStreams()
+                let freshStreams = loaded.sorted { $0.deliveryStreamName.localizedStandardCompare($1.deliveryStreamName) == .orderedAscending }
                 if streams != freshStreams {
                     streams = freshStreams
                 }
-                if !hasRestoredSession, let savedName = restoreStreamName,
-                   let stream = streams.first(where: { $0.streamName == savedName }) {
+                if !hasRestoredSession, let savedName = restoreDeliveryStreamName,
+                   let stream = streams.first(where: { $0.deliveryStreamName == savedName }) {
                     selectedStreamIDs = [stream.id]
                     activeStream = stream
                 }
@@ -321,12 +324,12 @@ struct KinesisStreamListView: View {
         }
     }
 
-    private func deleteStreams(_ targets: [KinesisStreamSummary]) {
+    private func deleteStreams(_ targets: [FirehoseDeliveryStreamSummary]) {
         Task {
-            var deletedIDs: Set<KinesisStreamSummary.ID> = []
+            var deletedIDs: Set<FirehoseDeliveryStreamSummary.ID> = []
             for stream in targets {
                 do {
-                    try await service.deleteStream(name: stream.streamName)
+                    try await service.deleteDeliveryStream(name: stream.deliveryStreamName)
                     deletedIDs.insert(stream.id)
                 } catch {
                     serviceError = error.asServiceError
