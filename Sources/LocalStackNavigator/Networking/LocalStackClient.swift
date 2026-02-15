@@ -453,6 +453,37 @@ final class LocalStackClient: ObservableObject {
         return response.data
     }
 
+    // MARK: - EventBridge Scheduler (JSON protocol)
+
+    /// Read-only whitelist for EventBridge Scheduler actions — these are safe even though they use POST.
+    private static let schedulerReadActions: Set<String> = [
+        "ListScheduleGroups", "GetScheduleGroup", "ListSchedules", "GetSchedule",
+    ]
+
+    func schedulerRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.schedulerReadActions.contains(action) {
+            Log.warn("Blocked Scheduler \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "Scheduler:\(action)")
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/scheduler/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-amz-json-1.1",
+            headers: [
+                "X-Amz-Target": "AWSScheduler.\(action)",
+                "Authorization": auth,
+            ],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
     // MARK: - IAM (Query protocol — form-encoded POST with Action= parameter)
 
     /// Read-only whitelist for IAM actions — these are safe even though they use POST.

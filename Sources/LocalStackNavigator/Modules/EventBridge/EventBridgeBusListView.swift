@@ -93,6 +93,8 @@ struct EventBridgeBusListView: View {
                 }
             case .viewDetails, .putEvent:
                 break // handled by rule browser
+            case .createSchedule, .deleteSelectedGroup:
+                break // handled by scheduler views
             }
         }
     }
