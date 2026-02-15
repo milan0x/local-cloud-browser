@@ -16,14 +16,8 @@ struct DynamoDBBrowserView: View {
     var body: some View {
         VStack(spacing: 0) {
             if tableDetail.streamEnabled {
-                Picker("", selection: $selectedTab) {
-                    ForEach(BrowserTab.allCases, id: \.self) { tab in
-                        Text(tab.rawValue).tag(tab)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 200)
-                .padding(.vertical, 6)
+                SegmentedTabPicker(selection: $selectedTab, horizontalPadding: 0, verticalPadding: 6)
+                    .frame(width: 200)
 
                 Divider()
             }

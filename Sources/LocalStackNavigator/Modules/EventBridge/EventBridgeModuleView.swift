@@ -108,14 +108,7 @@ struct EventBridgeModuleView: View {
 
     private var leftPane: some View {
         VStack(spacing: 0) {
-            Picker("Tab", selection: $tab) {
-                ForEach(EventBridgeTab.allCases, id: \.self) { t in
-                    Text(t.rawValue).tag(t)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            SegmentedTabPicker(selection: $tab)
 
             Divider()
 

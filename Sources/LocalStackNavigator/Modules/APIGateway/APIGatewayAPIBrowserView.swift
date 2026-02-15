@@ -44,14 +44,7 @@ struct APIGatewayAPIBrowserView: View {
             browserHeader
             Divider()
 
-            Picker("Tab", selection: $selectedTab) {
-                ForEach(BrowserTab.allCases, id: \.self) { tab in
-                    Text(tab.rawValue).tag(tab)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            SegmentedTabPicker(selection: $selectedTab, horizontalPadding: 16, verticalPadding: 8)
 
             Divider()
 

@@ -100,14 +100,7 @@ struct StepFunctionsModuleView: View {
     @ViewBuilder
     private func detailPane(for machine: StateMachineSummary) -> some View {
         VStack(spacing: 0) {
-            Picker("Tab", selection: $selectedTab) {
-                ForEach(StepFunctionsTab.allCases, id: \.self) { tab in
-                    Text(tab.rawValue).tag(tab)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            SegmentedTabPicker(selection: $selectedTab, horizontalPadding: 12, verticalPadding: 8)
 
             Divider()
 

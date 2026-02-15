@@ -49,14 +49,7 @@ struct IAMEntityListView: View {
             listHeader
             Divider()
 
-            Picker("Type", selection: $entityType) {
-                ForEach(IAMEntityType.allCases, id: \.self) { type in
-                    Text(type.rawValue).tag(type)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            SegmentedTabPicker(selection: $entityType)
 
             Divider()
             listContent
