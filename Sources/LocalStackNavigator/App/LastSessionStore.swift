@@ -20,6 +20,8 @@ struct LastSessionState: Codable {
     var sesIdentityName: String?
     var acmCertificateArn: String?
     var kinesisStreamName: String?
+    var kinesisTab: String?
+    var kinesisFirehoseDeliveryStreamName: String?
     var route53HostedZoneId: String?
     var cloudWatchTab: String?
     var cloudWatchAlarmName: String?
@@ -150,9 +152,11 @@ enum LastSessionStore {
         save(state)
     }
 
-    static func saveKinesisStream(_ name: String?) {
+    static func saveKinesis(tab: String?, streamName: String?, deliveryStreamName: String?) {
         var state = load() ?? LastSessionState()
-        state.kinesisStreamName = name
+        state.kinesisTab = tab
+        state.kinesisStreamName = streamName
+        state.kinesisFirehoseDeliveryStreamName = deliveryStreamName
         save(state)
     }
 
@@ -193,6 +197,8 @@ enum LastSessionStore {
         state.sesIdentityName = nil
         state.acmCertificateArn = nil
         state.kinesisStreamName = nil
+        state.kinesisTab = nil
+        state.kinesisFirehoseDeliveryStreamName = nil
         state.route53HostedZoneId = nil
         state.cloudWatchTab = nil
         state.cloudWatchAlarmName = nil
