@@ -25,7 +25,7 @@ struct ContentView: View {
     }
 
     private var isGlobalService: Bool {
-        appState.selectedRoute == .s3
+        appState.selectedRoute == .s3 || appState.selectedRoute == .iam
     }
 
     @ViewBuilder

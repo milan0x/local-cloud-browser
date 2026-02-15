@@ -316,6 +316,7 @@
 - [x] `IAMToolbarState.swift`: actions — createEntity, deleteSelected. Create/Delete disabled in read-only.
 - [x] `LocalStackClient.iamRequest()`: Query protocol, form-encoded POST, `iam/aws4_request` credential. Read-only whitelist: ListUsers, GetUser, ListRoles, GetRole, ListPolicies, GetPolicy, GetPolicyVersion, ListPolicyVersions, ListAttached*Policies, ListGroupsForUser, ListGroups, GetGroup.
 - [x] Route, ContentView, LastSessionStore wiring.
+- [x] Global service: IAM added to `isGlobalService` in ContentView — shows "Global" badge instead of region picker (same as S3).
 
 ## Phase 6f: Shared JSON Input Section
 - [x] `JSONInputSection.swift`: reusable SwiftUI view encapsulating type/validation badges, `CodeTextEditor`, JSON Helper toggle + DSL editor, example data popover, bidirectional sync, and `isValidJSON()` static helper. Configured via `JSONInputConfig` presets (`.messageBody`, `.eventPattern`, `.eventDetail`, `.targetInput`, `.parameterValue`).
