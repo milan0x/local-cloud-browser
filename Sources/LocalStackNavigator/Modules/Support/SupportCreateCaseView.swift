@@ -11,29 +11,68 @@ struct SupportCreateCaseView: View {
     @State private var severityCode = "normal"
     @State private var isSaving = false
     @State private var serviceError: ServiceError?
+    @State private var hasAttemptedCreate = false
 
     private let severityLevels = ["low", "normal", "high", "urgent", "critical"]
 
     var body: some View {
         VStack(spacing: 0) {
             Form {
-                TextField("Subject", text: $subject)
-                    .help("Brief description of the issue")
-                Picker("Severity", selection: $severityCode) {
-                    ForEach(severityLevels, id: \.self) { level in
-                        Text(level.capitalized).tag(level)
+                Section("Case Details") {
+                    TextField("Subject", text: $subject)
+                    if hasAttemptedCreate && subject.trimmingCharacters(in: .whitespaces).isEmpty {
+                        Text("Subject is required")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+
+                    Picker("Severity", selection: $severityCode) {
+                        ForEach(severityLevels, id: \.self) { level in
+                            Text(level.capitalized).tag(level)
+                        }
                     }
                 }
-                TextField("Service Code", text: $serviceCode)
-                    .help("AWS service code (optional)")
-                TextField("Category Code", text: $categoryCode)
-                    .help("Category code (optional)")
 
-                LabeledContent("Communication") {
+                Section("Classification (Optional)") {
+                    TextField("Service Code", text: $serviceCode, prompt: Text("e.g. amazon-s3"))
+                    TextField("Category Code", text: $categoryCode, prompt: Text("e.g. general-guidance"))
+                }
+
+                Section("Communication") {
                     TextEditor(text: $communicationBody)
                         .font(.body)
-                        .frame(minHeight: 100)
-                        .border(Color.secondary.opacity(0.3))
+                        .frame(minHeight: 120)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(Color.secondary.opacity(0.2))
+                        )
+                    if hasAttemptedCreate && communicationBody.trimmingCharacters(in: .whitespaces).isEmpty {
+                        Text("Communication body is required")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                }
+
+                Section {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "info.circle")
+                                .foregroundStyle(.blue)
+                            Text("LocalStack Mock Limitations")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text("• Severity may not be respected by LocalStack")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("• \"Submitted By\" is auto-assigned and cannot be changed")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("• Cases may not persist across container restarts")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .formStyle(.grouped)
@@ -44,7 +83,7 @@ struct SupportCreateCaseView: View {
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
                 Spacer()
-                Button("Create") { save() }
+                Button("Create Case") { save() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(!isValid || isSaving)
             }
@@ -61,6 +100,9 @@ struct SupportCreateCaseView: View {
     }
 
     private func save() {
+        hasAttemptedCreate = true
+        guard isValid else { return }
+
         isSaving = true
         serviceError = nil
         let trimmedSubject = subject.trimmingCharacters(in: .whitespaces)

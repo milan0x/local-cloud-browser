@@ -82,7 +82,14 @@ struct SupportCase: Identifiable, Hashable {
         categoryCode = dict["categoryCode"] as? String ?? ""
         severityCode = dict["severityCode"] as? String ?? ""
         submittedBy = dict["submittedBy"] as? String ?? ""
-        timeCreated = dict["timeCreated"] as? String ?? ""
+        // timeCreated can come back as a String or a Number from LocalStack
+        if let str = dict["timeCreated"] as? String {
+            timeCreated = str
+        } else if let num = dict["timeCreated"] as? Double {
+            timeCreated = String(num)
+        } else {
+            timeCreated = ""
+        }
         ccEmailAddresses = dict["ccEmailAddresses"] as? [String] ?? []
         language = dict["language"] as? String ?? ""
     }
@@ -158,6 +165,12 @@ struct SupportCommunication: Identifiable {
     init(from dict: [String: Any]) {
         body = dict["body"] as? String ?? ""
         submittedBy = dict["submittedBy"] as? String ?? ""
-        timeCreated = dict["timeCreated"] as? String ?? ""
+        if let str = dict["timeCreated"] as? String {
+            timeCreated = str
+        } else if let num = dict["timeCreated"] as? Double {
+            timeCreated = String(num)
+        } else {
+            timeCreated = ""
+        }
     }
 }
