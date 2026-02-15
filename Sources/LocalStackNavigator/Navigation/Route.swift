@@ -4,6 +4,7 @@ enum Route: String, CaseIterable, Identifiable {
     case s3
     case sqs
     case sns
+    case ses
     case secretsManager
     case dynamodb
     case ssm
@@ -13,7 +14,10 @@ enum Route: String, CaseIterable, Identifiable {
     case cloudFormation
     case iam
     case apiGateway
+    case acm
+    case kinesis
     case kms
+    case route53
     case sts
 
     var id: String { rawValue }
@@ -23,6 +27,7 @@ enum Route: String, CaseIterable, Identifiable {
         case .s3: "S3"
         case .sqs: "SQS"
         case .sns: "SNS"
+        case .ses: "SES"
         case .secretsManager: "Secrets Manager"
         case .dynamodb: "DynamoDB"
         case .ssm: "Parameter Store"
@@ -32,7 +37,10 @@ enum Route: String, CaseIterable, Identifiable {
         case .cloudFormation: "CloudFormation"
         case .iam: "IAM"
         case .apiGateway: "API Gateway"
+        case .acm: "ACM"
+        case .kinesis: "Kinesis"
         case .kms: "KMS"
+        case .route53: "Route 53"
         case .sts: "STS"
         }
     }
@@ -42,6 +50,7 @@ enum Route: String, CaseIterable, Identifiable {
         case .s3: "externaldrive"
         case .sqs: "tray.2"
         case .sns: "bell"
+        case .ses: "envelope"
         case .secretsManager: "key"
         case .dynamodb: "tablecells"
         case .ssm: "list.bullet.rectangle"
@@ -51,7 +60,10 @@ enum Route: String, CaseIterable, Identifiable {
         case .cloudFormation: "square.stack.3d.down.right"
         case .iam: "person.2"
         case .apiGateway: "network"
+        case .acm: "checkmark.seal"
+        case .kinesis: "arrow.right.arrow.left.square"
         case .kms: "lock.shield"
+        case .route53: "globe.americas"
         case .sts: "person.badge.key"
         }
     }

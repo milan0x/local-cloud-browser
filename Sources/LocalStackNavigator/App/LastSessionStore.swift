@@ -17,6 +17,10 @@ struct LastSessionState: Codable {
     var iamEntityName: String?
     var apiGatewayAPIId: String?
     var kmsKeyId: String?
+    var sesIdentityName: String?
+    var acmCertificateArn: String?
+    var kinesisStreamName: String?
+    var route53HostedZoneId: String?
 
     var route: Route? {
         guard let raw = routeRawValue else { return nil }
@@ -132,6 +136,30 @@ enum LastSessionStore {
         save(state)
     }
 
+    static func saveSESIdentity(_ name: String?) {
+        var state = load() ?? LastSessionState()
+        state.sesIdentityName = name
+        save(state)
+    }
+
+    static func saveACMCertificate(_ arn: String?) {
+        var state = load() ?? LastSessionState()
+        state.acmCertificateArn = arn
+        save(state)
+    }
+
+    static func saveKinesisStream(_ name: String?) {
+        var state = load() ?? LastSessionState()
+        state.kinesisStreamName = name
+        save(state)
+    }
+
+    static func saveRoute53HostedZone(_ id: String?) {
+        var state = load() ?? LastSessionState()
+        state.route53HostedZoneId = id
+        save(state)
+    }
+
     /// Clears per-module sub-resource fields (bucket, path, queue, topic) while
     /// keeping the route. Called on launch when cross-launch restore is
     /// disabled so modules start fresh. In-session onChange handlers
@@ -153,6 +181,10 @@ enum LastSessionStore {
         state.iamEntityName = nil
         state.apiGatewayAPIId = nil
         state.kmsKeyId = nil
+        state.sesIdentityName = nil
+        state.acmCertificateArn = nil
+        state.kinesisStreamName = nil
+        state.route53HostedZoneId = nil
         save(state)
     }
 }

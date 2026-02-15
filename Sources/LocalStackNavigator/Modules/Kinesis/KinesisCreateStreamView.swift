@@ -1,0 +1,68 @@
+import SwiftUI
+
+struct KinesisCreateStreamView: View {
+    @ObservedObject var service: KinesisService
+    @Environment(\.dismiss) private var dismiss
+    @State private var streamName = ""
+    @State private var shardCount = 1
+    @State private var streamMode = "PROVISIONED"
+    @State private var serviceError: ServiceError?
+    @State private var isSaving = false
+
+    private let streamModes = ["PROVISIONED", "ON_DEMAND"]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Form {
+                TextField("Stream Name", text: $streamName)
+
+                Picker("Stream Mode", selection: $streamMode) {
+                    ForEach(streamModes, id: \.self) { mode in
+                        Text(mode).tag(mode)
+                    }
+                }
+
+                if streamMode == "PROVISIONED" {
+                    Stepper("Shard Count: \(shardCount)", value: $shardCount, in: 1...100)
+                }
+            }
+            .formStyle(.grouped)
+
+            Divider()
+
+            HStack {
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Spacer()
+                Button("Create") { save() }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!isValid || isSaving)
+            }
+            .padding()
+        }
+        .frame(width: 420)
+        .serviceErrorAlert(error: $serviceError)
+    }
+
+    private var isValid: Bool {
+        !streamName.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private func save() {
+        isSaving = true
+        serviceError = nil
+        Task {
+            do {
+                try await service.createStream(
+                    name: streamName.trimmingCharacters(in: .whitespaces),
+                    shardCount: shardCount,
+                    mode: streamMode
+                )
+                dismiss()
+            } catch {
+                serviceError = error.asServiceError
+                isSaving = false
+            }
+        }
+    }
+}
