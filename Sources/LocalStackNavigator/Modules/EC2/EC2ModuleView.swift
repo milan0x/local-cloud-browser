@@ -45,7 +45,7 @@ struct EC2ModuleView: View {
                 restoreEntityType: restoreEntityType,
                 restoreEntityName: restoreEntityName
             )
-            .frame(minWidth: 240, idealWidth: 320, maxWidth: 450)
+            .frame(minWidth: 340, idealWidth: 380, maxWidth: 500)
 
             Group {
                 if let instanceId = selectedInstanceId, entityType == .instances {

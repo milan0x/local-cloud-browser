@@ -41,6 +41,7 @@ struct LastSessionState: Codable {
     var configDeliveryChannelName: String?
     var resourceGroupName: String?
     var transcribeJobName: String?
+    var supportCaseId: String?
 
     var route: Route? {
         guard let raw = routeRawValue else { return nil }
@@ -246,6 +247,12 @@ enum LastSessionStore {
         save(state)
     }
 
+    static func saveSupportCase(_ id: String?) {
+        var state = load() ?? LastSessionState()
+        state.supportCaseId = id
+        save(state)
+    }
+
     /// Clears per-module sub-resource fields (bucket, path, queue, topic) while
     /// keeping the route. Called on launch when cross-launch restore is
     /// disabled so modules start fresh. In-session onChange handlers
@@ -291,6 +298,7 @@ enum LastSessionStore {
         state.configDeliveryChannelName = nil
         state.resourceGroupName = nil
         state.transcribeJobName = nil
+        state.supportCaseId = nil
         save(state)
     }
 }

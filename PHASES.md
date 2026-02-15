@@ -47,9 +47,9 @@ Implemented: HSplitView (job list + detail), JSON 1.1 protocol via `Transcribe.<
 
 ---
 
-## Phase 8 (Skipped) — AWS Support API
+## Phase 8 — AWS Support API ✅
 
-Mock-only ticket list (CreateCase/DescribeCases/ResolveCase). Minimal UI surface. Only for 100% coverage.
+Implemented: HSplitView (case list + detail), JSON 1.1 protocol via `AWSSupport_20130415.<Action>`, case CRUD (CreateCase/DescribeCases/ResolveCase), 5 status badges (unresolved/pending/resolved/reopened/in-progress), 5 severity levels (low/normal/high/urgent/critical), communications viewer, create case form with subject + body + service/category/severity, resolve action with confirmation, session restore.
 
 ---
 
@@ -64,4 +64,4 @@ Mock-only ticket list (CreateCase/DescribeCases/ResolveCase). Minimal UI surface
 | 5 ✅ | AWS Config | Mock CRUD | ★★☆☆☆ | Low | Medium-Low |
 | 6 ✅ | Resource Groups | Tag queries | ★★☆☆☆ | Low | Low |
 | 7 ✅ | Transcribe | Real transcription | ★★★☆☆ | Medium | Low |
-| 8 | Support API | Mock only | ★☆☆☆☆ | Low | Lowest |
+| 8 ✅ | Support API | Mock only | ★☆☆☆☆ | Low | Lowest |
