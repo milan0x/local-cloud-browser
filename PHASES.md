@@ -35,24 +35,9 @@ Implemented: Tabbed HSplitView (Recorders/Delivery Channels), recorder CRUD with
 
 ---
 
-## Phase 6 — Resource Groups: Tag-Based Organization
+## Phase 6 — Resource Groups ✅
 
-**Protocol:** JSON 1.1
-
-**LocalStack support:** `CreateGroup`, `UpdateGroup`, `DeleteGroup`, `ListGroups`, `GetGroup`, `GetGroupQuery`. Tag-based queries (`TAG_FILTERS_1_0`).
-
-**Layout:** HSplitView — group list → detail with query viewer + matched resources.
-
-**Features:**
-- Resource group CRUD
-- Tag filter builder (dynamic key-value pair rows with +/- buttons)
-- Matched resources list (ARN, type badge, tags)
-- Query viewer (read-only JSON)
-
-**UI details:**
-- Tag filter builder: dynamic form with add/remove rows (like Lambda env vars)
-- Service type badges on matched resources (S3/Lambda/DynamoDB/EC2) — cross-service color coding unique to this module
-- Shallow interaction: create group → see matched resources, no drill-downs
+Implemented: HSplitView (list + detail), REST-JSON protocol (POST to /groups-list, /get-group, /get-group-query, etc.), resource group CRUD, tag filter builder with dynamic rows, query viewer (tag filters + resource type filters), matched resources list with color-coded service badges (S3/Lambda/DynamoDB/EC2/SQS/SNS/RDS/IAM), session restore.
 
 ---
 
@@ -94,6 +79,6 @@ Mock-only ticket list (CreateCase/DescribeCases/ResolveCase). Minimal UI surface
 | 3 ✅ | EventBridge Scheduler | Mock (no exec) | ★★★☆☆ | Medium | Medium-High |
 | 4 ✅ | Elasticsearch | Real clusters | ★★★☆☆ | Medium | Medium |
 | 5 ✅ | AWS Config | Mock CRUD | ★★☆☆☆ | Low | Medium-Low |
-| 6 | Resource Groups | Tag queries | ★★☆☆☆ | Low | Low |
+| 6 ✅ | Resource Groups | Tag queries | ★★☆☆☆ | Low | Low |
 | 7 | Transcribe | Real transcription | ★★★☆☆ | Medium | Low |
 | 8 | Support API | Mock only | ★☆☆☆☆ | Low | Lowest |
