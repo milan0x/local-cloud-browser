@@ -821,6 +821,41 @@ final class LocalStackClient: ObservableObject {
         return response.data
     }
 
+    // MARK: - OpenSearch (REST API)
+
+    /// Read-only whitelist for OpenSearch actions — safe read operations.
+    private static let opensearchReadActions: Set<String> = [
+        "ListDomainNames", "DescribeDomain",
+    ]
+
+    func opensearchRequest(
+        action: String,
+        method: String,
+        path: String,
+        body: Data? = nil
+    ) async throws -> HTTPResponse {
+        if appState.isReadOnly && !Self.opensearchReadActions.contains(action) {
+            Log.warn("Blocked OpenSearch \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "OpenSearch:\(action)")
+        }
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/es/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        var headers = ["Authorization": auth]
+        if body != nil {
+            headers["Content-Type"] = "application/json"
+        }
+        return try await executeRequest(
+            method: method,
+            path: "/2021-01-01" + path,
+            queryParams: [:],
+            body: body,
+            contentType: body != nil ? "application/json" : nil,
+            headers: headers,
+            skipReadOnlyCheck: true
+        )
+    }
+
     // MARK: - STS (Query protocol — form-encoded POST with Action= parameter)
 
     /// Read-only whitelist for STS actions — these are safe even though they use POST.
