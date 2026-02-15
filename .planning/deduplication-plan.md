@@ -21,7 +21,12 @@
 - Replaced 56 inline Button+Image+buttonStyle blocks across 30 files — saved 215 lines
 - Expanded hit target (24×24 frame + `contentShape`), hover highlight, standardized styling
 
-**Phase 1 total: 266 replacements, 2,182 lines saved, zero flexibility impact**
+### 1F. SegmentedTabPicker → `Navigation/SegmentedTabPicker.swift` ✅
+- Replaced 11 Picker+segmented+padding blocks across 11 files — saved ~55 lines
+- Generic over `CaseIterable & Hashable & RawRepresentable<String>` enums
+- Default padding (8h, 6v) with optional overrides for non-standard cases
+
+**Phase 1 total: 277 replacements, 2,237 lines saved, zero flexibility impact**
 
 ---
 

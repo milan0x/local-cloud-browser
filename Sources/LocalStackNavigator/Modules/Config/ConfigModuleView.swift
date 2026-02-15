@@ -100,14 +100,7 @@ struct ConfigModuleView: View {
             listHeader
             Divider()
 
-            Picker("Tab", selection: $tab) {
-                ForEach(ConfigTab.allCases, id: \.self) { t in
-                    Text(t.rawValue).tag(t)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            SegmentedTabPicker(selection: $tab)
 
             Divider()
 
