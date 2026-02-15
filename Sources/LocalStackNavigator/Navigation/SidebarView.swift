@@ -16,9 +16,15 @@ struct SidebarView: View {
     @State private var bubbleDismissedByUser = false
 
     var body: some View {
-        List(Route.allCases, selection: $appState.selectedRoute) { route in
-            Label(route.displayName, systemImage: route.systemImage)
-                .tag(route)
+        List(selection: $appState.selectedRoute) {
+            ForEach(Route.grouped, id: \.category) { group in
+                Section(group.category.displayName) {
+                    ForEach(group.routes) { route in
+                        Label(route.displayName, systemImage: route.systemImage)
+                            .tag(route)
+                    }
+                }
+            }
         }
         .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
         .navigationTitle("")
