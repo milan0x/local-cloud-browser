@@ -23,48 +23,15 @@ Implemented: Tabbed EventBridge module (Events | Schedules), schedule group CRUD
 
 ---
 
-## Phase 4 — Elasticsearch: Legacy Search Engine
+## Phase 4 — Elasticsearch ✅
 
-**Protocol:** JSON 1.1 (management) + REST (engine). Domains shared with OpenSearch.
-
-**LocalStack support:** `CreateElasticsearchDomain`, `DescribeElasticsearchDomain(s)`, `ListDomainNames`, `DeleteElasticsearchDomain`. Real single-node clusters.
-
-**Layout:** HSplitView — domain list → detail. Reuse OpenSearch module patterns heavily.
-
-**Features:**
-- Domain CRUD with Elasticsearch version selector
-- Endpoint URL (click-to-copy), version badge, cluster config
-- Cluster health badge (green / yellow / red) via `_cluster/health`
-- Index browser: list indices with doc count and size
-- Note: "Domains are shared with OpenSearch Service"
-
-**UI details:**
-- Traffic-light health badge (green/yellow/red circle) — most intuitive status indicator
-- Version badge distinguishing "Elasticsearch 7.10" vs "OpenSearch 2.x"
-- "Open in Browser" button for live cluster REST API access
-- Fastest build due to OpenSearch code reuse
+Covered by existing OpenSearch module — domains are shared. OpenSearch module includes cluster health badges, index browser with doc count/size, "Open in Browser" button, and Elasticsearch version support.
 
 ---
 
-## Phase 5 — AWS Config: Resource Configuration Tracker
+## Phase 5 — AWS Config ✅
 
-**Protocol:** JSON 1.1, `X-Amz-Target: StarlingDoveService.<Action>`
-
-**LocalStack support:** Configuration recorders (Put/Describe/Start/Stop/Delete), delivery channels (Put/Describe/Delete). Mock only — recorders do **NOT** capture changes.
-
-**Layout:** Single-pane or simple HSplitView — two sections (Recorders + Delivery Channels), like STS.
-
-**Features:**
-- Recorder CRUD with status badges (RECORDING / STOPPED)
-- Start/Stop toggle
-- Delivery channel CRUD (S3 bucket, SNS topic, frequency)
-- Warning banner: "Recorders are mocked — resource changes are NOT recorded"
-
-**UI details:**
-- Recording status badge: green "RECORDING" vs gray "STOPPED", single-click toggle
-- Two-section layout in one pane — lightest layout in the app
-- Delivery channel as "S3 bucket → SNS topic" flow display
-- Quick implementation — palate cleanser between complex phases
+Implemented: Tabbed HSplitView (Recorders/Delivery Channels), recorder CRUD with status badges (RECORDING/STOPPED), start/stop toggle, delivery channel CRUD (S3 bucket, SNS topic, frequency picker), JSON 1.1 protocol via StarlingDoveService, session restore for tab + recorder + channel.
 
 ---
 
@@ -125,8 +92,8 @@ Mock-only ticket list (CreateCase/DescribeCases/ResolveCase). Minimal UI surface
 | 1 ✅ | Step Functions | Full execution | ★★★★★ | High | Highest |
 | 2 ✅ | EC2 | Mock CRUD | ★★★★☆ | High | High |
 | 3 ✅ | EventBridge Scheduler | Mock (no exec) | ★★★☆☆ | Medium | Medium-High |
-| 4 | Elasticsearch | Real clusters | ★★★☆☆ | Medium | Medium |
-| 5 | AWS Config | Mock CRUD | ★★☆☆☆ | Low | Medium-Low |
+| 4 ✅ | Elasticsearch | Real clusters | ★★★☆☆ | Medium | Medium |
+| 5 ✅ | AWS Config | Mock CRUD | ★★☆☆☆ | Low | Medium-Low |
 | 6 | Resource Groups | Tag queries | ★★☆☆☆ | Low | Low |
 | 7 | Transcribe | Real transcription | ★★★☆☆ | Medium | Low |
 | 8 | Support API | Mock only | ★☆☆☆☆ | Low | Lowest |
