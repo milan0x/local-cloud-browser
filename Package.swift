@@ -14,6 +14,11 @@ let package = Package(
         .executableTarget(
             name: "LocalStackNavigator",
             path: "Sources/LocalStackNavigator"
+        ),
+        .testTarget(
+            name: "LocalStackNavigatorTests",
+            dependencies: ["LocalStackNavigator"],
+            path: "Tests/LocalStackNavigatorTests"
         )
     ]
 )

@@ -1,6 +1,6 @@
 import Foundation
 
-enum EndpointSafety {
+enum EndpointSafety: Equatable {
     case local
     case cautionNonLocal
 }
