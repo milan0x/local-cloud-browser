@@ -1033,6 +1033,42 @@ final class LocalStackClient: ObservableObject {
         )
     }
 
+    // MARK: - Resource Groups (REST-JSON protocol)
+
+    /// Read-only whitelist for Resource Groups actions — safe read operations.
+    private static let resourceGroupsReadActions: Set<String> = [
+        "ListGroups", "GetGroup", "GetGroupQuery", "ListGroupResources", "SearchResources",
+    ]
+
+    func resourceGroupsRequest(
+        action: String,
+        method: String,
+        path: String,
+        body: Data? = nil
+    ) async throws -> Data {
+        if appState.isReadOnly && !Self.resourceGroupsReadActions.contains(action) {
+            Log.warn("Blocked ResourceGroups \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "ResourceGroups:\(action)")
+        }
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/resource-groups/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        var headers = ["Authorization": auth]
+        if body != nil {
+            headers["Content-Type"] = "application/json"
+        }
+        let response = try await executeRequest(
+            method: method,
+            path: path,
+            queryParams: [:],
+            body: body,
+            contentType: body != nil ? "application/json" : nil,
+            headers: headers,
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
     // MARK: - Config (JSON 1.1 protocol)
 
     /// Read-only whitelist for Config actions — these are safe even though they use POST.

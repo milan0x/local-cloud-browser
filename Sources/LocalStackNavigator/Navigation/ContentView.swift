@@ -114,6 +114,8 @@ struct ContentView: View {
             STSModuleView()
         case .config:
             ConfigModuleView()
+        case .resourceGroups:
+            ResourceGroupsModuleView()
         }
     }
 
