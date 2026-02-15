@@ -2,17 +2,20 @@ import Foundation
 
 /// Parses Redshift Query/XML responses for DescribeClusters.
 ///
-/// Handles nested `<Endpoint>` blocks inside `<Cluster>` members:
+/// LocalStack wraps each cluster in `<Cluster>` (not `<member>`):
 /// ```xml
-/// <Clusters><member>
-///   <ClusterIdentifier>my-cluster</ClusterIdentifier>
-///   <Endpoint><Address>...</Address><Port>5439</Port></Endpoint>
-///   ...
-/// </member></Clusters>
+/// <Clusters>
+///   <Cluster>
+///     <ClusterIdentifier>my-cluster</ClusterIdentifier>
+///     <Endpoint><Address>...</Address><Port>5439</Port></Endpoint>
+///     ...
+///   </Cluster>
+/// </Clusters>
 /// ```
 final class RedshiftClusterListParser: NSObject, XMLParserDelegate {
     private var clusters: [RedshiftCluster] = []
     private var currentText = ""
+    private var elementStack: [String] = []
     private var inCluster = false
     private var inEndpoint = false
 
@@ -44,21 +47,26 @@ final class RedshiftClusterListParser: NSObject, XMLParserDelegate {
     func parser(_ parser: XMLParser, didStartElement elementName: String,
                 namespaceURI: String?, qualifiedName: String?,
                 attributes: [String: String] = [:]) {
+        elementStack.append(elementName)
         currentText = ""
-        if elementName == "member" {
-            inCluster = true
-            clusterIdentifier = ""
-            clusterStatus = ""
-            nodeType = ""
-            numberOfNodes = 1
-            masterUsername = ""
-            dbName = ""
-            endpointAddress = ""
-            endpointPort = 5439
-            encrypted = false
-            publiclyAccessible = false
-            createTime = ""
-            clusterVersion = ""
+        // Match <Cluster> inside <Clusters>, not the top-level element
+        if elementName == "Cluster" && elementStack.count >= 2 {
+            let parent = elementStack[elementStack.count - 2]
+            if parent == "Clusters" {
+                inCluster = true
+                clusterIdentifier = ""
+                clusterStatus = ""
+                nodeType = ""
+                numberOfNodes = 1
+                masterUsername = ""
+                dbName = ""
+                endpointAddress = ""
+                endpointPort = 5439
+                encrypted = false
+                publiclyAccessible = false
+                createTime = ""
+                clusterVersion = ""
+            }
         } else if elementName == "Endpoint" && inCluster {
             inEndpoint = true
         }
@@ -92,7 +100,7 @@ final class RedshiftClusterListParser: NSObject, XMLParserDelegate {
                 case "PubliclyAccessible": publiclyAccessible = text.lowercased() == "true"
                 case "ClusterCreateTime": createTime = text
                 case "ClusterVersion": clusterVersion = text
-                case "member":
+                case "Cluster":
                     guard !clusterIdentifier.isEmpty else { break }
                     clusters.append(RedshiftCluster(
                         clusterIdentifier: clusterIdentifier,
@@ -114,6 +122,7 @@ final class RedshiftClusterListParser: NSObject, XMLParserDelegate {
             }
         }
 
+        elementStack.removeLast()
         currentText = ""
     }
 }

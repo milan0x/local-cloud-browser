@@ -37,12 +37,7 @@ struct RedshiftCreateClusterView: View {
                         .foregroundStyle(.red)
                 }
 
-                HStack {
-                    SecureField("Master Password", text: $masterPassword)
-                    Text("(min: 8)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                SecureField("Master Password (min: 8)", text: $masterPassword)
                 if hasAttemptedCreate && masterPassword.count < 8 {
                     Text("Password must be at least 8 characters.")
                         .font(.caption)
