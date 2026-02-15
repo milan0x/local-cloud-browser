@@ -58,17 +58,10 @@ struct SecretsListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadSecrets() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && secretsToDelete.isEmpty && secretToShowDetail == nil && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && secretsToDelete.isEmpty && secretToShowDetail == nil && !isLoading }) {
             loadSecrets(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedSecretIDs = []
-            activeSecret = nil
-            secrets = []
-            loadSecrets(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedSecretIDs = []
             activeSecret = nil
             secrets = []

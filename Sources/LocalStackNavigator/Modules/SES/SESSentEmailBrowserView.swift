@@ -41,8 +41,7 @@ struct SESSentEmailBrowserView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadEmails() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showSendSheet && !showClearConfirmation && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showSendSheet && !showClearConfirmation && !isLoading }) {
             loadEmails(force: true, silent: true)
         }
         .onChange(of: appState.connectionVersion) {

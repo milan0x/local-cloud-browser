@@ -31,24 +31,22 @@
 ---
 
 ## Phase 2: Modifier & Pattern Extractions
-**Goal:** Extract repeated modifier chains and state patterns.
 
-### 2A. Connection/region change handler → ViewModifier
-- 62 files repeat `.onChange(of: appState.connectionVersion)` + `.onChange(of: appState.region)` with identical reset logic
-- Create `.resetOnConnectionChange(reset:reload:)` modifier
-- **Saves ~300+ lines**
+### 2A. ResetOnConnectionChange → `Navigation/ResetOnConnectionChangeModifier.swift` ✅
+- Replaced paired `.onChange(of: appState.connectionVersion)` + `.onChange(of: appState.region)` with single `.resetOnConnectionChange { ... }` modifier
+- 29 files changed — saved ~150 lines (removed exact duplication between connectionVersion/region handlers)
+- 4 files left as-is (S3BucketListView, Route53ZoneListView, SESSentEmailBrowserView, STSModuleView) — connectionVersion only, no region handler to deduplicate
 
-### 2B. Auto-refresh subscription → ViewModifier
-- 54 files repeat `.onReceive(appState.autoRefresh.triggerPublisher)` with guard checks
-- Create `.onAutoRefresh(skip:action:)` modifier
-- **Saves ~200+ lines**
+### 2B. OnAutoRefresh → `Navigation/OnAutoRefreshModifier.swift` ✅
+- Replaced `.onReceive(appState.autoRefresh.triggerPublisher)` + guard with semantic `.onAutoRefresh(canRefresh:action:)` modifier
+- 52 files changed — saved ~52 lines (replaces verbose pattern with semantic API)
 
-### 2C. Load-with-throttle pattern → Shared helper
+### 2C. Load-with-throttle pattern — DEFERRED
 - 38 list views repeat identical throttle check (`lastLoadTime`, 2-second guard, `isLoading` guard)
-- Extract to a small `LoadThrottle` utility
-- **Saves ~200+ lines**
+- Pattern is inside function bodies, not View modifier chains — extracting requires restructuring load functions
+- Not a zero-risk mechanical replacement; deferred for separate evaluation
 
-**Phase 2 total: ~700+ lines saved, zero flexibility impact**
+**Phase 2 total: 2 new modifier files, 52 unique files changed, ~200 lines saved**
 
 ---
 

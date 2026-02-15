@@ -57,18 +57,10 @@ struct SNSTopicListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadTopics() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && topicsToDelete.isEmpty && topicToShowAttributes == nil && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && topicsToDelete.isEmpty && topicToShowAttributes == nil && !isLoading }) {
             loadTopics(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedTopicIDs = []
-            activeTopic = nil
-            topics = []
-            subscriptionCounts = [:]
-            loadTopics(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedTopicIDs = []
             activeTopic = nil
             topics = []

@@ -29,8 +29,7 @@ struct ConfigRecorderDetailView: View {
             status = nil
             loadStatus()
         }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !isLoading }) {
             loadStatus(silent: true)
         }
         .serviceErrorAlert(error: $serviceError)

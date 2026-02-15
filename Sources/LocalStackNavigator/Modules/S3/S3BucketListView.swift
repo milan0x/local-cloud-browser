@@ -114,8 +114,7 @@ struct S3BucketListView: View {
             }
         }
         .task { loadBuckets() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && bucketsToDelete.isEmpty && forceDeleteBuckets.isEmpty && !isForceDeleting && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && bucketsToDelete.isEmpty && forceDeleteBuckets.isEmpty && !isForceDeleting && !isLoading }) {
             loadBuckets(force: true, silent: true)
         }
         .onChange(of: appState.connectionVersion) {

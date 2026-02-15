@@ -36,8 +36,7 @@ struct StepFunctionsExecutionListView: View {
             executionDetail = nil
             loadExecutions()
         }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showStartSheet && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showStartSheet && !isLoading }) {
             if activeExecution != nil {
                 loadExecutionDetail(silent: true)
             } else {

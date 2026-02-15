@@ -65,17 +65,10 @@ struct CloudFormationStackListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadStacks() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && stacksToDelete.isEmpty && stackToShowDetail == nil && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && stacksToDelete.isEmpty && stackToShowDetail == nil && !isLoading }) {
             loadStacks(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedStackIDs = []
-            activeStack = nil
-            stacks = []
-            loadStacks(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedStackIDs = []
             activeStack = nil
             stacks = []

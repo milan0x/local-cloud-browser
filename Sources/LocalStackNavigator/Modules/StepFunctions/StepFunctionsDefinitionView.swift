@@ -37,8 +37,7 @@ struct StepFunctionsDefinitionView: View {
             detail = nil
             loadDetail()
         }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !isLoading }) {
             loadDetail(silent: true)
         }
     }

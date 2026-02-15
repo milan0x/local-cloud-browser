@@ -54,17 +54,10 @@ struct CloudWatchAlarmListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadAlarms() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateAlarmSheet && !showSetStateSheet && alarmsToDelete.isEmpty && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateAlarmSheet && !showSetStateSheet && alarmsToDelete.isEmpty && !isLoading }) {
             loadAlarms(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedAlarmIDs = []
-            activeAlarm = nil
-            alarms = []
-            loadAlarms(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedAlarmIDs = []
             activeAlarm = nil
             alarms = []

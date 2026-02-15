@@ -53,17 +53,10 @@ struct TranscribeJobListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadJobs() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && jobsToDelete.isEmpty && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && jobsToDelete.isEmpty && !isLoading }) {
             loadJobs(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedJobIDs = []
-            activeJob = nil
-            jobs = []
-            loadJobs(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedJobIDs = []
             activeJob = nil
             jobs = []

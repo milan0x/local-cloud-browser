@@ -53,17 +53,10 @@ struct OpenSearchDomainListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadDomains() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && domainsToDelete.isEmpty && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && domainsToDelete.isEmpty && !isLoading }) {
             loadDomains(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedDomainIDs = []
-            activeDomain = nil
-            domains = []
-            loadDomains(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedDomainIDs = []
             activeDomain = nil
             domains = []

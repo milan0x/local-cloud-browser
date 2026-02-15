@@ -58,17 +58,10 @@ struct SSMParameterListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadParameters() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && parametersToDelete.isEmpty && parameterToShowDetail == nil && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && parametersToDelete.isEmpty && parameterToShowDetail == nil && !isLoading }) {
             loadParameters(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedParameterIDs = []
-            activeParameter = nil
-            parameters = []
-            loadParameters(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedParameterIDs = []
             activeParameter = nil
             parameters = []

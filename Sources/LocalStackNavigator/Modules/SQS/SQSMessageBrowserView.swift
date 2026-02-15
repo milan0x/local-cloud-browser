@@ -108,8 +108,7 @@ struct SQSMessageBrowserView: View {
             sentFavoriteId = nil
             receiveMessages()
         }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showSendSheet && messagesToDelete.isEmpty && messageToView == nil && !showAttributesSheet && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showSendSheet && messagesToDelete.isEmpty && messageToView == nil && !showAttributesSheet && !isLoading }) {
             receiveMessages(force: true, silent: true)
         }
         .onChange(of: selectedMessageIDs) {

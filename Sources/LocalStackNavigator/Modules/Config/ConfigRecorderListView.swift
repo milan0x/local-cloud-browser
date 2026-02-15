@@ -52,18 +52,10 @@ struct ConfigRecorderListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadRecorders() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && recordersToDelete.isEmpty && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && recordersToDelete.isEmpty && !isLoading }) {
             loadRecorders(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedRecorderIDs = []
-            activeRecorder = nil
-            recorders = []
-            statuses = [:]
-            loadRecorders(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedRecorderIDs = []
             activeRecorder = nil
             recorders = []

@@ -43,16 +43,10 @@ struct CloudWatchMetricListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadMetrics() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showPutMetricSheet && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showPutMetricSheet && !isLoading }) {
             loadMetrics(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            activeMetric = nil
-            metrics = []
-            loadMetrics(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             activeMetric = nil
             metrics = []
             loadMetrics(force: true)

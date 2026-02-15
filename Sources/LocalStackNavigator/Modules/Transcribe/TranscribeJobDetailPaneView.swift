@@ -36,8 +36,7 @@ struct TranscribeJobDetailPaneView: View {
             transcriptText = nil
             loadDetails()
         }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !isLoading }) {
             loadDetails(silent: true)
         }
         .serviceErrorAlert(error: $serviceError)

@@ -85,8 +85,7 @@ struct SNSSubscriptionListView: View {
             lastLoadTime = nil
             loadSubscriptions()
         }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showPublishSheet && !showSubscribeSheet && !showAttributesSheet && detailSubscription == nil && subscriptionsToDelete.isEmpty && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showPublishSheet && !showSubscribeSheet && !showAttributesSheet && detailSubscription == nil && subscriptionsToDelete.isEmpty && !isLoading }) {
             loadSubscriptions(force: true, silent: true)
         }
         .onChange(of: selectedSubscriptionIDs) {

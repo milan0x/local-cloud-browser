@@ -109,15 +109,10 @@ struct IAMEntityListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadEntities() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateUserSheet && !showCreateRoleSheet && !showCreatePolicySheet && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateUserSheet && !showCreateRoleSheet && !showCreatePolicySheet && !isLoading }) {
             loadEntities(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            clearAllSelections()
-            loadEntities(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             clearAllSelections()
             loadEntities(force: true)
         }

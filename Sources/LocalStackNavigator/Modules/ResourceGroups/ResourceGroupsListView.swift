@@ -53,17 +53,10 @@ struct ResourceGroupsListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadGroups() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && groupsToDelete.isEmpty && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && groupsToDelete.isEmpty && !isLoading }) {
             loadGroups(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedGroupIDs = []
-            activeGroup = nil
-            groups = []
-            loadGroups(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedGroupIDs = []
             activeGroup = nil
             groups = []

@@ -58,17 +58,10 @@ struct EventBridgeBusListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadBuses() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && busesToDelete.isEmpty && busToShowDetail == nil && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && busesToDelete.isEmpty && busToShowDetail == nil && !isLoading }) {
             loadBuses(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedBusIDs = []
-            activeBus = nil
-            buses = []
-            loadBuses(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedBusIDs = []
             activeBus = nil
             buses = []

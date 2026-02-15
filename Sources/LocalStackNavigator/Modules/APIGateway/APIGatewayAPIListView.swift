@@ -58,17 +58,10 @@ struct APIGatewayAPIListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadAPIs() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && apisToDelete.isEmpty && apiToShowDetail == nil && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && apisToDelete.isEmpty && apiToShowDetail == nil && !isLoading }) {
             loadAPIs(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedAPIIDs = []
-            activeAPI = nil
-            apis = []
-            loadAPIs(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedAPIIDs = []
             activeAPI = nil
             apis = []

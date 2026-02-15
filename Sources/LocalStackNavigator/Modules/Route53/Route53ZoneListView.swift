@@ -51,8 +51,7 @@ struct Route53ZoneListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadZones() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && zonesToDelete.isEmpty && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && zonesToDelete.isEmpty && !isLoading }) {
             loadZones(force: true, silent: true)
         }
         .onChange(of: appState.connectionVersion) {

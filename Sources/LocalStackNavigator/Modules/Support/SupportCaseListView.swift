@@ -54,17 +54,10 @@ struct SupportCaseListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadCases() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && caseToResolve == nil && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && caseToResolve == nil && !isLoading }) {
             loadCases(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedCaseIDs = []
-            activeCase = nil
-            cases = []
-            loadCases(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedCaseIDs = []
             activeCase = nil
             cases = []

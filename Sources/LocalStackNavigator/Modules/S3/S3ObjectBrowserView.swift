@@ -151,8 +151,7 @@ struct S3ObjectBrowserView: View {
                 resetPagination()
                 loadObjects(force: true)
             }
-            .onReceive(appState.autoRefresh.triggerPublisher) {
-                guard !anySheetOpen && !isLoading else { return }
+            .onAutoRefresh(canRefresh: { !anySheetOpen && !isLoading }) {
                 loadObjects(force: true, silent: true)
             }
             .onChange(of: pathComponents) {

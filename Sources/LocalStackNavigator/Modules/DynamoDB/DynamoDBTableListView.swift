@@ -59,18 +59,10 @@ struct DynamoDBTableListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadTables() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && tablesToDelete.isEmpty && tableToShowAttributes == nil && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && tablesToDelete.isEmpty && tableToShowAttributes == nil && !isLoading }) {
             loadTables(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedTableIDs = []
-            activeTable = nil
-            tableDetail = nil
-            tables = []
-            loadTables(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedTableIDs = []
             activeTable = nil
             tableDetail = nil

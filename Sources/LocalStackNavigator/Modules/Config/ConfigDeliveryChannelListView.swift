@@ -51,17 +51,10 @@ struct ConfigDeliveryChannelListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadChannels() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && channelsToDelete.isEmpty && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && channelsToDelete.isEmpty && !isLoading }) {
             loadChannels(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedChannelIDs = []
-            activeChannel = nil
-            channels = []
-            loadChannels(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedChannelIDs = []
             activeChannel = nil
             channels = []

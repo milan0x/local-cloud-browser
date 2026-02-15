@@ -53,17 +53,10 @@ struct RedshiftClusterListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadClusters() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && clustersToDelete.isEmpty && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && clustersToDelete.isEmpty && !isLoading }) {
             loadClusters(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedClusterIDs = []
-            activeCluster = nil
-            clusters = []
-            loadClusters(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedClusterIDs = []
             activeCluster = nil
             clusters = []

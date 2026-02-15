@@ -58,17 +58,10 @@ struct LambdaFunctionListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadFunctions() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && functionsToDelete.isEmpty && functionToShowDetail == nil && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && functionsToDelete.isEmpty && functionToShowDetail == nil && !isLoading }) {
             loadFunctions(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedFunctionIDs = []
-            activeFunction = nil
-            functions = []
-            loadFunctions(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedFunctionIDs = []
             activeFunction = nil
             functions = []
