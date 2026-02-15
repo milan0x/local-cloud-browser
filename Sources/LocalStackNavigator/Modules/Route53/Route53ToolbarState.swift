@@ -8,6 +8,9 @@ final class Route53ToolbarState: ObservableObject {
         case createZone
         case createRecord
         case deleteZone
+        case createEndpoint
+        case createRule
+        case deleteEndpoint
     }
 
     func reset() {
@@ -18,33 +21,45 @@ final class Route53ToolbarState: ObservableObject {
 struct Route53Toolbar: ToolbarContent {
     @ObservedObject var state: Route53ToolbarState
     let isReadOnly: Bool
+    let tab: Route53Tab
     let hasZone: Bool
+    let hasEndpoint: Bool
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
-            Button { state.pendingAction = .createZone } label: {
-                Label("Create Zone", systemImage: "plus")
+            Button {
+                state.pendingAction = tab == .zones ? .createZone : .createEndpoint
+            } label: {
+                Label("Create", systemImage: "plus")
                     .toolbarHitTarget()
             }
-            .help("Create Hosted Zone")
+            .help(tab == .zones ? "Create Hosted Zone" : "Create Resolver Endpoint")
             .disabled(isReadOnly)
         }
         ToolbarItem(placement: .primaryAction) {
-            Button { state.pendingAction = .createRecord } label: {
-                Label("Create Record", systemImage: "text.badge.plus")
-                    .toolbarHitTarget()
+            Button {
+                state.pendingAction = tab == .zones ? .createRecord : .createRule
+            } label: {
+                Label(
+                    tab == .zones ? "Create Record" : "Create Rule",
+                    systemImage: "text.badge.plus"
+                )
+                .toolbarHitTarget()
             }
-            .help("Create Record Set")
-            .disabled(!hasZone || isReadOnly)
+            .help(tab == .zones ? "Create Record Set" : "Create Resolver Rule")
+            .disabled(isReadOnly)
         }
         ToolbarItem(placement: .primaryAction) {
-            let disabled = !hasZone || isReadOnly
-            Button { state.pendingAction = .deleteZone } label: {
+            let hasSelection = tab == .zones ? hasZone : hasEndpoint
+            let disabled = !hasSelection || isReadOnly
+            Button {
+                state.pendingAction = tab == .zones ? .deleteZone : .deleteEndpoint
+            } label: {
                 Label("Delete", systemImage: "trash")
                     .foregroundStyle(disabled ? .gray : .red)
                     .toolbarHitTarget()
             }
-            .help("Delete Hosted Zone")
+            .help(tab == .zones ? "Delete Hosted Zone" : "Delete Resolver Endpoint")
             .disabled(disabled)
         }
     }
