@@ -24,6 +24,8 @@ struct SupportCaseListView: View {
         VStack(spacing: 0) {
             caseListHeader
             Divider()
+            mockBanner
+            Divider()
             caseListContent
         }
         .sheet(isPresented: $showCreateSheet) {
@@ -101,6 +103,20 @@ struct SupportCaseListView: View {
             $0.caseId.lowercased().contains(query) ||
             $0.displayId.lowercased().contains(query)
         }
+    }
+
+    private var mockBanner: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "info.circle")
+                .foregroundStyle(.blue)
+            Text("Mock API — cases may not persist across restarts")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.blue.opacity(0.06))
     }
 
     // MARK: - Header
@@ -310,8 +326,15 @@ struct SupportCaseListView: View {
         Task {
             do {
                 let loaded = try await service.describeCases(includeResolved: showResolved)
-                let freshCases = loaded.sorted { $0.subject.localizedStandardCompare($1.subject) == .orderedAscending }
-                if cases != freshCases {
+                let freshCases = loaded.sorted {
+                    let cmp = $0.subject.localizedStandardCompare($1.subject)
+                    return cmp == .orderedAscending || (cmp == .orderedSame && $0.caseId < $1.caseId)
+                }
+                // Only update if the case IDs or statuses changed — LocalStack's
+                // mock can return subtly different field values on each call.
+                let oldSnapshot = cases.map { "\($0.caseId)|\($0.status)" }
+                let newSnapshot = freshCases.map { "\($0.caseId)|\($0.status)" }
+                if oldSnapshot != newSnapshot {
                     cases = freshCases
                 }
                 if !hasRestoredSession, let savedId = restoreCaseId,

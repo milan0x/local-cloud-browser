@@ -1115,7 +1115,7 @@ final class LocalStackClient: ObservableObject {
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/support/aws4_request"
+        let credential = "nav/\(dateStr)/us-east-1/support/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
