@@ -27,6 +27,7 @@ struct LastSessionState: Codable {
     var route53ResolverEndpointId: String?
     var cloudWatchTab: String?
     var cloudWatchAlarmName: String?
+    var redshiftClusterIdentifier: String?
 
     var route: Route? {
         guard let raw = routeRawValue else { return nil }
@@ -177,6 +178,12 @@ enum LastSessionStore {
         save(state)
     }
 
+    static func saveRedshiftCluster(_ id: String?) {
+        var state = load() ?? LastSessionState()
+        state.redshiftClusterIdentifier = id
+        save(state)
+    }
+
     /// Clears per-module sub-resource fields (bucket, path, queue, topic) while
     /// keeping the route. Called on launch when cross-launch restore is
     /// disabled so modules start fresh. In-session onChange handlers
@@ -208,6 +215,7 @@ enum LastSessionStore {
         state.route53ResolverEndpointId = nil
         state.cloudWatchTab = nil
         state.cloudWatchAlarmName = nil
+        state.redshiftClusterIdentifier = nil
         save(state)
     }
 }

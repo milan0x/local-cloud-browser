@@ -102,6 +102,8 @@ struct ContentView: View {
             KMSModuleView()
         case .route53:
             Route53ModuleView()
+        case .redshift:
+            RedshiftModuleView()
         case .sts:
             STSModuleView()
         }
