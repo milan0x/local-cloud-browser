@@ -25,7 +25,7 @@ struct ContentView: View {
     }
 
     private var isGlobalService: Bool {
-        appState.selectedRoute == .s3 || appState.selectedRoute == .iam
+        appState.selectedRoute == .s3 || appState.selectedRoute == .iam || appState.selectedRoute == .sts
     }
 
     @ViewBuilder
@@ -90,6 +90,10 @@ struct ContentView: View {
             IAMModuleView()
         case .apiGateway:
             APIGatewayModuleView()
+        case .kms:
+            KMSModuleView()
+        case .sts:
+            STSModuleView()
         }
     }
 

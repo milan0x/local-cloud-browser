@@ -510,6 +510,76 @@ final class LocalStackClient: ObservableObject {
         )
     }
 
+    // MARK: - KMS (JSON protocol)
+
+    /// Read-only whitelist for KMS actions — these are safe even though they use POST.
+    private static let kmsReadActions: Set<String> = [
+        "ListKeys", "DescribeKey", "GetKeyPolicy", "ListAliases",
+    ]
+
+    func kmsRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.kmsReadActions.contains(action) {
+            Log.warn("Blocked KMS \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "KMS:\(action)")
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/kms/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-amz-json-1.1",
+            headers: [
+                "X-Amz-Target": "TrentService.\(action)",
+                "Authorization": auth,
+            ],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
+    // MARK: - STS (Query protocol — form-encoded POST with Action= parameter)
+
+    /// Read-only whitelist for STS actions — these are safe even though they use POST.
+    private static let stsReadActions: Set<String> = [
+        "GetCallerIdentity",
+    ]
+
+    func stsRequest(action: String, params: [String: String] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.stsReadActions.contains(action) {
+            Log.warn("Blocked STS \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "STS:\(action)")
+        }
+        var allParams = params
+        allParams["Action"] = action
+        allParams["Version"] = "2011-06-15"
+        let bodyString = allParams
+            .sorted { $0.key < $1.key }
+            .map {
+                let key = $0.key.addingPercentEncoding(withAllowedCharacters: Self.formURLAllowed) ?? $0.key
+                let val = $0.value.addingPercentEncoding(withAllowedCharacters: Self.formURLAllowed) ?? $0.value
+                return "\(key)=\(val)"
+            }
+            .joined(separator: "&")
+        let body = bodyString.data(using: .utf8)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/sts/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-www-form-urlencoded",
+            headers: ["Authorization": auth],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
     // MARK: - Lambda (REST API)
 
     /// Read-only whitelist for Lambda actions — Invoke is allowed (runs function but doesn't modify config).
