@@ -25,6 +25,7 @@ enum Route: String, CaseIterable, Identifiable {
     case ec2
     case sts
     case config
+    case resourceGroups
 
     var id: String { rawValue }
 
@@ -54,6 +55,7 @@ enum Route: String, CaseIterable, Identifiable {
         case .ec2: "EC2"
         case .sts: "STS"
         case .config: "Config"
+        case .resourceGroups: "Resource Groups"
         }
     }
 
@@ -83,6 +85,7 @@ enum Route: String, CaseIterable, Identifiable {
         case .ec2: "server.rack"
         case .sts: "person.badge.key"
         case .config: "gearshape.2"
+        case .resourceGroups: "square.3.layers.3d"
         }
     }
 }
