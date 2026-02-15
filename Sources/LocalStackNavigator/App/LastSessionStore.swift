@@ -36,6 +36,9 @@ struct LastSessionState: Codable {
     var stepFunctionsTab: String?
     var ec2EntityType: String?
     var ec2EntityName: String?
+    var configTab: String?
+    var configRecorderName: String?
+    var configDeliveryChannelName: String?
 
     var route: Route? {
         guard let raw = routeRawValue else { return nil }
@@ -221,6 +224,14 @@ enum LastSessionStore {
         save(state)
     }
 
+    static func saveConfig(tab: String?, recorderName: String?, deliveryChannelName: String?) {
+        var state = load() ?? LastSessionState()
+        state.configTab = tab
+        state.configRecorderName = recorderName
+        state.configDeliveryChannelName = deliveryChannelName
+        save(state)
+    }
+
     /// Clears per-module sub-resource fields (bucket, path, queue, topic) while
     /// keeping the route. Called on launch when cross-launch restore is
     /// disabled so modules start fresh. In-session onChange handlers
@@ -261,6 +272,9 @@ enum LastSessionStore {
         state.stepFunctionsTab = nil
         state.ec2EntityType = nil
         state.ec2EntityName = nil
+        state.configTab = nil
+        state.configRecorderName = nil
+        state.configDeliveryChannelName = nil
         save(state)
     }
 }

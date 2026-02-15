@@ -24,6 +24,7 @@ enum Route: String, CaseIterable, Identifiable {
     case stepFunctions
     case ec2
     case sts
+    case config
 
     var id: String { rawValue }
 
@@ -52,6 +53,7 @@ enum Route: String, CaseIterable, Identifiable {
         case .stepFunctions: "Step Functions"
         case .ec2: "EC2"
         case .sts: "STS"
+        case .config: "Config"
         }
     }
 
@@ -80,6 +82,7 @@ enum Route: String, CaseIterable, Identifiable {
         case .stepFunctions: "arrow.triangle.branch"
         case .ec2: "server.rack"
         case .sts: "person.badge.key"
+        case .config: "gearshape.2"
         }
     }
 }
