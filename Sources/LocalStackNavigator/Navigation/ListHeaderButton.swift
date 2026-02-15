@@ -12,6 +12,8 @@ struct ListHeaderButton: View {
     let help: String
     let action: () -> Void
 
+    @State private var isHovered = false
+
     init(_ icon: String, color: Color = .primary, isDisabled: Bool = false, help: String = "", action: @escaping () -> Void) {
         self.icon = icon
         self.color = color
@@ -25,10 +27,15 @@ struct ListHeaderButton: View {
             Image(systemName: icon)
                 .foregroundStyle(isDisabled ? .gray : color)
                 .frame(width: 28, height: 28)
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(isHovered && !isDisabled ? Color.primary.opacity(0.1) : .clear)
+                )
                 .contentShape(Rectangle())
         }
         .buttonStyle(.borderless)
         .disabled(isDisabled)
+        .onHover { isHovered = $0 }
         .help(help)
     }
 }
