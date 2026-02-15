@@ -1944,11 +1944,6 @@ struct S3ObjectBrowserView: View {
         return data.flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
     }
 
-    private func copyToClipboard(_ string: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(string, forType: .string)
-    }
-
     private func s3URI(for key: String) -> String {
         "s3://\(bucket.name)/\(key)"
     }

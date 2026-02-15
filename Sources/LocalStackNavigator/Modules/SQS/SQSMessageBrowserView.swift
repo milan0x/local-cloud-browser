@@ -503,11 +503,6 @@ struct SQSMessageBrowserView: View {
         }
     }
 
-    private func copyToClipboard(_ string: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(string, forType: .string)
-    }
-
     private func bodyPreview(_ body: String) -> String {
         body.prefix(200)
             .split(separator: "\n", omittingEmptySubsequences: false)
