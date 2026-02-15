@@ -5,21 +5,18 @@ struct KinesisFirehosePutRecordView: View {
     let deliveryStreamName: String
     @Environment(\.dismiss) private var dismiss
     @State private var recordData = ""
+    @State private var isHelperShown = false
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
 
     var body: some View {
         VStack(spacing: 0) {
             Form {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Data")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    TextEditor(text: $recordData)
-                        .font(.body.monospaced())
-                        .frame(minHeight: 120)
-                        .border(Color.secondary.opacity(0.3))
-                }
+                JSONInputSection(
+                    text: $recordData,
+                    isHelperShown: $isHelperShown,
+                    config: .recordData
+                )
             }
             .formStyle(.grouped)
 
