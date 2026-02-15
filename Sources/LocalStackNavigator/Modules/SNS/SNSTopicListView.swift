@@ -237,7 +237,7 @@ struct SNSTopicListView: View {
                 }
                 .disabled(appState.isReadOnly)
             }
-            .background(TopicDoubleClickDetector {
+            .background(DoubleClickDetector {
                 if selectedTopicIDs.count == 1,
                    let id = selectedTopicIDs.first,
                    let topic = topics.first(where: { $0.id == id }) {
@@ -335,46 +335,5 @@ struct SNSTopicListView: View {
     private func copyToClipboard(_ string: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(string, forType: .string)
-    }
-}
-
-/// Detects double-clicks within its own bounds using an NSEvent monitor.
-private struct TopicDoubleClickDetector: NSViewRepresentable {
-    let onDoubleClick: () -> Void
-
-    func makeNSView(context: Context) -> TopicDoubleClickNSView {
-        let view = TopicDoubleClickNSView()
-        view.onDoubleClick = onDoubleClick
-        return view
-    }
-
-    func updateNSView(_ nsView: TopicDoubleClickNSView, context: Context) {
-        nsView.onDoubleClick = onDoubleClick
-    }
-
-    final class TopicDoubleClickNSView: NSView {
-        var onDoubleClick: (() -> Void)?
-        private var monitor: Any?
-
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            monitor.flatMap { NSEvent.removeMonitor($0) }
-            monitor = nil
-            guard window != nil else { return }
-            monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
-                guard let self, event.clickCount == 2, event.window == self.window else { return event }
-                let pointInSelf = self.convert(event.locationInWindow, from: nil)
-                if self.bounds.contains(pointInSelf) {
-                    self.onDoubleClick?()
-                }
-                return event
-            }
-        }
-
-        override func removeFromSuperview() {
-            monitor.flatMap { NSEvent.removeMonitor($0) }
-            monitor = nil
-            super.removeFromSuperview()
-        }
     }
 }
