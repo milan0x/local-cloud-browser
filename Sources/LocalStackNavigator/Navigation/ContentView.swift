@@ -88,6 +88,8 @@ struct ContentView: View {
             CloudFormationModuleView()
         case .iam:
             IAMModuleView()
+        case .apiGateway:
+            APIGatewayModuleView()
         }
     }
 

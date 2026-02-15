@@ -473,6 +473,43 @@ final class LocalStackClient: ObservableObject {
         return response.data
     }
 
+    // MARK: - API Gateway (REST API)
+
+    /// Read-only whitelist for API Gateway actions — safe read operations.
+    private static let apiGatewayReadActions: Set<String> = [
+        "GetRestApis", "GetRestApi", "GetResources", "GetResource",
+        "GetMethod", "GetIntegration", "GetDeployments", "GetDeployment",
+        "GetStages", "GetStage",
+    ]
+
+    func apiGatewayRequest(
+        action: String,
+        method: String,
+        path: String,
+        body: Data? = nil
+    ) async throws -> HTTPResponse {
+        if appState.isReadOnly && !Self.apiGatewayReadActions.contains(action) {
+            Log.warn("Blocked APIGateway \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "APIGateway:\(action)")
+        }
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/apigateway/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        var headers = ["Authorization": auth]
+        if body != nil {
+            headers["Content-Type"] = "application/json"
+        }
+        return try await executeRequest(
+            method: method,
+            path: "/restapis" + path,
+            queryParams: [:],
+            body: body,
+            contentType: body != nil ? "application/json" : nil,
+            headers: headers,
+            skipReadOnlyCheck: true
+        )
+    }
+
     // MARK: - Lambda (REST API)
 
     /// Read-only whitelist for Lambda actions — Invoke is allowed (runs function but doesn't modify config).

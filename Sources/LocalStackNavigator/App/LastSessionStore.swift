@@ -15,6 +15,7 @@ struct LastSessionState: Codable {
     var cloudFormationStackName: String?
     var iamEntityType: String?
     var iamEntityName: String?
+    var apiGatewayAPIId: String?
 
     var route: Route? {
         guard let raw = routeRawValue else { return nil }
@@ -118,6 +119,12 @@ enum LastSessionStore {
         save(state)
     }
 
+    static func saveAPIGatewayAPI(_ id: String?) {
+        var state = load() ?? LastSessionState()
+        state.apiGatewayAPIId = id
+        save(state)
+    }
+
     /// Clears per-module sub-resource fields (bucket, path, queue, topic) while
     /// keeping the route. Called on launch when cross-launch restore is
     /// disabled so modules start fresh. In-session onChange handlers
@@ -137,6 +144,7 @@ enum LastSessionStore {
         state.cloudFormationStackName = nil
         state.iamEntityType = nil
         state.iamEntityName = nil
+        state.apiGatewayAPIId = nil
         save(state)
     }
 }
