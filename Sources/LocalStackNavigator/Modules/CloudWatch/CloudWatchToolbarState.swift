@@ -29,7 +29,7 @@ struct CloudWatchToolbar: ToolbarContent {
                     .toolbarHitTarget()
             }
             .help("Put Metric Data")
-            .disabled(isReadOnly)
+            .disabled(isReadOnly || tab != .metrics)
         }
         ToolbarItem(placement: .primaryAction) {
             Button { state.pendingAction = .createAlarm } label: {
@@ -37,7 +37,7 @@ struct CloudWatchToolbar: ToolbarContent {
                     .toolbarHitTarget()
             }
             .help("Create Alarm")
-            .disabled(isReadOnly)
+            .disabled(isReadOnly || tab != .alarms)
         }
         ToolbarItem(placement: .primaryAction) {
             Button { state.pendingAction = .setAlarmState } label: {
