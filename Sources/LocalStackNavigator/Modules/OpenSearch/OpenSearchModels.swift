@@ -108,3 +108,41 @@ struct OpenSearchDomain: Identifiable, Hashable {
         ].joined(separator: "\n")
     }
 }
+
+struct ClusterHealth: Equatable {
+    let clusterName: String
+    let status: String
+    let numberOfNodes: Int
+    let activeShards: Int
+    let relocatingShards: Int
+    let initializingShards: Int
+    let unassignedShards: Int
+
+    init(json: [String: Any]) {
+        self.clusterName = json["cluster_name"] as? String ?? ""
+        self.status = json["status"] as? String ?? "unknown"
+        self.numberOfNodes = json["number_of_nodes"] as? Int ?? 0
+        self.activeShards = json["active_shards"] as? Int ?? 0
+        self.relocatingShards = json["relocating_shards"] as? Int ?? 0
+        self.initializingShards = json["initializing_shards"] as? Int ?? 0
+        self.unassignedShards = json["unassigned_shards"] as? Int ?? 0
+    }
+}
+
+struct OpenSearchIndex: Identifiable, Equatable {
+    let name: String
+    let health: String
+    let status: String
+    let docCount: String
+    let storeSize: String
+
+    var id: String { name }
+
+    init(json: [String: Any]) {
+        self.name = json["index"] as? String ?? ""
+        self.health = json["health"] as? String ?? "unknown"
+        self.status = json["status"] as? String ?? ""
+        self.docCount = json["docs.count"] as? String ?? "0"
+        self.storeSize = json["store.size"] as? String ?? "0b"
+    }
+}

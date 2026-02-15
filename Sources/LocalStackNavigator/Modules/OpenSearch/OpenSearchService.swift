@@ -78,4 +78,28 @@ final class OpenSearchService: ObservableObject {
             path: "/opensearch/domain/\(name)"
         )
     }
+
+    // MARK: - Cluster REST API (direct to domain endpoint)
+
+    func fetchClusterHealth(endpoint: String) async throws -> ClusterHealth {
+        guard let url = URL(string: "\(endpoint)/_cluster/health") else {
+            throw LocalStackClientError.invalidURL
+        }
+        let (data, _) = try await URLSession.shared.data(from: url)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw LocalStackClientError.invalidURL
+        }
+        return ClusterHealth(json: json)
+    }
+
+    func fetchIndices(endpoint: String) async throws -> [OpenSearchIndex] {
+        guard let url = URL(string: "\(endpoint)/_cat/indices?format=json") else {
+            throw LocalStackClientError.invalidURL
+        }
+        let (data, _) = try await URLSession.shared.data(from: url)
+        guard let array = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            return []
+        }
+        return array.map { OpenSearchIndex(json: $0) }
+    }
 }

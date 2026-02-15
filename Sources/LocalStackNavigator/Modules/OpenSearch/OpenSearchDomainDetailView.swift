@@ -9,6 +9,9 @@ struct OpenSearchDomainDetailView: View {
 
     @State private var serviceError: ServiceError?
     @State private var domainsToDelete: [OpenSearchDomain] = []
+    @State private var clusterHealth: ClusterHealth?
+    @State private var indices: [OpenSearchIndex] = []
+    @State private var isLoadingCluster = false
 
     var body: some View {
         ScrollView {
@@ -17,8 +20,13 @@ struct OpenSearchDomainDetailView: View {
                 domainInfoSection
                 clusterConfigSection
                 storageSection
+                clusterHealthSection
+                indicesSection
             }
             .padding(16)
+        }
+        .task(id: domain.id) {
+            await loadClusterData()
         }
         .onChange(of: toolbarState.pendingAction) {
             guard let action = toolbarState.pendingAction else { return }
@@ -63,6 +71,18 @@ struct OpenSearchDomainDetailView: View {
                 .textSelection(.enabled)
             statusBadge
             engineBadge
+            Spacer()
+            if !domain.endpoint.isEmpty {
+                Button {
+                    if let url = URL(string: domain.endpoint) {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    Label("Open in Browser", systemImage: "safari")
+                }
+                .buttonStyle(.borderless)
+                .help("Open cluster endpoint in browser")
+            }
         }
     }
 
@@ -91,8 +111,8 @@ struct OpenSearchDomainDetailView: View {
             .fontWeight(.medium)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(.blue.opacity(0.1), in: Capsule())
-            .foregroundStyle(.blue)
+            .background(.orange.opacity(0.1), in: Capsule())
+            .foregroundStyle(.orange)
     }
 
     // MARK: - Domain Info
@@ -179,6 +199,137 @@ struct OpenSearchDomainDetailView: View {
         }
     }
 
+    // MARK: - Cluster Health
+
+    private var clusterHealthSection: some View {
+        GroupBox("Cluster Health") {
+            VStack(alignment: .leading, spacing: 8) {
+                if domain.endpoint.isEmpty {
+                    Text("Cluster endpoint not available")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                } else if isLoadingCluster {
+                    ProgressView()
+                        .controlSize(.small)
+                } else if let health = clusterHealth {
+                    labeledRow("Status") {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(healthColor(health.status))
+                                .frame(width: 10, height: 10)
+                            Text(health.status.capitalized)
+                                .fontWeight(.medium)
+                        }
+                    }
+                    if !health.clusterName.isEmpty {
+                        labeledRow("Cluster Name") {
+                            Text(health.clusterName)
+                                .font(.body.monospaced())
+                        }
+                    }
+                    labeledRow("Nodes") {
+                        Text(String(health.numberOfNodes))
+                    }
+                    labeledRow("Active Shards") {
+                        Text(String(health.activeShards))
+                    }
+                    if health.relocatingShards > 0 {
+                        labeledRow("Relocating") {
+                            Text(String(health.relocatingShards))
+                        }
+                    }
+                    if health.initializingShards > 0 {
+                        labeledRow("Initializing") {
+                            Text(String(health.initializingShards))
+                        }
+                    }
+                    if health.unassignedShards > 0 {
+                        labeledRow("Unassigned") {
+                            Text(String(health.unassignedShards))
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                } else {
+                    Text("Could not reach cluster")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                }
+            }
+            .padding(4)
+        }
+    }
+
+    private func healthColor(_ status: String) -> Color {
+        switch status.lowercased() {
+        case "green": .green
+        case "yellow": .yellow
+        case "red": .red
+        default: .gray
+        }
+    }
+
+    // MARK: - Indices
+
+    private var indicesSection: some View {
+        GroupBox("Indices") {
+            VStack(alignment: .leading, spacing: 8) {
+                if domain.endpoint.isEmpty {
+                    Text("Cluster endpoint not available")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                } else if isLoadingCluster {
+                    ProgressView()
+                        .controlSize(.small)
+                } else if indices.isEmpty {
+                    Text("No indices")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                } else {
+                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+                        GridRow {
+                            Text("Name")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fontWeight(.semibold)
+                            Text("Health")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fontWeight(.semibold)
+                            Text("Docs")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fontWeight(.semibold)
+                            Text("Size")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fontWeight(.semibold)
+                        }
+                        Divider()
+                        ForEach(indices) { index in
+                            GridRow {
+                                Text(index.name)
+                                    .font(.body.monospaced())
+                                    .lineLimit(1)
+                                HStack(spacing: 4) {
+                                    Circle()
+                                        .fill(healthColor(index.health))
+                                        .frame(width: 8, height: 8)
+                                    Text(index.health)
+                                        .font(.caption)
+                                }
+                                Text(index.docCount)
+                                    .monospacedDigit()
+                                Text(index.storeSize)
+                                    .monospacedDigit()
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(4)
+        }
+    }
+
     // MARK: - Helpers
 
     private func labeledRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
@@ -199,6 +350,21 @@ struct OpenSearchDomainDetailView: View {
             .padding(.vertical, 1)
             .background((value ? Color.green : Color.gray).opacity(0.15), in: Capsule())
             .foregroundStyle(value ? .green : .gray)
+    }
+
+    private func loadClusterData() async {
+        guard !domain.endpoint.isEmpty else { return }
+        isLoadingCluster = true
+        do {
+            async let healthResult = service.fetchClusterHealth(endpoint: domain.endpoint)
+            async let indicesResult = service.fetchIndices(endpoint: domain.endpoint)
+            clusterHealth = try await healthResult
+            indices = try await indicesResult
+        } catch {
+            clusterHealth = nil
+            indices = []
+        }
+        isLoadingCluster = false
     }
 
     private func deleteDomain(_ target: OpenSearchDomain) {
