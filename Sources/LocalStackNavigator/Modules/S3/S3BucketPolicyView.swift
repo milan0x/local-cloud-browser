@@ -7,7 +7,6 @@ struct S3BucketPolicyView: View {
     let bucket: String
 
     @State private var policyJSON = ""
-    @State private var isHelperShown = false
     @State private var isLoading = true
     @State private var isSaving = false
     @State private var errorMessage: String?
@@ -31,11 +30,7 @@ struct S3BucketPolicyView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Form {
-                    JSONInputSection(
-                        text: $policyJSON,
-                        isHelperShown: $isHelperShown,
-                        config: .policyDocument
-                    )
+                    JSONInputSection(text: $policyJSON, config: .policyDocument)
                 }
                 .formStyle(.grouped)
 

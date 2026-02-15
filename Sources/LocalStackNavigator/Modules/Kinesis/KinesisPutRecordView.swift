@@ -6,7 +6,6 @@ struct KinesisPutRecordView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var partitionKey = ""
     @State private var recordData = ""
-    @State private var isHelperShown = false
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
 
@@ -15,11 +14,7 @@ struct KinesisPutRecordView: View {
             Form {
                 TextField("Partition Key", text: $partitionKey)
 
-                JSONInputSection(
-                    text: $recordData,
-                    isHelperShown: $isHelperShown,
-                    config: .recordData
-                )
+                JSONInputSection(text: $recordData, config: .recordData)
             }
             .formStyle(.grouped)
 

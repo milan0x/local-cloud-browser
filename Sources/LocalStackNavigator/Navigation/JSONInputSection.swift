@@ -24,8 +24,22 @@ struct JSONInputConfig {
 
 struct JSONInputSection: View {
     @Binding var text: String
-    @Binding var isHelperShown: Bool
     let config: JSONInputConfig
+
+    private var externalHelperShown: Binding<Bool>?
+    @State private var isHelperShown = false
+
+    init(text: Binding<String>, isHelperShown: Binding<Bool>, config: JSONInputConfig) {
+        self._text = text
+        self.externalHelperShown = isHelperShown
+        self.config = config
+    }
+
+    init(text: Binding<String>, config: JSONInputConfig) {
+        self._text = text
+        self.externalHelperShown = nil
+        self.config = config
+    }
 
     @State private var formatAssistEnabled = true
     @State private var jsonHelperText = ""
@@ -83,6 +97,7 @@ struct JSONInputSection: View {
             }
         }
         .onChange(of: isHelperShown) {
+            externalHelperShown?.wrappedValue = isHelperShown
             if isHelperShown {
                 if let helper = JSONHelperParser.fromJSON(text) {
                     jsonHelperText = helper

@@ -20,7 +20,6 @@ struct StepFunctionsCreateStateMachineView: View {
       }
     }
     """
-    @State private var isHelperShown = false
     @State private var isSaving = false
     @State private var serviceError: ServiceError?
 
@@ -38,11 +37,7 @@ struct StepFunctionsCreateStateMachineView: View {
                     }
                 }
 
-                JSONInputSection(
-                    text: $definition,
-                    isHelperShown: $isHelperShown,
-                    config: .stateMachineDefinition
-                )
+                JSONInputSection(text: $definition, config: .stateMachineDefinition)
             }
             .formStyle(.grouped)
 
