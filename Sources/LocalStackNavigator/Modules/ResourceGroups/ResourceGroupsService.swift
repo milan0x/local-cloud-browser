@@ -102,6 +102,41 @@ final class ResourceGroupsService: ObservableObject {
         return allResources
     }
 
+    // MARK: - Local Query Cache
+
+    /// Moto does not implement GetGroupQuery, so we cache queries locally
+    /// when groups are created through the app.
+    private static let queryStoreKey = "resourceGroupQueryCache"
+
+    static func cachedQuery(for groupName: String) -> ResourceGroupQuery? {
+        guard let store = UserDefaults.standard.dictionary(forKey: queryStoreKey),
+              let entry = store[groupName] as? [String: Any] else { return nil }
+        return ResourceGroupQuery(
+            type: entry["type"] as? String ?? "TAG_FILTERS_1_0",
+            tagFilters: (entry["tagFilters"] as? [[String: Any]])?.map {
+                TagFilter(key: $0["key"] as? String ?? "",
+                          values: $0["values"] as? [String] ?? [])
+            } ?? [],
+            resourceTypeFilters: entry["resourceTypeFilters"] as? [String] ?? []
+        )
+    }
+
+    private static func cacheQuery(name: String, tagFilters: [TagFilter], resourceTypeFilters: [String]) {
+        var store = UserDefaults.standard.dictionary(forKey: queryStoreKey) ?? [:]
+        store[name] = [
+            "type": "TAG_FILTERS_1_0",
+            "tagFilters": tagFilters.map { ["key": $0.key, "values": $0.values] as [String: Any] },
+            "resourceTypeFilters": resourceTypeFilters.isEmpty ? ["AWS::AllSupported"] : resourceTypeFilters,
+        ] as [String: Any]
+        UserDefaults.standard.set(store, forKey: queryStoreKey)
+    }
+
+    private static func removeCachedQuery(name: String) {
+        var store = UserDefaults.standard.dictionary(forKey: queryStoreKey) ?? [:]
+        store.removeValue(forKey: name)
+        UserDefaults.standard.set(store, forKey: queryStoreKey)
+    }
+
     // MARK: - Write Operations
 
     func createGroup(
@@ -119,10 +154,13 @@ final class ResourceGroupsService: ObservableObject {
                 ] as [String: Any]
             }
         }
+        let effectiveTypeFilters: [String]
         if !resourceTypeFilters.isEmpty {
             queryObj["ResourceTypeFilters"] = resourceTypeFilters
+            effectiveTypeFilters = resourceTypeFilters
         } else {
             queryObj["ResourceTypeFilters"] = ["AWS::AllSupported"]
+            effectiveTypeFilters = ["AWS::AllSupported"]
         }
         let queryString = String(data: try JSONSerialization.data(withJSONObject: queryObj), encoding: .utf8) ?? "{}"
 
@@ -143,6 +181,9 @@ final class ResourceGroupsService: ObservableObject {
             path: "/groups",
             body: body
         )
+
+        // Cache the query locally — moto doesn't implement GetGroupQuery
+        Self.cacheQuery(name: name, tagFilters: tagFilters, resourceTypeFilters: effectiveTypeFilters)
     }
 
     func updateGroup(name: String, description: String) async throws {
@@ -166,5 +207,6 @@ final class ResourceGroupsService: ObservableObject {
             path: "/delete-group",
             body: body
         )
+        Self.removeCachedQuery(name: name)
     }
 }

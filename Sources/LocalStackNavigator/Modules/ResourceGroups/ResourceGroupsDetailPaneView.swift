@@ -7,7 +7,9 @@ struct ResourceGroupsDetailPaneView: View {
     @EnvironmentObject private var appState: AppState
 
     @State private var query: ResourceGroupQuery?
+    @State private var queryUnavailable = false
     @State private var resources: [GroupResource] = []
+    @State private var resourcesUnavailable = false
     @State private var isLoading = false
     @State private var serviceError: ServiceError?
 
@@ -30,7 +32,9 @@ struct ResourceGroupsDetailPaneView: View {
         .task { loadDetails() }
         .onChange(of: group.name) {
             query = nil
+            queryUnavailable = false
             resources = []
+            resourcesUnavailable = false
             loadDetails()
         }
         .onReceive(appState.autoRefresh.triggerPublisher) {
@@ -111,6 +115,12 @@ struct ResourceGroupsDetailPaneView: View {
                     }
                 }
                 .padding(4)
+            } else if queryUnavailable {
+                Text("Query data unavailable \u{2014} group was created outside the app")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 8)
             } else {
                 Text("Loading query...")
                     .foregroundStyle(.secondary)
@@ -118,7 +128,14 @@ struct ResourceGroupsDetailPaneView: View {
                     .padding(.vertical, 8)
             }
         } label: {
-            Text("Query")
+            HStack {
+                Text("Query")
+                if queryUnavailable {
+                    Text("(not supported)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
@@ -126,7 +143,13 @@ struct ResourceGroupsDetailPaneView: View {
 
     private var resourcesSection: some View {
         GroupBox {
-            if resources.isEmpty && !isLoading {
+            if resourcesUnavailable {
+                Text("Resource matching is not supported by this LocalStack version")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 8)
+            } else if resources.isEmpty && !isLoading {
                 Text("No matched resources")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -227,20 +250,29 @@ struct ResourceGroupsDetailPaneView: View {
     private func loadDetails(silent: Bool = false) {
         if !silent { isLoading = true }
         Task {
+            // Call each API independently — either may be unimplemented in LocalStack/moto
             do {
-                async let queryResult = service.getGroupQuery(name: group.name)
-                async let resourcesResult = service.listGroupResources(name: group.name)
-
-                let loadedQuery = try await queryResult
-                let loadedResources = try await resourcesResult
-
+                let loadedQuery = try await service.getGroupQuery(name: group.name)
                 query = loadedQuery
-                resources = loadedResources
+                queryUnavailable = false
             } catch {
-                if !silent {
-                    serviceError = error.asServiceError
+                // GetGroupQuery not implemented in moto — fall back to local cache
+                if let cached = ResourceGroupsService.cachedQuery(for: group.name) {
+                    query = cached
+                    queryUnavailable = false
+                } else if !silent {
+                    queryUnavailable = true
                 }
             }
+
+            do {
+                let loadedResources = try await service.listGroupResources(name: group.name)
+                resources = loadedResources
+                resourcesUnavailable = false
+            } catch {
+                if !silent { resourcesUnavailable = true }
+            }
+
             if !silent { isLoading = false }
         }
     }
