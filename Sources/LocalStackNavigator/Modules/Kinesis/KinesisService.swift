@@ -12,22 +12,43 @@ final class KinesisService: ObservableObject {
 
     func listStreams() async throws -> [KinesisStreamSummary] {
         var allStreams: [KinesisStreamSummary] = []
-        var nextToken: String?
+        var hasMore = true
+        var exclusiveStartName: String?
 
-        repeat {
+        while hasMore {
             var payload: [String: Any] = [:]
-            if let token = nextToken {
-                payload["NextToken"] = token
+            if let startName = exclusiveStartName {
+                payload["ExclusiveStartStreamName"] = startName
             }
             let data = try await client.kinesisRequest(action: "ListStreams", payload: payload)
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 break
             }
+
+            // AWS may return StreamSummaries (newer API) or StreamNames (older/LocalStack)
             if let summaries = json["StreamSummaries"] as? [[String: Any]] {
                 allStreams.append(contentsOf: summaries.map { KinesisStreamSummary(from: $0) })
+            } else if let names = json["StreamNames"] as? [String] {
+                // Enrich each name with DescribeStreamSummary
+                for name in names {
+                    do {
+                        let detail = try await describeStreamSummary(name: name)
+                        allStreams.append(KinesisStreamSummary(
+                            streamName: detail.streamName,
+                            streamARN: detail.streamARN,
+                            streamStatus: detail.streamStatus,
+                            streamMode: detail.streamMode,
+                            creationTimestamp: detail.creationTimestamp
+                        ))
+                    } catch {
+                        allStreams.append(KinesisStreamSummary(streamName: name))
+                    }
+                }
             }
-            nextToken = json["NextToken"] as? String
-        } while nextToken != nil
+
+            hasMore = json["HasMoreStreams"] as? Bool ?? false
+            exclusiveStartName = allStreams.last?.streamName
+        }
 
         return allStreams
     }
