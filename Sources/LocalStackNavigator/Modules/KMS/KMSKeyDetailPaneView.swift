@@ -46,8 +46,7 @@ struct KMSKeyDetailPaneView: View {
                 break
             }
         }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateAlias && aliasToDelete == nil && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateAlias && aliasToDelete == nil && !isLoading }) {
             loadDetails(silent: true)
         }
         .sheet(isPresented: $showCreateAlias) {

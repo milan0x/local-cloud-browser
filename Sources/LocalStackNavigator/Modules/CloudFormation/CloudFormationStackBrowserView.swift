@@ -65,8 +65,7 @@ struct CloudFormationStackBrowserView: View {
             detail = nil
             loadAll()
         }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showDetailSheet && !showTemplateSheet && !isLoadingResources else { return }
+        .onAutoRefresh(canRefresh: { !showDetailSheet && !showTemplateSheet && !isLoadingResources }) {
             loadResources(silent: true)
             loadEvents(silent: true)
         }

@@ -53,17 +53,10 @@ struct StepFunctionsStateMachineListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadMachines() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && machinesToDelete.isEmpty && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && machinesToDelete.isEmpty && !isLoading }) {
             loadMachines(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedIDs = []
-            activeMachine = nil
-            machines = []
-            loadMachines(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedIDs = []
             activeMachine = nil
             machines = []

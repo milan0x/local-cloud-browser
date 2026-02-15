@@ -58,17 +58,10 @@ struct CloudWatchLogsGroupListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadLogGroups() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && logGroupsToDelete.isEmpty && logGroupToShowDetail == nil && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && logGroupsToDelete.isEmpty && logGroupToShowDetail == nil && !isLoading }) {
             loadLogGroups(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedLogGroupIDs = []
-            activeLogGroup = nil
-            logGroups = []
-            loadLogGroups(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedLogGroupIDs = []
             activeLogGroup = nil
             logGroups = []

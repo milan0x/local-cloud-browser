@@ -72,19 +72,11 @@ struct Route53ResolverListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadData() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateEndpointSheet && !showCreateRuleSheet &&
-                  endpointsToDelete.isEmpty && rulesToDelete.isEmpty && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateEndpointSheet && !showCreateRuleSheet &&
+                  endpointsToDelete.isEmpty && rulesToDelete.isEmpty && !isLoading }) {
             loadData(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedEndpointIDs = []
-            activeEndpoint = nil
-            endpoints = []
-            rules = []
-            loadData(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedEndpointIDs = []
             activeEndpoint = nil
             endpoints = []

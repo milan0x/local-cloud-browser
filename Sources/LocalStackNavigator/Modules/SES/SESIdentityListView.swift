@@ -56,17 +56,10 @@ struct SESIdentityListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadIdentities() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showVerifySheet && identitiesToDelete.isEmpty && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showVerifySheet && identitiesToDelete.isEmpty && !isLoading }) {
             loadIdentities(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedIdentityIDs = []
-            activeIdentity = nil
-            identities = []
-            loadIdentities(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedIdentityIDs = []
             activeIdentity = nil
             identities = []

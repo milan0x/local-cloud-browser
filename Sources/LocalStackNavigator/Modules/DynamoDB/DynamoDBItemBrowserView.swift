@@ -158,10 +158,9 @@ struct DynamoDBItemBrowserView: View {
             executeScan()
         }
         .onChange(of: items) { recomputeColumns() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard browseMode == .scan && !showPutItemSheet && editingItem == nil
+        .onAutoRefresh(canRefresh: { browseMode == .scan && !showPutItemSheet && editingItem == nil
                     && itemsToDelete.isEmpty && itemToShowDetail == nil && !isLoading
-                    && !isDraftRowActive else { return }
+                    && !isDraftRowActive }) {
             executeCurrentOperation(force: true, silent: true)
         }
         .onChange(of: toolbarState.pendingAction) {

@@ -136,15 +136,10 @@ struct EC2EntityListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadEntities() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showRunInstanceSheet && !showCreateSecurityGroupSheet && !showCreateKeyPairSheet && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showRunInstanceSheet && !showCreateSecurityGroupSheet && !showCreateKeyPairSheet && !isLoading }) {
             loadEntities(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            clearAllSelections()
-            loadEntities(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             clearAllSelections()
             loadEntities(force: true)
         }

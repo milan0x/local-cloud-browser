@@ -32,8 +32,7 @@ struct SSMParameterValuePaneView: View {
             }
         }
         .task { loadValue() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showDetailSheet && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showDetailSheet && !isLoading }) {
             loadValue(silent: true)
         }
         .onChange(of: toolbarState.pendingAction) {

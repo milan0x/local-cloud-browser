@@ -77,8 +77,7 @@ struct CloudWatchLogsStreamBrowserView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadStreams() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard activeStream == nil && !showCreateStreamSheet && streamsToDelete.isEmpty && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { activeStream == nil && !showCreateStreamSheet && streamsToDelete.isEmpty && !isLoading }) {
             loadStreams(force: true, silent: true)
         }
         .onChange(of: toolbarState.pendingAction) {

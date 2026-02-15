@@ -103,8 +103,7 @@ struct EventBridgeRuleBrowserView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadRules() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard activeRule == nil && !showCreateRuleSheet && rulesToDelete.isEmpty && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { activeRule == nil && !showCreateRuleSheet && rulesToDelete.isEmpty && !isLoading }) {
             loadRules(force: true, silent: true)
         }
         .onChange(of: toolbarState.pendingAction) {

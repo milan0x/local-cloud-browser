@@ -57,17 +57,10 @@ struct KinesisFirehoseListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadStreams() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && streamsToDelete.isEmpty && !showPutRecordSheet && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && streamsToDelete.isEmpty && !showPutRecordSheet && !isLoading }) {
             loadStreams(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedStreamIDs = []
-            activeStream = nil
-            streams = []
-            loadStreams(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedStreamIDs = []
             activeStream = nil
             streams = []

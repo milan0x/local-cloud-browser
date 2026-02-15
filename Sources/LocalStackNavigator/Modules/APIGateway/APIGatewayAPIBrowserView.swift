@@ -145,10 +145,9 @@ struct APIGatewayAPIBrowserView: View {
             selectedResourceMethods = []
             loadAll()
         }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showDetailSheet && !showCreateResourceSheet && !showCreateMethodSheet
+        .onAutoRefresh(canRefresh: { !showDetailSheet && !showCreateResourceSheet && !showCreateMethodSheet
                     && !showCreateDeploymentSheet && !showCreateStageSheet
-                    && !isLoadingResources else { return }
+                    && !isLoadingResources }) {
             loadResources(silent: true)
             loadDeployments(silent: true)
             loadStages(silent: true)

@@ -57,17 +57,10 @@ struct KMSKeyListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadKeys() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && keysToDelete.isEmpty && keyToShowDetail == nil && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && keysToDelete.isEmpty && keyToShowDetail == nil && !isLoading }) {
             loadKeys(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedKeyIDs = []
-            activeKey = nil
-            keys = []
-            loadKeys(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedKeyIDs = []
             activeKey = nil
             keys = []

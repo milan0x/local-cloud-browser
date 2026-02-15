@@ -79,18 +79,10 @@ struct SQSQueueListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadQueues() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateSheet && queuesToDelete.isEmpty && queueToPurge == nil && queueToShowAttributes == nil && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && queuesToDelete.isEmpty && queueToPurge == nil && queueToShowAttributes == nil && !isLoading }) {
             loadQueues(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedQueueIDs = []
-            activeQueue = nil
-            queues = []
-            messageCounts = [:]
-            loadQueues(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedQueueIDs = []
             activeQueue = nil
             queues = []

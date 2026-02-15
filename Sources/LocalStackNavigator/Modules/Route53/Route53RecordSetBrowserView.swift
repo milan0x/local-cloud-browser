@@ -47,8 +47,7 @@ struct Route53RecordSetBrowserView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task(id: zone.id) { loadRecords() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showCreateRecordSheet && recordToDelete == nil && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showCreateRecordSheet && recordToDelete == nil && !isLoading }) {
             loadRecords(force: true, silent: true)
         }
         .onChange(of: toolbarState.pendingAction) {

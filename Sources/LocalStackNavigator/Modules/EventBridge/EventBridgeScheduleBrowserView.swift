@@ -66,8 +66,7 @@ struct EventBridgeScheduleBrowserView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadSchedules() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard activeSchedule == nil && !showCreateScheduleSheet && schedulesToDelete.isEmpty && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { activeSchedule == nil && !showCreateScheduleSheet && schedulesToDelete.isEmpty && !isLoading }) {
             loadSchedules(force: true, silent: true)
         }
         .onChange(of: toolbarState.pendingAction) {

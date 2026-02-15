@@ -58,17 +58,10 @@ struct ACMCertificateListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadCertificates() }
-        .onReceive(appState.autoRefresh.triggerPublisher) {
-            guard !showRequestSheet && !showImportSheet && certsToDelete.isEmpty && !isLoading else { return }
+        .onAutoRefresh(canRefresh: { !showRequestSheet && !showImportSheet && certsToDelete.isEmpty && !isLoading }) {
             loadCertificates(force: true, silent: true)
         }
-        .onChange(of: appState.connectionVersion) {
-            selectedCertIDs = []
-            activeCertificate = nil
-            certificates = []
-            loadCertificates(force: true)
-        }
-        .onChange(of: appState.region) {
+        .resetOnConnectionChange {
             selectedCertIDs = []
             activeCertificate = nil
             certificates = []
