@@ -8,6 +8,7 @@ struct CloudWatchLogsPutEventView: View {
     @EnvironmentObject private var appState: AppState
 
     @State private var message = ""
+    @State private var isHelperShown = false
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
 
@@ -25,11 +26,11 @@ struct CloudWatchLogsPutEventView: View {
                         .lineLimit(1)
                 }
 
-                Section("Message") {
-                    CodeTextEditor(text: $message, isEditable: true)
-                        .frame(minHeight: 200)
-                        .disableSmartSubstitutions()
-                }
+                JSONInputSection(
+                    text: $message,
+                    isHelperShown: $isHelperShown,
+                    config: .logMessage
+                )
             }
             .formStyle(.grouped)
 
