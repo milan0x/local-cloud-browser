@@ -147,10 +147,33 @@ struct KinesisModuleView: View {
 
             Spacer()
 
+            Button {
+                toolbarState.pendingAction = tab == .streams ? .createStream : .createDeliveryStream
+            } label: {
+                Image(systemName: "plus")
+                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            }
+            .buttonStyle(.borderless)
+            .disabled(appState.isReadOnly)
+
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {}
+
+            Button {
+                toolbarState.pendingAction = tab == .streams ? .deleteStream : .deleteDeliveryStream
+            } label: {
+                Image(systemName: "trash")
+                    .foregroundStyle(kinesisDeleteDisabled ? .gray : .red)
+            }
+            .buttonStyle(.borderless)
+            .disabled(kinesisDeleteDisabled)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+
+    private var kinesisDeleteDisabled: Bool {
+        let hasSelection = tab == .streams ? activeStream != nil : activeDeliveryStream != nil
+        return !hasSelection || appState.isReadOnly
     }
 
     private func emptyDetail(_ text: String, icon: String) -> some View {

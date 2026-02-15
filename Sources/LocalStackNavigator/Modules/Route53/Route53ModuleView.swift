@@ -148,10 +148,33 @@ struct Route53ModuleView: View {
 
             Spacer()
 
+            Button {
+                toolbarState.pendingAction = tab == .zones ? .createZone : .createEndpoint
+            } label: {
+                Image(systemName: "plus")
+                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            }
+            .buttonStyle(.borderless)
+            .disabled(appState.isReadOnly)
+
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {}
+
+            Button {
+                toolbarState.pendingAction = tab == .zones ? .deleteZone : .deleteEndpoint
+            } label: {
+                Image(systemName: "trash")
+                    .foregroundStyle(deleteDisabled ? .gray : .red)
+            }
+            .buttonStyle(.borderless)
+            .disabled(deleteDisabled)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+
+    private var deleteDisabled: Bool {
+        let hasSelection = tab == .zones ? activeZone != nil : activeEndpoint != nil
+        return !hasSelection || appState.isReadOnly
     }
 
     private func emptyDetail(_ text: String, icon: String) -> some View {
