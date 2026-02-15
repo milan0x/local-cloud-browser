@@ -21,8 +21,6 @@ struct Route53ZoneListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            zoneListHeader
-            Divider()
             zoneListContent
         }
         .sheet(isPresented: $showCreateSheet) {
@@ -83,12 +81,10 @@ struct Route53ZoneListView: View {
                 }
             case .createRecord:
                 break // handled by record set browser
+            case .createEndpoint, .createRule, .deleteEndpoint:
+                break // handled by resolver list
             }
         }
-    }
-
-    private var zoneDeleteDisabled: Bool {
-        appState.isReadOnly || selectedZoneIDs.isEmpty
     }
 
     private var filteredZones: [Route53HostedZone] {
@@ -98,44 +94,6 @@ struct Route53ZoneListView: View {
             $0.name.lowercased().contains(query) ||
             $0.comment.lowercased().contains(query)
         }
-    }
-
-    // MARK: - Header
-
-    private var zoneListHeader: some View {
-        HStack {
-            Text("Hosted Zones")
-                .font(.headline)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadZones(force: true)
-            }
-
-            Spacer()
-
-            Button { showCreateSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
-            }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadZones(force: true)
-            }
-
-            Button {
-                zonesToDelete = zones.filter { selectedZoneIDs.contains($0.id) }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(zoneDeleteDisabled ? .gray : .red)
-            }
-            .buttonStyle(.borderless)
-            .disabled(zoneDeleteDisabled)
-            .help(selectedZoneIDs.count <= 1 ? "Delete Hosted Zone" : "Delete \(selectedZoneIDs.count) Hosted Zones")
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
     }
 
     // MARK: - Content

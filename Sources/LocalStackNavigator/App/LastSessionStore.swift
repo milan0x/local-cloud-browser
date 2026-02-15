@@ -23,6 +23,8 @@ struct LastSessionState: Codable {
     var kinesisTab: String?
     var kinesisFirehoseDeliveryStreamName: String?
     var route53HostedZoneId: String?
+    var route53Tab: String?
+    var route53ResolverEndpointId: String?
     var cloudWatchTab: String?
     var cloudWatchAlarmName: String?
 
@@ -160,9 +162,11 @@ enum LastSessionStore {
         save(state)
     }
 
-    static func saveRoute53HostedZone(_ id: String?) {
+    static func saveRoute53(tab: String?, hostedZoneId: String?, resolverEndpointId: String?) {
         var state = load() ?? LastSessionState()
-        state.route53HostedZoneId = id
+        state.route53Tab = tab
+        state.route53HostedZoneId = hostedZoneId
+        state.route53ResolverEndpointId = resolverEndpointId
         save(state)
     }
 
@@ -200,6 +204,8 @@ enum LastSessionStore {
         state.kinesisTab = nil
         state.kinesisFirehoseDeliveryStreamName = nil
         state.route53HostedZoneId = nil
+        state.route53Tab = nil
+        state.route53ResolverEndpointId = nil
         state.cloudWatchTab = nil
         state.cloudWatchAlarmName = nil
         save(state)

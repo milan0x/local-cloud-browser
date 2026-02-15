@@ -59,6 +59,8 @@ struct Route53RecordSetBrowserView: View {
                 showCreateRecordSheet = true
             case .createZone, .deleteZone:
                 break // handled by zone list
+            case .createEndpoint, .createRule, .deleteEndpoint:
+                break // handled by resolver list
             }
         }
     }

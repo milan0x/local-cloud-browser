@@ -1,0 +1,79 @@
+import SwiftUI
+
+struct Route53ResolverCreateEndpointView: View {
+    @ObservedObject var service: Route53ResolverService
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var direction = "INBOUND"
+    @State private var securityGroupId = "sg-default"
+    @State private var subnetId = "subnet-default"
+    @State private var ip = ""
+    @State private var serviceError: ServiceError?
+    @State private var isSaving = false
+
+    private let directions = ["INBOUND", "OUTBOUND"]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Form {
+                TextField("Endpoint Name", text: $name)
+
+                Picker("Direction", selection: $direction) {
+                    ForEach(directions, id: \.self) { d in
+                        Text(d).tag(d)
+                    }
+                }
+
+                Section("Network") {
+                    TextField("Security Group ID", text: $securityGroupId)
+                        .textFieldStyle(.roundedBorder)
+                    TextField("Subnet ID", text: $subnetId)
+                        .textFieldStyle(.roundedBorder)
+                    TextField("IP Address (optional)", text: $ip)
+                        .textFieldStyle(.roundedBorder)
+                }
+            }
+            .formStyle(.grouped)
+
+            Divider()
+
+            HStack {
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Spacer()
+                Button("Create") { save() }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!isValid || isSaving)
+            }
+            .padding()
+        }
+        .frame(width: 450)
+        .serviceErrorAlert(error: $serviceError)
+    }
+
+    private var isValid: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !securityGroupId.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !subnetId.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private func save() {
+        isSaving = true
+        serviceError = nil
+        Task {
+            do {
+                let trimmedIp = ip.trimmingCharacters(in: .whitespaces)
+                try await service.createResolverEndpoint(
+                    name: name.trimmingCharacters(in: .whitespaces),
+                    direction: direction,
+                    securityGroupIds: [securityGroupId.trimmingCharacters(in: .whitespaces)],
+                    ipAddresses: [(subnetId: subnetId.trimmingCharacters(in: .whitespaces), ip: trimmedIp.isEmpty ? nil : trimmedIp)]
+                )
+                dismiss()
+            } catch {
+                serviceError = error.asServiceError
+                isSaving = false
+            }
+        }
+    }
+}

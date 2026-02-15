@@ -726,6 +726,41 @@ final class LocalStackClient: ObservableObject {
         return response.data
     }
 
+    // MARK: - Route 53 Resolver (JSON protocol)
+
+    /// Read-only whitelist for Route 53 Resolver actions — these are safe even though they use POST.
+    private static let route53ResolverReadActions: Set<String> = [
+        "ListResolverEndpoints", "GetResolverEndpoint",
+        "ListResolverEndpointIpAddresses",
+        "ListResolverRules", "GetResolverRule",
+        "ListResolverRuleAssociations", "GetResolverRuleAssociation",
+        "ListTagsForResource",
+    ]
+
+    func route53ResolverRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.route53ResolverReadActions.contains(action) {
+            Log.warn("Blocked Route53Resolver \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "Route53Resolver:\(action)")
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/route53resolver/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-amz-json-1.1",
+            headers: [
+                "X-Amz-Target": "Route53Resolver.\(action)",
+                "Authorization": auth,
+            ],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
     // MARK: - Route 53 (REST API with XML)
 
     func route53Request(
