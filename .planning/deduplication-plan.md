@@ -17,7 +17,11 @@
 - Replaced 105 capsule badge instances across 59 files — saved 833 lines
 - Standardized on `.font(.caption2)`, `.fontWeight(.medium)`, `.padding(.horizontal, 5)`, `.padding(.vertical, 1)`
 
-**Phase 1 total: 210 replacements, 1,967 lines saved, zero flexibility impact**
+### 1E. ListHeaderButton → `Navigation/ListHeaderButton.swift` ✅
+- Replaced 56 inline Button+Image+buttonStyle blocks across 30 files — saved 215 lines
+- Expanded hit target (24×24 frame + `contentShape`), hover highlight, standardized styling
+
+**Phase 1 total: 266 replacements, 2,182 lines saved, zero flexibility impact**
 
 ---
 

@@ -26,7 +26,7 @@ struct ListHeaderButton: View {
         Button(action: action) {
             Image(systemName: icon)
                 .foregroundStyle(isDisabled ? .gray : color)
-                .frame(width: 28, height: 28)
+                .frame(width: 24, height: 24)
                 .background(
                     RoundedRectangle(cornerRadius: 5)
                         .fill(isHovered && !isDisabled ? Color.primary.opacity(0.1) : .clear)
