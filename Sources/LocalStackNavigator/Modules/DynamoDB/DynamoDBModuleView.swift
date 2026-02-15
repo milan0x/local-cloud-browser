@@ -33,7 +33,7 @@ struct DynamoDBModuleView: View {
 
             Group {
                 if let table = activeTable, let detail = tableDetail {
-                    DynamoDBItemBrowserView(
+                    DynamoDBBrowserView(
                         service: service,
                         toolbarState: toolbarState,
                         table: table,

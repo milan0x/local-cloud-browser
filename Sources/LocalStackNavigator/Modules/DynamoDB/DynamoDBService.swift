@@ -36,7 +36,9 @@ final class DynamoDBService: ObservableObject {
         partitionKeyName: String,
         partitionKeyType: String,
         sortKeyName: String?,
-        sortKeyType: String?
+        sortKeyType: String?,
+        streamEnabled: Bool = false,
+        streamViewType: String? = nil
     ) async throws {
         var keySchema: [[String: String]] = [
             ["AttributeName": partitionKeyName, "KeyType": "HASH"],
@@ -50,12 +52,20 @@ final class DynamoDBService: ObservableObject {
             attributeDefinitions.append(["AttributeName": skName, "AttributeType": skType])
         }
 
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "TableName": tableName,
             "KeySchema": keySchema,
             "AttributeDefinitions": attributeDefinitions,
             "BillingMode": "PAY_PER_REQUEST",
         ]
+
+        if streamEnabled, let viewType = streamViewType {
+            payload["StreamSpecification"] = [
+                "StreamEnabled": true,
+                "StreamViewType": viewType,
+            ] as [String: Any]
+        }
+
         _ = try await client.dynamodbRequest(action: "CreateTable", payload: payload)
     }
 
@@ -146,6 +156,64 @@ final class DynamoDBService: ObservableObject {
             "Item": itemJSON,
         ]
         _ = try await client.dynamodbRequest(action: "PutItem", payload: payload)
+    }
+
+    // MARK: - Stream Operations
+
+    func listStreams(tableName: String) async throws -> [DynamoDBStream] {
+        let data = try await client.dynamodbStreamsRequest(
+            action: "ListStreams",
+            payload: ["TableName": tableName]
+        )
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let streams = json["Streams"] as? [[String: Any]] else {
+            return []
+        }
+        return streams.map { DynamoDBStream(from: $0) }
+    }
+
+    func describeStream(streamArn: String) async throws -> DynamoDBStreamDescription {
+        let data = try await client.dynamodbStreamsRequest(
+            action: "DescribeStream",
+            payload: ["StreamArn": streamArn]
+        )
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let desc = json["StreamDescription"] as? [String: Any] else {
+            throw LocalStackClientError.invalidURL
+        }
+        return DynamoDBStreamDescription(from: desc)
+    }
+
+    func getShardIterator(streamArn: String, shardId: String, type: String = "TRIM_HORIZON") async throws -> String {
+        let data = try await client.dynamodbStreamsRequest(
+            action: "GetShardIterator",
+            payload: [
+                "StreamArn": streamArn,
+                "ShardId": shardId,
+                "ShardIteratorType": type,
+            ]
+        )
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let iterator = json["ShardIterator"] as? String else {
+            throw LocalStackClientError.invalidURL
+        }
+        return iterator
+    }
+
+    func getRecords(shardIterator: String, limit: Int = 100) async throws -> ([DynamoDBStreamRecord], nextIterator: String?) {
+        let data = try await client.dynamodbStreamsRequest(
+            action: "GetRecords",
+            payload: [
+                "ShardIterator": shardIterator,
+                "Limit": limit,
+            ]
+        )
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return ([], nextIterator: nil)
+        }
+        let records = (json["Records"] as? [[String: Any]] ?? []).map { DynamoDBStreamRecord(from: $0) }
+        let nextIterator = json["NextShardIterator"] as? String
+        return (records, nextIterator: nextIterator)
     }
 
     func deleteItem(tableName: String, key: [String: AttributeValue]) async throws {

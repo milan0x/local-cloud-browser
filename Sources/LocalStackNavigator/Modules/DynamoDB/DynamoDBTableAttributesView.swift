@@ -74,6 +74,7 @@ struct DynamoDBTableAttributesView: View {
                 keySchemaSection(detail)
                 attributesSection(detail)
                 indexesSection(detail)
+                streamsSection(detail)
             }
             .padding(20)
         }
@@ -290,6 +291,45 @@ struct DynamoDBTableAttributesView: View {
         }
         .padding(10)
         .background(Color(.controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    // MARK: - Streams
+
+    private func streamsSection(_ detail: DynamoDBTableDetail) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Streams")
+                .font(.headline)
+
+            HStack(spacing: 8) {
+                Text(detail.streamEnabled ? "ENABLED" : "DISABLED")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(
+                        detail.streamEnabled ? Color.green.opacity(0.15) : Color.secondary.opacity(0.15),
+                        in: Capsule()
+                    )
+                    .foregroundStyle(detail.streamEnabled ? .green : .secondary)
+
+                if let viewType = detail.streamViewType {
+                    Text(viewType)
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(Color.blue.opacity(0.15), in: Capsule())
+                        .foregroundStyle(.blue)
+                }
+            }
+
+            if let arn = detail.latestStreamArn {
+                CopyableValue(text: arn)
+                    .font(.caption)
+                    .monospaced()
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     // MARK: - Helpers

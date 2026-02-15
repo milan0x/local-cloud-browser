@@ -21,6 +21,10 @@ struct DynamoDBTableDetail {
     let localSecondaryIndexes: [LocalSecondaryIndex]
     let billingMode: String
     let provisionedThroughput: ProvisionedThroughput?
+    let streamEnabled: Bool
+    let streamViewType: String?
+    let latestStreamArn: String?
+    let latestStreamLabel: String?
 
     var partitionKey: KeySchemaElement? {
         keySchema.first { $0.keyType == "HASH" }
@@ -58,6 +62,12 @@ struct DynamoDBTableDetail {
         } else {
             provisionedThroughput = nil
         }
+
+        let streamSpec = dict["StreamSpecification"] as? [String: Any]
+        streamEnabled = streamSpec?["StreamEnabled"] as? Bool ?? false
+        streamViewType = streamSpec?["StreamViewType"] as? String
+        latestStreamArn = dict["LatestStreamArn"] as? String
+        latestStreamLabel = dict["LatestStreamLabel"] as? String
     }
 }
 

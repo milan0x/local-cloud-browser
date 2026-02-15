@@ -9,6 +9,8 @@ struct DynamoDBCreateTableView: View {
     @State private var hasSortKey = false
     @State private var sortKeyName = ""
     @State private var sortKeyType = "S"
+    @State private var enableStreams = false
+    @State private var streamViewType = "NEW_AND_OLD_IMAGES"
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
     var existingTableNames: Set<String>
@@ -17,6 +19,13 @@ struct DynamoDBCreateTableView: View {
         ("S", "String"),
         ("N", "Number"),
         ("B", "Binary"),
+    ]
+
+    private static let streamViewTypes = [
+        ("NEW_AND_OLD_IMAGES", "New and old images"),
+        ("NEW_IMAGE", "New image only"),
+        ("OLD_IMAGE", "Old image only"),
+        ("KEYS_ONLY", "Keys only"),
     ]
 
     var body: some View {
@@ -51,6 +60,17 @@ struct DynamoDBCreateTableView: View {
                     LabeledContent("Mode") {
                         Text("Pay per request")
                             .foregroundStyle(.secondary)
+                    }
+                }
+
+                Section("Streams") {
+                    Toggle("Enable DynamoDB Streams", isOn: $enableStreams)
+                    if enableStreams {
+                        Picker("View type", selection: $streamViewType) {
+                            ForEach(Self.streamViewTypes, id: \.0) { type in
+                                Text(type.1).tag(type.0)
+                            }
+                        }
                     }
                 }
             }
@@ -122,7 +142,9 @@ struct DynamoDBCreateTableView: View {
                     partitionKeyName: partitionKeyName.trimmingCharacters(in: .whitespaces),
                     partitionKeyType: partitionKeyType,
                     sortKeyName: hasSortKey ? sortKeyName.trimmingCharacters(in: .whitespaces) : nil,
-                    sortKeyType: hasSortKey ? sortKeyType : nil
+                    sortKeyType: hasSortKey ? sortKeyType : nil,
+                    streamEnabled: enableStreams,
+                    streamViewType: enableStreams ? streamViewType : nil
                 )
                 dismiss()
             } catch {
