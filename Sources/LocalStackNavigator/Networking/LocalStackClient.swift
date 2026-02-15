@@ -236,6 +236,44 @@ final class LocalStackClient: ObservableObject {
         return response.data
     }
 
+    // MARK: - SES (Query protocol — form-encoded POST with Action= parameter)
+
+    /// Read-only whitelist for SES actions — these are safe even though they use POST.
+    private static let sesReadActions: Set<String> = [
+        "ListIdentities", "GetIdentityVerificationAttributes",
+    ]
+
+    func sesRequest(action: String, params: [String: String] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.sesReadActions.contains(action) {
+            Log.warn("Blocked SES \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "SES:\(action)")
+        }
+        var allParams = params
+        allParams["Action"] = action
+        let bodyString = allParams
+            .sorted { $0.key < $1.key }
+            .map {
+                let key = $0.key.addingPercentEncoding(withAllowedCharacters: Self.formURLAllowed) ?? $0.key
+                let val = $0.value.addingPercentEncoding(withAllowedCharacters: Self.formURLAllowed) ?? $0.value
+                return "\(key)=\(val)"
+            }
+            .joined(separator: "&")
+        let body = bodyString.data(using: .utf8)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/ses/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-www-form-urlencoded",
+            headers: ["Authorization": auth],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
     // MARK: - DynamoDB (JSON protocol)
 
     /// Read-only whitelist for DynamoDB actions — these are safe even though they use POST.
@@ -532,6 +570,69 @@ final class LocalStackClient: ObservableObject {
         )
     }
 
+    // MARK: - ACM (JSON protocol)
+
+    /// Read-only whitelist for ACM actions — these are safe even though they use POST.
+    private static let acmReadActions: Set<String> = [
+        "ListCertificates", "DescribeCertificate", "GetCertificate", "ListTagsForCertificate",
+    ]
+
+    func acmRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.acmReadActions.contains(action) {
+            Log.warn("Blocked ACM \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "ACM:\(action)")
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/acm/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-amz-json-1.1",
+            headers: [
+                "X-Amz-Target": "CertificateManager.\(action)",
+                "Authorization": auth,
+            ],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
+    // MARK: - Kinesis (JSON protocol)
+
+    /// Read-only whitelist for Kinesis actions — these are safe even though they use POST.
+    private static let kinesisReadActions: Set<String> = [
+        "ListStreams", "DescribeStream", "DescribeStreamSummary",
+        "ListShards", "GetShardIterator", "GetRecords", "ListTagsForStream",
+    ]
+
+    func kinesisRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.kinesisReadActions.contains(action) {
+            Log.warn("Blocked Kinesis \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "Kinesis:\(action)")
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/kinesis/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-amz-json-1.1",
+            headers: [
+                "X-Amz-Target": "Kinesis_20131202.\(action)",
+                "Authorization": auth,
+            ],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
     // MARK: - KMS (JSON protocol)
 
     /// Read-only whitelist for KMS actions — these are safe even though they use POST.
@@ -559,6 +660,27 @@ final class LocalStackClient: ObservableObject {
                 "Authorization": auth,
             ],
             skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
+    // MARK: - Route 53 (REST API with XML)
+
+    func route53Request(
+        method: String,
+        path: String,
+        body: Data? = nil
+    ) async throws -> Data {
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/route53/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: method,
+            path: "/2013-04-01" + path,
+            queryParams: [:],
+            body: body,
+            contentType: body != nil ? "application/xml" : nil,
+            headers: ["Authorization": auth]
         )
         return response.data
     }
