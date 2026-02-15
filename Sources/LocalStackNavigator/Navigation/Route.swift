@@ -1,35 +1,91 @@
 import Foundation
 
+enum RouteCategory: String, CaseIterable, Identifiable {
+    case compute
+    case storageAndDatabase
+    case messagingAndIntegration
+    case networking
+    case securityAndIdentity
+    case managementAndGovernance
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .compute: "Compute"
+        case .storageAndDatabase: "Storage & Database"
+        case .messagingAndIntegration: "Messaging & Integration"
+        case .networking: "Networking"
+        case .securityAndIdentity: "Security & Identity"
+        case .managementAndGovernance: "Management & Governance"
+        }
+    }
+}
+
 enum Route: String, CaseIterable, Identifiable {
+    // Compute
+    case ec2
+    case lambda
+    case stepFunctions
+
+    // Storage & Database
     case s3
+    case dynamodb
+    case redshift
+    case opensearch
+
+    // Messaging & Integration
     case sqs
     case sns
     case ses
-    case secretsManager
-    case dynamodb
-    case ssm
-    case lambda
-    case cloudwatchLogs
-    case cloudWatch
     case eventBridge
-    case cloudFormation
-    case iam
-    case apiGateway
-    case acm
     case kinesis
-    case kms
+
+    // Networking
+    case apiGateway
     case route53
-    case redshift
-    case opensearch
-    case stepFunctions
-    case ec2
+
+    // Security & Identity
+    case iam
     case sts
+    case secretsManager
+    case kms
+    case acm
+
+    // Management & Governance
+    case cloudFormation
+    case cloudWatch
+    case cloudwatchLogs
+    case ssm
     case config
     case resourceGroups
     case transcribe
     case support
 
     var id: String { rawValue }
+
+    var category: RouteCategory {
+        switch self {
+        case .ec2, .lambda, .stepFunctions:
+            .compute
+        case .s3, .dynamodb, .redshift, .opensearch:
+            .storageAndDatabase
+        case .sqs, .sns, .ses, .eventBridge, .kinesis:
+            .messagingAndIntegration
+        case .apiGateway, .route53:
+            .networking
+        case .iam, .sts, .secretsManager, .kms, .acm:
+            .securityAndIdentity
+        case .cloudFormation, .cloudWatch, .cloudwatchLogs, .ssm, .config, .resourceGroups, .transcribe, .support:
+            .managementAndGovernance
+        }
+    }
+
+    static var grouped: [(category: RouteCategory, routes: [Route])] {
+        RouteCategory.allCases.map { category in
+            (category: category, routes: allCases.filter { $0.category == category })
+        }
+    }
 
     var displayName: String {
         switch self {
