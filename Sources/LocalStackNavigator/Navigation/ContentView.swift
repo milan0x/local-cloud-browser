@@ -116,6 +116,8 @@ struct ContentView: View {
             ConfigModuleView()
         case .resourceGroups:
             ResourceGroupsModuleView()
+        case .transcribe:
+            TranscribeModuleView()
         }
     }
 

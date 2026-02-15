@@ -41,26 +41,9 @@ Implemented: HSplitView (list + detail), REST-JSON protocol (POST to /groups-lis
 
 ---
 
-## Phase 7 — Transcribe: Speech-to-Text Jobs
+## Phase 7 — Transcribe ✅
 
-**Protocol:** JSON 1.1, `X-Amz-Target: Transcribe.<Action>`
-
-**LocalStack support:** `StartTranscriptionJob`, `ListTranscriptionJobs`, `GetTranscriptionJob`, `DeleteTranscriptionJob`. Real transcription via Vosk (25+ languages, 7+ audio formats). Output to S3.
-
-**Layout:** HSplitView — job list → detail with transcript viewer.
-
-**Features:**
-- Job list with status badges (QUEUED / IN_PROGRESS / COMPLETED / FAILED)
-- Create form: name, S3 media URI, language selector (25+ languages), output bucket
-- Job detail: status, input/output URIs, error message
-- Transcript preview pane (scrollable formatted text)
-
-**UI details:**
-- Job status progression with auto-refresh polling — unique "waiting" state UX
-- Transcript preview: large text area, breaks the JSON/table pattern — displays natural language
-- Language selector: 25+ options, largest dropdown in the app
-- Audio format badges (WAV / MP3 / FLAC / OGG)
-- S3 URI fields could link to S3 module for cross-module navigation
+Implemented: HSplitView (job list + detail), JSON 1.1 protocol via `Transcribe.<Action>`, job CRUD (Start/List/Get/Delete), status badges (QUEUED/IN_PROGRESS/COMPLETED/FAILED), audio format badges (WAV/MP3/FLAC/OGG/AMR/WEBM/MP4), 33-language selector, create form with S3 media URI + language + format + optional output bucket, detail pane with job info + media URIs + transcript viewer, transcript fetched from S3 output URI, auto-refresh polling for in-progress jobs, session restore.
 
 ---
 
@@ -80,5 +63,5 @@ Mock-only ticket list (CreateCase/DescribeCases/ResolveCase). Minimal UI surface
 | 4 ✅ | Elasticsearch | Real clusters | ★★★☆☆ | Medium | Medium |
 | 5 ✅ | AWS Config | Mock CRUD | ★★☆☆☆ | Low | Medium-Low |
 | 6 ✅ | Resource Groups | Tag queries | ★★☆☆☆ | Low | Low |
-| 7 | Transcribe | Real transcription | ★★★☆☆ | Medium | Low |
+| 7 ✅ | Transcribe | Real transcription | ★★★☆☆ | Medium | Low |
 | 8 | Support API | Mock only | ★☆☆☆☆ | Low | Lowest |

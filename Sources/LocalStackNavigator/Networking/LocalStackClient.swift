@@ -1101,6 +1101,37 @@ final class LocalStackClient: ObservableObject {
         return response.data
     }
 
+    // MARK: - Transcribe (JSON 1.1 protocol)
+
+    /// Read-only whitelist for Transcribe actions — these are safe even though they use POST.
+    private static let transcribeReadActions: Set<String> = [
+        "ListTranscriptionJobs", "GetTranscriptionJob",
+    ]
+
+    func transcribeRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.transcribeReadActions.contains(action) {
+            Log.warn("Blocked Transcribe \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "Transcribe:\(action)")
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/transcribe/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-amz-json-1.1",
+            headers: [
+                "X-Amz-Target": "Transcribe.\(action)",
+                "Authorization": auth,
+            ],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
     private static let iso8601DateOnly: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyyMMdd"
