@@ -27,6 +27,7 @@ enum Route: String, CaseIterable, Identifiable {
     case config
     case resourceGroups
     case transcribe
+    case support
 
     var id: String { rawValue }
 
@@ -58,6 +59,7 @@ enum Route: String, CaseIterable, Identifiable {
         case .config: "Config"
         case .resourceGroups: "Resource Groups"
         case .transcribe: "Transcribe"
+        case .support: "Support"
         }
     }
 
@@ -89,6 +91,7 @@ enum Route: String, CaseIterable, Identifiable {
         case .config: "gearshape.2"
         case .resourceGroups: "square.3.layers.3d"
         case .transcribe: "waveform"
+        case .support: "lifepreserver"
         }
     }
 }

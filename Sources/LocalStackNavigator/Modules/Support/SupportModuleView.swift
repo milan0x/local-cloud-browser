@@ -1,0 +1,77 @@
+import SwiftUI
+
+struct SupportModuleView: View {
+    @EnvironmentObject private var client: LocalStackClient
+    @EnvironmentObject private var appState: AppState
+    @StateObject private var service: SupportService
+    @StateObject private var toolbarState = SupportToolbarState()
+
+    @State private var selectedCaseIDs: Set<SupportCase.ID> = []
+    @State private var activeCase: SupportCase?
+
+    // Session restore: captured once when the view is created
+    @State private var restoreCaseId: String?
+
+    init() {
+        _service = StateObject(wrappedValue: SupportService())
+        if let saved = LastSessionStore.load() {
+            _restoreCaseId = State(initialValue: saved.supportCaseId)
+        }
+    }
+
+    var body: some View {
+        HSplitView {
+            SupportCaseListView(
+                service: service,
+                toolbarState: toolbarState,
+                selectedCaseIDs: $selectedCaseIDs,
+                activeCase: $activeCase,
+                restoreCaseId: restoreCaseId
+            )
+            .frame(width: 260)
+
+            Group {
+                if let supportCase = activeCase {
+                    SupportCaseDetailView(
+                        service: service,
+                        supportCase: supportCase
+                    )
+                } else {
+                    VStack(spacing: 8) {
+                        Image(systemName: "lifepreserver")
+                            .font(.system(size: 40))
+                            .foregroundStyle(.secondary)
+                        Text("Select a case")
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .frame(minWidth: 400)
+        }
+        .toolbar {
+            SupportToolbar(
+                state: toolbarState,
+                isReadOnly: appState.isReadOnly,
+                hasCase: activeCase != nil
+            )
+        }
+        .onChange(of: activeCase) {
+            toolbarState.reset()
+            LastSessionStore.saveSupportCase(activeCase?.caseId)
+        }
+        .onAppear {
+            service.updateClient(client)
+        }
+    }
+}
+
+struct SupportModule: LocalStackModule {
+    let serviceName = "Support"
+    let serviceIcon = "lifepreserver"
+    let serviceEndpoint = "/support"
+
+    func makeMainView() -> AnyView {
+        AnyView(SupportModuleView())
+    }
+}

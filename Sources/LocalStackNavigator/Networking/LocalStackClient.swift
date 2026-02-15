@@ -1101,6 +1101,37 @@ final class LocalStackClient: ObservableObject {
         return response.data
     }
 
+    // MARK: - Support (JSON 1.1 protocol)
+
+    /// Read-only whitelist for Support actions — these are safe even though they use POST.
+    private static let supportReadActions: Set<String> = [
+        "DescribeCases", "DescribeServices", "DescribeSeverityLevels", "DescribeCommunications",
+    ]
+
+    func supportRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.supportReadActions.contains(action) {
+            Log.warn("Blocked Support \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "Support:\(action)")
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/support/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-amz-json-1.1",
+            headers: [
+                "X-Amz-Target": "AWSSupport_20130415.\(action)",
+                "Authorization": auth,
+            ],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
     // MARK: - Transcribe (JSON 1.1 protocol)
 
     /// Read-only whitelist for Transcribe actions — these are safe even though they use POST.

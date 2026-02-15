@@ -118,6 +118,8 @@ struct ContentView: View {
             ResourceGroupsModuleView()
         case .transcribe:
             TranscribeModuleView()
+        case .support:
+            SupportModuleView()
         }
     }
 
