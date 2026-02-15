@@ -19,6 +19,7 @@ enum Route: String, CaseIterable, Identifiable {
     case kinesis
     case kms
     case route53
+    case redshift
     case sts
 
     var id: String { rawValue }
@@ -43,6 +44,7 @@ enum Route: String, CaseIterable, Identifiable {
         case .kinesis: "Kinesis"
         case .kms: "KMS"
         case .route53: "Route 53"
+        case .redshift: "Redshift"
         case .sts: "STS"
         }
     }
@@ -67,6 +69,7 @@ enum Route: String, CaseIterable, Identifiable {
         case .kinesis: "arrow.right.arrow.left.square"
         case .kms: "lock.shield"
         case .route53: "globe.americas"
+        case .redshift: "cylinder.split.1x2"
         case .sts: "person.badge.key"
         }
     }
