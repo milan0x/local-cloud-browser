@@ -175,15 +175,7 @@ struct EventBridgeBusListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if buses.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "bolt.horizontal")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No event buses")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "bolt.horizontal", message: "No event buses")
             .contextMenu {
                 Button("Create Event Bus") {
                     showCreateSheet = true

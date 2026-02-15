@@ -473,15 +473,7 @@ struct S3ObjectBrowserView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if rowItems.isEmpty && !isSearchActive {
-            VStack(spacing: 8) {
-                Image(systemName: "folder")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("Empty")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "folder", message: "Empty")
             .contextMenu {
                 Button("Create Folder") {
                     showCreateFolder = true
@@ -500,14 +492,7 @@ struct S3ObjectBrowserView: View {
         } else {
             VStack(spacing: 0) {
                 if isSearchActive && sortedRowItems.isEmpty {
-                    VStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.title)
-                            .foregroundStyle(.secondary)
-                        Text("No matches for \"\(searchQuery)\"")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyStateView(icon: "magnifyingglass", message: "No matches for \"\(searchQuery)\"")
                 } else {
                     listView
                 }

@@ -304,15 +304,7 @@ struct DynamoDBItemBrowserView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if items.isEmpty && !isDraftRowActive {
-            VStack(spacing: 8) {
-                Image(systemName: "tray")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No items")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "tray", message: "No items")
             .contextMenu {
                 Button("Put Item") { showPutItemSheet = true }
                     .disabled(appState.isReadOnly)

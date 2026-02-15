@@ -167,15 +167,7 @@ struct ResourceGroupsListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if groups.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "square.3.layers.3d")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No resource groups")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "square.3.layers.3d", message: "No resource groups")
             .contextMenu {
                 Button("Create Resource Group") {
                     showCreateSheet = true

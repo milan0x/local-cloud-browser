@@ -124,15 +124,7 @@ struct ConfigDeliveryChannelListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if channels.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "tray.and.arrow.down")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No delivery channels")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "tray.and.arrow.down", message: "No delivery channels")
             .contextMenu {
                 Button("Create Delivery Channel") {
                     showCreateSheet = true

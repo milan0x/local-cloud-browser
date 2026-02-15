@@ -139,15 +139,7 @@ struct KinesisFirehoseListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if streams.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "flame")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No delivery streams")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "flame", message: "No delivery streams")
             .contextMenu {
                 Button("Create Delivery Stream") {
                     showCreateSheet = true

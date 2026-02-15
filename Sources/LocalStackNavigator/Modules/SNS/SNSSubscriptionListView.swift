@@ -151,17 +151,7 @@ struct SNSSubscriptionListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if subscriptions.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "bell.slash")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No subscriptions")
-                    .foregroundStyle(.secondary)
-                Text("Add a subscription to receive notifications from this topic.")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            EmptyStateView(icon: "bell.slash", message: "No subscriptions", secondaryMessage: "Add a subscription to receive notifications from this topic.")
         } else {
             Table(sortedSubscriptions, selection: $selectedSubscriptionIDs) {
                 TableColumn("Protocol") { sub in

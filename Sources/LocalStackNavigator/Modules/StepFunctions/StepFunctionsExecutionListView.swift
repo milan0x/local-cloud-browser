@@ -73,14 +73,7 @@ struct StepFunctionsExecutionListView: View {
                 ProgressView("Loading executions...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if executions.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "play.slash")
-                        .font(.title)
-                        .foregroundStyle(.secondary)
-                    Text("No executions")
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                EmptyStateView(icon: "play.slash", message: "No executions")
             } else {
                 List {
                     ForEach(executions) { execution in

@@ -107,17 +107,7 @@ struct SESSentEmailBrowserView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if emails.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "tray")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No sent emails")
-                    .foregroundStyle(.secondary)
-                Text("Emails sent via SES will appear here")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            EmptyStateView(icon: "tray", message: "No sent emails", secondaryMessage: "Emails sent via SES will appear here")
         } else {
             VSplitView {
                 emailTable

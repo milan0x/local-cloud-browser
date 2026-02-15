@@ -151,15 +151,7 @@ struct SNSTopicListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if topics.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "bell")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No topics")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "bell", message: "No topics")
             .contextMenu {
                 Button("Create Topic") {
                     showCreateSheet = true

@@ -171,15 +171,7 @@ struct SESIdentityListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if identities.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "envelope")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No identities")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "envelope", message: "No identities")
             .contextMenu {
                 Button("Verify Identity") {
                     showVerifySheet = true

@@ -171,15 +171,7 @@ struct SSMParameterListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if parameters.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "list.bullet.rectangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No parameters")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "list.bullet.rectangle", message: "No parameters")
             .contextMenu {
                 Button("Create Parameter") {
                     showCreateSheet = true

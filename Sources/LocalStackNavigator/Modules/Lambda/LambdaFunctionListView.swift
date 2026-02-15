@@ -171,15 +171,7 @@ struct LambdaFunctionListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if functions.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "function")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No functions")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "function", message: "No functions")
             .contextMenu {
                 Button("Create Function") {
                     showCreateSheet = true

@@ -171,15 +171,7 @@ struct CloudWatchLogsGroupListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if logGroups.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "doc.text.magnifyingglass")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No log groups")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "doc.text.magnifyingglass", message: "No log groups")
             .contextMenu {
                 Button("Create Log Group") {
                     showCreateSheet = true

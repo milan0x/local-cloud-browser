@@ -223,14 +223,7 @@ struct APIGatewayAPIBrowserView: View {
             ProgressView("Loading resources...")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if resources.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "folder")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No resources")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            EmptyStateView(icon: "folder", message: "No resources")
         } else {
             VSplitView {
                 VStack(spacing: 0) {

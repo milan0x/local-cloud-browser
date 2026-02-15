@@ -181,15 +181,7 @@ struct CloudFormationStackListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if stacks.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "square.stack.3d.down.right")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No stacks")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "square.stack.3d.down.right", message: "No stacks")
             .contextMenu {
                 Button("Create Stack") {
                     showCreateSheet = true

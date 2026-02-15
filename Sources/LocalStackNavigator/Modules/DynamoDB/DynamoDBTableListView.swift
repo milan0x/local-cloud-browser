@@ -179,15 +179,7 @@ struct DynamoDBTableListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if tables.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "tablecells")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No tables")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "tablecells", message: "No tables")
             .contextMenu {
                 Button("Create Table") {
                     showCreateSheet = true

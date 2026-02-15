@@ -127,20 +127,7 @@ struct ConfigRecorderListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if recorders.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "gearshape.2")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No recorders")
-                    .foregroundStyle(.secondary)
-                Text("Recorders are mocked — resource changes are NOT recorded")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 16)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "gearshape.2", message: "No recorders", secondaryMessage: "Recorders are mocked — resource changes are NOT recorded")
             .contextMenu {
                 Button("Create Recorder") {
                     showCreateSheet = true

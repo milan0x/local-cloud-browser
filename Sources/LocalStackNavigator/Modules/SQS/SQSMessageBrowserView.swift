@@ -177,17 +177,7 @@ struct SQSMessageBrowserView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if messages.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "tray")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No messages")
-                    .foregroundStyle(.secondary)
-                Text("Send a message or click Receive to poll the queue.")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            EmptyStateView(icon: "tray", message: "No messages", secondaryMessage: "Send a message or click Receive to poll the queue.")
         } else {
             Table(sortedMessages, selection: $selectedMessageIDs, sortOrder: $sortOrder, columnCustomization: $columnCustomization) {
                 TableColumn("Message ID", value: \.messageId) { msg in

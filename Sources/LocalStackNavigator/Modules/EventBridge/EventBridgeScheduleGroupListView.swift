@@ -167,15 +167,7 @@ struct EventBridgeScheduleGroupListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if groups.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "calendar.badge.clock")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No schedule groups")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "calendar.badge.clock", message: "No schedule groups")
             .contextMenu {
                 Button("Create Schedule Group") {
                     showCreateSheet = true

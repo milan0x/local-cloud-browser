@@ -142,15 +142,7 @@ struct CloudWatchLogsStreamBrowserView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if streams.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "arrow.down.doc")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No log streams")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "arrow.down.doc", message: "No log streams")
             .contextMenu {
                 Button("Create Log Stream") {
                     showCreateStreamSheet = true

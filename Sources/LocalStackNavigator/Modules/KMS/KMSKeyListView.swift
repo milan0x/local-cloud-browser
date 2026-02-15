@@ -173,15 +173,7 @@ struct KMSKeyListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if keys.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "lock.shield")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No keys")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "lock.shield", message: "No keys")
             .contextMenu {
                 Button("Create Key") {
                     showCreateSheet = true
