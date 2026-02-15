@@ -112,13 +112,7 @@ struct SecretDetailView: View {
                         LabeledContent(versionId.prefix(8) + "...") {
                             HStack(spacing: 4) {
                                 ForEach(stages, id: \.self) { stage in
-                                    Text(stage)
-                                        .font(.caption2)
-                                        .fontWeight(.medium)
-                                        .padding(.horizontal, 5)
-                                        .padding(.vertical, 1)
-                                        .background(stageColor(stage).opacity(0.15), in: Capsule())
-                                        .foregroundStyle(stageColor(stage))
+                                    StatusBadge(text: stage, color: stageColor(stage))
                                 }
                             }
                         }
@@ -158,13 +152,7 @@ struct SecretDetailView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             if sv.isJSON {
-                                Text("JSON")
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.blue.opacity(0.15), in: Capsule())
-                                    .foregroundStyle(.blue)
+                                StatusBadge(text: "JSON", color: .blue)
                             }
                             Spacer()
                             CopyButton(text: sv.displayValue)

@@ -269,13 +269,7 @@ struct TranscribeJobListView: View {
     }
 
     private func statusBadge(for job: TranscriptionJob) -> some View {
-        Text(job.jobStatus)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(statusColor(job.jobStatus).opacity(0.15), in: Capsule())
-            .foregroundStyle(statusColor(job.jobStatus))
+        StatusBadge(text: job.jobStatus, color: statusColor(job.jobStatus))
     }
 
     private func statusColor(_ status: String) -> Color {
@@ -289,13 +283,7 @@ struct TranscribeJobListView: View {
     }
 
     private func formatBadge(for job: TranscriptionJob) -> some View {
-        Text(job.displayFormat)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 4)
-            .padding(.vertical, 1)
-            .background(.purple.opacity(0.12), in: Capsule())
-            .foregroundStyle(.purple)
+        StatusBadge(text: job.displayFormat, color: .purple)
     }
 
     private var connectionLostBanner: some View {

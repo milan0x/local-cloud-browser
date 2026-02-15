@@ -198,16 +198,7 @@ struct EventBridgeRuleBrowserView: View {
                                     .fontWeight(.medium)
                                     .lineLimit(1)
                                 HStack(spacing: 6) {
-                                    Text(rule.isEnabled ? "ENABLED" : "DISABLED")
-                                        .font(.caption2)
-                                        .fontWeight(.semibold)
-                                        .padding(.horizontal, 5)
-                                        .padding(.vertical, 1)
-                                        .background(
-                                            (rule.isEnabled ? Color.green : Color.gray).opacity(0.15),
-                                            in: Capsule()
-                                        )
-                                        .foregroundStyle(rule.isEnabled ? .green : .gray)
+                                    StatusBadge(text: rule.isEnabled ? "ENABLED" : "DISABLED", color: rule.isEnabled ? .green : .gray)
                                     Image(systemName: rule.ruleType.systemImage)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
@@ -367,16 +358,7 @@ struct EventBridgeRuleBrowserView: View {
         GroupBox("Rule Info") {
             VStack(alignment: .leading, spacing: 8) {
                 LabeledContent("State") {
-                    Text(rule.state)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(
-                            (rule.isEnabled ? Color.green : Color.gray).opacity(0.15),
-                            in: Capsule()
-                        )
-                        .foregroundStyle(rule.isEnabled ? .green : .gray)
+                    StatusBadge(text: rule.state, color: rule.isEnabled ? .green : .gray)
                 }
                 if let desc = rule.description, !desc.isEmpty {
                     LabeledContent("Description") {

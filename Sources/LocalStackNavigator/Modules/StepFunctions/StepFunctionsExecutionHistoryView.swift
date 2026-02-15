@@ -71,13 +71,7 @@ struct StepFunctionsExecutionHistoryView: View {
     }
 
     private func eventTypeBadge(_ type: String, color: String) -> some View {
-        Text(type)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(badgeColor(color).opacity(0.15), in: Capsule())
-            .foregroundStyle(badgeColor(color))
+        StatusBadge(text: type, color: badgeColor(color))
             .lineLimit(1)
     }
 

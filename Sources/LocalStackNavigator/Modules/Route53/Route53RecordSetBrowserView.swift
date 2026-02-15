@@ -172,13 +172,7 @@ struct Route53RecordSetBrowserView: View {
                 .padding(.vertical, 4)
         } label: {
             HStack(spacing: 8) {
-                Text(record.type)
-                    .font(.caption2)
-                    .fontWeight(.bold)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(record.typeBadgeColor.opacity(0.15), in: Capsule())
-                    .foregroundStyle(record.typeBadgeColor)
+                StatusBadge(text: record.type, color: record.typeBadgeColor)
                     .frame(width: 52)
 
                 Text(record.displayName)
@@ -195,13 +189,7 @@ struct Route53RecordSetBrowserView: View {
                 }
 
                 if record.isAlias {
-                    Text("ALIAS")
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(Color.purple.opacity(0.15), in: Capsule())
-                        .foregroundStyle(.purple)
+                    StatusBadge(text: "ALIAS", color: .purple)
                 }
             }
         }

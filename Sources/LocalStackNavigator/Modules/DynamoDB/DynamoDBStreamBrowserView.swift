@@ -87,24 +87,9 @@ struct DynamoDBStreamBrowserView: View {
 
     private func streamInfoHeader(_ desc: DynamoDBStreamDescription) -> some View {
         HStack(spacing: 10) {
-            Text(desc.streamStatus)
-                .font(.caption2)
-                .fontWeight(.semibold)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 2)
-                .background(
-                    desc.streamStatus == "ENABLED" ? Color.green.opacity(0.15) : Color.orange.opacity(0.15),
-                    in: Capsule()
-                )
-                .foregroundStyle(desc.streamStatus == "ENABLED" ? .green : .orange)
+            StatusBadge(text: desc.streamStatus, color: desc.streamStatus == "ENABLED" ? .green : .orange)
 
-            Text(desc.streamViewType)
-                .font(.caption2)
-                .fontWeight(.medium)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 2)
-                .background(Color.blue.opacity(0.15), in: Capsule())
-                .foregroundStyle(.blue)
+            StatusBadge(text: desc.streamViewType, color: .blue)
 
             CopyableValue(text: desc.streamLabel)
                 .font(.caption)
@@ -180,16 +165,7 @@ struct DynamoDBStreamBrowserView: View {
 
             Spacer()
 
-            Text(shard.isClosed ? "Closed" : "Open")
-                .font(.caption2)
-                .fontWeight(.medium)
-                .padding(.horizontal, 5)
-                .padding(.vertical, 1)
-                .background(
-                    shard.isClosed ? Color.secondary.opacity(0.15) : Color.green.opacity(0.15),
-                    in: Capsule()
-                )
-                .foregroundStyle(shard.isClosed ? Color.secondary : Color.green)
+            StatusBadge(text: shard.isClosed ? "Closed" : "Open", color: shard.isClosed ? .secondary : .green)
         }
     }
 
@@ -280,13 +256,7 @@ struct DynamoDBStreamBrowserView: View {
                     .padding(.vertical, 4)
             } label: {
                 HStack(spacing: 8) {
-                    Text(record.eventName)
-                        .font(.caption2)
-                        .fontWeight(.bold)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(record.eventColor.opacity(0.15), in: Capsule())
-                        .foregroundStyle(record.eventColor)
+                    StatusBadge(text: record.eventName, color: record.eventColor)
 
                     Text(record.keySummary)
                         .font(.caption)
@@ -351,12 +321,7 @@ struct DynamoDBStreamBrowserView: View {
                             .font(.caption)
                             .fontWeight(.medium)
 
-                        Text(value.typeBadge)
-                            .font(.caption2)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(Color.accentColor.opacity(0.12), in: Capsule())
-                            .foregroundStyle(Color.accentColor)
+                        StatusBadge(text: value.typeBadge, color: Color.accentColor)
 
                         Text(value.displayString)
                             .font(.caption)

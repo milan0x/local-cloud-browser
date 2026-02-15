@@ -25,13 +25,7 @@ struct APIGatewayAPIDetailView: View {
 
                 Section("Configuration") {
                     LabeledContent("Endpoint Type") {
-                        Text(api.endpointType)
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.blue.opacity(0.15), in: Capsule())
-                            .foregroundStyle(.blue)
+                        StatusBadge(text: api.endpointType, color: .blue)
                     }
                     if !api.apiKeySource.isEmpty {
                         LabeledContent("API Key Source") {

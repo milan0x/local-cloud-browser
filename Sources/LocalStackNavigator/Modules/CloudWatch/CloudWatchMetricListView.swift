@@ -121,12 +121,7 @@ struct CloudWatchMetricListView: View {
                                         if !metric.dimensions.isEmpty {
                                             HStack(spacing: 4) {
                                                 ForEach(metric.dimensions, id: \.name) { dim in
-                                                    Text("\(dim.name)=\(dim.value)")
-                                                        .font(.caption2)
-                                                        .padding(.horizontal, 4)
-                                                        .padding(.vertical, 1)
-                                                        .background(Color.secondary.opacity(0.12), in: Capsule())
-                                                        .foregroundStyle(.secondary)
+                                                    StatusBadge(text: "\(dim.name)=\(dim.value)", color: .secondary)
                                                 }
                                             }
                                         }

@@ -44,22 +44,10 @@ struct LambdaFunctionDetailPaneView: View {
                         .fontWeight(.semibold)
                     HStack(spacing: 6) {
                         if !function.runtime.isEmpty {
-                            Text(function.runtime)
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(runtimeColor.opacity(0.15), in: Capsule())
-                                .foregroundStyle(runtimeColor)
+                            StatusBadge(text: function.runtime, color: runtimeColor)
                         }
                         if !function.state.isEmpty {
-                            Text(function.state)
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(stateColor.opacity(0.15), in: Capsule())
-                                .foregroundStyle(stateColor)
+                            StatusBadge(text: function.state, color: stateColor)
                         }
                         if !function.description.isEmpty {
                             Text(function.description)

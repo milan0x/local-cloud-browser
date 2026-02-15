@@ -67,13 +67,7 @@ struct RedshiftClusterDetailPaneView: View {
     }
 
     private var statusBadge: some View {
-        Text(cluster.clusterStatus)
-            .font(.caption2)
-            .fontWeight(.semibold)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(statusColor.opacity(0.15), in: Capsule())
-            .foregroundStyle(statusColor)
+        StatusBadge(text: cluster.clusterStatus, color: statusColor)
     }
 
     private var statusColor: Color {
@@ -87,13 +81,7 @@ struct RedshiftClusterDetailPaneView: View {
     }
 
     private var nodeTypeBadge: some View {
-        Text(cluster.nodeType)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(.blue.opacity(0.1), in: Capsule())
-            .foregroundStyle(.blue)
+        StatusBadge(text: cluster.nodeType, color: .blue)
     }
 
     // MARK: - Connection
@@ -188,13 +176,7 @@ struct RedshiftClusterDetailPaneView: View {
     }
 
     private func boolBadge(_ value: Bool) -> some View {
-        Text(value ? "Yes" : "No")
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background((value ? Color.green : Color.gray).opacity(0.15), in: Capsule())
-            .foregroundStyle(value ? .green : .gray)
+        StatusBadge(text: value ? "Yes" : "No", color: value ? .green : .gray)
     }
 
     private func deleteCluster(_ target: RedshiftCluster) {

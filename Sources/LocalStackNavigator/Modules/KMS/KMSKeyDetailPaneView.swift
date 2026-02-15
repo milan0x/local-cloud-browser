@@ -132,13 +132,7 @@ struct KMSKeyDetailPaneView: View {
     }
 
     private var stateBadge: some View {
-        Text(key.keyState)
-            .font(.caption2)
-            .fontWeight(.semibold)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(stateColor.opacity(0.15), in: Capsule())
-            .foregroundStyle(stateColor)
+        StatusBadge(text: key.keyState, color: stateColor)
     }
 
     private var stateColor: Color {

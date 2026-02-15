@@ -79,13 +79,7 @@ struct SSMParameterDetailView: View {
                     }
                 }
                 LabeledContent("Type") {
-                    Text(parameter.displayType)
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(typeColor(parameter.type).opacity(0.15), in: Capsule())
-                        .foregroundStyle(typeColor(parameter.type))
+                    StatusBadge(text: parameter.displayType, color: typeColor(parameter.type))
                 }
                 LabeledContent("Version") {
                     Text("\(parameter.version)")
@@ -137,13 +131,7 @@ struct SSMParameterDetailView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             if pv.isJSON {
-                                Text("JSON")
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.blue.opacity(0.15), in: Capsule())
-                                    .foregroundStyle(.blue)
+                                StatusBadge(text: "JSON", color: .blue)
                             }
                             Spacer()
                             CopyButton(text: pv.displayValue)

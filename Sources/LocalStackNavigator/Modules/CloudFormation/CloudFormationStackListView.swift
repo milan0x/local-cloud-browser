@@ -202,16 +202,7 @@ struct CloudFormationStackListView: View {
                             .fontWeight(.medium)
                             .lineLimit(1)
                         HStack(spacing: 6) {
-                            Text(stack.stackStatus)
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1)
-                                .background(
-                                    stack.statusColor.swiftUIColor.opacity(0.15),
-                                    in: Capsule()
-                                )
-                                .foregroundStyle(stack.statusColor.swiftUIColor)
+                            StatusBadge(text: stack.stackStatus, color: stack.statusColor.swiftUIColor)
                             if let created = stack.creationTime {
                                 Text(Self.dateFormatter.string(from: created))
                                     .font(.caption2)

@@ -165,13 +165,7 @@ struct SNSTopicListView: View {
                         .fontWeight(.medium)
                         .lineLimit(1)
                     HStack(spacing: 6) {
-                        Text(topic.isFifo ? "FIFO" : "Standard")
-                            .font(.caption2)
-                            .fontWeight(.medium)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(topic.isFifo ? Color.blue.opacity(0.15) : Color.gray.opacity(0.15), in: Capsule())
-                            .foregroundStyle(topic.isFifo ? .blue : .secondary)
+                        StatusBadge(text: topic.isFifo ? "FIFO" : "Standard", color: topic.isFifo ? .blue : .gray)
                         if let count = subscriptionCounts[topic.topicArn] {
                             Text("\(count) sub\(count == 1 ? "" : "s")")
                                 .font(.caption)

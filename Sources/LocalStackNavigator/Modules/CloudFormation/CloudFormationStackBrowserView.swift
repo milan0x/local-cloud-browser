@@ -102,16 +102,7 @@ struct CloudFormationStackBrowserView: View {
                     .fontWeight(.semibold)
                     .lineLimit(1)
                 HStack(spacing: 6) {
-                    Text(stack.stackStatus)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(
-                            stack.statusColor.swiftUIColor.opacity(0.15),
-                            in: Capsule()
-                        )
-                        .foregroundStyle(stack.statusColor.swiftUIColor)
+                    StatusBadge(text: stack.stackStatus, color: stack.statusColor.swiftUIColor)
                     if let created = stack.creationTime {
                         Text("Created: \(Self.dateFormatter.string(from: created))")
                             .font(.caption)
@@ -138,27 +129,12 @@ struct CloudFormationStackBrowserView: View {
             List(resources) { resource in
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text(resource.shortType)
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(Color.blue.opacity(0.1), in: Capsule())
-                            .foregroundStyle(.blue)
+                        StatusBadge(text: resource.shortType, color: .blue)
                         Text(resource.logicalResourceId)
                             .fontWeight(.medium)
                             .lineLimit(1)
                         Spacer()
-                        Text(resource.resourceStatus)
-                            .font(.caption2)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(
-                                resource.statusColor.swiftUIColor.opacity(0.15),
-                                in: Capsule()
-                            )
-                            .foregroundStyle(resource.statusColor.swiftUIColor)
+                        StatusBadge(text: resource.resourceStatus, color: resource.statusColor.swiftUIColor)
                     }
                     if let physicalId = resource.physicalResourceId, !physicalId.isEmpty {
                         Text(physicalId)
@@ -210,16 +186,7 @@ struct CloudFormationStackBrowserView: View {
                         }
                         Spacer()
                         if let status = event.resourceStatus {
-                            Text(status)
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1)
-                                .background(
-                                    event.statusColor.swiftUIColor.opacity(0.15),
-                                    in: Capsule()
-                                )
-                                .foregroundStyle(event.statusColor.swiftUIColor)
+                            StatusBadge(text: status, color: event.statusColor.swiftUIColor)
                         }
                     }
                     HStack(spacing: 6) {

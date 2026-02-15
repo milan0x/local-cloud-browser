@@ -73,13 +73,7 @@ struct ConfigRecorderDetailView: View {
                 if let status {
                     labeledRow("Recording") {
                         HStack(spacing: 6) {
-                            Text(status.recording ? "RECORDING" : "STOPPED")
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background((status.recording ? Color.green : Color.gray).opacity(0.15), in: Capsule())
-                                .foregroundStyle(status.recording ? .green : .gray)
+                            StatusBadge(text: status.recording ? "RECORDING" : "STOPPED", color: status.recording ? .green : .gray)
                             if !appState.isReadOnly {
                                 Button(status.recording ? "Stop" : "Start") {
                                     toggleRecording()

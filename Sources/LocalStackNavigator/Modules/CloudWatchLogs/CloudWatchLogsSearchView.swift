@@ -77,13 +77,7 @@ struct CloudWatchLogsSearchView: View {
                     List(results) { event in
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(spacing: 6) {
-                                Text(event.logStreamName)
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 1)
-                                    .background(Color.purple.opacity(0.15), in: Capsule())
-                                    .foregroundStyle(.purple)
+                                StatusBadge(text: event.logStreamName, color: .purple)
                                 if let ts = event.timestamp {
                                     Text(Self.timestampFormatter.string(from: ts))
                                         .font(.caption)

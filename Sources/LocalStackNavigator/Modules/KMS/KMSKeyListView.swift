@@ -279,13 +279,7 @@ struct KMSKeyListView: View {
     }
 
     private func stateBadge(for key: KMSKey) -> some View {
-        Text(key.keyState)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(stateColor(key.keyState).opacity(0.15), in: Capsule())
-            .foregroundStyle(stateColor(key.keyState))
+        StatusBadge(text: key.keyState, color: stateColor(key.keyState))
     }
 
     private func stateColor(_ state: String) -> Color {

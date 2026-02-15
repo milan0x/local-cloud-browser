@@ -230,13 +230,7 @@ struct KinesisFirehoseListView: View {
     }
 
     private func statusBadge(_ status: String) -> some View {
-        Text(status)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(statusColor(status).opacity(0.15), in: Capsule())
-            .foregroundStyle(statusColor(status))
+        StatusBadge(text: status, color: statusColor(status))
     }
 
     private func statusColor(_ status: String) -> Color {
@@ -249,13 +243,7 @@ struct KinesisFirehoseListView: View {
     }
 
     private func typeBadge(_ type: String) -> some View {
-        Text(type)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(typeColor(type).opacity(0.15), in: Capsule())
-            .foregroundStyle(typeColor(type))
+        StatusBadge(text: type, color: typeColor(type))
     }
 
     private func typeColor(_ type: String) -> Color {

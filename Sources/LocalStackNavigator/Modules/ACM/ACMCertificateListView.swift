@@ -287,25 +287,13 @@ struct ACMCertificateListView: View {
 
     private func statusBadge(_ status: String) -> some View {
         let display = status.replacingOccurrences(of: "_", with: " ")
-        return Text(display)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(statusColor(status).opacity(0.15), in: Capsule())
-            .foregroundStyle(statusColor(status))
+        return StatusBadge(text: display, color: statusColor(status))
     }
 
     private func typeBadge(_ type: String) -> some View {
         let display = type == "AMAZON_ISSUED" ? "Amazon" : (type == "IMPORTED" ? "Imported" : type)
         let color: Color = type == "IMPORTED" ? .purple : .blue
-        return Text(display)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(color.opacity(0.15), in: Capsule())
-            .foregroundStyle(color)
+        return StatusBadge(text: display, color: color)
     }
 
     private func statusColor(_ status: String) -> Color {

@@ -266,25 +266,13 @@ struct SupportCaseListView: View {
     }
 
     private func statusBadge(_ supportCase: SupportCase) -> some View {
-        Text(supportCase.statusDisplayName)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(supportCase.statusBadgeColor.opacity(0.15), in: Capsule())
-            .foregroundStyle(supportCase.statusBadgeColor)
+        StatusBadge(text: supportCase.statusDisplayName, color: supportCase.statusBadgeColor)
     }
 
     private func severityBadge(_ supportCase: SupportCase) -> some View {
         Group {
             if !supportCase.severityCode.isEmpty {
-                Text(supportCase.severityCode.capitalized)
-                    .font(.caption2)
-                    .fontWeight(.medium)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1)
-                    .background(supportCase.severityBadgeColor.opacity(0.15), in: Capsule())
-                    .foregroundStyle(supportCase.severityBadgeColor)
+                StatusBadge(text: supportCase.severityCode.capitalized, color: supportCase.severityBadgeColor)
             }
         }
     }

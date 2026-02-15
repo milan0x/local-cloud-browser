@@ -258,13 +258,7 @@ struct StepFunctionsExecutionListView: View {
     // MARK: - Badges
 
     private func executionStatusBadge(_ status: String) -> some View {
-        Text(status)
-            .font(.caption2)
-            .fontWeight(.semibold)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(executionStatusColor(status).opacity(0.15), in: Capsule())
-            .foregroundStyle(executionStatusColor(status))
+        StatusBadge(text: status, color: executionStatusColor(status))
     }
 
     private func executionStatusColor(_ status: String) -> Color {

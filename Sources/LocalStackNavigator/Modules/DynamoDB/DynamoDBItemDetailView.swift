@@ -120,13 +120,7 @@ struct DynamoDBItemDetailView: View {
     }
 
     private func attributeTypeBadge(_ type: String) -> some View {
-        Text(type)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(badgeColor(type).opacity(0.15), in: Capsule())
-            .foregroundStyle(badgeColor(type))
+        StatusBadge(text: type, color: badgeColor(type))
     }
 
     private func badgeColor(_ type: String) -> Color {

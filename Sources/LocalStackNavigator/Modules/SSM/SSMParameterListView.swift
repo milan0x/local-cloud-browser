@@ -192,13 +192,7 @@ struct SSMParameterListView: View {
                             .fontWeight(.medium)
                             .lineLimit(1)
                         HStack(spacing: 4) {
-                            Text(parameter.displayType)
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1)
-                                .background(typeColor(parameter.type).opacity(0.15), in: Capsule())
-                                .foregroundStyle(typeColor(parameter.type))
+                            StatusBadge(text: parameter.displayType, color: typeColor(parameter.type))
                             if let desc = parameter.description, !desc.isEmpty {
                                 Text(desc)
                                     .font(.caption)
