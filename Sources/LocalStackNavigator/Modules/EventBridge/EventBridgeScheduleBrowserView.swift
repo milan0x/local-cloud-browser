@@ -143,15 +143,7 @@ struct EventBridgeScheduleBrowserView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if schedules.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "calendar.badge.clock")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No schedules")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "calendar.badge.clock", message: "No schedules")
             .contextMenu {
                 Button("Create Schedule") {
                     showCreateScheduleSheet = true

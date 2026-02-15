@@ -34,14 +34,7 @@ struct CloudWatchLogsEventListView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if events.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "text.page")
-                        .font(.title)
-                        .foregroundStyle(.secondary)
-                    Text("No events")
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                EmptyStateView(icon: "text.page", message: "No events")
             } else {
                 List(events) { event in
                     VStack(alignment: .leading, spacing: 4) {

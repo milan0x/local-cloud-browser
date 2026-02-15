@@ -135,15 +135,7 @@ struct KinesisStreamListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if streams.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "arrow.right.arrow.left.square")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No streams")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "arrow.right.arrow.left.square", message: "No streams")
             .contextMenu {
                 Button("Create Stream") {
                     showCreateSheet = true

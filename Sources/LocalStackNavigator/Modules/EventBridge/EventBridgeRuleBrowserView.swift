@@ -173,15 +173,7 @@ struct EventBridgeRuleBrowserView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if rules.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "bolt.horizontal")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No rules")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "bolt.horizontal", message: "No rules")
             .contextMenu {
                 Button("Create Rule") {
                     showCreateRuleSheet = true

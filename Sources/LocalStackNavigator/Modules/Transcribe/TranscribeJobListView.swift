@@ -168,15 +168,7 @@ struct TranscribeJobListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if jobs.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "waveform")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No transcription jobs")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "waveform", message: "No transcription jobs")
             .contextMenu {
                 Button("Start Transcription Job") {
                     showCreateSheet = true

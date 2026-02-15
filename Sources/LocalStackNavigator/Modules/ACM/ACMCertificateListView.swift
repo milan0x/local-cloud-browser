@@ -175,15 +175,7 @@ struct ACMCertificateListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if certificates.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "checkmark.seal")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No certificates")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "checkmark.seal", message: "No certificates")
             .contextMenu {
                 Button("Request Certificate") {
                     showRequestSheet = true

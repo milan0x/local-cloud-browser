@@ -167,15 +167,7 @@ struct OpenSearchDomainListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if domains.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "magnifyingglass.circle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No domains")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "magnifyingglass.circle", message: "No domains")
             .contextMenu {
                 Button("Create Domain") {
                     showCreateSheet = true

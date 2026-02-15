@@ -219,18 +219,8 @@ struct S3FolderPickerView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 250, maxHeight: .infinity)
         } else if rowItems.isEmpty && pathComponents.isEmpty {
-            VStack(spacing: 6) {
-                Image(systemName: "folder")
-                    .font(.title3)
-                    .foregroundStyle(.tertiary)
-                Text("Empty")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                Text("You can still move items here")
-                    .font(.caption2)
-                    .foregroundStyle(.quaternary)
-            }
-            .frame(maxWidth: .infinity, minHeight: 250, maxHeight: .infinity)
+            EmptyStateView(icon: "folder", message: "Empty", secondaryMessage: "You can still move items here")
+            .frame(minHeight: 250)
         } else {
             VStack(spacing: 0) {
                 tableView

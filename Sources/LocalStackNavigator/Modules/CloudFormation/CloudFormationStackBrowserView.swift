@@ -133,14 +133,7 @@ struct CloudFormationStackBrowserView: View {
             ProgressView("Loading resources...")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if resources.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "square.stack.3d.down.right")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No resources")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            EmptyStateView(icon: "square.stack.3d.down.right", message: "No resources")
         } else {
             List(resources) { resource in
                 VStack(alignment: .leading, spacing: 4) {
@@ -205,14 +198,7 @@ struct CloudFormationStackBrowserView: View {
             ProgressView("Loading events...")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if events.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "clock")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No events")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            EmptyStateView(icon: "clock", message: "No events")
         } else {
             List(events) { event in
                 VStack(alignment: .leading, spacing: 4) {

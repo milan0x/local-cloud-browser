@@ -179,15 +179,7 @@ struct SupportCaseListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if cases.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "lifepreserver")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No cases")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "lifepreserver", message: "No cases")
             .contextMenu {
                 Button("Create Case") {
                     showCreateSheet = true

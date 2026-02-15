@@ -171,15 +171,7 @@ struct SecretsListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if secrets.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "key")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No secrets")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "key", message: "No secrets")
             .contextMenu {
                 Button("Create Secret") {
                     showCreateSheet = true

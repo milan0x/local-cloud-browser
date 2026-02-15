@@ -121,15 +121,7 @@ struct Route53ZoneListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if zones.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "globe.americas")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No hosted zones")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "globe.americas", message: "No hosted zones")
             .contextMenu {
                 Button("Create Hosted Zone") {
                     showCreateSheet = true

@@ -168,15 +168,7 @@ struct APIGatewayAPIListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if apis.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "network")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No REST APIs")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "network", message: "No REST APIs")
             .contextMenu {
                 Button("Create REST API") {
                     showCreateSheet = true

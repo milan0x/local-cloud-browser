@@ -161,15 +161,7 @@ struct Route53ResolverListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if endpoints.isEmpty && rules.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "network")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No resolver endpoints or rules")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "network", message: "No resolver endpoints or rules")
             .contextMenu {
                 Button("Create Endpoint") {
                     showCreateEndpointSheet = true

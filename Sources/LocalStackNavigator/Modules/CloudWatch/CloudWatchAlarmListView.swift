@@ -134,15 +134,7 @@ struct CloudWatchAlarmListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if alarms.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "bell")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No alarms")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "bell", message: "No alarms")
             .contextMenu {
                 Button("Create Alarm") { showCreateAlarmSheet = true }
                     .disabled(appState.isReadOnly)

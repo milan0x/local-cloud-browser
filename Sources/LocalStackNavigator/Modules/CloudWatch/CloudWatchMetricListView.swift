@@ -91,18 +91,7 @@ struct CloudWatchMetricListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if metrics.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "chart.xyaxis.line")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No metrics")
-                    .foregroundStyle(.secondary)
-                Text("Use Put Metric Data to create test data.")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "chart.xyaxis.line", message: "No metrics", secondaryMessage: "Use Put Metric Data to create test data.")
             .contextMenu {
                 Button("Put Metric Data") { showPutMetricSheet = true }
                     .disabled(appState.isReadOnly)

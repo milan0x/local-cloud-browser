@@ -476,18 +476,9 @@ struct IAMEntityListView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    @ViewBuilder
     private func emptyView(_ text: String, icon: String) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.title)
-                .foregroundStyle(.secondary)
-            Text(text)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .contentShape(Rectangle())
-        .contextMenu { createContextMenu }
+        EmptyStateView(icon: icon, message: text)
+            .contextMenu { createContextMenu }
     }
 
     @ViewBuilder

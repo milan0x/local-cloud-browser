@@ -168,15 +168,7 @@ struct StepFunctionsStateMachineListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if machines.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "arrow.triangle.branch")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No state machines")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "arrow.triangle.branch", message: "No state machines")
             .contextMenu {
                 Button("Create State Machine") {
                     showCreateSheet = true

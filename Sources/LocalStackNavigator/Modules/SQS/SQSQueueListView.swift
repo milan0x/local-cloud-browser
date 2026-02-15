@@ -173,15 +173,7 @@ struct SQSQueueListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if queues.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "tray.2")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No queues")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "tray.2", message: "No queues")
             .contextMenu {
                 Button("Create Queue") {
                     showCreateSheet = true

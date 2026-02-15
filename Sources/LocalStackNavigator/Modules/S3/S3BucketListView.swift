@@ -210,15 +210,7 @@ struct S3BucketListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if buckets.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "externaldrive")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No buckets")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "externaldrive", message: "No buckets")
             .contextMenu {
                 Button("Create Bucket") {
                     showCreateSheet = true

@@ -167,15 +167,7 @@ struct RedshiftClusterListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if clusters.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "cylinder.split.1x2")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text("No clusters")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            EmptyStateView(icon: "cylinder.split.1x2", message: "No clusters")
             .contextMenu {
                 Button("Create Cluster") {
                     showCreateSheet = true
