@@ -4,6 +4,7 @@ import SwiftUI
 struct CodeTextEditor: NSViewRepresentable {
     @Binding var text: String
     var isEditable: Bool = true
+    var yamlMode: Bool = false
 
     func makeCoordinator() -> Coordinator {
         Coordinator(text: $text)
@@ -11,6 +12,7 @@ struct CodeTextEditor: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSScrollView {
         let textView = AutoIndentTextView()
+        textView.yamlMode = yamlMode
         textView.delegate = context.coordinator
         textView.font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         textView.isAutomaticQuoteSubstitutionEnabled = false
@@ -53,6 +55,9 @@ struct CodeTextEditor: NSViewRepresentable {
             textView.string = text
             context.coordinator.isUpdating = false
         }
+        if let autoIndent = textView as? AutoIndentTextView {
+            autoIndent.yamlMode = yamlMode
+        }
         let wasEditable = textView.isEditable
         textView.isEditable = isEditable
         if isEditable && !wasEditable {
@@ -79,6 +84,8 @@ struct CodeTextEditor: NSViewRepresentable {
 }
 
 private final class AutoIndentTextView: NSTextView {
+    var yamlMode = false
+
     override func insertNewline(_ sender: Any?) {
         let currentText = string as NSString
         let cursorLocation = selectedRange().location
@@ -103,6 +110,21 @@ private final class AutoIndentTextView: NSTextView {
         }
 
         let indent = currentText.substring(with: NSRange(location: lineStart, length: indentCount))
+
+        if yamlMode {
+            let lineContent = currentText.substring(with: NSRange(location: lineStart + indentCount, length: cursorLocation - lineStart - indentCount))
+            if lineContent == "- " {
+                // Empty array item — remove the "- " and just leave indent
+                let removeRange = NSRange(location: lineStart + indentCount, length: 2)
+                insertText("\n" + indent, replacementRange: NSUnionRange(removeRange, selectedRange()))
+                return
+            } else if lineContent.hasPrefix("- ") && lineContent.count > 2 {
+                // Array item with content — continue with "- " on next line
+                insertText("\n" + indent + "- ", replacementRange: selectedRange())
+                return
+            }
+        }
+
         insertText("\n" + indent, replacementRange: selectedRange())
     }
 

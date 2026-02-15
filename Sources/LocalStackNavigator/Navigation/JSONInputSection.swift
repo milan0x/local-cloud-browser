@@ -3,14 +3,16 @@ import SwiftUI
 struct JSONInputConfig {
     let sectionLabel: String
     let detectXML: Bool
+    let detectYAML: Bool
     let editorMinHeight: CGFloat
 
-    static let messageBody = JSONInputConfig(sectionLabel: "Message Body", detectXML: true, editorMinHeight: 180)
-    static let eventPattern = JSONInputConfig(sectionLabel: "Event Pattern (JSON)", detectXML: false, editorMinHeight: 200)
-    static let eventDetail = JSONInputConfig(sectionLabel: "Detail (JSON)", detectXML: false, editorMinHeight: 200)
-    static let targetInput = JSONInputConfig(sectionLabel: "Input (optional JSON)", detectXML: false, editorMinHeight: 120)
-    static let parameterValue = JSONInputConfig(sectionLabel: "Parameter Value", detectXML: false, editorMinHeight: 150)
-    static let executionInput = JSONInputConfig(sectionLabel: "Input (JSON)", detectXML: false, editorMinHeight: 200)
+    static let messageBody = JSONInputConfig(sectionLabel: "Message Body", detectXML: true, detectYAML: false, editorMinHeight: 180)
+    static let eventPattern = JSONInputConfig(sectionLabel: "Event Pattern (JSON)", detectXML: false, detectYAML: false, editorMinHeight: 200)
+    static let eventDetail = JSONInputConfig(sectionLabel: "Detail (JSON)", detectXML: false, detectYAML: false, editorMinHeight: 200)
+    static let targetInput = JSONInputConfig(sectionLabel: "Input (optional JSON)", detectXML: false, detectYAML: false, editorMinHeight: 120)
+    static let parameterValue = JSONInputConfig(sectionLabel: "Parameter Value", detectXML: false, detectYAML: false, editorMinHeight: 150)
+    static let executionInput = JSONInputConfig(sectionLabel: "Input (JSON)", detectXML: false, detectYAML: false, editorMinHeight: 200)
+    static let templateBody = JSONInputConfig(sectionLabel: "Template Body", detectXML: false, detectYAML: true, editorMinHeight: 250)
 }
 
 struct JSONInputSection: View {
@@ -18,6 +20,7 @@ struct JSONInputSection: View {
     @Binding var isHelperShown: Bool
     let config: JSONInputConfig
 
+    @State private var formatAssistEnabled = true
     @State private var jsonHelperText = ""
     @State private var jsonHelperParseError: String?
     @State private var showExamplePopover = false
@@ -27,7 +30,7 @@ struct JSONInputSection: View {
     var body: some View {
         Section {
             ZStack(alignment: .topLeading) {
-                CodeTextEditor(text: $text, isEditable: !isHelperShown)
+                CodeTextEditor(text: $text, isEditable: !isHelperShown, yamlMode: formatAssistEnabled && detectedBodyType == "YAML")
                     .opacity(isHelperShown ? 0.7 : 1.0)
                 if text.isEmpty && isHelperShown && !disablePlaceholders {
                     Text(JSONHelperParser.defaultJSON)
@@ -125,32 +128,39 @@ struct JSONInputSection: View {
 
     // MARK: - JSON Helper
 
+    private var showJSONHelper: Bool {
+        let type = detectedBodyType
+        return !formatAssistEnabled || type == nil || type == "JSON" || type == "Text"
+    }
+
     @ViewBuilder
     private var jsonHelperSection: some View {
-        HStack {
-            if isHelperShown {
+        if showJSONHelper {
+            HStack {
+                if isHelperShown {
+                    Button {
+                        showExamplePopover.toggle()
+                    } label: {
+                        Label("Example Data", systemImage: "text.badge.star")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.borderless)
+                    .popover(isPresented: $showExamplePopover) {
+                        syntaxReferencePopover
+                    }
+                }
+                Spacer()
                 Button {
-                    showExamplePopover.toggle()
+                    isHelperShown.toggle()
                 } label: {
-                    Label("Example Data", systemImage: "text.badge.star")
+                    Label(isHelperShown ? "Hide JSON Helper" : "JSON Helper", systemImage: "curlybraces")
                         .font(.caption)
                 }
                 .buttonStyle(.borderless)
-                .popover(isPresented: $showExamplePopover) {
-                    syntaxReferencePopover
-                }
             }
-            Spacer()
-            Button {
-                isHelperShown.toggle()
-            } label: {
-                Label(isHelperShown ? "Hide JSON Helper" : "JSON Helper", systemImage: "curlybraces")
-                    .font(.caption)
-            }
-            .buttonStyle(.borderless)
         }
 
-        if isHelperShown {
+        if isHelperShown && showJSONHelper {
             ZStack(alignment: .topLeading) {
                 CodeTextEditor(text: $jsonHelperText)
                 if jsonHelperText.isEmpty && !disablePlaceholders {
@@ -232,14 +242,26 @@ struct JSONInputSection: View {
     // MARK: - Detection & Validation
 
     private var detectedBodyType: String? {
+        guard formatAssistEnabled else { return nil }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         if trimmed.hasPrefix("{") || trimmed.hasPrefix("[") {
             return "JSON"
         } else if config.detectXML && trimmed.hasPrefix("<") {
             return "XML"
+        } else if config.detectYAML && looksLikeYAML(trimmed) {
+            return "YAML"
         }
         return "Text"
+    }
+
+    private func looksLikeYAML(_ text: String) -> Bool {
+        if text.hasPrefix("---") { return true }
+        guard let firstLine = text.components(separatedBy: .newlines).first(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) else {
+            return false
+        }
+        let trimmedLine = firstLine.trimmingCharacters(in: .whitespaces)
+        return trimmedLine.contains(":") && trimmedLine.firstIndex(of: ":")! != trimmedLine.startIndex
     }
 
     private func isBodyValid(for type: String) -> Bool {
@@ -249,6 +271,24 @@ struct JSONInputSection: View {
             return (try? JSONSerialization.jsonObject(with: data)) != nil
         } else if type == "XML" {
             return XMLParser(data: data).parse()
+        } else if type == "YAML" {
+            return isYAMLValid(trimmed)
+        }
+        return true
+    }
+
+    private func isYAMLValid(_ text: String) -> Bool {
+        let lines = text.components(separatedBy: .newlines)
+        var hasTabs = false
+        var hasSpaces = false
+        for line in lines {
+            guard !line.isEmpty else { continue }
+            for ch in line {
+                if ch == "\t" { hasTabs = true }
+                else if ch == " " { hasSpaces = true }
+                else { break }
+            }
+            if hasTabs && hasSpaces { return false }
         }
         return true
     }
@@ -257,6 +297,7 @@ struct JSONInputSection: View {
         switch type {
         case "JSON": return Color.blue.opacity(0.15)
         case "XML": return Color.orange.opacity(0.15)
+        case "YAML": return Color.green.opacity(0.15)
         default: return Color.gray.opacity(0.15)
         }
     }
@@ -265,6 +306,7 @@ struct JSONInputSection: View {
         switch type {
         case "JSON": return .blue
         case "XML": return .orange
+        case "YAML": return .green
         default: return .secondary
         }
     }
