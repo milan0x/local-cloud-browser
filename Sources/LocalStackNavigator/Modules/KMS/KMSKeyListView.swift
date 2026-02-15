@@ -376,11 +376,6 @@ struct KMSKeyListView: View {
             }
         }
     }
-
-    private func copyToClipboard(_ string: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(string, forType: .string)
-    }
 }
 
 /// Sheet view for key details (opened via double-click or context menu)

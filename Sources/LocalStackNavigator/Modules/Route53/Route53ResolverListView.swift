@@ -456,9 +456,4 @@ struct Route53ResolverListView: View {
             loadData(force: true)
         }
     }
-
-    private func copyToClipboard(_ string: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(string, forType: .string)
-    }
 }

@@ -404,11 +404,6 @@ struct S3BucketListView: View {
             loadBuckets(force: true)
         }
     }
-
-    private func copyToClipboard(_ string: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(string, forType: .string)
-    }
 }
 
 /// Detects mouse clicks within its own bounds using an NSEvent monitor.

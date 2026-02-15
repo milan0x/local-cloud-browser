@@ -197,9 +197,4 @@ struct CloudWatchLogsSearchView: View {
             isLoadingMore = false
         }
     }
-
-    private func copyToClipboard(_ string: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(string, forType: .string)
-    }
 }

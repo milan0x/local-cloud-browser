@@ -395,9 +395,4 @@ struct CloudFormationStackBrowserView: View {
             isLoadingDetail = false
         }
     }
-
-    private func copyToClipboard(_ string: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(string, forType: .string)
-    }
 }
