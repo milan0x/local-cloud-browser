@@ -121,26 +121,17 @@ struct SSMParameterListView: View {
 
             Spacer()
 
-            Button { showCreateSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showCreateSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadParameters(force: true)
             }
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: parameterDeleteDisabled, help: selectedParameterIDs.count <= 1 ? "Delete Parameter" : "Delete \(selectedParameterIDs.count) Parameters") {
                 parametersToDelete = parameters.filter { selectedParameterIDs.contains($0.id) }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(parameterDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(parameterDeleteDisabled)
-            .help(selectedParameterIDs.count <= 1 ? "Delete Parameter" : "Delete \(selectedParameterIDs.count) Parameters")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

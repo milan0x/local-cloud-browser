@@ -127,25 +127,15 @@ struct CloudWatchModuleView: View {
 
             Spacer()
 
-            Button {
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
                 toolbarState.pendingAction = tab == .metrics ? .putMetric : .createAlarm
-            } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {}
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: cwDeleteDisabled) {
                 toolbarState.pendingAction = .deleteAlarm
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(cwDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(cwDeleteDisabled)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

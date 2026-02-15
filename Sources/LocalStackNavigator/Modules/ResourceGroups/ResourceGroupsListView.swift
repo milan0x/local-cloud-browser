@@ -117,26 +117,17 @@ struct ResourceGroupsListView: View {
 
             Spacer()
 
-            Button { showCreateSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showCreateSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadGroups(force: true)
             }
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: deleteDisabled, help: selectedGroupIDs.count <= 1 ? "Delete Resource Group" : "Delete \(selectedGroupIDs.count) Resource Groups") {
                 groupsToDelete = groups.filter { selectedGroupIDs.contains($0.id) }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(deleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(deleteDisabled)
-            .help(selectedGroupIDs.count <= 1 ? "Delete Resource Group" : "Delete \(selectedGroupIDs.count) Resource Groups")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

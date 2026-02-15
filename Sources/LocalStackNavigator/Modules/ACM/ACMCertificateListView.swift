@@ -125,26 +125,17 @@ struct ACMCertificateListView: View {
 
             Spacer()
 
-            Button { showRequestSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showRequestSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadCertificates(force: true)
             }
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: certDeleteDisabled, help: selectedCertIDs.count <= 1 ? "Delete Certificate" : "Delete \(selectedCertIDs.count) Certificates") {
                 certsToDelete = certificates.filter { selectedCertIDs.contains($0.id) }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(certDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(certDeleteDisabled)
-            .help(selectedCertIDs.count <= 1 ? "Delete Certificate" : "Delete \(selectedCertIDs.count) Certificates")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

@@ -132,12 +132,9 @@ struct SupportCaseListView: View {
 
             Spacer()
 
-            Button { showCreateSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showCreateSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadCases(force: true)

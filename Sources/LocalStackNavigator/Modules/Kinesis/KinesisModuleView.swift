@@ -147,25 +147,15 @@ struct KinesisModuleView: View {
 
             Spacer()
 
-            Button {
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
                 toolbarState.pendingAction = tab == .streams ? .createStream : .createDeliveryStream
-            } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {}
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: kinesisDeleteDisabled) {
                 toolbarState.pendingAction = tab == .streams ? .deleteStream : .deleteDeliveryStream
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(kinesisDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(kinesisDeleteDisabled)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

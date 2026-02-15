@@ -101,26 +101,17 @@ struct SNSTopicListView: View {
 
             Spacer()
 
-            Button { showCreateSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showCreateSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadTopics(force: true)
             }
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: topicDeleteDisabled, help: selectedTopicIDs.count <= 1 ? "Delete Topic" : "Delete \(selectedTopicIDs.count) Topics") {
                 topicsToDelete = topics.filter { selectedTopicIDs.contains($0.id) }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(topicDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(topicDeleteDisabled)
-            .help(selectedTopicIDs.count <= 1 ? "Delete Topic" : "Delete \(selectedTopicIDs.count) Topics")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

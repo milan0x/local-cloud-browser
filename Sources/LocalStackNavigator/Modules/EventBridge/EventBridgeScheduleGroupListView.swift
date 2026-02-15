@@ -114,29 +114,20 @@ struct EventBridgeScheduleGroupListView: View {
 
             Spacer()
 
-            Button { showCreateSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showCreateSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadGroups(force: true)
             }
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: groupDeleteDisabled, help: selectedGroupIDs.count <= 1 ? "Delete Schedule Group" : "Delete \(selectedGroupIDs.count) Schedule Groups") {
                 let deletable = groups.filter { selectedGroupIDs.contains($0.id) && !$0.isDefault }
                 if !deletable.isEmpty {
                     groupsToDelete = deletable
                 }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(groupDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(groupDeleteDisabled)
-            .help(selectedGroupIDs.count <= 1 ? "Delete Schedule Group" : "Delete \(selectedGroupIDs.count) Schedule Groups")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

@@ -141,25 +141,15 @@ struct ConfigModuleView: View {
 
             Spacer()
 
-            Button {
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
                 toolbarState.pendingAction = tab == .recorders ? .createRecorder : .createChannel
-            } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {}
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: configDeleteDisabled) {
                 toolbarState.pendingAction = tab == .recorders ? .deleteRecorder : .deleteChannel
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(configDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(configDeleteDisabled)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

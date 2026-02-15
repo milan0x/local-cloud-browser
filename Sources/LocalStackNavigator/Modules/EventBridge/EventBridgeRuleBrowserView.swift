@@ -146,13 +146,9 @@ struct EventBridgeRuleBrowserView: View {
                     .lineLimit(1)
             }
             Spacer()
-            Button { showCreateRuleSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly, help: "Create Rule") {
+                showCreateRuleSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
-            .help("Create Rule")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

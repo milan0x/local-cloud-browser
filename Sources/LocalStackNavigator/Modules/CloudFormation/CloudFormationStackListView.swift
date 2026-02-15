@@ -128,29 +128,20 @@ struct CloudFormationStackListView: View {
 
             Spacer()
 
-            Button { showCreateSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showCreateSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadStacks(force: true)
             }
 
-            Button {
+            ListHeaderButton("trash", color: .red, isDisabled: stackDeleteDisabled, help: selectedStackIDs.count <= 1 ? "Delete Stack" : "Delete \(selectedStackIDs.count) Stacks") {
                 let deletable = stacks.filter { selectedStackIDs.contains($0.id) }
                 if !deletable.isEmpty {
                     stacksToDelete = deletable
                 }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(stackDeleteDisabled ? .gray : .red)
             }
-            .buttonStyle(.borderless)
-            .disabled(stackDeleteDisabled)
-            .help(selectedStackIDs.count <= 1 ? "Delete Stack" : "Delete \(selectedStackIDs.count) Stacks")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

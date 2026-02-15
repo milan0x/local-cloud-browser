@@ -216,24 +216,17 @@ struct EC2EntityListView: View {
 
             Spacer()
 
-            Button { showCreateSheet() } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
+                showCreateSheet()
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
 
             AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
                 loadEntities(force: true)
             }
 
-            Button { deleteCurrentSelection() } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(deleteDisabled ? .gray : .red)
+            ListHeaderButton("trash", color: .red, isDisabled: deleteDisabled, help: "Delete") {
+                deleteCurrentSelection()
             }
-            .buttonStyle(.borderless)
-            .disabled(deleteDisabled)
-            .help("Delete")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

@@ -115,13 +115,9 @@ struct CloudWatchLogsStreamBrowserView: View {
                     .lineLimit(1)
             }
             Spacer()
-            Button { showCreateStreamSheet = true } label: {
-                Image(systemName: "plus")
-                    .foregroundStyle(appState.isReadOnly ? .gray : Color.primary)
+            ListHeaderButton("plus", isDisabled: appState.isReadOnly, help: "Create Log Stream") {
+                showCreateStreamSheet = true
             }
-            .buttonStyle(.borderless)
-            .disabled(appState.isReadOnly)
-            .help("Create Log Stream")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
