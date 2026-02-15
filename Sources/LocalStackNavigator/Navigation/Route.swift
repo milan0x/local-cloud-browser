@@ -10,6 +10,7 @@ enum Route: String, CaseIterable, Identifiable {
     case ssm
     case lambda
     case cloudwatchLogs
+    case cloudWatch
     case eventBridge
     case cloudFormation
     case iam
@@ -33,6 +34,7 @@ enum Route: String, CaseIterable, Identifiable {
         case .ssm: "Parameter Store"
         case .lambda: "Lambda"
         case .cloudwatchLogs: "CloudWatch Logs"
+        case .cloudWatch: "CloudWatch"
         case .eventBridge: "EventBridge"
         case .cloudFormation: "CloudFormation"
         case .iam: "IAM"
@@ -56,6 +58,7 @@ enum Route: String, CaseIterable, Identifiable {
         case .ssm: "list.bullet.rectangle"
         case .lambda: "function"
         case .cloudwatchLogs: "doc.text.magnifyingglass"
+        case .cloudWatch: "chart.xyaxis.line"
         case .eventBridge: "bolt.horizontal"
         case .cloudFormation: "square.stack.3d.down.right"
         case .iam: "person.2"

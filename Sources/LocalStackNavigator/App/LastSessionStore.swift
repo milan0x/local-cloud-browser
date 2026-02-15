@@ -21,6 +21,8 @@ struct LastSessionState: Codable {
     var acmCertificateArn: String?
     var kinesisStreamName: String?
     var route53HostedZoneId: String?
+    var cloudWatchTab: String?
+    var cloudWatchAlarmName: String?
 
     var route: Route? {
         guard let raw = routeRawValue else { return nil }
@@ -160,6 +162,13 @@ enum LastSessionStore {
         save(state)
     }
 
+    static func saveCloudWatch(tab: String?, alarmName: String?) {
+        var state = load() ?? LastSessionState()
+        state.cloudWatchTab = tab
+        state.cloudWatchAlarmName = alarmName
+        save(state)
+    }
+
     /// Clears per-module sub-resource fields (bucket, path, queue, topic) while
     /// keeping the route. Called on launch when cross-launch restore is
     /// disabled so modules start fresh. In-session onChange handlers
@@ -185,6 +194,8 @@ enum LastSessionStore {
         state.acmCertificateArn = nil
         state.kinesisStreamName = nil
         state.route53HostedZoneId = nil
+        state.cloudWatchTab = nil
+        state.cloudWatchAlarmName = nil
         save(state)
     }
 }

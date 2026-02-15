@@ -664,6 +664,37 @@ final class LocalStackClient: ObservableObject {
         return response.data
     }
 
+    // MARK: - CloudWatch (JSON protocol)
+
+    /// Read-only whitelist for CloudWatch actions — these are safe even though they use POST.
+    private static let cloudWatchReadActions: Set<String> = [
+        "ListMetrics", "GetMetricStatistics", "GetMetricData", "DescribeAlarms", "DescribeAlarmsForMetric",
+    ]
+
+    func cloudWatchRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.cloudWatchReadActions.contains(action) {
+            Log.warn("Blocked CloudWatch \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "CloudWatch:\(action)")
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/monitoring/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-amz-json-1.0",
+            headers: [
+                "X-Amz-Target": "GraniteServiceVersion20100801.\(action)",
+                "Authorization": auth,
+            ],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
     // MARK: - Route 53 (REST API with XML)
 
     func route53Request(
