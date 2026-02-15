@@ -22,6 +22,7 @@ enum Route: String, CaseIterable, Identifiable {
     case redshift
     case opensearch
     case stepFunctions
+    case ec2
     case sts
 
     var id: String { rawValue }
@@ -49,6 +50,7 @@ enum Route: String, CaseIterable, Identifiable {
         case .redshift: "Redshift"
         case .opensearch: "OpenSearch"
         case .stepFunctions: "Step Functions"
+        case .ec2: "EC2"
         case .sts: "STS"
         }
     }
@@ -76,6 +78,7 @@ enum Route: String, CaseIterable, Identifiable {
         case .redshift: "cylinder.split.1x2"
         case .opensearch: "magnifyingglass.circle"
         case .stepFunctions: "arrow.triangle.branch"
+        case .ec2: "server.rack"
         case .sts: "person.badge.key"
         }
     }

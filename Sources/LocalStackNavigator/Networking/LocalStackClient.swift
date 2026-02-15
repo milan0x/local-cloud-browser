@@ -856,6 +856,46 @@ final class LocalStackClient: ObservableObject {
         )
     }
 
+    // MARK: - EC2 (Query protocol — form-encoded POST with Action= parameter)
+
+    /// Read-only whitelist for EC2 actions — these are safe even though they use POST.
+    private static let ec2ReadActions: Set<String> = [
+        "DescribeInstances", "DescribeSecurityGroups", "DescribeKeyPairs",
+        "DescribeVpcs", "DescribeSubnets", "DescribeImages",
+    ]
+
+    func ec2Request(action: String, params: [String: String] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.ec2ReadActions.contains(action) {
+            Log.warn("Blocked EC2 \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "EC2:\(action)")
+        }
+        var allParams = params
+        allParams["Action"] = action
+        allParams["Version"] = "2016-11-15"
+        let bodyString = allParams
+            .sorted { $0.key < $1.key }
+            .map {
+                let key = $0.key.addingPercentEncoding(withAllowedCharacters: Self.formURLAllowed) ?? $0.key
+                let val = $0.value.addingPercentEncoding(withAllowedCharacters: Self.formURLAllowed) ?? $0.value
+                return "\(key)=\(val)"
+            }
+            .joined(separator: "&")
+        let body = bodyString.data(using: .utf8)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/ec2/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-www-form-urlencoded",
+            headers: ["Authorization": auth],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
     // MARK: - Step Functions (JSON protocol)
 
     /// Read-only whitelist for Step Functions actions — these are safe even though they use POST.

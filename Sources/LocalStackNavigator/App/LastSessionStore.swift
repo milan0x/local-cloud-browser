@@ -31,6 +31,8 @@ struct LastSessionState: Codable {
     var opensearchDomainName: String?
     var stepFunctionsStateMachineName: String?
     var stepFunctionsTab: String?
+    var ec2EntityType: String?
+    var ec2EntityName: String?
 
     var route: Route? {
         guard let raw = routeRawValue else { return nil }
@@ -200,6 +202,13 @@ enum LastSessionStore {
         save(state)
     }
 
+    static func saveEC2Entity(type: String?, name: String?) {
+        var state = load() ?? LastSessionState()
+        state.ec2EntityType = type
+        state.ec2EntityName = name
+        save(state)
+    }
+
     /// Clears per-module sub-resource fields (bucket, path, queue, topic) while
     /// keeping the route. Called on launch when cross-launch restore is
     /// disabled so modules start fresh. In-session onChange handlers
@@ -235,6 +244,8 @@ enum LastSessionStore {
         state.opensearchDomainName = nil
         state.stepFunctionsStateMachineName = nil
         state.stepFunctionsTab = nil
+        state.ec2EntityType = nil
+        state.ec2EntityName = nil
         save(state)
     }
 }

@@ -108,6 +108,8 @@ struct ContentView: View {
             OpenSearchModuleView()
         case .stepFunctions:
             StepFunctionsModuleView()
+        case .ec2:
+            EC2ModuleView()
         case .sts:
             STSModuleView()
         }
