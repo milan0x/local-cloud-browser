@@ -13,6 +13,8 @@ enum Route: String, CaseIterable, Identifiable {
     case cloudFormation
     case iam
     case apiGateway
+    case kms
+    case sts
 
     var id: String { rawValue }
 
@@ -30,6 +32,8 @@ enum Route: String, CaseIterable, Identifiable {
         case .cloudFormation: "CloudFormation"
         case .iam: "IAM"
         case .apiGateway: "API Gateway"
+        case .kms: "KMS"
+        case .sts: "STS"
         }
     }
 
@@ -47,6 +51,8 @@ enum Route: String, CaseIterable, Identifiable {
         case .cloudFormation: "square.stack.3d.down.right"
         case .iam: "person.2"
         case .apiGateway: "network"
+        case .kms: "lock.shield"
+        case .sts: "person.badge.key"
         }
     }
 }

@@ -16,6 +16,7 @@ struct LastSessionState: Codable {
     var iamEntityType: String?
     var iamEntityName: String?
     var apiGatewayAPIId: String?
+    var kmsKeyId: String?
 
     var route: Route? {
         guard let raw = routeRawValue else { return nil }
@@ -125,6 +126,12 @@ enum LastSessionStore {
         save(state)
     }
 
+    static func saveKMSKey(_ id: String?) {
+        var state = load() ?? LastSessionState()
+        state.kmsKeyId = id
+        save(state)
+    }
+
     /// Clears per-module sub-resource fields (bucket, path, queue, topic) while
     /// keeping the route. Called on launch when cross-launch restore is
     /// disabled so modules start fresh. In-session onChange handlers
@@ -145,6 +152,7 @@ enum LastSessionStore {
         state.iamEntityType = nil
         state.iamEntityName = nil
         state.apiGatewayAPIId = nil
+        state.kmsKeyId = nil
         save(state)
     }
 }
