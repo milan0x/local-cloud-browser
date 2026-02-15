@@ -113,11 +113,10 @@ final class ResourceGroupsService: ObservableObject {
         var queryObj: [String: Any] = [:]
         if !tagFilters.isEmpty {
             queryObj["TagFilters"] = tagFilters.map { filter -> [String: Any] in
-                var dict: [String: Any] = ["Key": filter.key]
-                if !filter.values.isEmpty {
-                    dict["Values"] = filter.values
-                }
-                return dict
+                [
+                    "Key": filter.key,
+                    "Values": filter.values,
+                ] as [String: Any]
             }
         }
         if !resourceTypeFilters.isEmpty {
