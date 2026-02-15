@@ -5,7 +5,7 @@
 
 ---
 
-## Phase 1 — Step Functions: Workflow Orchestrator
+## Phase 1 — Step Functions: Workflow Orchestrator ✅
 
 **Service:** AWS Step Functions
 **Protocol:** JSON 1.0, `X-Amz-Target: AWSStepFunctions.<Action>`
@@ -43,7 +43,7 @@ This is the most visually rich module we can build. The execution history is a *
 
 ---
 
-## Phase 2 — EC2: Virtual Infrastructure Dashboard
+## Phase 2 — EC2: Virtual Infrastructure Dashboard ✅
 
 **Service:** Amazon Elastic Compute Cloud (EC2)
 **Protocol:** Query/XML (like IAM/SNS/CloudFormation)
@@ -279,8 +279,8 @@ A flat ticket list with subject, status (OPENED/RESOLVED), and a resolve button.
 
 | Phase | Service | Functional? | Visual/Interaction | Complexity | Value |
 |-------|---------|-------------|--------------------|------------|-------|
-| 1 | Step Functions | Full execution | ★★★★★ 3-level drill-down, live execution, dual JSON viewers, 8 state-type badges | High | Highest |
-| 2 | EC2 | Mock CRUD only | ★★★★☆ Multi-tab dashboard, state machine UX, security rules grid, complex forms | High | High |
+| 1 ✅ | Step Functions | Full execution | ★★★★★ 3-level drill-down, live execution, dual JSON viewers, 8 state-type badges | High | Highest |
+| 2 ✅ | EC2 | Mock CRUD only | ★★★★☆ Multi-tab dashboard, state machine UX, security rules grid, complex forms | High | High |
 | 3 | EventBridge Scheduler | Mock (no exec) | ★★★☆☆ Cron preview, next-occurrence calc, extends existing module | Medium | Medium-High |
 | 4 | Elasticsearch | Real clusters | ★★★☆☆ Health traffic light, index browser, fast build via OpenSearch reuse | Medium | Medium |
 | 5 | AWS Config | Mock CRUD only | ★★☆☆☆ Start/stop toggle, two-section layout, lightweight | Low | Medium-Low |
