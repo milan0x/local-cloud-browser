@@ -6,7 +6,6 @@ struct CreateSecretView: View {
     @State private var secretName = ""
     @State private var secretDescription = ""
     @State private var secretValue = ""
-    @State private var isHelperShown = false
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
     var existingSecretNames: Set<String>
@@ -35,11 +34,7 @@ struct CreateSecretView: View {
 
                 TextField("Description (optional)", text: $secretDescription)
 
-                JSONInputSection(
-                    text: $secretValue,
-                    isHelperShown: $isHelperShown,
-                    config: .secretValue
-                )
+                JSONInputSection(text: $secretValue, config: .secretValue)
             }
             .formStyle(.grouped)
 

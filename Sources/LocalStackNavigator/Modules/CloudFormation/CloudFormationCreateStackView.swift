@@ -6,7 +6,6 @@ struct CloudFormationCreateStackView: View {
     @State private var stackName = ""
     @State private var templateBody = ""
     @State private var parameters: [ParameterRow] = []
-    @State private var isHelperShown = false
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
     var existingStackNames: Set<String>
@@ -26,11 +25,7 @@ struct CloudFormationCreateStackView: View {
                     TextField("Stack name", text: $stackName)
                 }
 
-                JSONInputSection(
-                    text: $templateBody,
-                    isHelperShown: $isHelperShown,
-                    config: .templateBody
-                )
+                JSONInputSection(text: $templateBody, config: .templateBody)
 
                 Section("Parameters") {
                     ForEach($parameters) { $row in

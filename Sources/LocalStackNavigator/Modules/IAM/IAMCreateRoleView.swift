@@ -6,7 +6,6 @@ struct IAMCreateRoleView: View {
     @State private var roleName = ""
     @State private var description = ""
     @State private var trustPolicy = defaultTrustPolicy
-    @State private var isHelperShown = false
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
     var existingRoleNames: Set<String>
@@ -36,11 +35,7 @@ struct IAMCreateRoleView: View {
                     TextField("Description (optional)", text: $description)
                 }
 
-                JSONInputSection(
-                    text: $trustPolicy,
-                    isHelperShown: $isHelperShown,
-                    config: .trustPolicy
-                )
+                JSONInputSection(text: $trustPolicy, config: .trustPolicy)
             }
             .formStyle(.grouped)
 

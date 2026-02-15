@@ -6,7 +6,6 @@ struct LambdaInvokeView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var payload = "{}"
-    @State private var isHelperShown = false
     @State private var invocationType = "RequestResponse"
     @State private var result: LambdaInvocationResult?
     @State private var isInvoking = false
@@ -38,11 +37,7 @@ struct LambdaInvokeView: View {
                     }
                 }
 
-                JSONInputSection(
-                    text: $payload,
-                    isHelperShown: $isHelperShown,
-                    config: .payload
-                )
+                JSONInputSection(text: $payload, config: .payload)
 
                 if let result {
                     responseSection(result)
