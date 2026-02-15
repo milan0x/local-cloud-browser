@@ -106,6 +106,8 @@ struct ContentView: View {
             RedshiftModuleView()
         case .opensearch:
             OpenSearchModuleView()
+        case .stepFunctions:
+            StepFunctionsModuleView()
         case .sts:
             STSModuleView()
         }

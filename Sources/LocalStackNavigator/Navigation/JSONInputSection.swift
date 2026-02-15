@@ -10,6 +10,7 @@ struct JSONInputConfig {
     static let eventDetail = JSONInputConfig(sectionLabel: "Detail (JSON)", detectXML: false, editorMinHeight: 200)
     static let targetInput = JSONInputConfig(sectionLabel: "Input (optional JSON)", detectXML: false, editorMinHeight: 120)
     static let parameterValue = JSONInputConfig(sectionLabel: "Parameter Value", detectXML: false, editorMinHeight: 150)
+    static let executionInput = JSONInputConfig(sectionLabel: "Input (JSON)", detectXML: false, editorMinHeight: 200)
 }
 
 struct JSONInputSection: View {

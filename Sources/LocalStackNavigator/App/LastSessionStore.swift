@@ -29,6 +29,8 @@ struct LastSessionState: Codable {
     var cloudWatchAlarmName: String?
     var redshiftClusterIdentifier: String?
     var opensearchDomainName: String?
+    var stepFunctionsStateMachineName: String?
+    var stepFunctionsTab: String?
 
     var route: Route? {
         guard let raw = routeRawValue else { return nil }
@@ -191,6 +193,13 @@ enum LastSessionStore {
         save(state)
     }
 
+    static func saveStepFunctions(tab: String?, stateMachineName: String?) {
+        var state = load() ?? LastSessionState()
+        state.stepFunctionsTab = tab
+        state.stepFunctionsStateMachineName = stateMachineName
+        save(state)
+    }
+
     /// Clears per-module sub-resource fields (bucket, path, queue, topic) while
     /// keeping the route. Called on launch when cross-launch restore is
     /// disabled so modules start fresh. In-session onChange handlers
@@ -224,6 +233,8 @@ enum LastSessionStore {
         state.cloudWatchAlarmName = nil
         state.redshiftClusterIdentifier = nil
         state.opensearchDomainName = nil
+        state.stepFunctionsStateMachineName = nil
+        state.stepFunctionsTab = nil
         save(state)
     }
 }

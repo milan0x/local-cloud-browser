@@ -856,6 +856,38 @@ final class LocalStackClient: ObservableObject {
         )
     }
 
+    // MARK: - Step Functions (JSON protocol)
+
+    /// Read-only whitelist for Step Functions actions — these are safe even though they use POST.
+    private static let stepFunctionsReadActions: Set<String> = [
+        "ListStateMachines", "DescribeStateMachine", "ListExecutions",
+        "DescribeExecution", "GetExecutionHistory",
+    ]
+
+    func stepFunctionsRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+        if appState.isReadOnly && !Self.stepFunctionsReadActions.contains(action) {
+            Log.warn("Blocked StepFunctions \(action) — read-only mode", category: "HTTP")
+            throw LocalStackClientError.readOnlyBlocked(method: "StepFunctions:\(action)")
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let dateStr = Self.iso8601DateOnly.string(from: Date())
+        let credential = "nav/\(dateStr)/\(appState.region)/states/aws4_request"
+        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let response = try await executeRequest(
+            method: "POST",
+            path: "/",
+            queryParams: [:],
+            body: body,
+            contentType: "application/x-amz-json-1.0",
+            headers: [
+                "X-Amz-Target": "AWSStepFunctions.\(action)",
+                "Authorization": auth,
+            ],
+            skipReadOnlyCheck: true
+        )
+        return response.data
+    }
+
     // MARK: - STS (Query protocol — form-encoded POST with Action= parameter)
 
     /// Read-only whitelist for STS actions — these are safe even though they use POST.
