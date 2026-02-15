@@ -19,6 +19,7 @@ struct JSONInputConfig {
     static let trustPolicy = JSONInputConfig(sectionLabel: "Trust Policy", detectXML: false, detectYAML: false, editorMinHeight: 200)
     static let stateMachineDefinition = JSONInputConfig(sectionLabel: "Definition (ASL)", detectXML: false, detectYAML: false, editorMinHeight: 250)
     static let logMessage = JSONInputConfig(sectionLabel: "Message", detectXML: false, detectYAML: true, editorMinHeight: 200)
+    static let recordData = JSONInputConfig(sectionLabel: "Record Data", detectXML: false, detectYAML: true, editorMinHeight: 120)
 }
 
 struct JSONInputSection: View {
