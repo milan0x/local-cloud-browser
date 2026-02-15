@@ -13,6 +13,12 @@ struct JSONInputConfig {
     static let parameterValue = JSONInputConfig(sectionLabel: "Parameter Value", detectXML: false, detectYAML: true, editorMinHeight: 150)
     static let executionInput = JSONInputConfig(sectionLabel: "Input (JSON)", detectXML: false, detectYAML: false, editorMinHeight: 200)
     static let templateBody = JSONInputConfig(sectionLabel: "Template Body", detectXML: false, detectYAML: true, editorMinHeight: 250)
+    static let payload = JSONInputConfig(sectionLabel: "Payload", detectXML: false, detectYAML: false, editorMinHeight: 120)
+    static let secretValue = JSONInputConfig(sectionLabel: "Secret Value", detectXML: false, detectYAML: true, editorMinHeight: 150)
+    static let policyDocument = JSONInputConfig(sectionLabel: "Policy Document", detectXML: false, detectYAML: false, editorMinHeight: 250)
+    static let trustPolicy = JSONInputConfig(sectionLabel: "Trust Policy", detectXML: false, detectYAML: false, editorMinHeight: 200)
+    static let stateMachineDefinition = JSONInputConfig(sectionLabel: "Definition (ASL)", detectXML: false, detectYAML: false, editorMinHeight: 250)
+    static let logMessage = JSONInputConfig(sectionLabel: "Message", detectXML: false, detectYAML: true, editorMinHeight: 200)
 }
 
 struct JSONInputSection: View {

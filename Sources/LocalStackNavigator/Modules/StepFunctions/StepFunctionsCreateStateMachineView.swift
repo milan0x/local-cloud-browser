@@ -20,6 +20,7 @@ struct StepFunctionsCreateStateMachineView: View {
       }
     }
     """
+    @State private var isHelperShown = false
     @State private var isSaving = false
     @State private var serviceError: ServiceError?
 
@@ -36,17 +37,14 @@ struct StepFunctionsCreateStateMachineView: View {
                         Text(t).tag(t)
                     }
                 }
+
+                JSONInputSection(
+                    text: $definition,
+                    isHelperShown: $isHelperShown,
+                    config: .stateMachineDefinition
+                )
             }
             .formStyle(.grouped)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Definition (Amazon States Language JSON)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 16)
-                CodeTextEditor(text: $definition, isEditable: true)
-                    .frame(height: 250)
-            }
 
             Divider()
 

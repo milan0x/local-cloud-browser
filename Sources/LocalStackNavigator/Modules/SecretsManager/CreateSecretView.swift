@@ -6,6 +6,7 @@ struct CreateSecretView: View {
     @State private var secretName = ""
     @State private var secretDescription = ""
     @State private var secretValue = ""
+    @State private var isHelperShown = false
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
     var existingSecretNames: Set<String>
@@ -34,27 +35,11 @@ struct CreateSecretView: View {
 
                 TextField("Description (optional)", text: $secretDescription)
 
-                Section("Secret Value") {
-                    CodeTextEditor(text: $secretValue, isEditable: true)
-                        .frame(minHeight: 150)
-                        .disableSmartSubstitutions()
-                }
-
-                if !secretValue.isEmpty {
-                    Section {
-                        HStack {
-                            Text("Detected type:")
-                                .foregroundStyle(.secondary)
-                            Text(detectedType)
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(typeColor.opacity(0.15), in: Capsule())
-                                .foregroundStyle(typeColor)
-                        }
-                    }
-                }
+                JSONInputSection(
+                    text: $secretValue,
+                    isHelperShown: $isHelperShown,
+                    config: .secretValue
+                )
             }
             .formStyle(.grouped)
 
@@ -80,18 +65,6 @@ struct CreateSecretView: View {
         .frame(width: 480)
         .frame(minHeight: 400)
         .serviceErrorAlert(error: $serviceError)
-    }
-
-    private var detectedType: String {
-        let trimmed = secretValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.hasPrefix("{") || trimmed.hasPrefix("[") {
-            return "JSON"
-        }
-        return "Text"
-    }
-
-    private var typeColor: Color {
-        detectedType == "JSON" ? .blue : .gray
     }
 
     private var nameExists: Bool {

@@ -6,6 +6,7 @@ struct IAMCreatePolicyView: View {
     @State private var policyName = ""
     @State private var description = ""
     @State private var policyDocument = defaultPolicyDocument
+    @State private var isHelperShown = false
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
     var existingPolicyNames: Set<String>
@@ -33,10 +34,11 @@ struct IAMCreatePolicyView: View {
                     TextField("Description (optional)", text: $description)
                 }
 
-                Section("Policy Document") {
-                    CodeTextEditor(text: $policyDocument)
-                        .frame(minHeight: 250)
-                }
+                JSONInputSection(
+                    text: $policyDocument,
+                    isHelperShown: $isHelperShown,
+                    config: .policyDocument
+                )
             }
             .formStyle(.grouped)
 

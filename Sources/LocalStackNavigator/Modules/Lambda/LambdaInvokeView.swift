@@ -6,6 +6,7 @@ struct LambdaInvokeView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var payload = "{}"
+    @State private var isHelperShown = false
     @State private var invocationType = "RequestResponse"
     @State private var result: LambdaInvocationResult?
     @State private var isInvoking = false
@@ -37,17 +38,11 @@ struct LambdaInvokeView: View {
                     }
                 }
 
-                Section {
-                    CodeTextEditor(text: $payload, isEditable: true)
-                        .frame(minHeight: 120)
-                        .disableSmartSubstitutions()
-                } header: {
-                    HStack {
-                        Text("Payload")
-                        Spacer()
-                        payloadTypeBadge
-                    }
-                }
+                JSONInputSection(
+                    text: $payload,
+                    isHelperShown: $isHelperShown,
+                    config: .payload
+                )
 
                 if let result {
                     responseSection(result)
@@ -70,29 +65,6 @@ struct LambdaInvokeView: View {
         .frame(width: 580)
         .frame(minHeight: 500)
         .serviceErrorAlert(error: $serviceError)
-    }
-
-    @ViewBuilder
-    private var payloadTypeBadge: some View {
-        let trimmed = payload.trimmingCharacters(in: .whitespacesAndNewlines)
-        let isJSON = trimmed.hasPrefix("{") || trimmed.hasPrefix("[")
-        if isJSON {
-            Text("JSON")
-                .font(.caption2)
-                .fontWeight(.semibold)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Color.blue.opacity(0.15), in: Capsule())
-                .foregroundStyle(.blue)
-        } else {
-            Text("Text")
-                .font(.caption2)
-                .fontWeight(.semibold)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Color.gray.opacity(0.15), in: Capsule())
-                .foregroundStyle(.secondary)
-        }
     }
 
     @ViewBuilder
