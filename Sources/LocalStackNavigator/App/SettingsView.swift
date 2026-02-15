@@ -51,7 +51,7 @@ struct SettingsView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 600, height: 460)
+        .frame(width: 650, height: 540)
     }
 
     // MARK: - General
@@ -61,7 +61,7 @@ struct SettingsView: View {
             Section("Session") {
                 Toggle("Open where I left off", isOn: $restoreLastSession)
                 Text("Restore the last viewed service, bucket, or queue when the app launches. Switching between services always remembers your selection.")
-                    .font(.caption)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
             }
 
@@ -75,7 +75,7 @@ struct SettingsView: View {
                     Text("5 seconds").tag(5.0)
                 }
                 Text("How often to check the LocalStack connection status. Lower values detect connection changes faster.")
-                    .font(.caption)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
             }
 
@@ -90,19 +90,19 @@ struct SettingsView: View {
                     Text("60 seconds").tag(60)
                 }
                 Text("Automatically refreshes lists across all modules at the configured interval. Also editable via the refresh menu in each module's toolbar.")
-                    .font(.caption)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
             }
 
             Section("JSON Helper") {
                 Toggle("Disable placeholders", isOn: $disablePlaceholders)
                 Text("Hides placeholder text in JSON input editors.")
-                    .font(.caption)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
 
                 Toggle("Double-click body to close JSON Helper", isOn: $doubleClickHidesJsonHelper)
                 Text("When enabled, double-clicking the read-only editor when the JSON Helper is open will close the helper.")
-                    .font(.caption)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
             }
         }
@@ -116,14 +116,14 @@ struct SettingsView: View {
             Section("Quick Look") {
                 Stepper("Preview size limit: \(appState.previewSizeLimitMB) MB", value: $appState.previewSizeLimitMB, in: 1...50)
                 Text("Files larger than this will prompt before downloading. Files over 300 MB cannot be previewed.")
-                    .font(.caption)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
             }
 
             Section("Folders") {
                 Toggle("Show item count and size before deletion", isOn: $showFolderDetailsOnDelete)
                 Text("When enabled, deleting a folder will first list all objects to show the total count and size. This requires additional API calls.")
-                    .font(.caption)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
             }
         }
