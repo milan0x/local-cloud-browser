@@ -6,11 +6,11 @@ struct JSONInputConfig {
     let detectYAML: Bool
     let editorMinHeight: CGFloat
 
-    static let messageBody = JSONInputConfig(sectionLabel: "Message Body", detectXML: true, detectYAML: false, editorMinHeight: 180)
+    static let messageBody = JSONInputConfig(sectionLabel: "Message Body", detectXML: true, detectYAML: true, editorMinHeight: 180)
     static let eventPattern = JSONInputConfig(sectionLabel: "Event Pattern (JSON)", detectXML: false, detectYAML: false, editorMinHeight: 200)
     static let eventDetail = JSONInputConfig(sectionLabel: "Detail (JSON)", detectXML: false, detectYAML: false, editorMinHeight: 200)
     static let targetInput = JSONInputConfig(sectionLabel: "Input (optional JSON)", detectXML: false, detectYAML: false, editorMinHeight: 120)
-    static let parameterValue = JSONInputConfig(sectionLabel: "Parameter Value", detectXML: false, detectYAML: false, editorMinHeight: 150)
+    static let parameterValue = JSONInputConfig(sectionLabel: "Parameter Value", detectXML: false, detectYAML: true, editorMinHeight: 150)
     static let executionInput = JSONInputConfig(sectionLabel: "Input (JSON)", detectXML: false, detectYAML: false, editorMinHeight: 200)
     static let templateBody = JSONInputConfig(sectionLabel: "Template Body", detectXML: false, detectYAML: true, editorMinHeight: 250)
 }
