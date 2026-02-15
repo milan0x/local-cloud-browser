@@ -98,13 +98,7 @@ struct TranscribeJobDetailPaneView: View {
     }
 
     private var statusBadge: some View {
-        Text(effectiveJob.jobStatus)
-            .font(.caption2)
-            .fontWeight(.semibold)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(statusColor.opacity(0.15), in: Capsule())
-            .foregroundStyle(statusColor)
+        StatusBadge(text: effectiveJob.jobStatus, color: statusColor)
     }
 
     private var statusColor: Color {
@@ -118,13 +112,7 @@ struct TranscribeJobDetailPaneView: View {
     }
 
     private var formatBadge: some View {
-        Text(effectiveJob.displayFormat)
-            .font(.caption2)
-            .fontWeight(.semibold)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(.purple.opacity(0.12), in: Capsule())
-            .foregroundStyle(.purple)
+        StatusBadge(text: effectiveJob.displayFormat, color: .purple)
     }
 
     // MARK: - Media Section

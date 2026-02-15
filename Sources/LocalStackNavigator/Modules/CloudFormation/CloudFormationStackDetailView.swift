@@ -59,16 +59,7 @@ struct CloudFormationStackDetailView: View {
                     CopyableValue(text: detail.stackId, monospaced: true, allowsWrapping: true)
                 }
                 LabeledContent("Status") {
-                    Text(detail.stackStatus)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(
-                            detail.statusColor.swiftUIColor.opacity(0.15),
-                            in: Capsule()
-                        )
-                        .foregroundStyle(detail.statusColor.swiftUIColor)
+                    StatusBadge(text: detail.stackStatus, color: detail.statusColor.swiftUIColor)
                 }
                 if let desc = detail.templateDescription, !desc.isEmpty {
                     LabeledContent("Description") {

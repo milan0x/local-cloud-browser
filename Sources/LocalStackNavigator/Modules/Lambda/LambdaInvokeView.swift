@@ -68,13 +68,7 @@ struct LambdaInvokeView: View {
             HStack {
                 Text("Status")
                 Spacer()
-                Text(result.isError ? "Error" : "Success")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background((result.isError ? Color.red : Color.green).opacity(0.15), in: Capsule())
-                    .foregroundStyle(result.isError ? .red : .green)
+                StatusBadge(text: result.isError ? "Error" : "Success", color: result.isError ? .red : .green)
             }
 
             if let functionError = result.functionError {
@@ -106,13 +100,7 @@ struct LambdaInvokeView: View {
                         .foregroundStyle(.secondary)
                     Spacer()
                     if result.isJSON {
-                        Text("JSON")
-                            .font(.caption2)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.blue.opacity(0.15), in: Capsule())
-                            .foregroundStyle(.blue)
+                        StatusBadge(text: "JSON", color: .blue)
                     }
                     CopyButton(text: result.displayPayload)
                 }

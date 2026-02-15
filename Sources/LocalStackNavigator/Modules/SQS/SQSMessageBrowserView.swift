@@ -143,13 +143,7 @@ struct SQSMessageBrowserView: View {
                 .font(.headline)
                 .lineLimit(1)
 
-            Text(queue.isFifo ? "FIFO" : "Standard")
-                .font(.caption2)
-                .fontWeight(.medium)
-                .padding(.horizontal, 5)
-                .padding(.vertical, 1)
-                .background(queue.isFifo ? Color.blue.opacity(0.15) : Color.gray.opacity(0.15), in: Capsule())
-                .foregroundStyle(queue.isFifo ? .blue : .secondary)
+            StatusBadge(text: queue.isFifo ? "FIFO" : "Standard", color: queue.isFifo ? .blue : .gray)
 
             Spacer()
 

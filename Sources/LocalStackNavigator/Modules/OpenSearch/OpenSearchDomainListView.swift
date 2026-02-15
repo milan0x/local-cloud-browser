@@ -265,13 +265,7 @@ struct OpenSearchDomainListView: View {
     }
 
     private func statusBadge(for domain: OpenSearchDomain) -> some View {
-        Text(domain.status)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(statusColor(domain.status).opacity(0.15), in: Capsule())
-            .foregroundStyle(statusColor(domain.status))
+        StatusBadge(text: domain.status, color: statusColor(domain.status))
     }
 
     private func statusColor(_ status: String) -> Color {

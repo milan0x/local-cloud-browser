@@ -222,13 +222,7 @@ struct CloudWatchAlarmListView: View {
     }
 
     private func alarmStateBadge(_ state: CloudWatchAlarmState) -> some View {
-        Text(state.displayName)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(state.color.opacity(0.15), in: Capsule())
-            .foregroundStyle(state.color)
+        StatusBadge(text: state.displayName, color: state.color)
     }
 
     // MARK: - Data

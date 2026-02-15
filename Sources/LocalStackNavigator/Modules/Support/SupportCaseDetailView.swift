@@ -56,23 +56,11 @@ struct SupportCaseDetailView: View {
                     }
                 }
                 labeledRow("Status") {
-                    Text(supportCase.statusDisplayName)
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(supportCase.statusBadgeColor.opacity(0.15), in: Capsule())
-                        .foregroundStyle(supportCase.statusBadgeColor)
+                    StatusBadge(text: supportCase.statusDisplayName, color: supportCase.statusBadgeColor)
                 }
                 if !supportCase.severityCode.isEmpty {
                     labeledRow("Severity") {
-                        Text(supportCase.severityCode.capitalized)
-                            .font(.caption2)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(supportCase.severityBadgeColor.opacity(0.15), in: Capsule())
-                            .foregroundStyle(supportCase.severityBadgeColor)
+                        StatusBadge(text: supportCase.severityCode.capitalized, color: supportCase.severityBadgeColor)
                     }
                 }
                 if !supportCase.serviceCode.isEmpty {

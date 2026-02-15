@@ -262,13 +262,7 @@ struct RedshiftClusterListView: View {
     }
 
     private func statusBadge(for cluster: RedshiftCluster) -> some View {
-        Text(cluster.clusterStatus)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(statusColor(cluster.clusterStatus).opacity(0.15), in: Capsule())
-            .foregroundStyle(statusColor(cluster.clusterStatus))
+        StatusBadge(text: cluster.clusterStatus, color: statusColor(cluster.clusterStatus))
     }
 
     private func statusColor(_ status: String) -> Color {

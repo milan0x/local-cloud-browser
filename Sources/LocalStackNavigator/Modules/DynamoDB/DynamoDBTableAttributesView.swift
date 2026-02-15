@@ -100,16 +100,7 @@ struct DynamoDBTableAttributesView: View {
     }
 
     private func statusBadge(_ status: String) -> some View {
-        Text(status)
-            .font(.caption2)
-            .fontWeight(.semibold)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 2)
-            .background(
-                status == "ACTIVE" ? Color.green.opacity(0.15) : Color.orange.opacity(0.15),
-                in: Capsule()
-            )
-            .foregroundStyle(status == "ACTIVE" ? .green : .orange)
+        StatusBadge(text: status, color: status == "ACTIVE" ? .green : .orange)
     }
 
     // MARK: - Stats Row
@@ -166,13 +157,7 @@ struct DynamoDBTableAttributesView: View {
 
     private func keyRow(role: String, roleColor: Color, name: String, type: String) -> some View {
         HStack(spacing: 8) {
-            Text(role)
-                .font(.caption2)
-                .fontWeight(.bold)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(roleColor.opacity(0.15), in: Capsule())
-                .foregroundStyle(roleColor)
+            StatusBadge(text: role, color: roleColor)
 
             Text(name)
                 .fontWeight(.medium)
@@ -256,23 +241,11 @@ struct DynamoDBTableAttributesView: View {
                 Text(name)
                     .fontWeight(.medium)
 
-                Text(indexType)
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1)
-                    .background(indexTypeColor.opacity(0.15), in: Capsule())
-                    .foregroundStyle(indexTypeColor)
+                StatusBadge(text: indexType, color: indexTypeColor)
 
                 Spacer()
 
-                Text(projection)
-                    .font(.caption2)
-                    .fontWeight(.medium)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1)
-                    .background(Color.blue.opacity(0.15), in: Capsule())
-                    .foregroundStyle(.blue)
+                StatusBadge(text: projection, color: .blue)
             }
 
             HStack(spacing: 12) {
@@ -301,25 +274,10 @@ struct DynamoDBTableAttributesView: View {
                 .font(.headline)
 
             HStack(spacing: 8) {
-                Text(detail.streamEnabled ? "ENABLED" : "DISABLED")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 2)
-                    .background(
-                        detail.streamEnabled ? Color.green.opacity(0.15) : Color.secondary.opacity(0.15),
-                        in: Capsule()
-                    )
-                    .foregroundStyle(detail.streamEnabled ? .green : .secondary)
+                StatusBadge(text: detail.streamEnabled ? "ENABLED" : "DISABLED", color: detail.streamEnabled ? .green : .secondary)
 
                 if let viewType = detail.streamViewType {
-                    Text(viewType)
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2)
-                        .background(Color.blue.opacity(0.15), in: Capsule())
-                        .foregroundStyle(.blue)
+                    StatusBadge(text: viewType, color: .blue)
                 }
             }
 
@@ -335,13 +293,7 @@ struct DynamoDBTableAttributesView: View {
     // MARK: - Helpers
 
     private func typeBadge(_ type: String) -> some View {
-        Text(typeDisplayName(type))
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(Color.accentColor.opacity(0.15), in: Capsule())
-            .foregroundStyle(Color.accentColor)
+        StatusBadge(text: typeDisplayName(type), color: Color.accentColor)
     }
 
     private func typeDisplayName(_ type: String) -> String {

@@ -193,13 +193,7 @@ struct CloudWatchLogsGroupListView: View {
                             .lineLimit(1)
                         HStack(spacing: 4) {
                             if let retention = logGroup.retentionInDays {
-                                Text("\(retention)d")
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 1)
-                                    .background(Color.blue.opacity(0.15), in: Capsule())
-                                    .foregroundStyle(.blue)
+                                StatusBadge(text: "\(retention)d", color: .blue)
                             }
                             Text(logGroup.formattedStoredBytes)
                                 .font(.caption)

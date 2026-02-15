@@ -222,16 +222,7 @@ struct Route53ZoneListView: View {
     }
 
     private func privateBadge(_ isPrivate: Bool) -> some View {
-        Text(isPrivate ? "Private" : "Public")
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(
-                isPrivate ? Color.orange.opacity(0.15) : Color.green.opacity(0.15),
-                in: Capsule()
-            )
-            .foregroundStyle(isPrivate ? Color.orange : Color.green)
+        StatusBadge(text: isPrivate ? "Private" : "Public", color: isPrivate ? .orange : .green)
     }
 
     private var connectionLostBanner: some View {

@@ -170,13 +170,7 @@ struct ResourceGroupsDetailPaneView: View {
                             }
                             Spacer()
                             if !resource.status.isEmpty {
-                                Text(resource.status)
-                                    .font(.caption2)
-                                    .fontWeight(.medium)
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 1)
-                                    .background(Color.green.opacity(0.15), in: Capsule())
-                                    .foregroundStyle(.green)
+                                StatusBadge(text: resource.status, color: .green)
                             }
                         }
                         .contextMenu {
@@ -212,13 +206,7 @@ struct ResourceGroupsDetailPaneView: View {
     private func resourceTypeBadge(_ resource: GroupResource) -> some View {
         let info = resource.typeColor
         let color = badgeColor(info.color)
-        return Text(info.label)
-            .font(.caption2)
-            .fontWeight(.semibold)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(color.opacity(0.15), in: Capsule())
-            .foregroundStyle(color)
+        return StatusBadge(text: info.label, color: color)
     }
 
     private func badgeColor(_ name: String) -> Color {

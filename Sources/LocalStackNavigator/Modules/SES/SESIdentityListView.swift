@@ -263,23 +263,11 @@ struct SESIdentityListView: View {
     }
 
     private func typeBadge(for identity: SESIdentity) -> some View {
-        Text(identity.typeBadge)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(identity.isEmail ? Color.blue.opacity(0.15) : Color.purple.opacity(0.15), in: Capsule())
-            .foregroundStyle(identity.isEmail ? .blue : .purple)
+        StatusBadge(text: identity.typeBadge, color: identity.isEmail ? .blue : .purple)
     }
 
     private var verifiedBadge: some View {
-        Text("Verified")
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(Color.green.opacity(0.15), in: Capsule())
-            .foregroundStyle(.green)
+        StatusBadge(text: "Verified", color: .green)
     }
 
     private var connectionLostBanner: some View {

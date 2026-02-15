@@ -129,23 +129,11 @@ struct Route53ResolverDetailView: View {
     }
 
     private func statusBadge(_ status: String) -> some View {
-        Text(status)
-            .font(.caption2)
-            .fontWeight(.semibold)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 2)
-            .background(endpoint.statusBadgeColor.opacity(0.15), in: Capsule())
-            .foregroundStyle(endpoint.statusBadgeColor)
+        StatusBadge(text: status, color: endpoint.statusBadgeColor)
     }
 
     private func directionBadge(_ direction: String) -> some View {
-        Text(direction)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 2)
-            .background(endpoint.directionBadgeColor.opacity(0.15), in: Capsule())
-            .foregroundStyle(endpoint.directionBadgeColor)
+        StatusBadge(text: direction, color: endpoint.directionBadgeColor)
     }
 
     private func ipStatusBadge(_ status: String) -> some View {
@@ -156,13 +144,7 @@ struct Route53ResolverDetailView: View {
         case "FAILED_CREATION", "FAILED_RESOURCE_GONE": .red
         default: .gray
         }
-        return Text(status)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(color.opacity(0.15), in: Capsule())
-            .foregroundStyle(color)
+        return StatusBadge(text: status, color: color)
     }
 
     // MARK: - Loading

@@ -87,13 +87,7 @@ struct OpenSearchDomainDetailView: View {
     }
 
     private var statusBadge: some View {
-        Text(domain.status)
-            .font(.caption2)
-            .fontWeight(.semibold)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(statusColor.opacity(0.15), in: Capsule())
-            .foregroundStyle(statusColor)
+        StatusBadge(text: domain.status, color: statusColor)
     }
 
     private var statusColor: Color {
@@ -106,13 +100,7 @@ struct OpenSearchDomainDetailView: View {
     }
 
     private var engineBadge: some View {
-        Text(domain.engineDisplayName)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(.orange.opacity(0.1), in: Capsule())
-            .foregroundStyle(.orange)
+        StatusBadge(text: domain.engineDisplayName, color: .orange)
     }
 
     // MARK: - Domain Info
@@ -343,13 +331,7 @@ struct OpenSearchDomainDetailView: View {
     }
 
     private func boolBadge(_ value: Bool) -> some View {
-        Text(value ? "Yes" : "No")
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background((value ? Color.green : Color.gray).opacity(0.15), in: Capsule())
-            .foregroundStyle(value ? .green : .gray)
+        StatusBadge(text: value ? "Yes" : "No", color: value ? .green : .gray)
     }
 
     private func loadClusterData() async {

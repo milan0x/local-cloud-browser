@@ -121,13 +121,7 @@ struct CloudWatchAlarmDetailView: View {
     }
 
     private func alarmStateBadge(_ state: CloudWatchAlarmState) -> some View {
-        Text(state.displayName)
-            .font(.caption)
-            .fontWeight(.semibold)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(state.color.opacity(0.15), in: Capsule())
-            .foregroundStyle(state.color)
+        StatusBadge(text: state.displayName, color: state.color)
     }
 
     private func formatThreshold(_ value: Double) -> String {

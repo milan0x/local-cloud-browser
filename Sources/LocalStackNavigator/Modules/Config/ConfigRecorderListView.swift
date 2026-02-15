@@ -201,13 +201,7 @@ struct ConfigRecorderListView: View {
     @ViewBuilder
     private func recordingBadge(for name: String) -> some View {
         if let status = statuses[name] {
-            Text(status.recording ? "RECORDING" : "STOPPED")
-                .font(.caption2)
-                .fontWeight(.medium)
-                .padding(.horizontal, 5)
-                .padding(.vertical, 1)
-                .background((status.recording ? Color.green : Color.gray).opacity(0.15), in: Capsule())
-                .foregroundStyle(status.recording ? .green : .gray)
+            StatusBadge(text: status.recording ? "RECORDING" : "STOPPED", color: status.recording ? .green : .gray)
         }
     }
 

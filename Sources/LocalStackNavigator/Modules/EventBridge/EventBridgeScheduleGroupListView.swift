@@ -188,13 +188,7 @@ struct EventBridgeScheduleGroupListView: View {
                             .fontWeight(.medium)
                             .lineLimit(1)
                         if group.isDefault {
-                            Text("default")
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1)
-                                .background(Color.blue.opacity(0.15), in: Capsule())
-                                .foregroundStyle(.blue)
+                            StatusBadge(text: "default", color: .blue)
                         }
                     }
                     .tag(group.id)

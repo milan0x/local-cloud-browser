@@ -226,13 +226,7 @@ struct KinesisStreamListView: View {
     }
 
     private func statusBadge(_ status: String) -> some View {
-        Text(status)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(statusColor(status).opacity(0.15), in: Capsule())
-            .foregroundStyle(statusColor(status))
+        StatusBadge(text: status, color: statusColor(status))
     }
 
     private func statusColor(_ status: String) -> Color {
@@ -246,13 +240,7 @@ struct KinesisStreamListView: View {
     }
 
     private func modeBadge(_ mode: String) -> some View {
-        Text(mode)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(modeColor(mode).opacity(0.15), in: Capsule())
-            .foregroundStyle(modeColor(mode))
+        StatusBadge(text: mode, color: modeColor(mode))
     }
 
     private func modeColor(_ mode: String) -> Color {

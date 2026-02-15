@@ -168,16 +168,7 @@ struct EventBridgeScheduleBrowserView: View {
                                     .fontWeight(.medium)
                                     .lineLimit(1)
                                 HStack(spacing: 6) {
-                                    Text(schedule.isEnabled ? "ENABLED" : "DISABLED")
-                                        .font(.caption2)
-                                        .fontWeight(.semibold)
-                                        .padding(.horizontal, 5)
-                                        .padding(.vertical, 1)
-                                        .background(
-                                            (schedule.isEnabled ? Color.green : Color.gray).opacity(0.15),
-                                            in: Capsule()
-                                        )
-                                        .foregroundStyle(schedule.isEnabled ? .green : .gray)
+                                    StatusBadge(text: schedule.isEnabled ? "ENABLED" : "DISABLED", color: schedule.isEnabled ? .green : .gray)
                                     if let expr = schedule.scheduleExpression {
                                         Text(ScheduleExpressionHelper.humanReadable(expr) ?? expr)
                                             .font(.caption)
@@ -340,16 +331,7 @@ struct EventBridgeScheduleBrowserView: View {
         GroupBox("Schedule Info") {
             VStack(alignment: .leading, spacing: 8) {
                 LabeledContent("State") {
-                    Text(schedule.state)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(
-                            (schedule.isEnabled ? Color.green : Color.gray).opacity(0.15),
-                            in: Capsule()
-                        )
-                        .foregroundStyle(schedule.isEnabled ? .green : .gray)
+                    StatusBadge(text: schedule.state, color: schedule.isEnabled ? .green : .gray)
                 }
                 if let groupName = schedule.groupName {
                     LabeledContent("Group") {
@@ -423,13 +405,7 @@ struct EventBridgeScheduleBrowserView: View {
                             let targetType = schedule.targetServiceType
                             Image(systemName: targetType.systemImage)
                                 .font(.caption)
-                            Text(targetType.displayName)
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1)
-                                .background(Color.purple.opacity(0.15), in: Capsule())
-                                .foregroundStyle(.purple)
+                            StatusBadge(text: targetType.displayName, color: .purple)
                         }
                     }
                     Text(arn)

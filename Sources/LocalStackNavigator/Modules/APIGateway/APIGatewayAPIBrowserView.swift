@@ -196,13 +196,7 @@ struct APIGatewayAPIBrowserView: View {
                     .fontWeight(.semibold)
                     .lineLimit(1)
                 HStack(spacing: 6) {
-                    Text(api.endpointType)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.blue.opacity(0.15), in: Capsule())
-                        .foregroundStyle(.blue)
+                    StatusBadge(text: api.endpointType, color: .blue)
                     Text(api.id)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -252,13 +246,7 @@ struct APIGatewayAPIBrowserView: View {
                             if !resource.methods.isEmpty {
                                 HStack(spacing: 3) {
                                     ForEach(resource.methods, id: \.self) { method in
-                                        Text(method)
-                                            .font(.caption2)
-                                            .fontWeight(.semibold)
-                                            .padding(.horizontal, 4)
-                                            .padding(.vertical, 1)
-                                            .background(methodColor(method).opacity(0.15), in: Capsule())
-                                            .foregroundStyle(methodColor(method))
+                                        StatusBadge(text: method, color: methodColor(method))
                                     }
                                 }
                             }
@@ -334,35 +322,18 @@ struct APIGatewayAPIBrowserView: View {
                         List(selectedResourceMethods) { method in
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack {
-                                    Text(method.httpMethod)
-                                        .font(.caption)
-                                        .fontWeight(.bold)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(methodColor(method.httpMethod).opacity(0.15), in: Capsule())
-                                        .foregroundStyle(methodColor(method.httpMethod))
+                                    StatusBadge(text: method.httpMethod, color: methodColor(method.httpMethod))
                                     Text("Auth: \(method.authorizationType)")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                     if method.apiKeyRequired {
-                                        Text("API Key")
-                                            .font(.caption2)
-                                            .padding(.horizontal, 4)
-                                            .padding(.vertical, 1)
-                                            .background(Color.orange.opacity(0.15), in: Capsule())
-                                            .foregroundStyle(.orange)
+                                        StatusBadge(text: "API Key", color: .orange)
                                     }
                                     Spacer()
                                 }
                                 if let integration = method.integration {
                                     HStack(spacing: 6) {
-                                        Text(integration.type)
-                                            .font(.caption2)
-                                            .fontWeight(.semibold)
-                                            .padding(.horizontal, 5)
-                                            .padding(.vertical, 1)
-                                            .background(Color.purple.opacity(0.15), in: Capsule())
-                                            .foregroundStyle(.purple)
+                                        StatusBadge(text: integration.type, color: .purple)
                                         if !integration.uri.isEmpty {
                                             Text(integration.uri)
                                                 .font(.caption)

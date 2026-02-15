@@ -134,13 +134,7 @@ struct ACMCertificateDetailPaneView: View {
                             Text(date.formatted(date: .abbreviated, time: .shortened))
                                 .foregroundStyle(.secondary)
                             if date < Date() {
-                                Text("EXPIRED")
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 1)
-                                    .background(Color.red.opacity(0.15), in: Capsule())
-                                    .foregroundStyle(.red)
+                                StatusBadge(text: "EXPIRED", color: .red)
                             }
                         }
                     }
@@ -229,25 +223,13 @@ struct ACMCertificateDetailPaneView: View {
 
     private func statusBadge(_ status: String) -> some View {
         let display = status.replacingOccurrences(of: "_", with: " ")
-        return Text(display)
-            .font(.caption2)
-            .fontWeight(.semibold)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(statusColor(status).opacity(0.15), in: Capsule())
-            .foregroundStyle(statusColor(status))
+        return StatusBadge(text: display, color: statusColor(status))
     }
 
     private func typeBadge(_ type: String) -> some View {
         let display = type == "AMAZON_ISSUED" ? "Amazon Issued" : (type == "IMPORTED" ? "Imported" : type)
         let color: Color = type == "IMPORTED" ? .purple : .blue
-        return Text(display)
-            .font(.caption2)
-            .fontWeight(.semibold)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(color.opacity(0.15), in: Capsule())
-            .foregroundStyle(color)
+        return StatusBadge(text: display, color: color)
     }
 
     // MARK: - Helpers

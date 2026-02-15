@@ -193,13 +193,7 @@ struct LambdaFunctionListView: View {
                             .lineLimit(1)
                         HStack(spacing: 4) {
                             if !function.runtime.isEmpty {
-                                Text(function.runtime)
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 1)
-                                    .background(runtimeColor(function).opacity(0.15), in: Capsule())
-                                    .foregroundStyle(runtimeColor(function))
+                                StatusBadge(text: function.runtime, color: runtimeColor(function))
                             }
                             if !function.description.isEmpty {
                                 Text(function.description)

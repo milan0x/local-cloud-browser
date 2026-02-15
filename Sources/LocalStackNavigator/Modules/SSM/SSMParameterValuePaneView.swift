@@ -56,13 +56,7 @@ struct SSMParameterValuePaneView: View {
                         .font(.title3)
                         .fontWeight(.semibold)
                     HStack(spacing: 6) {
-                        Text(parameter.displayType)
-                            .font(.caption2)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(typeColor(parameter.type).opacity(0.15), in: Capsule())
-                            .foregroundStyle(typeColor(parameter.type))
+                        StatusBadge(text: parameter.displayType, color: typeColor(parameter.type))
                         if let desc = parameter.description, !desc.isEmpty {
                             Text(desc)
                                 .font(.caption)
@@ -104,21 +98,9 @@ struct SSMParameterValuePaneView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {
                         if pv.isJSON {
-                            Text("JSON")
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.blue.opacity(0.15), in: Capsule())
-                                .foregroundStyle(.blue)
+                            StatusBadge(text: "JSON", color: .blue)
                         } else {
-                            Text("Text")
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.gray.opacity(0.15), in: Capsule())
-                                .foregroundStyle(.secondary)
+                            StatusBadge(text: "Text", color: .gray)
                         }
                         Spacer()
                         CopyButton(text: pv.displayValue)
@@ -146,13 +128,7 @@ struct SSMParameterValuePaneView: View {
             Divider()
             HStack {
                 if let pv = parameterValue {
-                    Text("v\(pv.version)")
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(Color.blue.opacity(0.15), in: Capsule())
-                        .foregroundStyle(.blue)
+                    StatusBadge(text: "v\(pv.version)", color: .blue)
                 }
                 Spacer()
                 if let pv = parameterValue {

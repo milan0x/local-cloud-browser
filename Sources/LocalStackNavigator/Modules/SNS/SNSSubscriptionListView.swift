@@ -117,13 +117,7 @@ struct SNSSubscriptionListView: View {
                 .font(.headline)
                 .lineLimit(1)
 
-            Text(topic.isFifo ? "FIFO" : "Standard")
-                .font(.caption2)
-                .fontWeight(.medium)
-                .padding(.horizontal, 5)
-                .padding(.vertical, 1)
-                .background(topic.isFifo ? Color.blue.opacity(0.15) : Color.gray.opacity(0.15), in: Capsule())
-                .foregroundStyle(topic.isFifo ? .blue : .secondary)
+            StatusBadge(text: topic.isFifo ? "FIFO" : "Standard", color: topic.isFifo ? .blue : .gray)
 
             Spacer()
 
@@ -169,21 +163,9 @@ struct SNSSubscriptionListView: View {
 
                 TableColumn("Status") { sub in
                     if sub.isPending {
-                        Text("Pending")
-                            .font(.caption2)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.orange.opacity(0.15), in: Capsule())
-                            .foregroundStyle(.orange)
+                        StatusBadge(text: "Pending", color: .orange)
                     } else {
-                        Text("Confirmed")
-                            .font(.caption2)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.green.opacity(0.15), in: Capsule())
-                            .foregroundStyle(.green)
+                        StatusBadge(text: "Confirmed", color: .green)
                     }
                 }
                 .width(min: 70, ideal: 85)

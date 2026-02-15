@@ -81,21 +81,9 @@ struct SecretValuePaneView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         HStack {
                             if sv.isJSON {
-                                Text("JSON")
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.blue.opacity(0.15), in: Capsule())
-                                    .foregroundStyle(.blue)
+                                StatusBadge(text: "JSON", color: .blue)
                             } else {
-                                Text("Text")
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.gray.opacity(0.15), in: Capsule())
-                                    .foregroundStyle(.secondary)
+                                StatusBadge(text: "Text", color: .gray)
                             }
                             if !sv.versionId.isEmpty {
                                 Text("v: \(String(sv.versionId.prefix(8)))...")
@@ -144,13 +132,7 @@ struct SecretValuePaneView: View {
                 if let sv = secretValue {
                     if !sv.versionStages.isEmpty {
                         ForEach(sv.versionStages, id: \.self) { stage in
-                            Text(stage)
-                                .font(.caption2)
-                                .fontWeight(.medium)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1)
-                                .background(stageColor(stage).opacity(0.15), in: Capsule())
-                                .foregroundStyle(stageColor(stage))
+                            StatusBadge(text: stage, color: stageColor(stage))
                         }
                     }
                 }

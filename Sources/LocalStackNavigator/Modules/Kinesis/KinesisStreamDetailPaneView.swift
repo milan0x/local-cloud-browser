@@ -102,13 +102,7 @@ struct KinesisStreamDetailPaneView: View {
     }
 
     private func statusBadge(_ status: String) -> some View {
-        Text(status)
-            .font(.caption2)
-            .fontWeight(.semibold)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 2)
-            .background(statusColor(status).opacity(0.15), in: Capsule())
-            .foregroundStyle(statusColor(status))
+        StatusBadge(text: status, color: statusColor(status))
     }
 
     private func statusColor(_ status: String) -> Color {
@@ -122,13 +116,7 @@ struct KinesisStreamDetailPaneView: View {
     }
 
     private func modeBadge(_ mode: String) -> some View {
-        Text(mode)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 2)
-            .background(modeColor(mode).opacity(0.15), in: Capsule())
-            .foregroundStyle(modeColor(mode))
+        StatusBadge(text: mode, color: modeColor(mode))
     }
 
     private func modeColor(_ mode: String) -> Color {
@@ -188,16 +176,7 @@ struct KinesisStreamDetailPaneView: View {
 
             Spacer()
 
-            Text(shard.isClosed ? "Closed" : "Open")
-                .font(.caption2)
-                .fontWeight(.medium)
-                .padding(.horizontal, 5)
-                .padding(.vertical, 1)
-                .background(
-                    shard.isClosed ? Color.secondary.opacity(0.15) : Color.green.opacity(0.15),
-                    in: Capsule()
-                )
-                .foregroundStyle(shard.isClosed ? Color.secondary : Color.green)
+            StatusBadge(text: shard.isClosed ? "Closed" : "Open", color: shard.isClosed ? .secondary : .green)
         }
     }
 

@@ -56,13 +56,7 @@ struct LambdaFunctionDetailView: View {
                 }
                 if !function.runtime.isEmpty {
                     LabeledContent("Runtime") {
-                        Text(function.runtime)
-                            .font(.caption2)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(runtimeColor.opacity(0.15), in: Capsule())
-                            .foregroundStyle(runtimeColor)
+                        StatusBadge(text: function.runtime, color: runtimeColor)
                     }
                 }
                 LabeledContent("Handler") {
@@ -73,13 +67,7 @@ struct LambdaFunctionDetailView: View {
                 }
                 if !function.state.isEmpty {
                     LabeledContent("State") {
-                        Text(function.state)
-                            .font(.caption2)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(stateColor.opacity(0.15), in: Capsule())
-                            .foregroundStyle(stateColor)
+                        StatusBadge(text: function.state, color: stateColor)
                     }
                 }
                 if !function.description.isEmpty {

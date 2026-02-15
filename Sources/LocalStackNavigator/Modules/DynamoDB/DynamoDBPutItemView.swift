@@ -156,13 +156,7 @@ struct DynamoDBPutItemView: View {
     }
 
     private func keyTypeBadge(_ type: String) -> some View {
-        Text(typeDisplayName(type))
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(Color.accentColor.opacity(0.15), in: Capsule())
-            .foregroundStyle(Color.accentColor)
+        StatusBadge(text: typeDisplayName(type), color: Color.accentColor)
             .fixedSize()
     }
 
