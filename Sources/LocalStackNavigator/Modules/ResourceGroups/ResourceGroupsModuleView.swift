@@ -28,7 +28,7 @@ struct ResourceGroupsModuleView: View {
                 activeGroup: $activeGroup,
                 restoreGroupName: restoreGroupName
             )
-            .frame(width: 260)
+            .frame(width: 280)
 
             Group {
                 if let group = activeGroup {

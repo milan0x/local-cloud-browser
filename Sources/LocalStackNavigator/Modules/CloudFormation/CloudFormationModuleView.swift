@@ -28,7 +28,7 @@ struct CloudFormationModuleView: View {
                 activeStack: $activeStack,
                 restoreStackName: restoreStackName
             )
-            .frame(width: 260)
+            .frame(width: 280)
 
             Group {
                 if let stack = activeStack {

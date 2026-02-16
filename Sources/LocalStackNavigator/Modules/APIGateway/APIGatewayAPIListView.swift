@@ -98,6 +98,7 @@ struct APIGatewayAPIListView: View {
         HStack {
             Text("REST APIs")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadAPIs(force: true)

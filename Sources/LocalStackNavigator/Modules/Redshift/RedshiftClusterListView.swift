@@ -97,6 +97,7 @@ struct RedshiftClusterListView: View {
         HStack {
             Text("Clusters")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadClusters(force: true)

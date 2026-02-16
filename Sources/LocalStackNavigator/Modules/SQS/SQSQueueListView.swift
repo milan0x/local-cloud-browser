@@ -102,6 +102,7 @@ struct SQSQueueListView: View {
         HStack {
             Text("Queues")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadQueues(force: true)

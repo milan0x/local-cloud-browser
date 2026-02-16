@@ -102,6 +102,7 @@ struct EventBridgeBusListView: View {
         HStack {
             Text("Event Buses")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadBuses(force: true)

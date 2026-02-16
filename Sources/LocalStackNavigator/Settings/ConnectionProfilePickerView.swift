@@ -42,7 +42,7 @@ struct ConnectionProfilePickerView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
         }
-        .frame(width: 260)
+        .frame(width: 280)
     }
 
     private func profileRow(_ profile: ConnectionProfile) -> some View {

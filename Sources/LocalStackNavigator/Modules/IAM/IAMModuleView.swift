@@ -45,7 +45,7 @@ struct IAMModuleView: View {
                 restoreEntityType: restoreEntityType,
                 restoreEntityName: restoreEntityName
             )
-            .frame(width: 260)
+            .frame(width: 280)
 
             Group {
                 if let userName = selectedUserName, entityType == .users {

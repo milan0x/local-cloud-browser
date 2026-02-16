@@ -97,6 +97,7 @@ struct OpenSearchDomainListView: View {
         HStack {
             Text("Domains")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadDomains(force: true)

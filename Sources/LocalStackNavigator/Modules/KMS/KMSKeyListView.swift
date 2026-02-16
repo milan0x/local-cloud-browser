@@ -103,6 +103,7 @@ struct KMSKeyListView: View {
         HStack {
             Text("Keys")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadKeys(force: true)

@@ -37,7 +37,7 @@ struct KinesisModuleView: View {
     var body: some View {
         HSplitView {
             leftPane
-                .frame(width: 260)
+                .frame(width: 280)
 
             Group {
                 if tab == .streams {
@@ -135,6 +135,7 @@ struct KinesisModuleView: View {
         HStack {
             Text("Kinesis")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {}
 

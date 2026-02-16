@@ -37,7 +37,7 @@ struct Route53ModuleView: View {
     var body: some View {
         HSplitView {
             leftPane
-                .frame(width: 260)
+                .frame(width: 280)
 
             Group {
                 if tab == .zones {
@@ -136,6 +136,7 @@ struct Route53ModuleView: View {
         HStack {
             Text("Route 53")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {}
 

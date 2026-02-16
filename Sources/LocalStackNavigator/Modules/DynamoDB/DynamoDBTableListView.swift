@@ -108,6 +108,7 @@ struct DynamoDBTableListView: View {
         HStack {
             Text("Tables")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadTables(force: true)

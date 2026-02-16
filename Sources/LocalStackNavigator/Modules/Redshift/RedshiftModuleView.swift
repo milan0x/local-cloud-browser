@@ -28,7 +28,7 @@ struct RedshiftModuleView: View {
                 activeCluster: $activeCluster,
                 restoreClusterId: restoreClusterId
             )
-            .frame(width: 260)
+            .frame(width: 280)
 
             Group {
                 if let cluster = activeCluster {

@@ -101,6 +101,7 @@ struct LambdaFunctionListView: View {
         HStack {
             Text("Functions")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadFunctions(force: true)

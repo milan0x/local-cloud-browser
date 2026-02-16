@@ -98,6 +98,7 @@ struct StepFunctionsStateMachineListView: View {
         HStack {
             Text("State Machines")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadMachines(force: true)

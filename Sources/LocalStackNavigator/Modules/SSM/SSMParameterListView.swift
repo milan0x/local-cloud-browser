@@ -101,6 +101,7 @@ struct SSMParameterListView: View {
         HStack {
             Text("Parameters")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadParameters(force: true)

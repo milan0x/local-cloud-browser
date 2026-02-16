@@ -35,7 +35,7 @@ struct ConfigModuleView: View {
     var body: some View {
         HSplitView {
             leftPane
-                .frame(width: 260)
+                .frame(width: 280)
 
             Group {
                 if tab == .recorders {
@@ -129,6 +129,7 @@ struct ConfigModuleView: View {
         HStack {
             Text("Config")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {}
 

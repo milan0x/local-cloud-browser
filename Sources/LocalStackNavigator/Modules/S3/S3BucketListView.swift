@@ -143,9 +143,11 @@ struct S3BucketListView: View {
         HStack {
             Text("Buckets")
                 .font(.headline)
+                .lineLimit(1)
             Text("Global")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadBuckets(force: true)

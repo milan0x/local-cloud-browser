@@ -28,7 +28,7 @@ struct SQSModuleView: View {
                 activeQueue: $activeQueue,
                 restoreQueueName: restoreQueueName
             )
-            .frame(width: 260)
+            .frame(width: 280)
 
             Group {
                 if let queue = activeQueue {

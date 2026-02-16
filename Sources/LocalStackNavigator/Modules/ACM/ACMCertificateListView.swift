@@ -105,6 +105,7 @@ struct ACMCertificateListView: View {
         HStack {
             Text("Certificates")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadCertificates(force: true)

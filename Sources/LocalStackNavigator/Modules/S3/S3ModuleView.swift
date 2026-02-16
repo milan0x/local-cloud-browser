@@ -32,7 +32,7 @@ struct S3ModuleView: View {
                 toolbarState: toolbarState,
                 restoreBucketName: restoreBucketName
             )
-            .frame(width: 260)
+            .frame(width: 280)
 
             // Primary pane
             Group {

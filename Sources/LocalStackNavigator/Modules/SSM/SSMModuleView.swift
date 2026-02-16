@@ -28,7 +28,7 @@ struct SSMModuleView: View {
                 activeParameter: $activeParameter,
                 restoreParameterName: restoreParameterName
             )
-            .frame(width: 260)
+            .frame(width: 280)
 
             Group {
                 if let parameter = activeParameter {
