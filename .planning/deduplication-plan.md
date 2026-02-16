@@ -50,6 +50,25 @@
 
 ---
 
+## Phase 2.5: Risk-Free Extractions ✅ COMPLETE
+
+### 2.5A. ConnectionLostBanner → `Navigation/ConnectionLostBanner.swift` ✅
+- Replaced 28 identical `private var connectionLostBanner` computed properties with shared `ConnectionLostBanner()` view
+- Saved ~364 lines (13 lines × 28 files)
+
+### 2.5B. ConnectionRetryingLabel → `Navigation/ConnectionLostBanner.swift` ✅
+- Replaced 28 identical `if appState.connectionError != nil { Label(...) }` blocks with shared `ConnectionRetryingLabel()` view
+- Saved ~112 lines (4 lines × 28 files)
+
+### 2.5C. SyncSelectionModifier → `Navigation/SyncSelectionModifier.swift` ✅
+- Replaced 27 identical `.onChange(of: selectedXxxIDs)` blocks with `.syncSelection(selectedIDs, items:, activeItem:)` modifier
+- 5 files skipped (EC2EntityListView, IAMEntityListView, S3ObjectBrowserView, SNSSubscriptionListView, SQSMessageBrowserView — different patterns)
+- Saved ~135 lines (5 lines × 27 files)
+
+**Phase 2.5 total: 2 new shared component files, 30 unique files changed, ~611 lines saved**
+
+---
+
 ## Phase 3: Service Base Class (Evaluate First)
 **Goal:** Eliminate `client` + `updateClient()` boilerplate from 30 service classes.
 

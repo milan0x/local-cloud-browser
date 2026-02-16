@@ -69,13 +69,7 @@ struct DynamoDBTableListView: View {
             tables = []
             loadTables(force: true)
         }
-        .onChange(of: selectedTableIDs) {
-            if selectedTableIDs.count == 1, let id = selectedTableIDs.first {
-                activeTable = tables.first { $0.id == id }
-            } else {
-                activeTable = nil
-            }
-        }
+        .syncSelection(selectedTableIDs, items: tables, activeItem: $activeTable)
         .onChange(of: toolbarState.pendingAction) {
             guard let action = toolbarState.pendingAction else { return }
             switch action {
@@ -144,11 +138,7 @@ struct DynamoDBTableListView: View {
         if isLoading && tables.isEmpty {
             VStack(spacing: 12) {
                 ProgressView("Loading tables...")
-                if appState.connectionError != nil {
-                    Label("Connection lost — retrying...", systemImage: "bolt.horizontal.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                ConnectionRetryingLabel()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let errorMessage, tables.isEmpty {
@@ -218,7 +208,7 @@ struct DynamoDBTableListView: View {
                 }
                 .overlay(alignment: .bottom) {
                     if errorMessage != nil {
-                        connectionLostBanner
+                        ConnectionLostBanner()
                     }
                 }
                 .contextMenu {
@@ -252,21 +242,6 @@ struct DynamoDBTableListView: View {
                 .padding(.vertical, 4)
             }
         }
-    }
-
-    private var connectionLostBanner: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "bolt.horizontal.circle")
-                .font(.caption)
-            Text("Connection lost — showing cached data")
-                .font(.caption)
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity)
-        .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 6))
-        .padding(6)
     }
 
     // MARK: - Data

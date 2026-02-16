@@ -63,13 +63,7 @@ struct CloudWatchAlarmListView: View {
             alarms = []
             loadAlarms(force: true)
         }
-        .onChange(of: selectedAlarmIDs) {
-            if selectedAlarmIDs.count == 1, let id = selectedAlarmIDs.first {
-                activeAlarm = alarms.first { $0.id == id }
-            } else {
-                activeAlarm = nil
-            }
-        }
+        .syncSelection(selectedAlarmIDs, items: alarms, activeItem: $activeAlarm)
         .onChange(of: toolbarState.pendingAction) {
             guard let action = toolbarState.pendingAction else { return }
             switch action {
@@ -109,11 +103,7 @@ struct CloudWatchAlarmListView: View {
         if isLoading && alarms.isEmpty {
             VStack(spacing: 12) {
                 ProgressView("Loading alarms...")
-                if appState.connectionError != nil {
-                    Label("Connection lost — retrying...", systemImage: "bolt.horizontal.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                ConnectionRetryingLabel()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let errorMessage, alarms.isEmpty {

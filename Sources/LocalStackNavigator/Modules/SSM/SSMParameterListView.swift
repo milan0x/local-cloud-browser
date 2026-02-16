@@ -67,13 +67,7 @@ struct SSMParameterListView: View {
             parameters = []
             loadParameters(force: true)
         }
-        .onChange(of: selectedParameterIDs) {
-            if selectedParameterIDs.count == 1, let id = selectedParameterIDs.first {
-                activeParameter = parameters.first { $0.id == id }
-            } else {
-                activeParameter = nil
-            }
-        }
+        .syncSelection(selectedParameterIDs, items: parameters, activeItem: $activeParameter)
         .onChange(of: toolbarState.pendingAction) {
             guard let action = toolbarState.pendingAction else { return }
             switch action {
@@ -137,11 +131,7 @@ struct SSMParameterListView: View {
         if isLoading && parameters.isEmpty {
             VStack(spacing: 12) {
                 ProgressView("Loading parameters...")
-                if appState.connectionError != nil {
-                    Label("Connection lost — retrying...", systemImage: "bolt.horizontal.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                ConnectionRetryingLabel()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let errorMessage, parameters.isEmpty {
@@ -225,7 +215,7 @@ struct SSMParameterListView: View {
                 }
                 .overlay(alignment: .bottom) {
                     if errorMessage != nil {
-                        connectionLostBanner
+                        ConnectionLostBanner()
                     }
                 }
                 .contextMenu {
@@ -259,21 +249,6 @@ struct SSMParameterListView: View {
                 .padding(.vertical, 4)
             }
         }
-    }
-
-    private var connectionLostBanner: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "bolt.horizontal.circle")
-                .font(.caption)
-            Text("Connection lost — showing cached data")
-                .font(.caption)
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity)
-        .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 6))
-        .padding(6)
     }
 
     private func typeColor(_ type: String) -> Color {

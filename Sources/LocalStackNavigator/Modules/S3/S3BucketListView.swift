@@ -123,13 +123,7 @@ struct S3BucketListView: View {
             buckets = []
             loadBuckets(force: true)
         }
-        .onChange(of: selectedBucketIDs) {
-            if selectedBucketIDs.count == 1, let id = selectedBucketIDs.first {
-                activeBucket = buckets.first { $0.id == id }
-            } else {
-                activeBucket = nil
-            }
-        }
+        .syncSelection(selectedBucketIDs, items: buckets, activeItem: $activeBucket)
     }
 
     private var bucketDeleteDisabled: Bool {
@@ -182,11 +176,7 @@ struct S3BucketListView: View {
         if isLoading && buckets.isEmpty {
             VStack(spacing: 12) {
                 ProgressView("Loading buckets...")
-                if appState.connectionError != nil {
-                    Label("Connection lost — retrying...", systemImage: "bolt.horizontal.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                ConnectionRetryingLabel()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let errorMessage {
@@ -256,7 +246,7 @@ struct S3BucketListView: View {
             }
             .overlay(alignment: .bottom) {
                 if errorMessage != nil {
-                    connectionLostBanner
+                    ConnectionLostBanner()
                 }
             }
             .contextMenu {
@@ -266,21 +256,6 @@ struct S3BucketListView: View {
                 .disabled(appState.isReadOnly)
             }
         }
-    }
-
-    private var connectionLostBanner: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "bolt.horizontal.circle")
-                .font(.caption)
-            Text("Connection lost — showing cached data")
-                .font(.caption)
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity)
-        .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 6))
-        .padding(6)
     }
 
     // MARK: - Data
