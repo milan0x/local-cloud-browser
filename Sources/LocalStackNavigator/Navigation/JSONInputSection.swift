@@ -132,6 +132,13 @@ struct JSONInputSection: View {
                     .padding(.vertical, 2)
                     .background(bodyTypeBadgeColor(type), in: Capsule())
                     .foregroundStyle(bodyTypeForegroundColor(type))
+                    .onHover { hovering in
+                        if hovering {
+                            NSCursor.pointingHand.push()
+                        } else {
+                            NSCursor.pop()
+                        }
+                    }
                     .onTapGesture {
                         formatAssistEnabled = false
                     }
@@ -331,7 +338,7 @@ struct JSONInputSection: View {
                 return ValidationResult(label: "Invalid", icon: "xmark.circle.fill", color: .red)
             }
             if JSONHelperParser.findDuplicateKeys(inJSON: trimmed) != nil {
-                return ValidationResult(label: "Warning", icon: "exclamationmark.triangle.fill", color: .orange)
+                return ValidationResult(label: "Warning — duplicate key", icon: "exclamationmark.triangle.fill", color: .orange)
             }
             return ValidationResult(label: "Valid", icon: "checkmark.circle.fill", color: .green)
         } else if type == "XML" {
@@ -344,7 +351,7 @@ struct JSONInputSection: View {
                 return ValidationResult(label: "Invalid", icon: "xmark.circle.fill", color: .red)
             }
             if hasDuplicateYAMLKeys(trimmed) {
-                return ValidationResult(label: "Warning", icon: "exclamationmark.triangle.fill", color: .orange)
+                return ValidationResult(label: "Warning — duplicate key", icon: "exclamationmark.triangle.fill", color: .orange)
             }
             return ValidationResult(label: "Valid", icon: "checkmark.circle.fill", color: .green)
         }
