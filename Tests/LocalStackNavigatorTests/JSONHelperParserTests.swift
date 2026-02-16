@@ -147,6 +147,19 @@ struct JSONHelperParserTests {
         #expect(!result.json.isEmpty)
     }
 
+    @Test("Reports error for duplicate keys")
+    func duplicateKey() {
+        let input = """
+            name: John
+            age: 30
+            name: Jane
+            """
+        let result = JSONHelperParser.parse(input)
+        #expect(result.error != nil)
+        #expect(result.error!.contains("duplicate key"))
+        #expect(result.error!.contains("name"))
+    }
+
     @Test("Bare array items become strings")
     func bareArrayItems() {
         let input = """

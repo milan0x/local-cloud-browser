@@ -339,18 +339,18 @@ struct JSONInputSection: View {
 
     private func bodyTypeBadgeColor(_ type: String) -> Color {
         switch type {
-        case "JSON": return Color.blue.opacity(0.15)
+        case "JSON": return Color.green.opacity(0.15)
         case "XML": return Color.orange.opacity(0.15)
-        case "YAML": return Color.green.opacity(0.15)
+        case "YAML": return Color.blue.opacity(0.15)
         default: return Color.gray.opacity(0.15)
         }
     }
 
     private func bodyTypeForegroundColor(_ type: String) -> Color {
         switch type {
-        case "JSON": return .blue
+        case "JSON": return .green
         case "XML": return .orange
-        case "YAML": return .green
+        case "YAML": return .blue
         default: return .secondary
         }
     }
