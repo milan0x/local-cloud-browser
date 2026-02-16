@@ -11,7 +11,6 @@ struct JSONHelperParser {
         case unexpectedArrayItem(line: Int)
         case emptyKey(line: Int)
         case unterminatedString(line: Int)
-        case invalidValue(line: Int, text: String)
 
         var description: String {
             switch self {
@@ -23,20 +22,18 @@ struct JSONHelperParser {
                 return "Line \(line): empty key"
             case .unterminatedString(let line):
                 return "Line \(line): unterminated string"
-            case .invalidValue(let line, let text):
-                return "Line \(line): invalid value '\(text)'"
             }
         }
     }
 
     static let defaultExample = """
-        name "John Doe"
+        name John Doe
         age 30
         active true
         address
-            city "New York"
+            city New York
         tags
-            - "swift"
+            - swift
         """
 
     static let defaultJSON = parse(defaultExample).json
@@ -252,7 +249,8 @@ struct JSONHelperParser {
             if let _ = Double(rest), rest.contains(".") { return .number(trimmed) }
         }
 
-        throw ParseError.invalidValue(line: lineNumber, text: trimmed)
+        // Bare text → string (no quotes needed for plain text)
+        return .string(trimmed)
     }
 
     private static func unescapeString(_ input: String) -> String {
@@ -346,7 +344,7 @@ struct JSONHelperParser {
         return pairs.map { key, value in
             switch value {
             case .string(let s):
-                return "\(pad)\(key) \"\(escapeJSON(s))\""
+                return "\(pad)\(key) \(renderString(s))"
             case .number(let n):
                 return "\(pad)\(key) \(n)"
             case .bool(let b):
@@ -359,7 +357,7 @@ struct JSONHelperParser {
                 let lines = items.map { item -> String in
                     switch item {
                     case .string(let s):
-                        return "\(pad)    - \"\(escapeJSON(s))\""
+                        return "\(pad)    - \(renderString(s))"
                     case .number(let n):
                         return "\(pad)    - \(n)"
                     case .bool(let b):
@@ -375,6 +373,24 @@ struct JSONHelperParser {
                 return "\(pad)\(key)\n\(lines.joined(separator: "\n"))"
             }
         }.joined(separator: "\n")
+    }
+
+    private static func needsQuoting(_ s: String) -> Bool {
+        if s.isEmpty { return true }
+        if s == "true" || s == "false" || s == "null" { return true }
+        if let _ = Int(s) { return true }
+        if let _ = Double(s), s.contains(".") { return true }
+        if s.hasPrefix("-") {
+            let rest = String(s.dropFirst())
+            if let _ = Int(rest) { return true }
+            if let _ = Double(rest), rest.contains(".") { return true }
+        }
+        if s.contains("\\") || s.contains("\n") || s.contains("\t") || s.contains("\r") { return true }
+        return false
+    }
+
+    private static func renderString(_ s: String) -> String {
+        needsQuoting(s) ? "\"\(escapeJSON(s))\"" : s
     }
 
     // Minimal ordered JSON parser — preserves key order unlike JSONSerialization

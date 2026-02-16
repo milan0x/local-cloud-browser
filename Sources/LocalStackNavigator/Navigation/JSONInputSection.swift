@@ -87,6 +87,11 @@ struct JSONInputSection: View {
         } header: {
             sectionHeader
         }
+        .onChange(of: text) {
+            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !formatAssistEnabled {
+                formatAssistEnabled = true
+            }
+        }
         .onChange(of: jsonHelperText) {
             let result = JSONHelperParser.parse(jsonHelperText)
             if result.error != nil {
@@ -113,14 +118,24 @@ struct JSONInputSection: View {
         HStack(spacing: 6) {
             Text(config.sectionLabel)
             if let type = detectedBodyType {
-                Text(type)
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(bodyTypeBadgeColor(type), in: Capsule())
-                    .foregroundStyle(bodyTypeForegroundColor(type))
                 if type != "Text" {
+                    Button {
+                        formatAssistEnabled = false
+                    } label: {
+                        HStack(spacing: 3) {
+                            Text(type)
+                            Image(systemName: "xmark")
+                                .imageScale(.small)
+                        }
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(bodyTypeBadgeColor(type), in: Capsule())
+                        .foregroundStyle(bodyTypeForegroundColor(type))
+                    }
+                    .buttonStyle(.plain)
+
                     let valid = isBodyValid(for: type)
                     HStack(spacing: 2) {
                         Image(systemName: valid ? "checkmark.circle.fill" : "xmark.circle.fill")
@@ -133,6 +148,14 @@ struct JSONInputSection: View {
                     .padding(.vertical, 2)
                     .background((valid ? Color.green : Color.red).opacity(0.15), in: Capsule())
                     .foregroundStyle(valid ? Color.green : Color.red)
+                } else {
+                    Text(type)
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(bodyTypeBadgeColor(type), in: Capsule())
+                        .foregroundStyle(bodyTypeForegroundColor(type))
                 }
             }
             if isHelperShown {
@@ -184,7 +207,7 @@ struct JSONInputSection: View {
 
         if isHelperShown && showJSONHelper {
             ZStack(alignment: .topLeading) {
-                CodeTextEditor(text: $jsonHelperText)
+                CodeTextEditor(text: $jsonHelperText, yamlMode: true)
                 if jsonHelperText.isEmpty && !disablePlaceholders {
                     Text(JSONHelperParser.defaultExample)
                         .font(.system(.body, design: .monospaced))
@@ -218,13 +241,14 @@ struct JSONInputSection: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Group {
-                    Text("key \"string\"      \u{2192} string")
+                    Text("key text          \u{2192} string")
                     Text("key 42            \u{2192} number")
+                    Text("key \"42\"          \u{2192} string (forced)")
                     Text("key true/false    \u{2192} boolean")
                     Text("key null          \u{2192} null")
                     Text("key               \u{2192} nested object")
-                    Text("    child \"val\"     (indent children)")
-                    Text("    - \"item\"      \u{2192} array")
+                    Text("    child val       (indent children)")
+                    Text("    - item        \u{2192} array")
                 }
                 .font(.system(.caption, design: .monospaced))
                 .foregroundStyle(.secondary)
@@ -237,13 +261,13 @@ struct JSONInputSection: View {
                 .fontWeight(.medium)
 
             Text("""
-                name "John Doe"
+                name John Doe
                 age 30
                 active true
                 address
-                    city "New York"
+                    city New York
                 tags
-                    - "swift"
+                    - swift
                 """)
                 .font(.system(.caption, design: .monospaced))
 
