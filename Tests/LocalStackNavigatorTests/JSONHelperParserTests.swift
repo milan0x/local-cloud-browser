@@ -10,9 +10,9 @@ struct JSONHelperParserTests {
     @Test("Parses key-value pairs into JSON object")
     func simpleKeyValue() {
         let input = """
-            name John
-            age 30
-            active true
+            name: John
+            age: 30
+            active: true
             """
         let result = JSONHelperParser.parse(input)
         #expect(result.error == nil)
@@ -23,7 +23,7 @@ struct JSONHelperParserTests {
 
     @Test("Parses bare text as string")
     func bareTextString() {
-        let input = "greeting hello world"
+        let input = "greeting: hello world"
         let result = JSONHelperParser.parse(input)
         #expect(result.error == nil)
         #expect(result.json.contains("\"greeting\": \"hello world\""))
@@ -31,7 +31,7 @@ struct JSONHelperParserTests {
 
     @Test("Parses quoted text as string")
     func quotedString() {
-        let input = "name \"John\""
+        let input = "name: \"John\""
         let result = JSONHelperParser.parse(input)
         #expect(result.error == nil)
         #expect(result.json.contains("\"name\": \"John\""))
@@ -39,7 +39,7 @@ struct JSONHelperParserTests {
 
     @Test("Quoted number becomes string")
     func quotedNumberAsString() {
-        let input = "code \"42\""
+        let input = "code: \"42\""
         let result = JSONHelperParser.parse(input)
         #expect(result.error == nil)
         #expect(result.json.contains("\"code\": \"42\""))
@@ -47,7 +47,7 @@ struct JSONHelperParserTests {
 
     @Test("Bare number becomes number")
     func bareNumber() {
-        let input = "count 42"
+        let input = "count: 42"
         let result = JSONHelperParser.parse(input)
         #expect(result.error == nil)
         #expect(result.json.contains("\"count\": 42"))
@@ -56,9 +56,9 @@ struct JSONHelperParserTests {
     @Test("Parses nested objects")
     func nestedObject() {
         let input = """
-            address
-                city New York
-                zip "10001"
+            address:
+                city: New York
+                zip: "10001"
             """
         let result = JSONHelperParser.parse(input)
         #expect(result.error == nil)
@@ -70,7 +70,7 @@ struct JSONHelperParserTests {
     @Test("Parses arrays with bare strings")
     func arrays() {
         let input = """
-            tags
+            tags:
                 - swift
                 - macos
             """
@@ -83,7 +83,7 @@ struct JSONHelperParserTests {
 
     @Test("Parses null values")
     func nullValue() {
-        let input = "middle_name null"
+        let input = "middle_name: null"
         let result = JSONHelperParser.parse(input)
         #expect(result.error == nil)
         #expect(result.json.contains("null"))
@@ -92,8 +92,8 @@ struct JSONHelperParserTests {
     @Test("Parses boolean values")
     func booleans() {
         let input = """
-            enabled true
-            deleted false
+            enabled: true
+            deleted: false
             """
         let result = JSONHelperParser.parse(input)
         #expect(result.error == nil)
@@ -103,7 +103,7 @@ struct JSONHelperParserTests {
 
     @Test("Parses negative numbers")
     func negativeNumbers() {
-        let input = "offset -10"
+        let input = "offset: -10"
         let result = JSONHelperParser.parse(input)
         #expect(result.error == nil)
         #expect(result.json.contains("-10"))
@@ -111,7 +111,7 @@ struct JSONHelperParserTests {
 
     @Test("Parses decimal numbers")
     func decimalNumbers() {
-        let input = "price 9.99"
+        let input = "price: 9.99"
         let result = JSONHelperParser.parse(input)
         #expect(result.error == nil)
         #expect(result.json.contains("9.99"))
@@ -126,7 +126,7 @@ struct JSONHelperParserTests {
 
     @Test("Reports error for unterminated string")
     func unterminatedString() {
-        let input = "name \"unterminated"
+        let input = "name: \"unterminated"
         let result = JSONHelperParser.parse(input)
         #expect(result.error != nil)
         #expect(result.error!.contains("unterminated"))
@@ -134,7 +134,7 @@ struct JSONHelperParserTests {
 
     @Test("Handles escaped quotes in strings")
     func escapedQuotes() {
-        let input = "say \"hello \\\"world\\\"\""
+        let input = "say: \"hello \\\"world\\\"\""
         let result = JSONHelperParser.parse(input)
         #expect(result.error == nil)
         #expect(result.json.contains("hello \\\"world\\\""))
@@ -150,7 +150,7 @@ struct JSONHelperParserTests {
     @Test("Bare array items become strings")
     func bareArrayItems() {
         let input = """
-            items
+            items:
                 - hello
                 - world
                 - 42
@@ -165,6 +165,14 @@ struct JSONHelperParserTests {
         #expect(result.json.contains("\"42\""))  // string "42"
     }
 
+    @Test("Value containing colon is parsed correctly")
+    func valueWithColon() {
+        let input = "url: https://example.com:8080/path"
+        let result = JSONHelperParser.parse(input)
+        #expect(result.error == nil)
+        #expect(result.json.contains("\"url\": \"https://example.com:8080/path\""))
+    }
+
     // MARK: - fromJSON (JSON → Helper)
 
     @Test("Converts simple JSON to helper format with bare strings")
@@ -172,8 +180,8 @@ struct JSONHelperParserTests {
         let json = "{\"name\": \"John\", \"age\": 30}"
         let helper = JSONHelperParser.fromJSON(json)
         #expect(helper != nil)
-        #expect(helper!.contains("name John"))
-        #expect(helper!.contains("age 30"))
+        #expect(helper!.contains("name: John"))
+        #expect(helper!.contains("age: 30"))
     }
 
     @Test("Converts nested JSON to helper format with bare strings")
@@ -181,8 +189,8 @@ struct JSONHelperParserTests {
         let json = "{\"address\": {\"city\": \"NYC\"}}"
         let helper = JSONHelperParser.fromJSON(json)
         #expect(helper != nil)
-        #expect(helper!.contains("address"))
-        #expect(helper!.contains("city NYC"))
+        #expect(helper!.contains("address:"))
+        #expect(helper!.contains("city: NYC"))
     }
 
     @Test("Converts JSON arrays to helper format with bare strings")
@@ -199,8 +207,8 @@ struct JSONHelperParserTests {
         let json = "{\"code\": \"42\", \"port\": \"8080\"}"
         let helper = JSONHelperParser.fromJSON(json)
         #expect(helper != nil)
-        #expect(helper!.contains("code \"42\""))
-        #expect(helper!.contains("port \"8080\""))
+        #expect(helper!.contains("code: \"42\""))
+        #expect(helper!.contains("port: \"8080\""))
     }
 
     @Test("Quotes strings that look like booleans in reverse")
@@ -208,8 +216,8 @@ struct JSONHelperParserTests {
         let json = "{\"answer\": \"true\", \"reply\": \"false\"}"
         let helper = JSONHelperParser.fromJSON(json)
         #expect(helper != nil)
-        #expect(helper!.contains("answer \"true\""))
-        #expect(helper!.contains("reply \"false\""))
+        #expect(helper!.contains("answer: \"true\""))
+        #expect(helper!.contains("reply: \"false\""))
     }
 
     @Test("Quotes strings that look like null in reverse")
@@ -217,7 +225,7 @@ struct JSONHelperParserTests {
         let json = "{\"value\": \"null\"}"
         let helper = JSONHelperParser.fromJSON(json)
         #expect(helper != nil)
-        #expect(helper!.contains("value \"null\""))
+        #expect(helper!.contains("value: \"null\""))
     }
 
     @Test("Quotes empty strings in reverse")
@@ -225,7 +233,7 @@ struct JSONHelperParserTests {
         let json = "{\"empty\": \"\"}"
         let helper = JSONHelperParser.fromJSON(json)
         #expect(helper != nil)
-        #expect(helper!.contains("empty \"\""))
+        #expect(helper!.contains("empty: \"\""))
     }
 
     @Test("Returns nil for non-object JSON")
@@ -249,27 +257,27 @@ struct JSONHelperParserTests {
     @Test("Round-trip: helper → JSON → helper preserves structure")
     func roundTrip() {
         let input = """
-            name Alice
-            age 25
-            active true
+            name: Alice
+            age: 25
+            active: true
             """
         let jsonResult = JSONHelperParser.parse(input)
         #expect(jsonResult.error == nil)
         let backToHelper = JSONHelperParser.fromJSON(jsonResult.json)
         #expect(backToHelper != nil)
-        #expect(backToHelper!.contains("name Alice"))
-        #expect(backToHelper!.contains("age 25"))
-        #expect(backToHelper!.contains("active true"))
+        #expect(backToHelper!.contains("name: Alice"))
+        #expect(backToHelper!.contains("age: 25"))
+        #expect(backToHelper!.contains("active: true"))
     }
 
     @Test("Round-trip: quoted number stays quoted")
     func roundTripQuotedNumber() {
-        let input = "zipcode \"10001\""
+        let input = "zipcode: \"10001\""
         let jsonResult = JSONHelperParser.parse(input)
         #expect(jsonResult.error == nil)
         #expect(jsonResult.json.contains("\"zipcode\": \"10001\""))
         let backToHelper = JSONHelperParser.fromJSON(jsonResult.json)
         #expect(backToHelper != nil)
-        #expect(backToHelper!.contains("zipcode \"10001\""))
+        #expect(backToHelper!.contains("zipcode: \"10001\""))
     }
 }

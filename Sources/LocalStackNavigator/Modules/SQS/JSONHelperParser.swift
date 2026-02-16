@@ -27,12 +27,12 @@ struct JSONHelperParser {
     }
 
     static let defaultExample = """
-        name John Doe
-        age 30
-        active true
-        address
-            city New York
-        tags
+        name: John Doe
+        age: 30
+        active: true
+        address:
+            city: New York
+        tags:
             - swift
         """
 
@@ -198,13 +198,14 @@ struct JSONHelperParser {
             return (content, nil)
         }
 
-        // Find first whitespace to split key from value
-        guard let spaceIndex = content.firstIndex(where: { $0 == " " || $0 == "\t" }) else {
-            return (content, nil)
+        // Split at first colon — "key: value" or "key:" (nested object)
+        guard let colonIndex = content.firstIndex(of: ":") else {
+            // No colon — key only (nested object or bare key)
+            return (content.trimmingCharacters(in: .whitespaces), nil)
         }
 
-        let key = String(content[content.startIndex..<spaceIndex])
-        let value = String(content[content.index(after: spaceIndex)...]).trimmingCharacters(in: .whitespaces)
+        let key = String(content[content.startIndex..<colonIndex]).trimmingCharacters(in: .whitespaces)
+        let value = String(content[content.index(after: colonIndex)...]).trimmingCharacters(in: .whitespaces)
 
         if value.isEmpty {
             return (key, nil)
@@ -344,15 +345,15 @@ struct JSONHelperParser {
         return pairs.map { key, value in
             switch value {
             case .string(let s):
-                return "\(pad)\(key) \(renderString(s))"
+                return "\(pad)\(key): \(renderString(s))"
             case .number(let n):
-                return "\(pad)\(key) \(n)"
+                return "\(pad)\(key): \(n)"
             case .bool(let b):
-                return "\(pad)\(key) \(b)"
+                return "\(pad)\(key): \(b)"
             case .null:
-                return "\(pad)\(key) null"
+                return "\(pad)\(key): null"
             case .object:
-                return "\(pad)\(key)\n\(renderHelper(value, indent: indent + 4))"
+                return "\(pad)\(key):\n\(renderHelper(value, indent: indent + 4))"
             case .array(let items):
                 let lines = items.map { item -> String in
                     switch item {
@@ -370,7 +371,7 @@ struct JSONHelperParser {
                         return ""
                     }
                 }
-                return "\(pad)\(key)\n\(lines.joined(separator: "\n"))"
+                return "\(pad)\(key):\n\(lines.joined(separator: "\n"))"
             }
         }.joined(separator: "\n")
     }

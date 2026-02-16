@@ -119,22 +119,20 @@ struct JSONInputSection: View {
             Text(config.sectionLabel)
             if let type = detectedBodyType {
                 if type != "Text" {
-                    Button {
-                        formatAssistEnabled = false
-                    } label: {
-                        HStack(spacing: 3) {
-                            Text(type)
-                            Image(systemName: "xmark")
-                                .imageScale(.small)
-                        }
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(bodyTypeBadgeColor(type), in: Capsule())
-                        .foregroundStyle(bodyTypeForegroundColor(type))
+                    HStack(spacing: 3) {
+                        Text(type)
+                        Image(systemName: "xmark")
+                            .imageScale(.small)
                     }
-                    .buttonStyle(.plain)
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(bodyTypeBadgeColor(type), in: Capsule())
+                    .foregroundStyle(bodyTypeForegroundColor(type))
+                    .onTapGesture {
+                        formatAssistEnabled = false
+                    }
 
                     let valid = isBodyValid(for: type)
                     HStack(spacing: 2) {
@@ -241,13 +239,13 @@ struct JSONInputSection: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Group {
-                    Text("key text          \u{2192} string")
-                    Text("key 42            \u{2192} number")
-                    Text("key \"42\"          \u{2192} string (forced)")
-                    Text("key true/false    \u{2192} boolean")
-                    Text("key null          \u{2192} null")
-                    Text("key               \u{2192} nested object")
-                    Text("    child val       (indent children)")
+                    Text("key: text         \u{2192} string")
+                    Text("key: 42           \u{2192} number")
+                    Text("key: \"42\"         \u{2192} string (forced)")
+                    Text("key: true/false   \u{2192} boolean")
+                    Text("key: null         \u{2192} null")
+                    Text("key:              \u{2192} nested object")
+                    Text("    child: val      (indent children)")
                     Text("    - item        \u{2192} array")
                 }
                 .font(.system(.caption, design: .monospaced))
@@ -261,12 +259,12 @@ struct JSONInputSection: View {
                 .fontWeight(.medium)
 
             Text("""
-                name John Doe
-                age 30
-                active true
-                address
-                    city New York
-                tags
+                name: John Doe
+                age: 30
+                active: true
+                address:
+                    city: New York
+                tags:
                     - swift
                 """)
                 .font(.system(.caption, design: .monospaced))
