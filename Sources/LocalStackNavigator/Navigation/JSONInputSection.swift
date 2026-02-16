@@ -44,6 +44,7 @@ struct JSONInputSection: View {
     @State private var formatAssistEnabled = true
     @State private var jsonHelperText = ""
     @State private var jsonHelperParseError: String?
+    @State private var jsonHelperWarning: String?
     @State private var showExamplePopover = false
     @AppStorage(AppPreferences.doubleClickHidesJsonHelperKey) private var doubleClickHidesJsonHelper = false
     @AppStorage(AppPreferences.disableJsonHelperPlaceholdersKey) private var disablePlaceholders = false
@@ -94,6 +95,7 @@ struct JSONInputSection: View {
         }
         .onChange(of: jsonHelperText) {
             let result = JSONHelperParser.parse(jsonHelperText)
+            jsonHelperWarning = result.warning
             if result.error != nil {
                 jsonHelperParseError = result.error
             } else {
@@ -134,18 +136,18 @@ struct JSONInputSection: View {
                         formatAssistEnabled = false
                     }
 
-                    let valid = isBodyValid(for: type)
+                    let validation = bodyValidation(for: type)
                     HStack(spacing: 2) {
-                        Image(systemName: valid ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        Image(systemName: validation.icon)
                             .font(.caption2)
-                        Text(valid ? "Valid" : "Invalid")
+                        Text(validation.label)
                             .font(.caption2)
                             .fontWeight(.semibold)
                     }
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background((valid ? Color.green : Color.red).opacity(0.15), in: Capsule())
-                    .foregroundStyle(valid ? Color.green : Color.red)
+                    .background(validation.color.opacity(0.15), in: Capsule())
+                    .foregroundStyle(validation.color)
                 } else {
                     Text(type)
                         .font(.caption2)
@@ -227,6 +229,10 @@ struct JSONInputSection: View {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.red)
+            } else if let warning = jsonHelperWarning {
+                Label(warning, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
             }
         }
     }
@@ -308,17 +314,41 @@ struct JSONInputSection: View {
         return trimmedLine.contains(":") && trimmedLine.firstIndex(of: ":")! != trimmedLine.startIndex
     }
 
-    private func isBodyValid(for type: String) -> Bool {
+    private struct ValidationResult {
+        let label: String
+        let icon: String
+        let color: Color
+    }
+
+    private func bodyValidation(for type: String) -> ValidationResult {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let data = trimmed.data(using: .utf8) else { return false }
-        if type == "JSON" {
-            return (try? JSONSerialization.jsonObject(with: data)) != nil
-        } else if type == "XML" {
-            return XMLParser(data: data).parse()
-        } else if type == "YAML" {
-            return isYAMLValid(trimmed)
+        guard let data = trimmed.data(using: .utf8) else {
+            return ValidationResult(label: "Invalid", icon: "xmark.circle.fill", color: .red)
         }
-        return true
+
+        if type == "JSON" {
+            guard (try? JSONSerialization.jsonObject(with: data)) != nil else {
+                return ValidationResult(label: "Invalid", icon: "xmark.circle.fill", color: .red)
+            }
+            if JSONHelperParser.findDuplicateKeys(inJSON: trimmed) != nil {
+                return ValidationResult(label: "Warning", icon: "exclamationmark.triangle.fill", color: .orange)
+            }
+            return ValidationResult(label: "Valid", icon: "checkmark.circle.fill", color: .green)
+        } else if type == "XML" {
+            let valid = XMLParser(data: data).parse()
+            return valid
+                ? ValidationResult(label: "Valid", icon: "checkmark.circle.fill", color: .green)
+                : ValidationResult(label: "Invalid", icon: "xmark.circle.fill", color: .red)
+        } else if type == "YAML" {
+            if !isYAMLValid(trimmed) {
+                return ValidationResult(label: "Invalid", icon: "xmark.circle.fill", color: .red)
+            }
+            if hasDuplicateYAMLKeys(trimmed) {
+                return ValidationResult(label: "Warning", icon: "exclamationmark.triangle.fill", color: .orange)
+            }
+            return ValidationResult(label: "Valid", icon: "checkmark.circle.fill", color: .green)
+        }
+        return ValidationResult(label: "Valid", icon: "checkmark.circle.fill", color: .green)
     }
 
     private func isYAMLValid(_ text: String) -> Bool {
@@ -335,6 +365,25 @@ struct JSONInputSection: View {
             if hasTabs && hasSpaces { return false }
         }
         return true
+    }
+
+    private func hasDuplicateYAMLKeys(_ text: String) -> Bool {
+        let lines = text.components(separatedBy: .newlines)
+        // Group keys by indent level
+        var keysByIndent: [Int: [String]] = [:]
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty, !trimmed.hasPrefix("#"), !trimmed.hasPrefix("-") else { continue }
+            let indent = line.prefix(while: { $0 == " " || $0 == "\t" }).count
+            guard let colonIndex = trimmed.firstIndex(of: ":") else { continue }
+            let key = String(trimmed[trimmed.startIndex..<colonIndex]).trimmingCharacters(in: .whitespaces)
+            guard !key.isEmpty else { continue }
+            keysByIndent[indent, default: []].append(key)
+        }
+        for (_, keys) in keysByIndent {
+            if Set(keys).count != keys.count { return true }
+        }
+        return false
     }
 
     private func bodyTypeBadgeColor(_ type: String) -> Color {

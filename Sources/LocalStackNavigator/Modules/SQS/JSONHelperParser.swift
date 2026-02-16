@@ -4,6 +4,7 @@ struct JSONHelperParser {
     struct ParseResult {
         let json: String
         let error: String?
+        let warning: String?
     }
 
     enum ParseError: Error, CustomStringConvertible {
@@ -11,7 +12,6 @@ struct JSONHelperParser {
         case unexpectedArrayItem(line: Int)
         case emptyKey(line: Int)
         case unterminatedString(line: Int)
-        case duplicateKey(line: Int, key: String)
 
         var description: String {
             switch self {
@@ -23,8 +23,6 @@ struct JSONHelperParser {
                 return "Line \(line): empty key"
             case .unterminatedString(let line):
                 return "Line \(line): unterminated string"
-            case .duplicateKey(let line, let key):
-                return "Line \(line): duplicate key '\(key)'"
             }
         }
     }
@@ -43,17 +41,18 @@ struct JSONHelperParser {
 
     static func parse(_ input: String) -> ParseResult {
         do {
+            var warnings: [String] = []
             let lines = tokenize(input)
             guard !lines.isEmpty else {
-                return ParseResult(json: "", error: nil)
+                return ParseResult(json: "", error: nil, warning: nil)
             }
-            let value = try buildValue(from: lines, start: 0, end: lines.count, baseIndent: lines[0].indent)
+            let value = try buildValue(from: lines, start: 0, end: lines.count, baseIndent: lines[0].indent, warnings: &warnings)
             let json = serialize(value, indent: 0)
-            return ParseResult(json: json, error: nil)
+            return ParseResult(json: json, error: nil, warning: warnings.first)
         } catch let error as ParseError {
-            return ParseResult(json: "", error: error.description)
+            return ParseResult(json: "", error: error.description, warning: nil)
         } catch {
-            return ParseResult(json: "", error: error.localizedDescription)
+            return ParseResult(json: "", error: error.localizedDescription, warning: nil)
         }
     }
 
@@ -98,17 +97,17 @@ struct JSONHelperParser {
         case array([JSONValue])
     }
 
-    private static func buildValue(from lines: [Line], start: Int, end: Int, baseIndent: Int) throws -> JSONValue {
+    private static func buildValue(from lines: [Line], start: Int, end: Int, baseIndent: Int, warnings: inout [String]) throws -> JSONValue {
         // Check if all lines at this level are array items
         let topLevelLines = (start..<end).filter { lines[$0].indent == baseIndent }
         if !topLevelLines.isEmpty && topLevelLines.allSatisfy({ lines[$0].isArrayItem }) {
-            return try buildArray(from: lines, start: start, end: end, baseIndent: baseIndent)
+            return try buildArray(from: lines, start: start, end: end, baseIndent: baseIndent, warnings: &warnings)
         }
 
-        return try buildObject(from: lines, start: start, end: end, baseIndent: baseIndent)
+        return try buildObject(from: lines, start: start, end: end, baseIndent: baseIndent, warnings: &warnings)
     }
 
-    private static func buildObject(from lines: [Line], start: Int, end: Int, baseIndent: Int) throws -> JSONValue {
+    private static func buildObject(from lines: [Line], start: Int, end: Int, baseIndent: Int, warnings: inout [String]) throws -> JSONValue {
         var pairs: [(String, JSONValue)] = []
         var seenKeys: Set<String> = []
         var i = start
@@ -127,8 +126,12 @@ struct JSONHelperParser {
             if key.isEmpty {
                 throw ParseError.emptyKey(line: line.lineNumber)
             }
-            if seenKeys.contains(key) {
-                throw ParseError.duplicateKey(line: line.lineNumber, key: key)
+
+            let isDuplicate = seenKeys.contains(key)
+            if isDuplicate {
+                warnings.append("Line \(line.lineNumber): duplicate key '\(key)'")
+                // Remove the previous entry so the last value wins
+                pairs.removeAll { $0.0 == key }
             }
             seenKeys.insert(key)
 
@@ -144,7 +147,7 @@ struct JSONHelperParser {
 
                 if childStart < childEnd {
                     let childIndent = lines[childStart].indent
-                    let childValue = try buildValue(from: lines, start: childStart, end: childEnd, baseIndent: childIndent)
+                    let childValue = try buildValue(from: lines, start: childStart, end: childEnd, baseIndent: childIndent, warnings: &warnings)
                     pairs.append((key, childValue))
                 } else {
                     // Key with no value and no children → empty string
@@ -157,7 +160,7 @@ struct JSONHelperParser {
         return .object(pairs)
     }
 
-    private static func buildArray(from lines: [Line], start: Int, end: Int, baseIndent: Int) throws -> JSONValue {
+    private static func buildArray(from lines: [Line], start: Int, end: Int, baseIndent: Int, warnings: inout [String]) throws -> JSONValue {
         var items: [JSONValue] = []
         var i = start
 
@@ -174,7 +177,7 @@ struct JSONHelperParser {
                 let childEnd = findBlockEnd(lines: lines, from: childStart, end: end, parentIndent: baseIndent)
                 if childStart < childEnd {
                     let childIndent = lines[childStart].indent
-                    let childValue = try buildValue(from: lines, start: childStart, end: childEnd, baseIndent: childIndent)
+                    let childValue = try buildValue(from: lines, start: childStart, end: childEnd, baseIndent: childIndent, warnings: &warnings)
                     items.append(childValue)
                 } else {
                     items.append(.string(""))
@@ -334,6 +337,41 @@ struct JSONHelperParser {
             }
         }
         return result
+    }
+
+    // MARK: - Duplicate key detection
+
+    static func findDuplicateKeys(inJSON json: String) -> String? {
+        let trimmed = json.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        var scanner = JSONScanner(trimmed)
+        guard let value = scanner.scanValue() else { return nil }
+        var duplicates: [String] = []
+        collectDuplicateKeys(value, path: "", into: &duplicates)
+        return duplicates.first
+    }
+
+    private static func collectDuplicateKeys(_ value: JSONValue, path: String, into duplicates: inout [String]) {
+        switch value {
+        case .object(let pairs):
+            var seen: Set<String> = []
+            for (key, child) in pairs {
+                if seen.contains(key) {
+                    let fullPath = path.isEmpty ? key : "\(path).\(key)"
+                    duplicates.append(fullPath)
+                } else {
+                    seen.insert(key)
+                }
+                let childPath = path.isEmpty ? key : "\(path).\(key)"
+                collectDuplicateKeys(child, path: childPath, into: &duplicates)
+            }
+        case .array(let items):
+            for (index, item) in items.enumerated() {
+                collectDuplicateKeys(item, path: "\(path)[\(index)]", into: &duplicates)
+            }
+        default:
+            break
+        }
     }
 
     // MARK: - Reverse parser (JSON → Helper format)
