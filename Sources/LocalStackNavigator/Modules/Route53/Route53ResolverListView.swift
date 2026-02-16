@@ -83,13 +83,7 @@ struct Route53ResolverListView: View {
             rules = []
             loadData(force: true)
         }
-        .onChange(of: selectedEndpointIDs) {
-            if selectedEndpointIDs.count == 1, let id = selectedEndpointIDs.first {
-                activeEndpoint = endpoints.first { $0.id == id }
-            } else {
-                activeEndpoint = nil
-            }
-        }
+        .syncSelection(selectedEndpointIDs, items: endpoints, activeItem: $activeEndpoint)
         .onChange(of: toolbarState.pendingAction) {
             guard let action = toolbarState.pendingAction else { return }
             switch action {
@@ -135,11 +129,7 @@ struct Route53ResolverListView: View {
         if isLoading && endpoints.isEmpty && rules.isEmpty {
             VStack(spacing: 12) {
                 ProgressView("Loading resolver...")
-                if appState.connectionError != nil {
-                    Label("Connection lost — retrying...", systemImage: "bolt.horizontal.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                ConnectionRetryingLabel()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let errorMessage, endpoints.isEmpty && rules.isEmpty {
@@ -192,7 +182,7 @@ struct Route53ResolverListView: View {
                 .listStyle(.plain)
                 .overlay(alignment: .bottom) {
                     if errorMessage != nil {
-                        connectionLostBanner
+                        ConnectionLostBanner()
                     }
                 }
                 .contextMenu {
@@ -348,21 +338,6 @@ struct Route53ResolverListView: View {
             .padding(.vertical, 1)
             .background(color.opacity(0.15), in: Capsule())
             .foregroundStyle(color)
-    }
-
-    private var connectionLostBanner: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "bolt.horizontal.circle")
-                .font(.caption)
-            Text("Connection lost — showing cached data")
-                .font(.caption)
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity)
-        .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 6))
-        .padding(6)
     }
 
     // MARK: - Data

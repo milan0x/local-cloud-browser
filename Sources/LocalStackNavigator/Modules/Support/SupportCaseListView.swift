@@ -63,13 +63,7 @@ struct SupportCaseListView: View {
             cases = []
             loadCases(force: true)
         }
-        .onChange(of: selectedCaseIDs) {
-            if selectedCaseIDs.count == 1, let id = selectedCaseIDs.first {
-                activeCase = cases.first { $0.id == id }
-            } else {
-                activeCase = nil
-            }
-        }
+        .syncSelection(selectedCaseIDs, items: cases, activeItem: $activeCase)
         .onChange(of: showResolved) {
             loadCases(force: true)
         }
@@ -151,11 +145,7 @@ struct SupportCaseListView: View {
         if isLoading && cases.isEmpty {
             VStack(spacing: 12) {
                 ProgressView("Loading cases...")
-                if appState.connectionError != nil {
-                    Label("Connection lost — retrying...", systemImage: "bolt.horizontal.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                ConnectionRetryingLabel()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let errorMessage, cases.isEmpty {
@@ -231,7 +221,7 @@ struct SupportCaseListView: View {
                 }
                 .overlay(alignment: .bottom) {
                     if errorMessage != nil {
-                        connectionLostBanner
+                        ConnectionLostBanner()
                     }
                 }
                 .contextMenu {
@@ -265,21 +255,6 @@ struct SupportCaseListView: View {
                 StatusBadge(text: supportCase.severityCode.capitalized, color: supportCase.severityBadgeColor)
             }
         }
-    }
-
-    private var connectionLostBanner: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "bolt.horizontal.circle")
-                .font(.caption)
-            Text("Connection lost — showing cached data")
-                .font(.caption)
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity)
-        .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 6))
-        .padding(6)
     }
 
     // MARK: - Data

@@ -343,7 +343,7 @@ struct DynamoDBItemBrowserView: View {
             )
             .overlay(alignment: .bottom) {
                 if errorMessage != nil && !items.isEmpty {
-                    connectionLostBanner
+                    ConnectionLostBanner()
                 }
             }
         }
@@ -402,21 +402,6 @@ struct DynamoDBItemBrowserView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
-    }
-
-    private var connectionLostBanner: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "bolt.horizontal.circle")
-                .font(.caption)
-            Text("Connection lost — showing cached data")
-                .font(.caption)
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity)
-        .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 6))
-        .padding(6)
     }
 
     // MARK: - Inline Draft

@@ -62,13 +62,7 @@ struct TranscribeJobListView: View {
             jobs = []
             loadJobs(force: true)
         }
-        .onChange(of: selectedJobIDs) {
-            if selectedJobIDs.count == 1, let id = selectedJobIDs.first {
-                activeJob = jobs.first { $0.id == id }
-            } else {
-                activeJob = nil
-            }
-        }
+        .syncSelection(selectedJobIDs, items: jobs, activeItem: $activeJob)
         .onChange(of: toolbarState.pendingAction) {
             guard let action = toolbarState.pendingAction else { return }
             switch action {
@@ -223,7 +217,7 @@ struct TranscribeJobListView: View {
                 }
                 .overlay(alignment: .bottom) {
                     if errorMessage != nil {
-                        connectionLostBanner
+                        ConnectionLostBanner()
                     }
                 }
                 .contextMenu {
@@ -268,21 +262,6 @@ struct TranscribeJobListView: View {
 
     private func formatBadge(for job: TranscriptionJob) -> some View {
         StatusBadge(text: job.displayFormat, color: .purple)
-    }
-
-    private var connectionLostBanner: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "bolt.horizontal.circle")
-                .font(.caption)
-            Text("Connection lost \u{2014} showing cached data")
-                .font(.caption)
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity)
-        .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 6))
-        .padding(6)
     }
 
     // MARK: - Data

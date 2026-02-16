@@ -62,13 +62,7 @@ struct ResourceGroupsListView: View {
             groups = []
             loadGroups(force: true)
         }
-        .onChange(of: selectedGroupIDs) {
-            if selectedGroupIDs.count == 1, let id = selectedGroupIDs.first {
-                activeGroup = groups.first { $0.id == id }
-            } else {
-                activeGroup = nil
-            }
-        }
+        .syncSelection(selectedGroupIDs, items: groups, activeItem: $activeGroup)
         .onChange(of: toolbarState.pendingAction) {
             guard let action = toolbarState.pendingAction else { return }
             switch action {
@@ -133,11 +127,7 @@ struct ResourceGroupsListView: View {
         if isLoading && groups.isEmpty {
             VStack(spacing: 12) {
                 ProgressView("Loading resource groups...")
-                if appState.connectionError != nil {
-                    Label("Connection lost — retrying...", systemImage: "bolt.horizontal.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                ConnectionRetryingLabel()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let errorMessage, groups.isEmpty {
@@ -217,7 +207,7 @@ struct ResourceGroupsListView: View {
                 }
                 .overlay(alignment: .bottom) {
                     if errorMessage != nil {
-                        connectionLostBanner
+                        ConnectionLostBanner()
                     }
                 }
                 .contextMenu {
@@ -244,21 +234,6 @@ struct ResourceGroupsListView: View {
                 .padding(.vertical, 4)
             }
         }
-    }
-
-    private var connectionLostBanner: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "bolt.horizontal.circle")
-                .font(.caption)
-            Text("Connection lost — showing cached data")
-                .font(.caption)
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity)
-        .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 6))
-        .padding(6)
     }
 
     // MARK: - Data

@@ -66,13 +66,7 @@ struct KinesisStreamListView: View {
             streams = []
             loadStreams(force: true)
         }
-        .onChange(of: selectedStreamIDs) {
-            if selectedStreamIDs.count == 1, let id = selectedStreamIDs.first {
-                activeStream = streams.first { $0.id == id }
-            } else {
-                activeStream = nil
-            }
-        }
+        .syncSelection(selectedStreamIDs, items: streams, activeItem: $activeStream)
         .onChange(of: toolbarState.pendingAction) {
             guard let action = toolbarState.pendingAction else { return }
             switch action {
@@ -110,11 +104,7 @@ struct KinesisStreamListView: View {
         if isLoading && streams.isEmpty {
             VStack(spacing: 12) {
                 ProgressView("Loading streams...")
-                if appState.connectionError != nil {
-                    Label("Connection lost — retrying...", systemImage: "bolt.horizontal.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                ConnectionRetryingLabel()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let errorMessage, streams.isEmpty {
@@ -189,7 +179,7 @@ struct KinesisStreamListView: View {
                 }
                 .overlay(alignment: .bottom) {
                     if errorMessage != nil {
-                        connectionLostBanner
+                        ConnectionLostBanner()
                     }
                 }
                 .contextMenu {
@@ -241,21 +231,6 @@ struct KinesisStreamListView: View {
         case "ON_DEMAND": .purple
         default: .gray
         }
-    }
-
-    private var connectionLostBanner: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "bolt.horizontal.circle")
-                .font(.caption)
-            Text("Connection lost — showing cached data")
-                .font(.caption)
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity)
-        .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 6))
-        .padding(6)
     }
 
     // MARK: - Data

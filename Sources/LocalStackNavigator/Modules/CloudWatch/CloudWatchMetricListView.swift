@@ -67,11 +67,7 @@ struct CloudWatchMetricListView: View {
         if isLoading && metrics.isEmpty {
             VStack(spacing: 12) {
                 ProgressView("Loading metrics...")
-                if appState.connectionError != nil {
-                    Label("Connection lost — retrying...", systemImage: "bolt.horizontal.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                ConnectionRetryingLabel()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let errorMessage, metrics.isEmpty {

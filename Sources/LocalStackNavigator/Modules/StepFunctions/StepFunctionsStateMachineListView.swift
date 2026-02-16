@@ -62,13 +62,7 @@ struct StepFunctionsStateMachineListView: View {
             machines = []
             loadMachines(force: true)
         }
-        .onChange(of: selectedIDs) {
-            if selectedIDs.count == 1, let id = selectedIDs.first {
-                activeMachine = machines.first { $0.id == id }
-            } else {
-                activeMachine = nil
-            }
-        }
+        .syncSelection(selectedIDs, items: machines, activeItem: $activeMachine)
         .onChange(of: toolbarState.pendingAction) {
             guard let action = toolbarState.pendingAction else { return }
             switch action {
@@ -134,11 +128,7 @@ struct StepFunctionsStateMachineListView: View {
         if isLoading && machines.isEmpty {
             VStack(spacing: 12) {
                 ProgressView("Loading state machines...")
-                if appState.connectionError != nil {
-                    Label("Connection lost — retrying...", systemImage: "bolt.horizontal.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                ConnectionRetryingLabel()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let errorMessage, machines.isEmpty {
@@ -213,7 +203,7 @@ struct StepFunctionsStateMachineListView: View {
                 }
                 .overlay(alignment: .bottom) {
                     if errorMessage != nil {
-                        connectionLostBanner
+                        ConnectionLostBanner()
                     }
                 }
                 .contextMenu {
@@ -252,21 +242,6 @@ struct StepFunctionsStateMachineListView: View {
         case "EXPRESS": .purple
         default: .gray
         }
-    }
-
-    private var connectionLostBanner: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "bolt.horizontal.circle")
-                .font(.caption)
-            Text("Connection lost — showing cached data")
-                .font(.caption)
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity)
-        .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 6))
-        .padding(6)
     }
 
     // MARK: - Data
