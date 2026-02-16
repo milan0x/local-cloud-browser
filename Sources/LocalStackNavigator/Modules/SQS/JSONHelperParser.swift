@@ -11,6 +11,7 @@ struct JSONHelperParser {
         case unexpectedArrayItem(line: Int)
         case emptyKey(line: Int)
         case unterminatedString(line: Int)
+        case duplicateKey(line: Int, key: String)
 
         var description: String {
             switch self {
@@ -22,6 +23,8 @@ struct JSONHelperParser {
                 return "Line \(line): empty key"
             case .unterminatedString(let line):
                 return "Line \(line): unterminated string"
+            case .duplicateKey(let line, let key):
+                return "Line \(line): duplicate key '\(key)'"
             }
         }
     }
@@ -107,6 +110,7 @@ struct JSONHelperParser {
 
     private static func buildObject(from lines: [Line], start: Int, end: Int, baseIndent: Int) throws -> JSONValue {
         var pairs: [(String, JSONValue)] = []
+        var seenKeys: Set<String> = []
         var i = start
 
         while i < end {
@@ -123,6 +127,10 @@ struct JSONHelperParser {
             if key.isEmpty {
                 throw ParseError.emptyKey(line: line.lineNumber)
             }
+            if seenKeys.contains(key) {
+                throw ParseError.duplicateKey(line: line.lineNumber, key: key)
+            }
+            seenKeys.insert(key)
 
             if let rawValue {
                 // Key-value on same line
