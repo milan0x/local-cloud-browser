@@ -147,7 +147,7 @@ struct JSONHelperParserTests {
         #expect(!result.json.isEmpty)
     }
 
-    @Test("Reports error for duplicate keys")
+    @Test("Warns on duplicate keys but still generates JSON")
     func duplicateKey() {
         let input = """
             name: John
@@ -155,9 +155,13 @@ struct JSONHelperParserTests {
             name: Jane
             """
         let result = JSONHelperParser.parse(input)
-        #expect(result.error != nil)
-        #expect(result.error!.contains("duplicate key"))
-        #expect(result.error!.contains("name"))
+        #expect(result.error == nil)
+        #expect(result.warning != nil)
+        #expect(result.warning!.contains("duplicate key"))
+        #expect(result.warning!.contains("name"))
+        // Last value wins
+        #expect(result.json.contains("\"name\": \"Jane\""))
+        #expect(!result.json.contains("\"John\""))
     }
 
     @Test("Bare array items become strings")
@@ -292,5 +296,21 @@ struct JSONHelperParserTests {
         let backToHelper = JSONHelperParser.fromJSON(jsonResult.json)
         #expect(backToHelper != nil)
         #expect(backToHelper!.contains("zipcode: \"10001\""))
+    }
+
+    // MARK: - Duplicate key detection in JSON
+
+    @Test("Detects duplicate keys in JSON text")
+    func findDuplicateKeysInJSON() {
+        let json = "{\"name\": \"John\", \"age\": 30, \"name\": \"Jane\"}"
+        let duplicate = JSONHelperParser.findDuplicateKeys(inJSON: json)
+        #expect(duplicate != nil)
+        #expect(duplicate == "name")
+    }
+
+    @Test("No duplicate keys returns nil")
+    func noDuplicateKeysInJSON() {
+        let json = "{\"name\": \"John\", \"age\": 30}"
+        #expect(JSONHelperParser.findDuplicateKeys(inJSON: json) == nil)
     }
 }
