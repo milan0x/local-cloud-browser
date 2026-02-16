@@ -101,6 +101,7 @@ struct SESIdentityListView: View {
         HStack {
             Text("Identities")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadIdentities(force: true)

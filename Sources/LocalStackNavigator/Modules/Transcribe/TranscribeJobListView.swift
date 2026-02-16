@@ -98,6 +98,7 @@ struct TranscribeJobListView: View {
         HStack {
             Text("Jobs")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadJobs(force: true)

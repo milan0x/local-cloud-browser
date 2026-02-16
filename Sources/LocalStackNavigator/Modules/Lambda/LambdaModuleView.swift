@@ -28,7 +28,7 @@ struct LambdaModuleView: View {
                 activeFunction: $activeFunction,
                 restoreFunctionName: restoreFunctionName
             )
-            .frame(width: 260)
+            .frame(width: 280)
 
             Group {
                 if let function = activeFunction {

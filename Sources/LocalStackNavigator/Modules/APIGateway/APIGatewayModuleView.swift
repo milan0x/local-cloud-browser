@@ -28,7 +28,7 @@ struct APIGatewayModuleView: View {
                 activeAPI: $activeAPI,
                 restoreAPIId: restoreAPIId
             )
-            .frame(width: 260)
+            .frame(width: 280)
 
             Group {
                 if let api = activeAPI {

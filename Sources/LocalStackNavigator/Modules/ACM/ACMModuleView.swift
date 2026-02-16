@@ -28,7 +28,7 @@ struct ACMModuleView: View {
                 activeCertificate: $activeCertificate,
                 restoreCertArn: restoreCertArn
             )
-            .frame(width: 260)
+            .frame(width: 280)
 
             Group {
                 if let cert = activeCertificate {

@@ -27,7 +27,7 @@ struct SNSModuleView: View {
                 activeTopic: $activeTopic,
                 restoreTopicArn: restoreTopicArn
             )
-            .frame(width: 260)
+            .frame(width: 280)
 
             Group {
                 if let topic = activeTopic {

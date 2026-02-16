@@ -27,7 +27,7 @@ struct CloudWatchModuleView: View {
     var body: some View {
         HSplitView {
             leftPane
-                .frame(width: 260)
+                .frame(width: 280)
 
             Group {
                 if tab == .metrics, let metric = activeMetric {
@@ -115,6 +115,7 @@ struct CloudWatchModuleView: View {
         HStack {
             Text("CloudWatch")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {}
 

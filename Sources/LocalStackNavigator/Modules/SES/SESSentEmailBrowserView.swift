@@ -70,10 +70,12 @@ struct SESSentEmailBrowserView: View {
         HStack {
             Text("Sent Emails")
                 .font(.headline)
+                .lineLimit(1)
 
             Text("(\(emails.count))")
                 .font(.headline)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
 
             Spacer()
 

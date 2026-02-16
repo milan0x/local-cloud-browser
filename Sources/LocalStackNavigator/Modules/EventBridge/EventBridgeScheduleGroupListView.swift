@@ -94,6 +94,7 @@ struct EventBridgeScheduleGroupListView: View {
         HStack {
             Text("Schedule Groups")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadGroups(force: true)

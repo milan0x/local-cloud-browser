@@ -170,6 +170,7 @@ struct IAMEntityListView: View {
         HStack {
             Text("IAM")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadEntities(force: true)

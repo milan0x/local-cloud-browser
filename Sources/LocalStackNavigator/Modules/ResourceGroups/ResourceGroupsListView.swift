@@ -97,6 +97,7 @@ struct ResourceGroupsListView: View {
         HStack {
             Text("Resource Groups")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadGroups(force: true)

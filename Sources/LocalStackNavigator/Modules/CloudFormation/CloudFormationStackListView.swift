@@ -108,6 +108,7 @@ struct CloudFormationStackListView: View {
         HStack {
             Text("Stacks")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadStacks(force: true)

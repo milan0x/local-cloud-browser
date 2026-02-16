@@ -28,7 +28,7 @@ struct OpenSearchModuleView: View {
                 activeDomain: $activeDomain,
                 restoreDomainName: restoreDomainName
             )
-            .frame(width: 260)
+            .frame(width: 280)
 
             Group {
                 if let domain = activeDomain {

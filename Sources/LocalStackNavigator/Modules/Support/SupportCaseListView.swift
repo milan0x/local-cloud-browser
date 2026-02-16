@@ -112,6 +112,7 @@ struct SupportCaseListView: View {
         HStack {
             Text("Cases")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadCases(force: true)

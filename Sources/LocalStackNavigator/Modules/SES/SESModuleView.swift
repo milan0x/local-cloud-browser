@@ -28,7 +28,7 @@ struct SESModuleView: View {
                 activeIdentity: $activeIdentity,
                 restoreIdentityName: restoreIdentityName
             )
-            .frame(width: 260)
+            .frame(width: 280)
 
             SESSentEmailBrowserView(
                 service: service,

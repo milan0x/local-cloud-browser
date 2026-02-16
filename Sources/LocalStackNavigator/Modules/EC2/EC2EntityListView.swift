@@ -197,6 +197,7 @@ struct EC2EntityListView: View {
         HStack {
             Text("EC2")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadEntities(force: true)

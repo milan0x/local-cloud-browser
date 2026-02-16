@@ -101,6 +101,7 @@ struct CloudWatchLogsGroupListView: View {
         HStack {
             Text("Log Groups")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadLogGroups(force: true)

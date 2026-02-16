@@ -101,6 +101,7 @@ struct SecretsListView: View {
         HStack {
             Text("Secrets")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadSecrets(force: true)

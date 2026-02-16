@@ -28,7 +28,7 @@ struct SecretsManagerModuleView: View {
                 activeSecret: $activeSecret,
                 restoreSecretName: restoreSecretName
             )
-            .frame(width: 260)
+            .frame(width: 280)
 
             Group {
                 if let secret = activeSecret {

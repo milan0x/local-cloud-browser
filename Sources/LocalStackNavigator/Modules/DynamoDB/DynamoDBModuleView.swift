@@ -29,7 +29,7 @@ struct DynamoDBModuleView: View {
                 tableDetail: $tableDetail,
                 restoreTableName: restoreTableName
             )
-            .frame(width: 260)
+            .frame(width: 280)
 
             Group {
                 if let table = activeTable, let detail = tableDetail {

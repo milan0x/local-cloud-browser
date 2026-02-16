@@ -80,6 +80,7 @@ struct SNSTopicListView: View {
         HStack {
             Text("Topics")
                 .font(.headline)
+                .lineLimit(1)
 
             AutoRefreshIndicatorView(manager: appState.autoRefresh) {
                 loadTopics(force: true)
