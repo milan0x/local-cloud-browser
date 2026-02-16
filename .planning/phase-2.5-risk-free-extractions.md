@@ -164,13 +164,13 @@ Grep to find candidates: `.onChange(of: selected` followed by `count == 1`
 
 ## Execution Steps
 
-1. Create `Navigation/ConnectionLostBanner.swift` with both `ConnectionLostBanner` and `ConnectionRetryingLabel` → `swift build`
-2. Create `Navigation/SyncSelectionModifier.swift` → `swift build`
-3. **Wave 1** (files 1-15): Replace all 3 patterns → `swift build`
-4. **Wave 2** (files 16-32): Replace all 3 patterns → `swift build`
-5. `swift test` — all tests must pass
-6. Update `.planning/deduplication-plan.md` — mark 2.5 complete
-7. Commit
+1. ✅ Create `Navigation/ConnectionLostBanner.swift` with both `ConnectionLostBanner` and `ConnectionRetryingLabel` → `swift build`
+2. ✅ Create `Navigation/SyncSelectionModifier.swift` → `swift build`
+3. ✅ **Wave 1** (files 1-15): Replace all 3 patterns → `swift build`
+4. ✅ **Wave 2** (files 16-32): Replace all 3 patterns → `swift build`
+5. ✅ `swift test` — all tests must pass
+6. ✅ Update `.planning/deduplication-plan.md` — mark 2.5 complete
+7. ✅ Commit
 
 ## Expected Impact
 - ~644 lines saved

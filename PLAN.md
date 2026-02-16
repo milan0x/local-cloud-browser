@@ -457,193 +457,193 @@ Button { ... } label: {
 
 Automated test suite for the project. The codebase has strong separation between pure logic and UI, so most tests can be added **without modifying existing code**. Tests are organized in waves — start with pure-logic unit tests (zero changes needed), then extract a few embedded functions for additional coverage.
 
-### Wave 1: Test Infrastructure Setup
-- [ ] Add `testTarget` to `Package.swift`: name `LocalStackNavigatorTests`, dependency on `LocalStackNavigator`, path `Tests/LocalStackNavigatorTests`
-- [ ] Verify `swift test` runs with an empty test file
-- [ ] Establish test file naming convention: `<SourceFileName>Tests.swift` (e.g. `SNSXMLParserTests.swift`)
+### Wave 1: Test Infrastructure Setup ✅
+- [x] Add `testTarget` to `Package.swift`: name `LocalStackNavigatorTests`, dependency on `LocalStackNavigator`, path `Tests/LocalStackNavigatorTests`
+- [x] Verify `swift test` runs with an empty test file
+- [x] Establish test file naming convention: `<SourceFileName>Tests.swift` (e.g. `SNSXMLParserTests.swift`)
 
-### Wave 2: Parser Tests (Pure Logic — No Code Changes)
+### Wave 2: Parser Tests (Pure Logic — No Code Changes) ✅
 
 All parsers are static/instance methods that take data in and return structured results. Highest-value tests because parsers handle external data (XML/JSON from LocalStack).
 
-#### SNSXMLParser (`Modules/SNS/SNSXMLParser.swift`)
-- [ ] Parse leaf values: `<ListTopicsResponse><ListTopicsResult><Topics><member><TopicArn>arn:...</TopicArn></member></Topics></ListTopicsResult></ListTopicsResponse>` → `first("TopicArn")` returns ARN
-- [ ] Parse `all()`: multiple `<TopicArn>` elements → returns array of all ARNs
-- [ ] Parse attribute dict: `<entry><key>K</key><value>V</value></entry>` pairs → `attributeDict` returns `[String: String]`
-- [ ] Parse member groups: multiple `<member>` blocks with sub-elements → `memberDicts` returns array of `[String: String]`
-- [ ] Error case: malformed XML → `parse()` throws `SNSXMLParseError.parseFailure`
-- [ ] Empty response: valid XML with no data → empty results, no crash
+#### SNSXMLParser (`Modules/SNS/SNSXMLParser.swift`) ✅
+- [x] Parse leaf values: `<ListTopicsResponse><ListTopicsResult><Topics><member><TopicArn>arn:...</TopicArn></member></Topics></ListTopicsResult></ListTopicsResponse>` → `first("TopicArn")` returns ARN
+- [x] Parse `all()`: multiple `<TopicArn>` elements → returns array of all ARNs
+- [x] Parse attribute dict: `<entry><key>K</key><value>V</value></entry>` pairs → `attributeDict` returns `[String: String]`
+- [x] Parse member groups: multiple `<member>` blocks with sub-elements → `memberDicts` returns array of `[String: String]`
+- [x] Error case: malformed XML → `parse()` throws `SNSXMLParseError.parseFailure`
+- [x] Empty response: valid XML with no data → empty results, no crash
 
-#### S3XMLParser (`Modules/S3/S3XMLParser.swift`)
-- [ ] `S3BucketListParser.parse(data:)`: standard `<ListAllMyBucketsResult>` XML → array of `S3Bucket` with name and creation date
-- [ ] `S3ObjectListParser.parse(data:)`: `<ListBucketResult>` XML → `S3ObjectListResult` with objects, prefixes, pagination fields
-- [ ] Pagination fields: `isTruncated`, `nextContinuationToken`, `keyCount`, `maxKeys` parsed correctly
-- [ ] ISO8601 date parsing with fractional seconds (e.g. `2024-01-15T10:30:45.123Z`)
-- [ ] Empty bucket: valid XML with no `<Contents>` → empty objects array, no crash
-- [ ] Common prefixes: `<CommonPrefixes><Prefix>folder/</Prefix></CommonPrefixes>` → parsed as `S3Prefix`
+#### S3XMLParser (`Modules/S3/S3XMLParser.swift`) ✅
+- [x] `S3BucketListParser.parse(data:)`: standard `<ListAllMyBucketsResult>` XML → array of `S3Bucket` with name and creation date
+- [x] `S3ObjectListParser.parse(data:)`: `<ListBucketResult>` XML → `S3ObjectListResult` with objects, prefixes, pagination fields
+- [x] Pagination fields: `isTruncated`, `nextContinuationToken`, `keyCount`, `maxKeys` parsed correctly
+- [x] ISO8601 date parsing with fractional seconds (e.g. `2024-01-15T10:30:45.123Z`)
+- [x] Empty bucket: valid XML with no `<Contents>` → empty objects array, no crash
+- [x] Common prefixes: `<CommonPrefixes><Prefix>folder/</Prefix></CommonPrefixes>` → parsed as `S3Prefix`
 
-#### ServiceError (`Networking/ServiceError.swift`)
-- [ ] XML error format: `<Error><Code>BucketNotEmpty</Code><Message>...</Message></Error>` → `ServiceError` with code and message
-- [ ] JSON error format (SQS): `{"__type": "QueueDoesNotExist", "message": "..."}` → `ServiceError` with code and message
-- [ ] `friendlyMessage` mapping: test all mapped error codes (BucketNotEmpty, BucketAlreadyOwnedByYou, NoSuchBucket, NoSuchKey, QueueDoesNotExist, QueueAlreadyExists, InvalidParameterValue, InvalidAttributeValue, NonExistentQueue, TopicNotFound, NotFound, InvalidAddress)
-- [ ] Unknown error code → falls back to raw `code: message` format
-- [ ] Malformed data (not XML or JSON) → returns `nil`
-- [ ] Empty data → returns `nil`
+#### ServiceError (`Networking/ServiceError.swift`) ✅
+- [x] XML error format: `<Error><Code>BucketNotEmpty</Code><Message>...</Message></Error>` → `ServiceError` with code and message
+- [x] JSON error format (SQS): `{"__type": "QueueDoesNotExist", "message": "..."}` → `ServiceError` with code and message
+- [x] `friendlyMessage` mapping: test all mapped error codes (BucketNotEmpty, BucketAlreadyOwnedByYou, NoSuchBucket, NoSuchKey, QueueDoesNotExist, QueueAlreadyExists, InvalidParameterValue, InvalidAttributeValue, NonExistentQueue, TopicNotFound, NotFound, InvalidAddress)
+- [x] Unknown error code → falls back to raw `code: message` format
+- [x] Malformed data (not XML or JSON) → returns `nil`
+- [x] Empty data → returns `nil`
 
-#### JSONHelperParser (`Modules/SQS/JSONHelperParser.swift`)
-- [ ] Simple object: `key "value"` → `{"key": "value"}`
-- [ ] Nested objects: indented children → nested JSON objects
-- [ ] Arrays: `- "item"` syntax → JSON arrays
-- [ ] All value types: strings, numbers (`42`, `3.14`, `-1`), booleans (`true`/`false`), `null`
-- [ ] Mixed nested structures: objects containing arrays containing objects
-- [ ] String escaping: newlines (`\n`), tabs (`\t`), quotes (`\"`), backslashes (`\\`) preserved correctly
-- [ ] Bidirectional: `parse(input)` → JSON → `fromJSON(json)` → DSL → `parse(dsl)` → same JSON (round-trip)
-- [ ] `fromJSON()` with valid JSON → helper DSL format
-- [ ] `fromJSON()` with invalid JSON → returns `nil`
-- [ ] Error: inconsistent indentation → error with line number
-- [ ] Error: unterminated string → error with line number
-- [ ] Error: invalid value (not string/number/bool/null) → error with line number
-- [ ] Empty input → empty JSON object or appropriate result
-- [ ] Default example: `JSONHelperParser.defaultJSON` parses without error
+#### JSONHelperParser (`Modules/SQS/JSONHelperParser.swift`) ✅
+- [x] Simple object: `key "value"` → `{"key": "value"}`
+- [x] Nested objects: indented children → nested JSON objects
+- [x] Arrays: `- "item"` syntax → JSON arrays
+- [x] All value types: strings, numbers (`42`, `3.14`, `-1`), booleans (`true`/`false`), `null`
+- [x] Mixed nested structures: objects containing arrays containing objects
+- [x] String escaping: newlines (`\n`), tabs (`\t`), quotes (`\"`), backslashes (`\\`) preserved correctly
+- [x] Bidirectional: `parse(input)` → JSON → `fromJSON(json)` → DSL → `parse(dsl)` → same JSON (round-trip)
+- [x] `fromJSON()` with valid JSON → helper DSL format
+- [x] `fromJSON()` with invalid JSON → returns `nil`
+- [x] Error: inconsistent indentation → error with line number
+- [x] Error: unterminated string → error with line number
+- [x] Error: invalid value (not string/number/bool/null) → error with line number
+- [x] Empty input → empty JSON object or appropriate result
+- [x] Default example: `JSONHelperParser.defaultJSON` parses without error
 
-### Wave 3: Model Computed Property Tests (Pure Logic — No Code Changes)
+### Wave 3: Model Computed Property Tests (Pure Logic — No Code Changes) ✅
 
 All models are structs with computed properties — create instances with test data, assert computed values.
 
-#### SQSMessage (`Modules/SQS/SQSModels.swift`)
-- [ ] `bodyType`: `{...}` → "JSON", `<...>` → "XML", anything else → "Text"
-- [ ] `bodySize`: UTF-8 byte count of body
-- [ ] `truncatedId`: ID ≤ 16 chars → full ID; ID > 16 chars → "first8...last4"
-- [ ] `sentTimestampMillis`: present → epoch millis as Double; missing → `0`
-- [ ] `sentTimestamp`: millis → `Date`; missing → `nil`
-- [ ] `approximateReceiveCount`: parses from attributes string
-- [ ] `firstReceiveTimestamp`: parses millis from attributes → `Date`
-- [ ] `messageGroupId`: extracts from `MessageGroupId` attribute; absent → `nil`
-- [ ] `formattedSize(_:)`: bytes → "123 B", kilobytes → "1.5 KB"
+#### SQSMessage (`Modules/SQS/SQSModels.swift`) ✅
+- [x] `bodyType`: `{...}` → "JSON", `<...>` → "XML", anything else → "Text"
+- [x] `bodySize`: UTF-8 byte count of body
+- [x] `truncatedId`: ID ≤ 16 chars → full ID; ID > 16 chars → "first8...last4"
+- [x] `sentTimestampMillis`: present → epoch millis as Double; missing → `0`
+- [x] `sentTimestamp`: millis → `Date`; missing → `nil`
+- [x] `approximateReceiveCount`: parses from attributes string
+- [x] `firstReceiveTimestamp`: parses millis from attributes → `Date`
+- [x] `messageGroupId`: extracts from `MessageGroupId` attribute; absent → `nil`
+- [x] `formattedSize(_:)`: bytes → "123 B", kilobytes → "1.5 KB"
 
-#### SQSQueue (`Modules/SQS/SQSModels.swift`)
-- [ ] `queueName`: extracts last path component from URL (e.g. `http://localhost:4566/000000000000/my-queue` → `my-queue`)
-- [ ] `isFifo`: name ends with `.fifo` → true; otherwise → false
-- [ ] `queueArn(region:)`: constructs `arn:aws:sqs:<region>:<account>:<name>` from URL path
+#### SQSQueue (`Modules/SQS/SQSModels.swift`) ✅
+- [x] `queueName`: extracts last path component from URL (e.g. `http://localhost:4566/000000000000/my-queue` → `my-queue`)
+- [x] `isFifo`: name ends with `.fifo` → true; otherwise → false
+- [x] `queueArn(region:)`: constructs `arn:aws:sqs:<region>:<account>:<name>` from URL path
 
-#### SQSQueueAttributes (`Modules/SQS/SQSModels.swift`)
-- [ ] `init(from:)`: parses all 16+ attribute fields from `[String: String]` dict
-- [ ] Timestamp conversion: Unix epoch string → `Date`
-- [ ] Boolean parsing: "true"/"false" strings → Bool
-- [ ] Redrive policy: nested JSON string `{"deadLetterTargetArn":"...","maxReceiveCount":3}` → `SQSRedrivePolicy`
-- [ ] Missing fields: absent keys → default values (nil, 0, false)
+#### SQSQueueAttributes (`Modules/SQS/SQSModels.swift`) ✅
+- [x] `init(from:)`: parses all 16+ attribute fields from `[String: String]` dict
+- [x] Timestamp conversion: Unix epoch string → `Date`
+- [x] Boolean parsing: "true"/"false" strings → Bool
+- [x] Redrive policy: nested JSON string `{"deadLetterTargetArn":"...","maxReceiveCount":3}` → `SQSRedrivePolicy`
+- [x] Missing fields: absent keys → default values (nil, 0, false)
 
-#### SNSTopic (`Modules/SNS/SNSModels.swift`)
-- [ ] `topicName`: extracts from ARN (e.g. `arn:aws:sns:us-east-1:000000000000:my-topic` → `my-topic`)
-- [ ] `isFifo`: name ends with `.fifo` → true
+#### SNSTopic (`Modules/SNS/SNSModels.swift`) ✅
+- [x] `topicName`: extracts from ARN (e.g. `arn:aws:sns:us-east-1:000000000000:my-topic` → `my-topic`)
+- [x] `isFifo`: name ends with `.fifo` → true
 
-#### SNSSubscription (`Modules/SNS/SNSModels.swift`)
-- [ ] `isPending`: ARN == "PendingConfirmation" → true; real ARN → false
-- [ ] `truncatedArn`: short ARN → full; long ARN → "first12...last6"
-- [ ] `truncatedEndpoint`: short → full; long → "first30...last15"
+#### SNSSubscription (`Modules/SNS/SNSModels.swift`) ✅
+- [x] `isPending`: ARN == "PendingConfirmation" → true; real ARN → false
+- [x] `truncatedArn`: short ARN → full; long ARN → "first12...last6"
+- [x] `truncatedEndpoint`: short → full; long → "first30...last15"
 
-#### SNSTopicAttributes / SNSSubscriptionAttributes (`Modules/SNS/SNSModels.swift`)
-- [ ] `init(from:)`: parses all fields from `[String: String]` dict
-- [ ] Subscription count parsing (confirmed, pending, deleted) from string → Int
-- [ ] Boolean fields ("true"/"false" → Bool)
+#### SNSTopicAttributes / SNSSubscriptionAttributes (`Modules/SNS/SNSModels.swift`) ✅
+- [x] `init(from:)`: parses all fields from `[String: String]` dict
+- [x] Subscription count parsing (confirmed, pending, deleted) from string → Int
+- [x] Boolean fields ("true"/"false" → Bool)
 
-#### DynamoDBItem (`Modules/DynamoDB/DynamoDBModels.swift`)
-- [ ] `id`: stable identity from all sorted attributes
-- [ ] `id(keySchema:)`: identity from primary key values
-- [ ] `keyValue(for:)`: extracts display value for a key attribute
-- [ ] `attributesPreview(excluding:maxCount:)`: first N non-key attributes as string, "+N more" suffix
-- [ ] `primaryKey(keySchema:)`: extracts key dict for GetItem/DeleteItem
-- [ ] `toJSON()` / `toDisplayJSON()`: full item to DynamoDB JSON / pretty-printed JSON
-- [ ] `fromJSON()`: parses item from DynamoDB JSON response
+#### DynamoDBItem (`Modules/DynamoDB/DynamoDBModels.swift`) ✅
+- [x] `id`: stable identity from all sorted attributes
+- [x] `id(keySchema:)`: identity from primary key values
+- [x] `keyValue(for:)`: extracts display value for a key attribute
+- [x] `attributesPreview(excluding:maxCount:)`: first N non-key attributes as string, "+N more" suffix
+- [x] `primaryKey(keySchema:)`: extracts key dict for GetItem/DeleteItem
+- [x] `toJSON()` / `toDisplayJSON()`: full item to DynamoDB JSON / pretty-printed JSON
+- [x] `fromJSON()`: parses item from DynamoDB JSON response
 
-#### AttributeValue (`Modules/DynamoDB/DynamoDBModels.swift`)
-- [ ] `fromJSON()`: all 10 types (S, N, B, BOOL, NULL, L, M, SS, NS, BS)
-- [ ] `fromJSON()` LocalStack quirks: N as `NSNumber`, BOOL as `NSNumber` (0/1), NS as `[NSNumber]`
-- [ ] `toJSON()`: round-trip — `fromJSON(toJSON())` == original for all types
-- [ ] `displayString`: all types render expected text
-- [ ] `typeBadge`: S → "S", N → "N", BOOL → "BOOL", etc.
-- [ ] Nested types: list containing maps, maps containing lists
-- [ ] Unknown/empty dict → `fromJSON` returns `nil`
+#### AttributeValue (`Modules/DynamoDB/DynamoDBModels.swift`) ✅
+- [x] `fromJSON()`: all 10 types (S, N, B, BOOL, NULL, L, M, SS, NS, BS)
+- [x] `fromJSON()` LocalStack quirks: N as `NSNumber`, BOOL as `NSNumber` (0/1), NS as `[NSNumber]`
+- [x] `toJSON()`: round-trip — `fromJSON(toJSON())` == original for all types
+- [x] `displayString`: all types render expected text
+- [x] `typeBadge`: S → "S", N → "N", BOOL → "BOOL", etc.
+- [x] Nested types: list containing maps, maps containing lists
+- [x] Unknown/empty dict → `fromJSON` returns `nil`
 
-#### SSMParameter / SSMParameterValue (`Modules/SSM/SSMModels.swift`)
-- [ ] `SSMParameter.init(from:)`: parses all fields from `[String: Any]` dict
-- [ ] `SSMParameter.isSecureString`: type == "SecureString" → true; otherwise → false
-- [ ] `SSMParameter.displayType`: returns type string
-- [ ] `SSMParameter.getParameterCLI()`: generates valid `aws ssm get-parameter` with name, endpoint, region; SecureString includes `--with-decryption`
-- [ ] `SSMParameter.describeParametersCLI()`: generates valid `aws ssm describe-parameters` with filter
-- [ ] Shell escaping: single quotes in parameter names
-- [ ] `SSMParameterValue.init(from:)`: unwraps `Parameter` key from GetParameter response
-- [ ] `SSMParameterValue.isJSON`: `{...}` or `[...` → true
-- [ ] `SSMParameterValue.prettyPrinted`: valid JSON → formatted; non-JSON → nil
-- [ ] `SSMParameterValue.displayValue`: prettyPrinted if JSON, raw value otherwise
+#### SSMParameter / SSMParameterValue (`Modules/SSM/SSMModels.swift`) ✅
+- [x] `SSMParameter.init(from:)`: parses all fields from `[String: Any]` dict
+- [x] `SSMParameter.isSecureString`: type == "SecureString" → true; otherwise → false
+- [x] `SSMParameter.displayType`: returns type string
+- [x] `SSMParameter.getParameterCLI()`: generates valid `aws ssm get-parameter` with name, endpoint, region; SecureString includes `--with-decryption`
+- [x] `SSMParameter.describeParametersCLI()`: generates valid `aws ssm describe-parameters` with filter
+- [x] Shell escaping: single quotes in parameter names
+- [x] `SSMParameterValue.init(from:)`: unwraps `Parameter` key from GetParameter response
+- [x] `SSMParameterValue.isJSON`: `{...}` or `[...` → true
+- [x] `SSMParameterValue.prettyPrinted`: valid JSON → formatted; non-JSON → nil
+- [x] `SSMParameterValue.displayValue`: prettyPrinted if JSON, raw value otherwise
 
-#### DynamoDBTableDetail (`Modules/DynamoDB/DynamoDBModels.swift`)
-- [ ] `init(from:)`: parses all fields from `[String: Any]` dict
-- [ ] `partitionKey` / `sortKey`: extracts from keySchema by HASH/RANGE
-- [ ] `attributeType(for:)`: looks up type from attribute definitions
-- [ ] Missing fields: absent keys → default values
+#### DynamoDBTableDetail (`Modules/DynamoDB/DynamoDBModels.swift`) ✅
+- [x] `init(from:)`: parses all fields from `[String: Any]` dict
+- [x] `partitionKey` / `sortKey`: extracts from keySchema by HASH/RANGE
+- [x] `attributeType(for:)`: looks up type from attribute definitions
+- [x] Missing fields: absent keys → default values
 
-#### S3Object (`Modules/S3/S3Models.swift`)
-- [ ] `isFolder`: key ends with `/` → true; otherwise → false
-- [ ] `displayName`: extracts filename from full key path (e.g. `folder/sub/file.txt` → `file.txt`)
-- [ ] `formattedSize`: uses ByteCountFormatter, folders → `"--"`
+#### S3Object (`Modules/S3/S3Models.swift`) ✅
+- [x] `isFolder`: key ends with `/` → true; otherwise → false
+- [x] `displayName`: extracts filename from full key path (e.g. `folder/sub/file.txt` → `file.txt`)
+- [x] `formattedSize`: uses ByteCountFormatter, folders → `"--"`
 
-#### S3Prefix (`Modules/S3/S3Models.swift`)
-- [ ] `displayName`: extracts folder name from prefix (e.g. `folder/subfolder/` → `subfolder`)
+#### S3Prefix (`Modules/S3/S3Models.swift`) ✅
+- [x] `displayName`: extracts folder name from prefix (e.g. `folder/subfolder/` → `subfolder`)
 
 #### S3FileKind (`Modules/S3/S3FileKind.swift`)
 - [ ] `kind(for:)`: common extensions → UTType descriptions
 - [ ] `icon(for:)`: folders → `"folder.fill"`, images → `"photo"`, videos → `"film"`, audio → `"music.note"`, archives → `"doc.zipper"`, PDF → `"doc.richtext"`, JSON/XML → `"doc.text"`, unknown → `"doc"`
 
-### Wave 4: CLI Helper Tests (Pure Logic — No Code Changes)
+### Wave 4: CLI Helper Tests (Pure Logic — No Code Changes) ✅
 
 All CLI generators are methods on model structs — create instance, call method, assert output string.
 
-#### SQS CLI Helpers
-- [ ] `SQSMessage.toAWSCLI()`: generates valid `aws sqs send-message` with queue URL, endpoint, region, body (shell-escaped)
-- [ ] Shell escaping: single quotes in body (`O'Reilly` → `O'\''Reilly`)
-- [ ] FIFO messages: includes `--message-group-id` flag
-- [ ] `SQSQueue.sendMessageCLI()`, `receiveMessageCLI()`, `getAttributesCLI()`: correct command structure with backslash continuations
+#### SQS CLI Helpers ✅
+- [x] `SQSMessage.toAWSCLI()`: generates valid `aws sqs send-message` with queue URL, endpoint, region, body (shell-escaped)
+- [x] Shell escaping: single quotes in body (`O'Reilly` → `O'\''Reilly`)
+- [x] FIFO messages: includes `--message-group-id` flag
+- [x] `SQSQueue.sendMessageCLI()`, `receiveMessageCLI()`, `getAttributesCLI()`: correct command structure with backslash continuations
 
-#### DynamoDB CLI Helpers
-- [ ] `DynamoDBTable.describeTableCLI()`, `scanTableCLI()`, `deleteTableCLI()`: correct `aws dynamodb` commands with backslash continuations
-- [ ] `DynamoDBItem.putItemCLI()`: generates `aws dynamodb put-item` with item JSON (shell-escaped)
-- [ ] `DynamoDBItem.getItemCLI()`: generates `aws dynamodb get-item` with key JSON (shell-escaped)
-- [ ] Shell escaping: single quotes in table names and values
+#### DynamoDB CLI Helpers ✅
+- [x] `DynamoDBTable.describeTableCLI()`, `scanTableCLI()`, `deleteTableCLI()`: correct `aws dynamodb` commands with backslash continuations
+- [x] `DynamoDBItem.putItemCLI()`: generates `aws dynamodb put-item` with item JSON (shell-escaped)
+- [x] `DynamoDBItem.getItemCLI()`: generates `aws dynamodb get-item` with key JSON (shell-escaped)
+- [x] Shell escaping: single quotes in table names and values
 
-#### SNS CLI Helpers
-- [ ] `SNSTopic.publishCLI()`, `listSubscriptionsCLI()`, `getAttributesCLI()`: correct `aws sns` commands
-- [ ] FIFO topics: `publishCLI()` includes `--message-group-id`
-- [ ] `SNSSubscription.getAttributesCLI()`: correct `aws sns get-subscription-attributes` command
-- [ ] Shell escaping in all generators
+#### SNS CLI Helpers ✅
+- [x] `SNSTopic.publishCLI()`, `listSubscriptionsCLI()`, `getAttributesCLI()`: correct `aws sns` commands
+- [x] FIFO topics: `publishCLI()` includes `--message-group-id`
+- [x] `SNSSubscription.getAttributesCLI()`: correct `aws sns get-subscription-attributes` command
+- [x] Shell escaping in all generators
 
-#### SSM CLI Helpers
-- [ ] `SSMParameter.getParameterCLI()`: correct `aws ssm get-parameter` with backslash continuations
-- [ ] `SSMParameter.describeParametersCLI()`: correct `aws ssm describe-parameters` with filter
-- [ ] SecureString parameter: `getParameterCLI()` includes `--with-decryption`
-- [ ] Shell escaping: single quotes in parameter names
+#### SSM CLI Helpers ✅
+- [x] `SSMParameter.getParameterCLI()`: correct `aws ssm get-parameter` with backslash continuations
+- [x] `SSMParameter.describeParametersCLI()`: correct `aws ssm describe-parameters` with filter
+- [x] SecureString parameter: `getParameterCLI()` includes `--with-decryption`
+- [x] Shell escaping: single quotes in parameter names
 
-### Wave 5: Safety & Validation Tests (Pure Logic — No Code Changes)
+### Wave 5: Safety & Validation Tests (Pure Logic — No Code Changes) ✅
 
-#### SafetyGuard (`Safety/SafetyGuard.swift`)
-- [ ] `http://localhost:4566` → `.local`
-- [ ] `http://127.0.0.1:4566` → `.local`
-- [ ] `http://[::1]:4566` → `.local`
-- [ ] `http://myserver.local:4566` → `.local`
-- [ ] `http://example.com` → `.cautionNonLocal`
-- [ ] `http://192.168.1.100:4566` → `.cautionNonLocal`
-- [ ] Malformed URL → `.cautionNonLocal`
-- [ ] Empty string → `.cautionNonLocal`
+#### SafetyGuard (`Safety/SafetyGuard.swift`) ✅
+- [x] `http://localhost:4566` → `.local`
+- [x] `http://127.0.0.1:4566` → `.local`
+- [x] `http://[::1]:4566` → `.local`
+- [x] `http://myserver.local:4566` → `.local`
+- [x] `http://example.com` → `.cautionNonLocal`
+- [x] `http://192.168.1.100:4566` → `.cautionNonLocal`
+- [x] Malformed URL → `.cautionNonLocal`
+- [x] Empty string → `.cautionNonLocal`
 
-#### ReadOnlyInterceptor (`Safety/ReadOnlyInterceptor.swift`)
-- [ ] GET when read-only → allowed
-- [ ] HEAD when read-only → allowed
-- [ ] POST when read-only → blocked
-- [ ] PUT when read-only → blocked
-- [ ] DELETE when read-only → blocked
-- [ ] PATCH when read-only → blocked
-- [ ] All methods when not read-only → allowed
-- [ ] Case insensitivity: `post` and `POST` both blocked
+#### ReadOnlyInterceptor (`Safety/ReadOnlyInterceptor.swift`) ✅
+- [x] GET when read-only → allowed
+- [x] HEAD when read-only → allowed
+- [x] POST when read-only → blocked
+- [x] PUT when read-only → blocked
+- [x] DELETE when read-only → blocked
+- [x] PATCH when read-only → blocked
+- [x] All methods when not read-only → allowed
+- [x] Case insensitivity: `post` and `POST` both blocked
 
 ### Wave 6: Codable Model Tests (Pure Logic — No Code Changes)
 
@@ -654,10 +654,10 @@ Round-trip serialization tests ensure models survive encode/decode without data 
 - [ ] `displayName` returns expected string for each case
 - [ ] `systemImage` returns valid SF Symbol name for each case
 
-#### AWSRegion (`App/AWSRegion.swift`)
-- [ ] `isValid()`: all 44 region codes return true
-- [ ] `isValid()`: invalid code → false
-- [ ] `find()`: valid code → correct `AWSRegion`; invalid → `nil`
+#### AWSRegion (`App/AWSRegion.swift`) ✅
+- [x] `isValid()`: all 44 region codes return true
+- [x] `isValid()`: invalid code → false
+- [x] `find()`: valid code → correct `AWSRegion`; invalid → `nil`
 
 #### LastSessionState (`App/LastSessionStore.swift`)
 - [ ] Encode → decode round-trip preserves all fields
