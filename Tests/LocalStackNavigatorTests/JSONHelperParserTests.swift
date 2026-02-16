@@ -164,6 +164,45 @@ struct JSONHelperParserTests {
         #expect(!result.json.contains("\"John\""))
     }
 
+    @Test("Warns on duplicate keys in nested objects")
+    func duplicateKeyNested() {
+        let input = """
+            user:
+                name: Alice
+                age: 30
+                name: Bob
+            """
+        let result = JSONHelperParser.parse(input)
+        #expect(result.error == nil)
+        #expect(result.warning != nil)
+        #expect(result.warning!.contains("duplicate key"))
+        #expect(result.warning!.contains("name"))
+        #expect(result.json.contains("\"name\": \"Bob\""))
+    }
+
+    @Test("Same key at different nesting levels is not a duplicate")
+    func sameKeyDifferentLevels() {
+        let input = """
+            name: Alice
+            address:
+                name: Home
+            """
+        let result = JSONHelperParser.parse(input)
+        #expect(result.error == nil)
+        #expect(result.warning == nil)
+    }
+
+    @Test("No warning when no duplicates")
+    func noDuplicateWarning() {
+        let input = """
+            name: Alice
+            age: 25
+            """
+        let result = JSONHelperParser.parse(input)
+        #expect(result.error == nil)
+        #expect(result.warning == nil)
+    }
+
     @Test("Bare array items become strings")
     func bareArrayItems() {
         let input = """
@@ -312,5 +351,33 @@ struct JSONHelperParserTests {
     func noDuplicateKeysInJSON() {
         let json = "{\"name\": \"John\", \"age\": 30}"
         #expect(JSONHelperParser.findDuplicateKeys(inJSON: json) == nil)
+    }
+
+    @Test("Detects duplicate keys in nested JSON objects")
+    func findDuplicateKeysNestedJSON() {
+        let json = "{\"user\": {\"name\": \"Alice\", \"name\": \"Bob\"}}"
+        let duplicate = JSONHelperParser.findDuplicateKeys(inJSON: json)
+        #expect(duplicate != nil)
+        #expect(duplicate == "user.name")
+    }
+
+    // MARK: - Edge cases
+
+    @Test("Errors on empty key (bare colon)")
+    func emptyKey() {
+        let input = ": value"
+        let result = JSONHelperParser.parse(input)
+        #expect(result.error != nil)
+        #expect(result.error!.contains("empty key"))
+    }
+
+    @Test("Reverse parser quotes strings with special characters")
+    func fromJSONSpecialChars() {
+        let json = "{\"msg\": \"line1\\nline2\", \"path\": \"C:\\\\dir\"}"
+        let helper = JSONHelperParser.fromJSON(json)
+        #expect(helper != nil)
+        // Strings with newlines/backslashes need quoting
+        #expect(helper!.contains("msg: \""))
+        #expect(helper!.contains("path: \""))
     }
 }
