@@ -119,6 +119,7 @@ struct DynamoDBTableListView: View {
                     Text(table.tableName)
                         .fontWeight(.medium)
                         .lineLimit(1)
+                        .padding(.vertical, 3)
                         .foregroundStyle(selectedTableIDs.contains(table.id) ? Color.white : Color.primary)
                         .tag(table.id)
                         .contextMenu {
