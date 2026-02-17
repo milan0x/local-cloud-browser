@@ -492,6 +492,10 @@ struct S3ObjectBrowserView: View {
                 }
                 .disabled(appState.isReadOnly || appState.s3Clipboard == nil || isPasting)
             }
+            .overlay {
+                dropTargetOverlay
+            }
+            .onDrop(of: [.fileURL], isTargeted: $isDropTargeted, perform: handleDrop)
         } else {
             VStack(spacing: 0) {
                 if isSearchActive && sortedRowItems.isEmpty {
@@ -503,44 +507,53 @@ struct S3ObjectBrowserView: View {
                 statusBar
             }
             .overlay {
-                if isDropTargeted && !appState.isReadOnly {
-                    RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
-                        .background(Color.accentColor.opacity(0.06))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .padding(4)
+                dropTargetOverlay
+            }
+            .onDrop(of: [.fileURL], isTargeted: $isDropTargeted, perform: handleDrop)
+        }
+    }
+
+    // MARK: - Drop Target
+
+    @ViewBuilder
+    private var dropTargetOverlay: some View {
+        if isDropTargeted && !appState.isReadOnly {
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
+                .background(Color.accentColor.opacity(0.06))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .padding(4)
+        }
+    }
+
+    private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
+        guard !appState.isReadOnly else { return false }
+        let validProviders = providers.filter { $0.hasItemConformingToTypeIdentifier("public.file-url") }
+        guard !validProviders.isEmpty else { return false }
+        Task {
+            var fileURLs: [URL] = []
+            var folderURLs: [URL] = []
+            for provider in validProviders {
+                if let url: URL = await withCheckedContinuation({ continuation in
+                    _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                        continuation.resume(returning: url)
+                    }
+                }) {
+                    if url.hasDirectoryPath {
+                        folderURLs.append(url)
+                    } else {
+                        fileURLs.append(url)
+                    }
                 }
             }
-            .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
-                guard !appState.isReadOnly else { return false }
-                let validProviders = providers.filter { $0.hasItemConformingToTypeIdentifier("public.file-url") }
-                guard !validProviders.isEmpty else { return false }
-                Task {
-                    var fileURLs: [URL] = []
-                    var folderURLs: [URL] = []
-                    for provider in validProviders {
-                        if let url: URL = await withCheckedContinuation({ continuation in
-                            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                                continuation.resume(returning: url)
-                            }
-                        }) {
-                            if url.hasDirectoryPath {
-                                folderURLs.append(url)
-                            } else {
-                                fileURLs.append(url)
-                            }
-                        }
-                    }
-                    if !fileURLs.isEmpty {
-                        await uploadFiles(from: fileURLs)
-                    }
-                    if !folderURLs.isEmpty {
-                        uploadFolderURLs(from: folderURLs)
-                    }
-                }
-                return true
+            if !fileURLs.isEmpty {
+                await uploadFiles(from: fileURLs)
+            }
+            if !folderURLs.isEmpty {
+                uploadFolderURLs(from: folderURLs)
             }
         }
+        return true
     }
 
     // MARK: - Status Bar
