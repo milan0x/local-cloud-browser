@@ -26,6 +26,8 @@ struct SidebarView: View {
                     }
                 } header: {
                     Text(group.category.displayName)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                         .onTapGesture { toggleCategory(group.category) }
                 }
             }
