@@ -32,7 +32,6 @@ struct S3ObjectBrowserView: View {
     @State private var sortOrder: [KeyPathComparator<RowItem>] = [KeyPathComparator(\RowItem.dateValue, order: .reverse)]
     @SceneStorage("S3ObjectColumns") private var columnCustomization: TableColumnCustomization<RowItem>
     @State private var isDropTargeted = false
-    @State private var showFolderDropWarning = false
     @State private var selectedRowIDs: Set<RowItem.ID> = []
     @State private var serviceError: ServiceError?
     @State private var showCreateFolder = false
@@ -74,6 +73,10 @@ struct S3ObjectBrowserView: View {
     // Folder download
     @State private var folderDownloadProgress: (current: Int, total: Int)?
     @State private var emptyFolderAlert = false
+
+    // Folder upload
+    @State private var folderUploadProgress: (current: Int, total: Int)?
+    @State private var folderUploadTask: Task<Void, Never>?
 
     // Copy/paste
     @State private var isPasting = false
@@ -127,6 +130,7 @@ struct S3ObjectBrowserView: View {
             || selectedFolderPrefix != nil
             || itemToRename != nil
             || folderDownloadProgress != nil
+            || folderUploadProgress != nil
     }
 
     var body: some View {
@@ -177,7 +181,8 @@ struct S3ObjectBrowserView: View {
                 case .navigateForward: navigateForward()
                 case .showPolicy: showPolicyEditor = true
                 case .createFolder: showCreateFolder = true
-                case .upload: uploadFile()
+                case .uploadFile: uploadFile()
+                case .uploadFolder: uploadFolder()
                 case .deleteSelected: deleteSelectedItems()
                 }
             }
@@ -374,11 +379,6 @@ struct S3ObjectBrowserView: View {
             let names = collisionItems.joined(separator: "\n")
             Text("The destination already contains items with these names:\n\n\(names)\n\n• Matching items will be replaced\n• Other existing items will remain untouched\n• New items will be added")
         }
-        .alert("Folder Upload Not Supported", isPresented: $showFolderDropWarning) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Dropping folders is not supported yet. You can drop one or multiple files at once instead.")
-        }
     }
 
     private var browsePickerSheet: some View {
@@ -482,6 +482,10 @@ struct S3ObjectBrowserView: View {
                     uploadFile()
                 }
                 .disabled(appState.isReadOnly)
+                Button("Upload Folder") {
+                    uploadFolder()
+                }
+                .disabled(appState.isReadOnly)
                 Divider()
                 Button(pasteLabel) {
                     requestPaste()
@@ -512,8 +516,8 @@ struct S3ObjectBrowserView: View {
                 let validProviders = providers.filter { $0.hasItemConformingToTypeIdentifier("public.file-url") }
                 guard !validProviders.isEmpty else { return false }
                 Task {
-                    var urls: [URL] = []
-                    var hasFolder = false
+                    var fileURLs: [URL] = []
+                    var folderURLs: [URL] = []
                     for provider in validProviders {
                         if let url: URL = await withCheckedContinuation({ continuation in
                             _ = provider.loadObject(ofClass: URL.self) { url, _ in
@@ -521,17 +525,17 @@ struct S3ObjectBrowserView: View {
                             }
                         }) {
                             if url.hasDirectoryPath {
-                                hasFolder = true
+                                folderURLs.append(url)
                             } else {
-                                urls.append(url)
+                                fileURLs.append(url)
                             }
                         }
                     }
-                    if !urls.isEmpty {
-                        await uploadFiles(from: urls)
+                    if !fileURLs.isEmpty {
+                        await uploadFiles(from: fileURLs)
                     }
-                    if hasFolder {
-                        showFolderDropWarning = true
+                    if !folderURLs.isEmpty {
+                        uploadFolderURLs(from: folderURLs)
                     }
                 }
                 return true
@@ -583,6 +587,21 @@ struct S3ObjectBrowserView: View {
                     Text("Downloading folder... (\(progress.current)/\(progress.total))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+            }
+
+            if let progress = folderUploadProgress {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.mini)
+                    Text("Uploading... (\(progress.current)/\(progress.total))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button { folderUploadTask?.cancel() } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.borderless)
                 }
             }
 
@@ -1814,6 +1833,77 @@ struct S3ObjectBrowserView: View {
                 } else {
                     errorMessage = error.localizedDescription
                 }
+            }
+        }
+    }
+
+    private func uploadFolder() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.message = "Select a folder to upload"
+        let response = panel.runModal()
+        guard response == .OK, let url = panel.url else { return }
+        uploadFolderURLs(from: [url])
+    }
+
+    private func uploadFolderURLs(from folderURLs: [URL]) {
+        guard folderUploadProgress == nil else { return }
+
+        // Enumerate all files from all folders
+        var filesToUpload: [(localURL: URL, s3Key: String)] = []
+        for folderURL in folderURLs {
+            let folderName = folderURL.lastPathComponent
+            guard let enumerator = FileManager.default.enumerator(
+                at: folderURL,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles]
+            ) else { continue }
+
+            for case let fileURL as URL in enumerator {
+                guard let resourceValues = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]),
+                      resourceValues.isRegularFile == true else { continue }
+                let relativePath = fileURL.path.replacingOccurrences(of: folderURL.path + "/", with: "")
+                let s3Key = currentPrefix + folderName + "/" + relativePath
+                filesToUpload.append((localURL: fileURL, s3Key: s3Key))
+            }
+        }
+
+        guard !filesToUpload.isEmpty else { return }
+
+        folderUploadProgress = (current: 0, total: filesToUpload.count)
+        folderUploadTask = Task {
+            var failedCount = 0
+            var lastError: ServiceError?
+
+            for (index, file) in filesToUpload.enumerated() {
+                if Task.isCancelled { break }
+                do {
+                    let data = try Data(contentsOf: file.localURL)
+                    let contentType = UTType(filenameExtension: file.localURL.pathExtension)?.preferredMIMEType
+                        ?? "application/octet-stream"
+                    try await service.putObject(bucket: bucket.name, key: file.s3Key, data: data, contentType: contentType)
+                } catch {
+                    failedCount += 1
+                    if let clientError = error as? LocalStackClientError,
+                       let parsed = clientError.serviceError {
+                        lastError = parsed
+                    } else {
+                        lastError = ServiceError(code: "UploadError", message: error.localizedDescription)
+                    }
+                }
+                folderUploadProgress = (current: index + 1, total: filesToUpload.count)
+            }
+
+            folderUploadProgress = nil
+            folderUploadTask = nil
+            loadObjects(force: true)
+            if let lastError {
+                serviceError = ServiceError(
+                    code: lastError.code,
+                    message: "\(failedCount) file\(failedCount == 1 ? "" : "s") failed to upload. Last error: \(lastError.message)"
+                )
             }
         }
     }

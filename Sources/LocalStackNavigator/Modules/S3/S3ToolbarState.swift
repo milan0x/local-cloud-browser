@@ -21,7 +21,8 @@ final class S3ToolbarState: ObservableObject {
         case navigateForward
         case showPolicy
         case createFolder
-        case upload
+        case uploadFile
+        case uploadFolder
         case deleteSelected
     }
 
@@ -73,11 +74,14 @@ struct S3Toolbar: ToolbarContent {
             .disabled(!hasBucket || isReadOnly)
         }
         ToolbarItem(placement: .primaryAction) {
-            Button { state.pendingAction = .upload } label: {
+            Menu {
+                Button("Upload File") { state.pendingAction = .uploadFile }
+                Button("Upload Folder") { state.pendingAction = .uploadFolder }
+            } label: {
                 Label("Upload", systemImage: "plus")
                     .toolbarHitTarget()
             }
-            .help("Upload File")
+            .help("Upload")
             .disabled(!hasBucket || isReadOnly)
         }
         ToolbarItem(placement: .primaryAction) {
