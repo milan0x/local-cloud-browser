@@ -15,6 +15,7 @@ struct SNSTopicListView: View {
     @State private var topicsToDelete: [SNSTopic] = []
     @State private var serviceError: ServiceError?
     @State private var topicToShowAttributes: SNSTopic?
+    @State private var searchText = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -52,6 +53,12 @@ struct SNSTopicListView: View {
         .syncSelection(selectedTopicIDs, items: topics, activeItem: $activeTopic)
     }
 
+    private var filteredTopics: [SNSTopic] {
+        guard !searchText.isEmpty else { return topics }
+        let query = searchText.lowercased()
+        return topics.filter { $0.topicName.lowercased().contains(query) }
+    }
+
     private var topicDeleteDisabled: Bool {
         appState.isReadOnly || selectedTopicIDs.isEmpty
     }
@@ -75,12 +82,19 @@ struct SNSTopicListView: View {
 
     private var topicListContent: some View {
         ListLoadingContent(isLoading: loader.isLoading, isEmpty: topics.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading topics...", onRetry: { loadTopics(force: true) }) {
-            List(selection: $selectedTopicIDs) {
-                if topics.isEmpty {
-                    EmptyStateView(icon: "bell", message: "No topics")
-                        .listRowSeparator(.hidden)
+            VStack(spacing: 0) {
+                if topics.count > 5 {
+                    SearchBarView(query: $searchText, placeholder: "Filter topics")
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                    Divider()
                 }
-                ForEach(topics) { topic in
+                List(selection: $selectedTopicIDs) {
+                    if topics.isEmpty {
+                        EmptyStateView(icon: "bell", message: "No topics")
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(filteredTopics) { topic in
                 VStack(alignment: .leading, spacing: 3) {
                     Text(topic.topicName)
                         .fontWeight(.medium)
@@ -153,6 +167,7 @@ struct SNSTopicListView: View {
                     topicToShowAttributes = topic
                 }
             })
+            }
         }
     }
 

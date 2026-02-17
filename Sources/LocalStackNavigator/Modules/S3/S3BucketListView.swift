@@ -18,6 +18,7 @@ struct S3BucketListView: View {
     @State private var forceDeleteBuckets: [S3Bucket] = []
     @State private var forceDeleteConfirmation = ""
     @State private var isForceDeleting = false
+    @State private var searchText = ""
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -108,6 +109,12 @@ struct S3BucketListView: View {
         .syncSelection(selectedBucketIDs, items: buckets, activeItem: $activeBucket)
     }
 
+    private var filteredBuckets: [S3Bucket] {
+        guard !searchText.isEmpty else { return buckets }
+        let query = searchText.lowercased()
+        return buckets.filter { $0.name.lowercased().contains(query) }
+    }
+
     private var bucketDeleteDisabled: Bool {
         appState.isReadOnly || selectedBucketIDs.isEmpty || toolbarState.hasSelection
     }
@@ -148,67 +155,77 @@ struct S3BucketListView: View {
                     .disabled(appState.isReadOnly)
                 }
             } else {
-                List(buckets, selection: $selectedBucketIDs) { bucket in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(bucket.name)
-                            .fontWeight(.medium)
-                        if let date = bucket.creationDate {
-                            Text(Self.dateFormatter.string(from: date))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                VStack(spacing: 0) {
+                    if buckets.count > 5 {
+                        SearchBarView(query: $searchText, placeholder: "Filter buckets")
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                        Divider()
+                    }
+                    List(selection: $selectedBucketIDs) {
+                        ForEach(filteredBuckets) { bucket in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(bucket.name)
+                                    .fontWeight(.medium)
+                                if let date = bucket.creationDate {
+                                    Text(Self.dateFormatter.string(from: date))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .foregroundStyle(selectedBucketIDs.contains(bucket.id) ? Color.white : Color.primary)
+                            .tag(bucket.id)
+                            .contextMenu {
+                                Button("Open in New Window") {
+                                    openWindow(value: S3BrowserTarget(bucket: bucket.name, prefix: nil))
+                                }
+                                Divider()
+                                if selectedBucketIDs.count > 1 && selectedBucketIDs.contains(bucket.id) {
+                                    let selected = buckets.filter { selectedBucketIDs.contains($0.id) }
+                                    let names = selected.map(\.name)
+                                    let uris = names.map { "s3://\($0)" }
+                                    Button("Copy \(names.count) Names") { copyToClipboard(names.joined(separator: "\n")) }
+                                    Button("Copy \(names.count) S3 URIs") { copyToClipboard(uris.joined(separator: "\n")) }
+                                } else {
+                                    Button("Copy Name") { copyToClipboard(bucket.name) }
+                                    Button("Copy S3 URI") { copyToClipboard("s3://\(bucket.name)") }
+                                }
+                                Divider()
+                                Button("Create Bucket") {
+                                    showCreateSheet = true
+                                }
+                                .disabled(appState.isReadOnly)
+                                Divider()
+                                if selectedBucketIDs.count > 1 && selectedBucketIDs.contains(bucket.id) {
+                                    let selected = buckets.filter { selectedBucketIDs.contains($0.id) }
+                                    Button("Delete \(selected.count) Buckets", role: .destructive) {
+                                        bucketsToDelete = selected
+                                    }
+                                    .disabled(appState.isReadOnly)
+                                } else {
+                                    Button("Delete", role: .destructive) {
+                                        bucketsToDelete = [bucket]
+                                    }
+                                    .disabled(appState.isReadOnly)
+                                }
+                            }
                         }
                     }
-                    .foregroundStyle(selectedBucketIDs.contains(bucket.id) ? Color.white : Color.primary)
-                    .tag(bucket.id)
+                    .background(DoubleClickDetector {
+                        guard selectedBucketIDs.count == 1 else { return }
+                        toolbarState.resetToRootTrigger += 1
+                    })
+                    .overlay(alignment: .bottom) {
+                        if loader.errorMessage != nil {
+                            ConnectionLostBanner()
+                        }
+                    }
                     .contextMenu {
-                        Button("Open in New Window") {
-                            openWindow(value: S3BrowserTarget(bucket: bucket.name, prefix: nil))
-                        }
-                        Divider()
-                        if selectedBucketIDs.count > 1 && selectedBucketIDs.contains(bucket.id) {
-                            let selected = buckets.filter { selectedBucketIDs.contains($0.id) }
-                            let names = selected.map(\.name)
-                            let uris = names.map { "s3://\($0)" }
-                            Button("Copy \(names.count) Names") { copyToClipboard(names.joined(separator: "\n")) }
-                            Button("Copy \(names.count) S3 URIs") { copyToClipboard(uris.joined(separator: "\n")) }
-                        } else {
-                            Button("Copy Name") { copyToClipboard(bucket.name) }
-                            Button("Copy S3 URI") { copyToClipboard("s3://\(bucket.name)") }
-                        }
-                        Divider()
                         Button("Create Bucket") {
                             showCreateSheet = true
                         }
                         .disabled(appState.isReadOnly)
-                        Divider()
-                        if selectedBucketIDs.count > 1 && selectedBucketIDs.contains(bucket.id) {
-                            let selected = buckets.filter { selectedBucketIDs.contains($0.id) }
-                            Button("Delete \(selected.count) Buckets", role: .destructive) {
-                                bucketsToDelete = selected
-                            }
-                            .disabled(appState.isReadOnly)
-                        } else {
-                            Button("Delete", role: .destructive) {
-                                bucketsToDelete = [bucket]
-                            }
-                            .disabled(appState.isReadOnly)
-                        }
                     }
-                }
-                .background(DoubleClickDetector {
-                    guard selectedBucketIDs.count == 1 else { return }
-                    toolbarState.resetToRootTrigger += 1
-                })
-                .overlay(alignment: .bottom) {
-                    if loader.errorMessage != nil {
-                        ConnectionLostBanner()
-                    }
-                }
-                .contextMenu {
-                    Button("Create Bucket") {
-                        showCreateSheet = true
-                    }
-                    .disabled(appState.isReadOnly)
                 }
             }
         }
