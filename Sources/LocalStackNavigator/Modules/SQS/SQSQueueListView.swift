@@ -16,6 +16,7 @@ struct SQSQueueListView: View {
     @State private var queueToPurge: SQSQueue?
     @State private var serviceError: ServiceError?
     @State private var queueToShowAttributes: SQSQueue?
+    @State private var searchText = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -74,6 +75,12 @@ struct SQSQueueListView: View {
         .syncSelection(selectedQueueIDs, items: queues, activeItem: $activeQueue)
     }
 
+    private var filteredQueues: [SQSQueue] {
+        guard !searchText.isEmpty else { return queues }
+        let query = searchText.lowercased()
+        return queues.filter { $0.queueName.lowercased().contains(query) }
+    }
+
     private var queueDeleteDisabled: Bool {
         appState.isReadOnly || selectedQueueIDs.isEmpty
     }
@@ -97,13 +104,20 @@ struct SQSQueueListView: View {
 
     private var queueListContent: some View {
         ListLoadingContent(isLoading: loader.isLoading, isEmpty: queues.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading queues...", onRetry: { loadQueues(force: true) }) {
-            List(selection: $selectedQueueIDs) {
-                if queues.isEmpty {
-                    EmptyStateView(icon: "tray.2", message: "No queues")
-                        .listRowSeparator(.hidden)
+            VStack(spacing: 0) {
+                if queues.count > 5 {
+                    SearchBarView(query: $searchText, placeholder: "Filter queues")
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                    Divider()
                 }
+                List(selection: $selectedQueueIDs) {
+                    if queues.isEmpty {
+                        EmptyStateView(icon: "tray.2", message: "No queues")
+                            .listRowSeparator(.hidden)
+                    }
 
-                ForEach(queues) { queue in
+                    ForEach(filteredQueues) { queue in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(queue.queueName)
                             .fontWeight(.medium)
@@ -187,6 +201,7 @@ struct SQSQueueListView: View {
                     queueToShowAttributes = queue
                 }
             })
+            }
         }
     }
 
