@@ -54,6 +54,10 @@ final class AppState: ObservableObject {
             startHealthCheck()
         }
     }
+    // Pane focus triggers (sidebar ↔ module list)
+    @Published var sidebarFocusTrigger = 0
+    @Published var moduleListFocusTrigger = 0
+
     let autoRefresh = AutoRefreshManager()
     private var healthCheckTask: Task<Void, Never>?
     private var consecutiveFailures = 0

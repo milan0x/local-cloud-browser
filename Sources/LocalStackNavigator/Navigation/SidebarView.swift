@@ -15,6 +15,7 @@ struct SidebarView: View {
     @State private var showConnectionBubble = false
     @State private var bubbleDismissedByUser = false
     @AppStorage("collapsedSidebarCategories") private var collapsedCategoriesRaw = ""
+    @FocusState private var isSidebarFocused: Bool
 
     var body: some View {
         List(selection: $appState.selectedRoute) {
@@ -31,6 +32,15 @@ struct SidebarView: View {
                         .onTapGesture { toggleCategory(group.category) }
                 }
             }
+        }
+        .focused($isSidebarFocused)
+        .onKeyPress(.rightArrow) {
+            guard appState.selectedRoute != nil else { return .ignored }
+            appState.moduleListFocusTrigger += 1
+            return .handled
+        }
+        .onChange(of: appState.sidebarFocusTrigger) {
+            isSidebarFocused = true
         }
         .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
         .navigationTitle("")
