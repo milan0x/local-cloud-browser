@@ -14,7 +14,6 @@ struct LambdaFunctionListView: View {
     @State private var serviceError: ServiceError?
     @State private var functionToShowDetail: LambdaFunction?
     @State private var searchText = ""
-    @StateObject private var regionLoader = FavoriteRegionLoader<LambdaFunction>()
     @StateObject private var loader = ListLoader<LambdaFunction>()
     private var functions: [LambdaFunction] { loader.items }
 
@@ -23,7 +22,6 @@ struct LambdaFunctionListView: View {
             functionListHeader
             Divider()
             functionListContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             LambdaCreateFunctionView(service: service, existingFunctionNames: Set(functions.map(\.functionName)))
@@ -42,10 +40,8 @@ struct LambdaFunctionListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadFunctions() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listFunctions(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateSheet && functionsToDelete.isEmpty && functionToShowDetail == nil && !loader.isLoading }) {
             loadFunctions(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedFunctionIDs = []
@@ -129,6 +125,7 @@ struct LambdaFunctionListView: View {
                             }
                         }
                     }
+                    .foregroundStyle(selectedFunctionIDs.contains(function.id) ? Color.white : Color.primary)
                     .tag(function.id)
                     .contextMenu {
                         Button("View Details") {
@@ -169,18 +166,6 @@ struct LambdaFunctionListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
-                    }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.functionName
-                    ) { function in
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(function.functionName)
-                                .fontWeight(.medium)
-                                .lineLimit(1)
-                            if !function.runtime.isEmpty {
-                                StatusBadge(text: function.runtime, color: .gray)
-                            }
-                        }
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -231,10 +216,6 @@ struct LambdaFunctionListView: View {
                 activeFunction = function
             }
             loader.hasRestoredSession = true
-            if let item = regionLoader.consumePendingSelection(from: items, by: \.functionName) {
-                selectedFunctionIDs = [item.id]
-                activeFunction = item
-            }
         }
     }
 

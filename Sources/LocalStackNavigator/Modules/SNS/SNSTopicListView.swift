@@ -9,7 +9,6 @@ struct SNSTopicListView: View {
     var restoreTopicArn: String?
 
     @StateObject private var loader = ListLoader<SNSTopic>()
-    @StateObject private var regionLoader = FavoriteRegionLoader<SNSTopic>()
     private var topics: [SNSTopic] { loader.items }
     @State private var subscriptionCounts: [String: Int] = [:]  // topicArn -> count
     @State private var showCreateSheet = false
@@ -22,7 +21,6 @@ struct SNSTopicListView: View {
             topicListHeader
             Divider()
             topicListContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             SNSCreateTopicView(service: service, existingTopicNames: Set(loader.items.map(\.topicName)))
@@ -41,10 +39,8 @@ struct SNSTopicListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadTopics() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listTopics(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateSheet && topicsToDelete.isEmpty && topicToShowAttributes == nil && !loader.isLoading }) {
             loadTopics(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedTopicIDs = []
@@ -98,6 +94,7 @@ struct SNSTopicListView: View {
                         }
                     }
                 }
+                .foregroundStyle(selectedTopicIDs.contains(topic.id) ? Color.white : Color.primary)
                 .tag(topic.id)
                 .contextMenu {
                     Button("View Attributes") {
@@ -137,16 +134,6 @@ struct SNSTopicListView: View {
                     }
                 }
                 }
-                FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                    selectBy: \.topicArn
-                ) { topic in
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(topic.topicName)
-                            .fontWeight(.medium)
-                            .lineLimit(1)
-                        StatusBadge(text: topic.isFifo ? "FIFO" : "Standard", color: topic.isFifo ? .blue : .gray)
-                    }
-                }
             }
             .overlay(alignment: .bottom) {
                 if loader.errorMessage != nil {
@@ -182,10 +169,6 @@ struct SNSTopicListView: View {
                 activeTopic = topic
             }
             loader.hasRestoredSession = true
-            if let item = regionLoader.consumePendingSelection(from: items, by: \.topicArn) {
-                selectedTopicIDs = [item.id]
-                activeTopic = item
-            }
             await fetchSubscriptionCounts()
         }
     }

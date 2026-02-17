@@ -8,7 +8,6 @@ struct SQSQueueListView: View {
     @Binding var activeQueue: SQSQueue?
     var restoreQueueName: String?
 
-    @StateObject private var regionLoader = FavoriteRegionLoader<SQSQueue>()
     @StateObject private var loader = ListLoader<SQSQueue>()
     private var queues: [SQSQueue] { loader.items }
     @State private var messageCounts: [String: Int] = [:]  // queueUrl -> count
@@ -23,7 +22,6 @@ struct SQSQueueListView: View {
             queueListHeader
             Divider()
             queueListContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             SQSCreateQueueView(service: service, existingQueueNames: Set(queues.map(\.queueName)))
@@ -63,10 +61,8 @@ struct SQSQueueListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadQueues() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listQueues(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateSheet && queuesToDelete.isEmpty && queueToPurge == nil && queueToShowAttributes == nil && !loader.isLoading }) {
             loadQueues(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedQueueIDs = []
@@ -121,6 +117,7 @@ struct SQSQueueListView: View {
                             }
                         }
                     }
+                    .foregroundStyle(selectedQueueIDs.contains(queue.id) ? Color.white : Color.primary)
                     .tag(queue.id)
                     .contextMenu {
                         Button("View Attributes") {
@@ -171,18 +168,6 @@ struct SQSQueueListView: View {
                     }
                 }
 
-                FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                    selectBy: \.queueName
-                ) { queue in
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(queue.queueName)
-                            .fontWeight(.medium)
-                            .lineLimit(1)
-                        HStack(spacing: 6) {
-                            StatusBadge(text: queue.isFifo ? "FIFO" : "Standard", color: queue.isFifo ? .blue : .gray)
-                        }
-                    }
-                }
             }
             .overlay(alignment: .bottom) {
                 if loader.errorMessage != nil {
@@ -218,10 +203,6 @@ struct SQSQueueListView: View {
                 activeQueue = queue
             }
             loader.hasRestoredSession = true
-            if let item = regionLoader.consumePendingSelection(from: items, by: \.queueName) {
-                selectedQueueIDs = [item.id]
-                activeQueue = item
-            }
             await fetchMessageCounts()
         }
     }

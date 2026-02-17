@@ -10,7 +10,6 @@ struct SESIdentityListView: View {
     var restoreIdentityName: String?
 
     @StateObject private var loader = ListLoader<SESIdentity>()
-    @StateObject private var regionLoader = FavoriteRegionLoader<SESIdentity>()
     private var identities: [SESIdentity] { loader.items }
     @State private var showVerifySheet = false
     @State private var identitiesToDelete: [SESIdentity] = []
@@ -22,7 +21,6 @@ struct SESIdentityListView: View {
             identityListHeader
             Divider()
             identityListContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showVerifySheet) {
             SESVerifyIdentityView(
@@ -40,10 +38,8 @@ struct SESIdentityListView: View {
         } onDelete: { deleteIdentities($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadIdentities() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listIdentities(region: $0) }
         .onAutoRefresh(canRefresh: { !showVerifySheet && identitiesToDelete.isEmpty && !loader.isLoading }) {
             loadIdentities(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedIdentityIDs = []
@@ -123,6 +119,7 @@ struct SESIdentityListView: View {
                         typeBadge(for: identity)
                         verifiedBadge
                     }
+                    .foregroundStyle(selectedIdentityIDs.contains(identity.id) ? Color.white : Color.primary)
                     .tag(identity.id)
                     .contextMenu {
                         Button("Copy Identity") { copyToClipboard(identity.identity) }
@@ -156,16 +153,6 @@ struct SESIdentityListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
-                    }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.identity
-                    ) { identity in
-                        HStack {
-                            Text(identity.identity)
-                                .fontWeight(.medium)
-                                .lineLimit(1)
-                            Spacer()
-                        }
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -206,10 +193,6 @@ struct SESIdentityListView: View {
                 activeIdentity = identity
             }
             loader.hasRestoredSession = true
-            if let item = regionLoader.consumePendingSelection(from: items, by: \.identity) {
-                selectedIdentityIDs = [item.id]
-                activeIdentity = item
-            }
         }
     }
 

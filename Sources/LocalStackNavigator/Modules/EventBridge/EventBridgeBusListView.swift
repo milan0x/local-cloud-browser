@@ -14,7 +14,6 @@ struct EventBridgeBusListView: View {
     @State private var serviceError: ServiceError?
     @State private var busToShowDetail: EventBridgeBus?
     @State private var searchText = ""
-    @StateObject private var regionLoader = FavoriteRegionLoader<EventBridgeBus>()
     @StateObject private var loader = ListLoader<EventBridgeBus>()
     private var buses: [EventBridgeBus] { loader.items }
 
@@ -23,7 +22,6 @@ struct EventBridgeBusListView: View {
             busListHeader
             Divider()
             busListContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             EventBridgeCreateBusView(service: service, existingBusNames: Set(buses.map(\.name)))
@@ -42,10 +40,8 @@ struct EventBridgeBusListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadBuses() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listEventBuses(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateSheet && busesToDelete.isEmpty && busToShowDetail == nil && !loader.isLoading }) {
             loadBuses(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedBusIDs = []
@@ -125,6 +121,7 @@ struct EventBridgeBusListView: View {
                             StatusBadge(text: "default", color: .blue)
                         }
                     }
+                    .foregroundStyle(selectedBusIDs.contains(bus.id) ? Color.white : Color.primary)
                     .tag(bus.id)
                     .contextMenu {
                         Button("View Details") {
@@ -159,18 +156,6 @@ struct EventBridgeBusListView: View {
                             .disabled(appState.isReadOnly || bus.isDefault)
                         }
                     }
-                    }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.name
-                    ) { bus in
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(bus.name)
-                                .fontWeight(.medium)
-                                .lineLimit(1)
-                            if bus.isDefault {
-                                StatusBadge(text: "default", color: .blue)
-                            }
-                        }
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -210,10 +195,6 @@ struct EventBridgeBusListView: View {
                 activeBus = bus
             }
             loader.hasRestoredSession = true
-            if let item = regionLoader.consumePendingSelection(from: items, by: \.name) {
-                selectedBusIDs = [item.id]
-                activeBus = item
-            }
         }
     }
 

@@ -113,6 +113,7 @@ struct EventBridgeScheduleGroupListView: View {
                             StatusBadge(text: "default", color: .blue)
                         }
                     }
+                    .foregroundStyle(selectedGroupIDs.contains(group.id) ? Color.white : Color.primary)
                     .tag(group.id)
                     .contextMenu {
                         Button("Copy Name") { copyToClipboard(group.name) }

@@ -13,7 +13,6 @@ struct RedshiftClusterListView: View {
     @State private var clustersToDelete: [RedshiftCluster] = []
     @State private var serviceError: ServiceError?
     @State private var searchText = ""
-    @StateObject private var regionLoader = FavoriteRegionLoader<RedshiftCluster>()
     @StateObject private var loader = ListLoader<RedshiftCluster>()
     private var clusters: [RedshiftCluster] { loader.items }
 
@@ -22,7 +21,6 @@ struct RedshiftClusterListView: View {
             clusterListHeader
             Divider()
             clusterListContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             RedshiftCreateClusterView(service: service)
@@ -37,10 +35,8 @@ struct RedshiftClusterListView: View {
         } onDelete: { deleteClusters($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadClusters() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.describeClusters(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateSheet && clustersToDelete.isEmpty && !loader.isLoading }) {
             loadClusters(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedClusterIDs = []
@@ -122,6 +118,7 @@ struct RedshiftClusterListView: View {
                         Spacer()
                         statusBadge(for: cluster)
                     }
+                    .foregroundStyle(selectedClusterIDs.contains(cluster.id) ? Color.white : Color.primary)
                     .tag(cluster.id)
                     .contextMenu {
                         Button("Copy Identifier") { copyToClipboard(cluster.clusterIdentifier) }
@@ -155,23 +152,6 @@ struct RedshiftClusterListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
-                    }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.clusterIdentifier
-                    ) { cluster in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(cluster.clusterIdentifier)
-                                    .fontWeight(.medium)
-                                    .lineLimit(1)
-                                Text(cluster.nodeType)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                            Spacer()
-                            StatusBadge(text: cluster.clusterStatus, color: statusColor(cluster.clusterStatus))
-                        }
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -218,10 +198,6 @@ struct RedshiftClusterListView: View {
                 activeCluster = cluster
             }
             loader.hasRestoredSession = true
-            if let cluster = regionLoader.consumePendingSelection(from: items, by: \.clusterIdentifier) {
-                selectedClusterIDs = [cluster.id]
-                activeCluster = cluster
-            }
         }
     }
 

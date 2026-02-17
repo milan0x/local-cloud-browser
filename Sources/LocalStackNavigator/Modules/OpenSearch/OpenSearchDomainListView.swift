@@ -13,7 +13,6 @@ struct OpenSearchDomainListView: View {
     @State private var domainsToDelete: [OpenSearchDomain] = []
     @State private var serviceError: ServiceError?
     @State private var searchText = ""
-    @StateObject private var regionLoader = FavoriteRegionLoader<OpenSearchDomain>()
     @StateObject private var loader = ListLoader<OpenSearchDomain>()
     private var domains: [OpenSearchDomain] { loader.items }
 
@@ -22,7 +21,6 @@ struct OpenSearchDomainListView: View {
             domainListHeader
             Divider()
             domainListContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             OpenSearchCreateDomainView(service: service)
@@ -37,10 +35,8 @@ struct OpenSearchDomainListView: View {
         } onDelete: { deleteDomains($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadDomains() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listDomains(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateSheet && domainsToDelete.isEmpty && !loader.isLoading }) {
             loadDomains(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedDomainIDs = []
@@ -122,6 +118,7 @@ struct OpenSearchDomainListView: View {
                         Spacer()
                         statusBadge(for: domain)
                     }
+                    .foregroundStyle(selectedDomainIDs.contains(domain.id) ? Color.white : Color.primary)
                     .tag(domain.id)
                     .contextMenu {
                         Button("Copy Name") { copyToClipboard(domain.domainName) }
@@ -158,23 +155,6 @@ struct OpenSearchDomainListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
-                    }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.domainName
-                    ) { domain in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(domain.domainName)
-                                    .fontWeight(.medium)
-                                    .lineLimit(1)
-                                Text(domain.engineDisplayName)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                            Spacer()
-                            StatusBadge(text: domain.status, color: statusColor(domain.status))
-                        }
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -220,10 +200,6 @@ struct OpenSearchDomainListView: View {
                 activeDomain = domain
             }
             loader.hasRestoredSession = true
-            if let domain = regionLoader.consumePendingSelection(from: items, by: \.domainName) {
-                selectedDomainIDs = [domain.id]
-                activeDomain = domain
-            }
         }
     }
 

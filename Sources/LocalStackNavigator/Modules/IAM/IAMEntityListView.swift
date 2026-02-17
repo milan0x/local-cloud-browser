@@ -235,6 +235,7 @@ struct IAMEntityListView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    .foregroundStyle(selectedUserIDs.contains(user.id) ? Color.white : Color.primary)
                     .tag(user.id)
                     .contextMenu { userContextMenu(user) }
                 }
@@ -308,6 +309,7 @@ struct IAMEntityListView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    .foregroundStyle(selectedRoleIDs.contains(role.id) ? Color.white : Color.primary)
                     .tag(role.id)
                     .contextMenu { roleContextMenu(role) }
                 }
@@ -383,6 +385,7 @@ struct IAMEntityListView: View {
                             }
                         }
                     }
+                    .foregroundStyle(selectedPolicyIDs.contains(policy.id) ? Color.white : Color.primary)
                     .tag(policy.id)
                     .contextMenu { policyContextMenu(policy) }
                 }

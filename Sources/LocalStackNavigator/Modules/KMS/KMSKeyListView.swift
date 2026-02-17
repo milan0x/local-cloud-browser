@@ -14,7 +14,6 @@ struct KMSKeyListView: View {
     @State private var serviceError: ServiceError?
     @State private var keyToShowDetail: KMSKey?
     @State private var searchText = ""
-    @StateObject private var regionLoader = FavoriteRegionLoader<KMSKey>()
     @StateObject private var loader = ListLoader<KMSKey>()
     private var keys: [KMSKey] { loader.items }
 
@@ -23,7 +22,6 @@ struct KMSKeyListView: View {
             keyListHeader
             Divider()
             keyListContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             KMSCreateKeyView(service: service)
@@ -41,10 +39,8 @@ struct KMSKeyListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadKeys() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listKeys(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateSheet && keysToDelete.isEmpty && keyToShowDetail == nil && !loader.isLoading }) {
             loadKeys(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedKeyIDs = []
@@ -130,6 +126,7 @@ struct KMSKeyListView: View {
                         Spacer()
                         stateBadge(for: key)
                     }
+                    .foregroundStyle(selectedKeyIDs.contains(key.id) ? Color.white : Color.primary)
                     .tag(key.id)
                     .contextMenu {
                         Button("View Details") {
@@ -165,17 +162,6 @@ struct KMSKeyListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
-                    }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.keyId
-                    ) { item in
-                        HStack {
-                            Text(item.truncatedId)
-                                .fontWeight(.medium)
-                                .lineLimit(1)
-                            Spacer()
-                            stateBadge(for: item)
-                        }
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -228,10 +214,6 @@ struct KMSKeyListView: View {
                 activeKey = key
             }
             loader.hasRestoredSession = true
-            if let item = regionLoader.consumePendingSelection(from: items, by: \.keyId) {
-                selectedKeyIDs = [item.id]
-                activeKey = item
-            }
         }
     }
 

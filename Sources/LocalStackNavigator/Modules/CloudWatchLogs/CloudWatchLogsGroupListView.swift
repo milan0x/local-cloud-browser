@@ -14,7 +14,6 @@ struct CloudWatchLogsGroupListView: View {
     @State private var serviceError: ServiceError?
     @State private var logGroupToShowDetail: CloudWatchLogGroup?
     @State private var searchText = ""
-    @StateObject private var regionLoader = FavoriteRegionLoader<CloudWatchLogGroup>()
     @StateObject private var loader = ListLoader<CloudWatchLogGroup>()
     private var logGroups: [CloudWatchLogGroup] { loader.items }
 
@@ -23,7 +22,6 @@ struct CloudWatchLogsGroupListView: View {
             logGroupListHeader
             Divider()
             logGroupListContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             CloudWatchLogsCreateGroupView(service: service, existingGroupNames: Set(logGroups.map(\.logGroupName)))
@@ -42,10 +40,8 @@ struct CloudWatchLogsGroupListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadLogGroups() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.describeLogGroups(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateSheet && logGroupsToDelete.isEmpty && logGroupToShowDetail == nil && !loader.isLoading }) {
             loadLogGroups(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedLogGroupIDs = []
@@ -126,6 +122,7 @@ struct CloudWatchLogsGroupListView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    .foregroundStyle(selectedLogGroupIDs.contains(logGroup.id) ? Color.white : Color.primary)
                     .tag(logGroup.id)
                     .contextMenu {
                         Button("View Details") {
@@ -163,15 +160,6 @@ struct CloudWatchLogsGroupListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
-                    }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.logGroupName
-                    ) { item in
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(item.logGroupName)
-                                .fontWeight(.medium)
-                                .lineLimit(1)
-                        }
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -211,10 +199,6 @@ struct CloudWatchLogsGroupListView: View {
                 activeLogGroup = logGroup
             }
             loader.hasRestoredSession = true
-            if let item = regionLoader.consumePendingSelection(from: items, by: \.logGroupName) {
-                selectedLogGroupIDs = [item.id]
-                activeLogGroup = item
-            }
         }
     }
 

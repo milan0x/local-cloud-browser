@@ -9,7 +9,6 @@ struct CloudFormationStackListView: View {
     @Binding var activeStack: CloudFormationStack?
     var restoreStackName: String?
 
-    @StateObject private var regionLoader = FavoriteRegionLoader<CloudFormationStack>()
     @StateObject private var loader = ListLoader<CloudFormationStack>()
     private var stacks: [CloudFormationStack] { loader.items }
     @State private var showCreateSheet = false
@@ -30,7 +29,6 @@ struct CloudFormationStackListView: View {
             stackListHeader
             Divider()
             stackListContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             CloudFormationCreateStackView(service: service, existingStackNames: Set(stacks.map(\.stackName)))
@@ -49,10 +47,8 @@ struct CloudFormationStackListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadStacks() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listStacks(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateSheet && stacksToDelete.isEmpty && stackToShowDetail == nil && !loader.isLoading }) {
             loadStacks(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedStackIDs = []
@@ -136,6 +132,7 @@ struct CloudFormationStackListView: View {
                             }
                         }
                     }
+                    .foregroundStyle(selectedStackIDs.contains(stack.id) ? Color.white : Color.primary)
                     .tag(stack.id)
                     .contextMenu {
                         Button("View Details") {
@@ -171,19 +168,6 @@ struct CloudFormationStackListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
-                    }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.stackName
-                    ) { item in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(item.stackName)
-                                    .fontWeight(.medium)
-                                    .lineLimit(1)
-                                StatusBadge(text: item.stackStatus, color: item.statusColor.swiftUIColor)
-                            }
-                            Spacer()
-                        }
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -223,10 +207,6 @@ struct CloudFormationStackListView: View {
                 activeStack = stack
             }
             loader.hasRestoredSession = true
-            if let item = regionLoader.consumePendingSelection(from: items, by: \.stackName) {
-                selectedStackIDs = [item.id]
-                activeStack = item
-            }
         }
     }
 

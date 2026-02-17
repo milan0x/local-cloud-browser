@@ -15,7 +15,6 @@ struct DynamoDBTableListView: View {
     @State private var serviceError: ServiceError?
     @State private var tableToShowAttributes: DynamoDBTable?
     @State private var searchText = ""
-    @StateObject private var regionLoader = FavoriteRegionLoader<DynamoDBTable>()
     @StateObject private var loader = ListLoader<DynamoDBTable>()
     private var tables: [DynamoDBTable] { loader.items }
 
@@ -24,7 +23,6 @@ struct DynamoDBTableListView: View {
             tableListHeader
             Divider()
             tableListContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             DynamoDBCreateTableView(service: service, existingTableNames: Set(tables.map(\.tableName)))
@@ -43,10 +41,8 @@ struct DynamoDBTableListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadTables() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listTables(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateSheet && tablesToDelete.isEmpty && tableToShowAttributes == nil && !loader.isLoading }) {
             loadTables(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedTableIDs = []
@@ -123,6 +119,7 @@ struct DynamoDBTableListView: View {
                     Text(table.tableName)
                         .fontWeight(.medium)
                         .lineLimit(1)
+                        .foregroundStyle(selectedTableIDs.contains(table.id) ? Color.white : Color.primary)
                         .tag(table.id)
                         .contextMenu {
                             Button("View Attributes") {
@@ -157,13 +154,6 @@ struct DynamoDBTableListView: View {
                                 .disabled(appState.isReadOnly)
                             }
                         }
-                    }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.tableName
-                    ) { table in
-                        Text(table.tableName)
-                            .fontWeight(.medium)
-                            .lineLimit(1)
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -203,10 +193,6 @@ struct DynamoDBTableListView: View {
                 activeTable = table
             }
             loader.hasRestoredSession = true
-            if let table = regionLoader.consumePendingSelection(from: items, by: \.tableName) {
-                selectedTableIDs = [table.id]
-                activeTable = table
-            }
         }
     }
 
