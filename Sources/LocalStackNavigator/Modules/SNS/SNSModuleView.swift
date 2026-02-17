@@ -36,6 +36,10 @@ struct SNSModuleView: View {
                 paneFocusTrigger: listPaneFocusTrigger
             )
             .frame(width: 280)
+            .onKeyPress(.leftArrow) {
+                appState.sidebarFocusTrigger += 1
+                return .handled
+            }
             .onKeyPress(.rightArrow) {
                 guard activeTopic != nil else { return .ignored }
                 detailPaneFocusTrigger += 1
@@ -78,6 +82,9 @@ struct SNSModuleView: View {
             listSearchFocusTrigger: $listSearchFocusTrigger,
             detailSearchFocusTrigger: $detailSearchFocusTrigger
         )
+        .onChange(of: appState.moduleListFocusTrigger) {
+            listPaneFocusTrigger += 1
+        }
         .onAppear {
             service.updateClient(client)
         }
