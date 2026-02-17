@@ -96,6 +96,7 @@ struct EventBridgeCreateScheduleView: View {
             validationMessages
 
             Divider()
+                .padding(.top, 8)
 
             HStack {
                 Button("Cancel") { dismiss() }

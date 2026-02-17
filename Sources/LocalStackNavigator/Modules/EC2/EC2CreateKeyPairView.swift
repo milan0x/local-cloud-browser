@@ -36,6 +36,7 @@ struct EC2CreateKeyPairView: View {
             }
 
             Divider()
+                .padding(.top, 8)
 
             HStack {
                 Button("Cancel") { dismiss() }

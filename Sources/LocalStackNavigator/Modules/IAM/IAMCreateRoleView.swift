@@ -57,6 +57,7 @@ struct IAMCreateRoleView: View {
             }
 
             Divider()
+                .padding(.top, 8)
 
             HStack {
                 Button("Cancel") { dismiss() }
