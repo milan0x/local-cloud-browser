@@ -50,7 +50,11 @@ struct ContentView: View {
                             profileStore.update(profile)
                         }
                     } label: {
-                        Text("\(region.code) — \(region.displayName)")
+                        if region.code == appState.region {
+                            Label("\(region.code) — \(region.displayName)", systemImage: "checkmark")
+                        } else {
+                            Text("\(region.code) — \(region.displayName)")
+                        }
                     }
                 }
             } label: {
