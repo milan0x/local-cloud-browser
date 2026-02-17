@@ -14,7 +14,7 @@ struct SidebarView: View {
     @State private var editorSheet: EditorSheet?
     @State private var showConnectionBubble = false
     @State private var bubbleDismissedByUser = false
-    @State private var collapsedCategories: Set<RouteCategory> = []
+    @AppStorage("collapsedSidebarCategories") private var collapsedCategoriesRaw = ""
 
     var body: some View {
         List(selection: $appState.selectedRoute) {
@@ -26,6 +26,7 @@ struct SidebarView: View {
                     }
                 } header: {
                     Text(group.category.displayName)
+                        .onTapGesture { toggleCategory(group.category) }
                 }
             }
         }
@@ -320,17 +321,34 @@ struct SidebarView: View {
         }
     }
 
+    private var collapsedCategories: Set<String> {
+        get { Set(collapsedCategoriesRaw.split(separator: ",").map(String.init)) }
+        nonmutating set { collapsedCategoriesRaw = newValue.sorted().joined(separator: ",") }
+    }
+
     private func expandedBinding(for category: RouteCategory) -> Binding<Bool> {
         Binding(
-            get: { !collapsedCategories.contains(category) },
+            get: { !collapsedCategories.contains(category.rawValue) },
             set: { isExpanded in
+                var current = collapsedCategories
                 if isExpanded {
-                    collapsedCategories.remove(category)
+                    current.remove(category.rawValue)
                 } else {
-                    collapsedCategories.insert(category)
+                    current.insert(category.rawValue)
                 }
+                collapsedCategories = current
             }
         )
+    }
+
+    private func toggleCategory(_ category: RouteCategory) {
+        var current = collapsedCategories
+        if current.contains(category.rawValue) {
+            current.remove(category.rawValue)
+        } else {
+            current.insert(category.rawValue)
+        }
+        collapsedCategories = current
     }
 
     private var readOnlyToggle: some View {
