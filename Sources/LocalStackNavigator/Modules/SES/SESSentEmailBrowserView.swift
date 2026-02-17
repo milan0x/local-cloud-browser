@@ -84,6 +84,7 @@ struct SESSentEmailBrowserView: View {
                     .frame(maxWidth: 200)
             }
         }
+        .frame(minHeight: 32) // match SearchBarView height for consistent header bars
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }
