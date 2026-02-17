@@ -101,6 +101,7 @@ struct Route53RecordSetBrowserView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+        .frame(minHeight: 32) // match SearchBarView height for consistent header bars
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(Color(.controlBackgroundColor))

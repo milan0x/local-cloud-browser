@@ -48,6 +48,7 @@ struct ListHeaderBar<Trailing: View>: View {
             }
             trailing
         }
+        .frame(minHeight: 32) // match SearchBarView height in detail headers
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }

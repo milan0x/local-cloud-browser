@@ -469,7 +469,6 @@ struct S3ObjectBrowserView: View {
                     }
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 8)
             }
 
             Spacer()
@@ -477,6 +476,7 @@ struct S3ObjectBrowserView: View {
             SearchBarView(query: $searchQuery, placeholder: "Search in folder", focusTrigger: searchFocusTrigger)
                 .padding(.trailing, 8)
         }
+        .padding(.vertical, 8)
     }
 
     // MARK: - Content
