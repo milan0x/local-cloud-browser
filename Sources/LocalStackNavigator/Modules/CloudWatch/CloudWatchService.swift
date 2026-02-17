@@ -1,16 +1,9 @@
 import Foundation
 
-@MainActor
-final class CloudWatchService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class CloudWatchService: LocalStackService {
     // MARK: - Metrics
 
-    func listMetrics(namespace: String? = nil) async throws -> [CloudWatchMetric] {
+    func listMetrics(namespace: String? = nil, region: String? = nil) async throws -> [CloudWatchMetric] {
         var allMetrics: [CloudWatchMetric] = []
         var nextToken: String? = nil
 
@@ -23,7 +16,7 @@ final class CloudWatchService: ObservableObject {
                 payload["NextToken"] = nextToken
             }
 
-            let data = try await client.cloudWatchRequest(action: "ListMetrics", payload: payload)
+            let data = try await client.cloudWatchRequest(action: "ListMetrics", payload: payload, region: region)
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { break }
 
             if let metrics = json["Metrics"] as? [[String: Any]] {
@@ -88,7 +81,7 @@ final class CloudWatchService: ObservableObject {
 
     // MARK: - Alarms
 
-    func describeAlarms() async throws -> [CloudWatchAlarm] {
+    func describeAlarms(region: String? = nil) async throws -> [CloudWatchAlarm] {
         var allAlarms: [CloudWatchAlarm] = []
         var nextToken: String? = nil
 
@@ -98,7 +91,7 @@ final class CloudWatchService: ObservableObject {
                 payload["NextToken"] = nextToken
             }
 
-            let data = try await client.cloudWatchRequest(action: "DescribeAlarms", payload: payload)
+            let data = try await client.cloudWatchRequest(action: "DescribeAlarms", payload: payload, region: region)
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { break }
 
             if let alarms = json["MetricAlarms"] as? [[String: Any]] {

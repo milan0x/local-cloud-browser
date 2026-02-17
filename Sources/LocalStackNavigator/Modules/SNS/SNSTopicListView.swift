@@ -8,15 +8,13 @@ struct SNSTopicListView: View {
     @Binding var activeTopic: SNSTopic?
     var restoreTopicArn: String?
 
-    @State private var topics: [SNSTopic] = []
-    @State private var hasRestoredSession = false
+    @StateObject private var loader = ListLoader<SNSTopic>()
+    @StateObject private var regionLoader = FavoriteRegionLoader<SNSTopic>()
+    private var topics: [SNSTopic] { loader.items }
     @State private var subscriptionCounts: [String: Int] = [:]  // topicArn -> count
-    @State private var isLoading = false
-    @State private var errorMessage: String?
     @State private var showCreateSheet = false
     @State private var topicsToDelete: [SNSTopic] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var topicToShowAttributes: SNSTopic?
 
     var body: some View {
@@ -24,46 +22,34 @@ struct SNSTopicListView: View {
             topicListHeader
             Divider()
             topicListContent
+            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
-            SNSCreateTopicView(service: service, existingTopicNames: Set(topics.map(\.topicName)))
+            SNSCreateTopicView(service: service, existingTopicNames: Set(loader.items.map(\.topicName)))
                 .onDisappear { loadTopics(force: true) }
         }
-        .alert(
-            topicsToDelete.count == 1
-                ? "Delete Topic"
-                : "Delete \(topicsToDelete.count) Topics",
-            isPresented: Binding(
-                get: { !topicsToDelete.isEmpty },
-                set: { if !$0 { topicsToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteTopics(topicsToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                topicsToDelete = []
-            }
-        } message: {
-            if topicsToDelete.count == 1, let topic = topicsToDelete.first {
+        .deleteConfirmation(items: $topicsToDelete, noun: "Topic") { items in
+            if items.count == 1, let topic = items.first {
                 Text("Are you sure you want to delete \"\(topic.topicName)\"?\n\nAll subscriptions will be removed. This cannot be undone.")
             } else {
-                let names = topicsToDelete.map(\.topicName).joined(separator: "\n")
+                let names = items.map(\.topicName).joined(separator: "\n")
                 Text("Are you sure you want to delete these topics?\n\n\(names)\n\nAll subscriptions will be removed. This cannot be undone.")
             }
-        }
+        } onDelete: { deleteTopics($0) }
         .sheet(item: $topicToShowAttributes) { topic in
             SNSTopicAttributesView(service: service, topic: topic)
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadTopics() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && topicsToDelete.isEmpty && topicToShowAttributes == nil && !isLoading }) {
+        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listTopics(region: $0) }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && topicsToDelete.isEmpty && topicToShowAttributes == nil && !loader.isLoading }) {
             loadTopics(force: true, silent: true)
+            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedTopicIDs = []
             activeTopic = nil
-            topics = []
+            loader.items = []
             subscriptionCounts = [:]
             loadTopics(force: true)
         }
@@ -77,63 +63,28 @@ struct SNSTopicListView: View {
     // MARK: - Header
 
     private var topicListHeader: some View {
-        HStack {
-            Text("Topics")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadTopics(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadTopics(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: topicDeleteDisabled, help: selectedTopicIDs.count <= 1 ? "Delete Topic" : "Delete \(selectedTopicIDs.count) Topics") {
-                topicsToDelete = topics.filter { selectedTopicIDs.contains($0.id) }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "Topics",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: topicDeleteDisabled,
+            deleteHelp: selectedTopicIDs.count <= 1 ? "Delete Topic" : "Delete \(selectedTopicIDs.count) Topics",
+            onRefresh: { loadTopics(force: true) },
+            onCreate: { showCreateSheet = true },
+            onDelete: { topicsToDelete = topics.filter { selectedTopicIDs.contains($0.id) } }
+        )
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var topicListContent: some View {
-        if isLoading && topics.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading topics...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadTopics(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if topics.isEmpty {
-            EmptyStateView(icon: "bell", message: "No topics")
-            .contextMenu {
-                Button("Create Topic") {
-                    showCreateSheet = true
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: topics.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading topics...", onRetry: { loadTopics(force: true) }) {
+            List(selection: $selectedTopicIDs) {
+                if topics.isEmpty {
+                    EmptyStateView(icon: "bell", message: "No topics")
+                        .listRowSeparator(.hidden)
                 }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
-            List(topics, selection: $selectedTopicIDs) { topic in
+                ForEach(topics) { topic in
                 VStack(alignment: .leading, spacing: 3) {
                     Text(topic.topicName)
                         .fontWeight(.medium)
@@ -185,9 +136,20 @@ struct SNSTopicListView: View {
                         .disabled(appState.isReadOnly)
                     }
                 }
+                }
+                FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
+                    selectBy: \.topicArn
+                ) { topic in
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(topic.topicName)
+                            .fontWeight(.medium)
+                            .lineLimit(1)
+                        StatusBadge(text: topic.isFifo ? "FIFO" : "Standard", color: topic.isFifo ? .blue : .gray)
+                    }
+                }
             }
             .overlay(alignment: .bottom) {
-                if errorMessage != nil {
+                if loader.errorMessage != nil {
                     ConnectionLostBanner()
                 }
             }
@@ -210,37 +172,21 @@ struct SNSTopicListView: View {
     // MARK: - Data
 
     private func loadTopics(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.listTopics()
-                let freshTopics = loaded.sorted { $0.topicName.localizedStandardCompare($1.topicName) == .orderedAscending }
-                if topics != freshTopics {
-                    topics = freshTopics
-                }
-                if !hasRestoredSession, let savedArn = restoreTopicArn,
-                   let topic = topics.first(where: { $0.topicArn == savedArn }) {
-                    selectedTopicIDs = [topic.id]
-                    activeTopic = topic
-                }
-                hasRestoredSession = true
-                await fetchSubscriptionCounts()
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.listTopics() },
+            sort: { $0.topicName.localizedStandardCompare($1.topicName) == .orderedAscending }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedArn = restoreTopicArn,
+               let topic = items.first(where: { $0.topicArn == savedArn }) {
+                selectedTopicIDs = [topic.id]
+                activeTopic = topic
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            loader.hasRestoredSession = true
+            if let item = regionLoader.consumePendingSelection(from: items, by: \.topicArn) {
+                selectedTopicIDs = [item.id]
+                activeTopic = item
             }
+            await fetchSubscriptionCounts()
         }
     }
 
@@ -258,22 +204,16 @@ struct SNSTopicListView: View {
 
     private func deleteTopics(_ targets: [SNSTopic]) {
         Task {
-            var deletedIDs: Set<SNSTopic.ID> = []
-            for topic in targets {
-                do {
-                    try await service.deleteTopic(topicArn: topic.topicArn)
-                    deletedIDs.insert(topic.id)
-                } catch {
-                    serviceError = error.asServiceError
-                }
+            let (deleted, error) = await batchDelete(targets) {
+                try await service.deleteTopic(topicArn: $0.topicArn)
             }
-            if !deletedIDs.isEmpty {
-                selectedTopicIDs.subtract(deletedIDs)
-                if let active = activeTopic, deletedIDs.contains(active.id) {
-                    activeTopic = nil
-                }
+            if let error { serviceError = error }
+            if !deleted.isEmpty {
+                selectedTopicIDs.subtract(deleted)
+                if let active = activeTopic, deleted.contains(active.id) { activeTopic = nil }
                 loadTopics(force: true)
             }
         }
     }
+
 }

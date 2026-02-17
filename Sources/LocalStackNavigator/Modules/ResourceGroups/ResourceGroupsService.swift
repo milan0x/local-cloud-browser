@@ -1,16 +1,9 @@
 import Foundation
 
-@MainActor
-final class ResourceGroupsService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class ResourceGroupsService: LocalStackService {
     // MARK: - Read Operations
 
-    func listGroups() async throws -> [ResourceGroupSummary] {
+    func listGroups(region: String? = nil) async throws -> [ResourceGroupSummary] {
         var allGroups: [ResourceGroupSummary] = []
         var nextToken: String?
 
@@ -24,7 +17,8 @@ final class ResourceGroupsService: ObservableObject {
                 action: "ListGroups",
                 method: "POST",
                 path: "/groups-list",
-                body: body
+                body: body,
+                region: region
             )
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 break

@@ -1,13 +1,6 @@
 import Foundation
 
-@MainActor
-final class STSService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class STSService: LocalStackService {
     // MARK: - Identity
 
     func getCallerIdentity() async throws -> CallerIdentity {

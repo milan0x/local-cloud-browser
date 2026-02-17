@@ -38,14 +38,7 @@ struct KMSModuleView: View {
                         toolbarState: toolbarState
                     )
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "lock.shield")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a key")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "lock.shield", message: "Select a key")
                 }
             }
             .frame(minWidth: 400)

@@ -9,22 +9,21 @@ struct ACMCertificateListView: View {
     @Binding var activeCertificate: ACMCertificateSummary?
     var restoreCertArn: String?
 
-    @State private var certificates: [ACMCertificateSummary] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
     @State private var showRequestSheet = false
     @State private var showImportSheet = false
     @State private var certsToDelete: [ACMCertificateSummary] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var searchText = ""
+    @StateObject private var regionLoader = FavoriteRegionLoader<ACMCertificateSummary>()
+    @StateObject private var loader = ListLoader<ACMCertificateSummary>()
+    private var certificates: [ACMCertificateSummary] { loader.items }
 
     var body: some View {
         VStack(spacing: 0) {
             certListHeader
             Divider()
             certListContent
+            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showRequestSheet) {
             ACMRequestCertificateView(service: service)
@@ -34,37 +33,24 @@ struct ACMCertificateListView: View {
             ACMImportCertificateView(service: service)
                 .onDisappear { loadCertificates(force: true) }
         }
-        .alert(
-            certsToDelete.count == 1
-                ? "Delete Certificate"
-                : "Delete \(certsToDelete.count) Certificates",
-            isPresented: Binding(
-                get: { !certsToDelete.isEmpty },
-                set: { if !$0 { certsToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteCertificates(certsToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                certsToDelete = []
-            }
-        } message: {
-            if certsToDelete.count == 1, let cert = certsToDelete.first {
+        .deleteConfirmation(items: $certsToDelete, noun: "Certificate") { items in
+            if items.count == 1, let cert = items.first {
                 Text("Are you sure you want to delete the certificate for \"\(cert.displayDomain)\"?")
             } else {
-                Text("Are you sure you want to delete \(certsToDelete.count) certificates?")
+                Text("Are you sure you want to delete \(items.count) certificates?")
             }
-        }
+        } onDelete: { deleteCertificates($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadCertificates() }
-        .onAutoRefresh(canRefresh: { !showRequestSheet && !showImportSheet && certsToDelete.isEmpty && !isLoading }) {
+        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listCertificates(region: $0) }
+        .onAutoRefresh(canRefresh: { !showRequestSheet && !showImportSheet && certsToDelete.isEmpty && !loader.isLoading }) {
             loadCertificates(force: true, silent: true)
+            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedCertIDs = []
             activeCertificate = nil
-            certificates = []
+            loader.items = []
             loadCertificates(force: true)
         }
         .syncSelection(selectedCertIDs, items: certificates, activeItem: $activeCertificate)
@@ -102,66 +88,22 @@ struct ACMCertificateListView: View {
     // MARK: - Header
 
     private var certListHeader: some View {
-        HStack {
-            Text("Certificates")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadCertificates(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showRequestSheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadCertificates(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: certDeleteDisabled, help: selectedCertIDs.count <= 1 ? "Delete Certificate" : "Delete \(selectedCertIDs.count) Certificates") {
-                certsToDelete = certificates.filter { selectedCertIDs.contains($0.id) }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "Certificates",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: certDeleteDisabled,
+            deleteHelp: selectedCertIDs.count <= 1 ? "Delete Certificate" : "Delete \(selectedCertIDs.count) Certificates",
+            onRefresh: { loadCertificates(force: true) },
+            onCreate: { showRequestSheet = true },
+            onDelete: { certsToDelete = certificates.filter { selectedCertIDs.contains($0.id) } }
+        )
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var certListContent: some View {
-        if isLoading && certificates.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading certificates...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, certificates.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadCertificates(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if certificates.isEmpty {
-            EmptyStateView(icon: "checkmark.seal", message: "No certificates")
-            .contextMenu {
-                Button("Request Certificate") {
-                    showRequestSheet = true
-                }
-                .disabled(appState.isReadOnly)
-                Button("Import Certificate") {
-                    showImportSheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: certificates.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading certificates...", onRetry: { loadCertificates(force: true) }) {
             VStack(spacing: 0) {
                 if certificates.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter certificates")
@@ -169,7 +111,12 @@ struct ACMCertificateListView: View {
                         .padding(.vertical, 4)
                     Divider()
                 }
-                List(filteredCertificates, selection: $selectedCertIDs) { cert in
+                List(selection: $selectedCertIDs) {
+                    if certificates.isEmpty {
+                        EmptyStateView(icon: "checkmark.seal", message: "No certificates")
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(filteredCertificates) { cert in
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(cert.displayDomain)
@@ -224,9 +171,27 @@ struct ACMCertificateListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
+                    }
+                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
+                        selectBy: \.certificateArn
+                    ) { item in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(item.displayDomain)
+                                    .fontWeight(.medium)
+                                    .lineLimit(1)
+                                Text(item.truncatedArn)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            statusBadge(item.status)
+                        }
+                    }
                 }
                 .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
+                    if loader.errorMessage != nil {
                         ConnectionLostBanner()
                     }
                 }
@@ -241,21 +206,7 @@ struct ACMCertificateListView: View {
                     .disabled(appState.isReadOnly)
                 }
 
-                // Status bar
-                Divider()
-                HStack {
-                    Text("\(certificates.count) certificate\(certificates.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if selectedCertIDs.count > 1 {
-                        Text("(\(selectedCertIDs.count) selected)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+                ListStatusBar(totalCount: certificates.count, selectedCount: selectedCertIDs.count, noun: "certificate")
             }
         }
     }
@@ -284,55 +235,32 @@ struct ACMCertificateListView: View {
     // MARK: - Data
 
     private func loadCertificates(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.listCertificates()
-                let freshCerts = loaded.sorted { $0.domainName.localizedStandardCompare($1.domainName) == .orderedAscending }
-                if certificates != freshCerts {
-                    certificates = freshCerts
-                }
-                if !hasRestoredSession, let savedArn = restoreCertArn,
-                   let cert = certificates.first(where: { $0.certificateArn == savedArn }) {
-                    selectedCertIDs = [cert.id]
-                    activeCertificate = cert
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.listCertificates() },
+            sort: { $0.domainName.localizedStandardCompare($1.domainName) == .orderedAscending }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedArn = restoreCertArn,
+               let cert = items.first(where: { $0.certificateArn == savedArn }) {
+                selectedCertIDs = [cert.id]
+                activeCertificate = cert
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            loader.hasRestoredSession = true
+            if let item = regionLoader.consumePendingSelection(from: items, by: \.certificateArn) {
+                selectedCertIDs = [item.id]
+                activeCertificate = item
             }
         }
     }
 
     private func deleteCertificates(_ targets: [ACMCertificateSummary]) {
         Task {
-            var deletedIDs: Set<ACMCertificateSummary.ID> = []
-            for cert in targets {
-                do {
-                    try await service.deleteCertificate(arn: cert.certificateArn)
-                    deletedIDs.insert(cert.id)
-                } catch {
-                    serviceError = error.asServiceError
-                }
+            let (deleted, error) = await batchDelete(targets) {
+                try await service.deleteCertificate(arn: $0.certificateArn)
             }
-            if !deletedIDs.isEmpty {
-                selectedCertIDs.subtract(deletedIDs)
-                if let active = activeCertificate, deletedIDs.contains(active.id) {
-                    activeCertificate = nil
-                }
+            if let error { serviceError = error }
+            if !deleted.isEmpty {
+                selectedCertIDs.subtract(deleted)
+                if let active = activeCertificate, deleted.contains(active.id) { activeCertificate = nil }
                 loadCertificates(force: true)
             }
         }

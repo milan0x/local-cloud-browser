@@ -1,17 +1,10 @@
 import Foundation
 
-@MainActor
-final class ConfigService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class ConfigService: LocalStackService {
     // MARK: - Configuration Recorders
 
-    func describeConfigurationRecorders() async throws -> [ConfigurationRecorder] {
-        let data = try await client.configRequest(action: "DescribeConfigurationRecorders", payload: [:])
+    func describeConfigurationRecorders(region: String? = nil) async throws -> [ConfigurationRecorder] {
+        let data = try await client.configRequest(action: "DescribeConfigurationRecorders", payload: [:], region: region)
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let recorders = json["ConfigurationRecorders"] as? [[String: Any]] else {
             return []

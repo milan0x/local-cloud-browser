@@ -1,17 +1,10 @@
 import Foundation
 
-@MainActor
-final class EC2Service: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class EC2Service: LocalStackService {
     // MARK: - Instances
 
-    func listInstances() async throws -> [EC2Instance] {
-        let data = try await client.ec2Request(action: "DescribeInstances")
+    func listInstances(region: String? = nil) async throws -> [EC2Instance] {
+        let data = try await client.ec2Request(action: "DescribeInstances", region: region)
         let root = try EC2XMLParser.parse(data)
         var instances: [EC2Instance] = []
         for reservation in root.child("reservationSet")?.all("item") ?? [] {

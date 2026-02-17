@@ -38,14 +38,7 @@ struct CloudFormationModuleView: View {
                         toolbarState: toolbarState
                     )
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "square.stack.3d.down.right")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a stack")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "square.stack.3d.down.right", message: "Select a stack")
                 }
             }
             .frame(minWidth: 400)

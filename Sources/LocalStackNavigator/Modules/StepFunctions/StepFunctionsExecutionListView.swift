@@ -68,71 +68,70 @@ struct StepFunctionsExecutionListView: View {
 
             Divider()
 
-            if isLoading && executions.isEmpty {
-                ProgressView("Loading executions...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if executions.isEmpty {
-                EmptyStateView(icon: "play.slash", message: "No executions")
-            } else {
-                List {
-                    ForEach(executions) { execution in
-                        Button {
-                            activeExecution = execution
-                            loadExecutionDetail()
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(execution.displayName)
-                                        .fontWeight(.medium)
-                                        .lineLimit(1)
-                                    if let start = execution.startDate {
-                                        Text(start.formatted(date: .abbreviated, time: .shortened))
+            ListLoadingContent(isLoading: isLoading, isEmpty: executions.isEmpty, errorMessage: nil, loadingMessage: "Loading executions...", onRetry: {}) {
+                if executions.isEmpty {
+                    EmptyStateView(icon: "play.slash", message: "No executions")
+                } else {
+                    List {
+                        ForEach(executions) { execution in
+                            Button {
+                                activeExecution = execution
+                                loadExecutionDetail()
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(execution.displayName)
+                                            .fontWeight(.medium)
+                                            .lineLimit(1)
+                                        if let start = execution.startDate {
+                                            Text(start.formatted(date: .abbreviated, time: .shortened))
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    Spacer()
+                                    if let duration = execution.duration {
+                                        Text(duration)
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
+                                    executionStatusBadge(execution.status)
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
                                 }
-                                Spacer()
-                                if let duration = execution.duration {
-                                    Text(duration)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button("Copy Execution ARN") {
+                                    copyToClipboard(execution.executionArn)
                                 }
-                                executionStatusBadge(execution.status)
-                                Image(systemName: "chevron.right")
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .contextMenu {
-                            Button("Copy Execution ARN") {
-                                copyToClipboard(execution.executionArn)
-                            }
-                            Button("Copy as AWS CLI") {
-                                copyToClipboard(execution.describeExecutionCLI(
-                                    endpointUrl: appState.endpoint, region: appState.region
-                                ))
-                            }
-                            if execution.status == "RUNNING" {
-                                Divider()
-                                Button("Stop Execution", role: .destructive) {
-                                    stopExecution(execution)
+                                Button("Copy as AWS CLI") {
+                                    copyToClipboard(execution.describeExecutionCLI(
+                                        endpointUrl: appState.endpoint, region: appState.region
+                                    ))
                                 }
-                                .disabled(appState.isReadOnly)
+                                if execution.status == "RUNNING" {
+                                    Divider()
+                                    Button("Stop Execution", role: .destructive) {
+                                        stopExecution(execution)
+                                    }
+                                    .disabled(appState.isReadOnly)
+                                }
                             }
                         }
                     }
-                }
 
-                Divider()
-                HStack {
-                    Text("\(executions.count) execution\(executions.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
+                    Divider()
+                    HStack {
+                        Text("\(executions.count) execution\(executions.count == 1 ? "" : "s")")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
             }
         }
     }

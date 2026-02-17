@@ -1,16 +1,9 @@
 import Foundation
 
-@MainActor
-final class SSMService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class SSMService: LocalStackService {
     // MARK: - Parameter Operations
 
-    func describeParameters() async throws -> [SSMParameter] {
+    func describeParameters(region: String? = nil) async throws -> [SSMParameter] {
         var allParameters: [SSMParameter] = []
         var nextToken: String? = nil
 
@@ -19,7 +12,7 @@ final class SSMService: ObservableObject {
             if let token = nextToken {
                 payload["NextToken"] = token
             }
-            let data = try await client.ssmRequest(action: "DescribeParameters", payload: payload)
+            let data = try await client.ssmRequest(action: "DescribeParameters", payload: payload, region: region)
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 break
             }

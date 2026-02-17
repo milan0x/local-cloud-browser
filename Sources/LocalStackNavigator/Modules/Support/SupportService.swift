@@ -1,13 +1,6 @@
 import Foundation
 
-@MainActor
-final class SupportService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class SupportService: LocalStackService {
     // MARK: - Case Operations
 
     func describeCases(includeResolved: Bool) async throws -> [SupportCase] {

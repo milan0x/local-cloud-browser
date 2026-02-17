@@ -194,31 +194,16 @@ struct EC2EntityListView: View {
     // MARK: - Header
 
     private var listHeader: some View {
-        HStack {
-            Text("EC2")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadEntities(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet()
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadEntities(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: deleteDisabled, help: "Delete") {
-                deleteCurrentSelection()
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "EC2",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: deleteDisabled,
+            deleteHelp: "Delete",
+            onRefresh: { loadEntities(force: true) },
+            onCreate: { showCreateSheet() },
+            onDelete: { deleteCurrentSelection() }
+        )
     }
 
     private var deleteDisabled: Bool {
@@ -296,7 +281,7 @@ struct EC2EntityListView: View {
                     .contextMenu { instanceContextMenu(instance) }
                 }
                 .contextMenu { createContextMenu }
-                statusBar(count: instances.count, label: "instance", selectedCount: selectedInstanceIDs.count)
+                ListStatusBar(totalCount: instances.count, selectedCount: selectedInstanceIDs.count, noun: "instance")
             }
         }
     }
@@ -384,7 +369,7 @@ struct EC2EntityListView: View {
                     .contextMenu { securityGroupContextMenu(sg) }
                 }
                 .contextMenu { createContextMenu }
-                statusBar(count: securityGroups.count, label: "security group", selectedCount: selectedGroupIDs.count)
+                ListStatusBar(totalCount: securityGroups.count, selectedCount: selectedGroupIDs.count, noun: "security group")
             }
         }
     }
@@ -449,7 +434,7 @@ struct EC2EntityListView: View {
                     .contextMenu { keyPairContextMenu(kp) }
                 }
                 .contextMenu { createContextMenu }
-                statusBar(count: keyPairs.count, label: "key pair", selectedCount: selectedKeyPairIDs.count)
+                ListStatusBar(totalCount: keyPairs.count, selectedCount: selectedKeyPairIDs.count, noun: "key pair")
             }
         }
     }
@@ -509,24 +494,6 @@ struct EC2EntityListView: View {
     private func emptyView(_ text: String, icon: String) -> some View {
         EmptyStateView(icon: icon, message: text)
             .contextMenu { createContextMenu }
-    }
-
-    @ViewBuilder
-    private func statusBar(count: Int, label: String, selectedCount: Int) -> some View {
-        Divider()
-        HStack {
-            Text("\(count) \(label)\(count == 1 ? "" : "s")")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if selectedCount > 1 {
-                Text("(\(selectedCount) selected)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4)
     }
 
     // MARK: - Actions

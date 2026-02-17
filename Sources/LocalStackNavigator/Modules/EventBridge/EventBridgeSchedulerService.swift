@@ -1,13 +1,6 @@
 import Foundation
 
-@MainActor
-final class EventBridgeSchedulerService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class EventBridgeSchedulerService: LocalStackService {
     // MARK: - Schedule Groups
 
     func listScheduleGroups() async throws -> [SchedulerScheduleGroup] {

@@ -1,17 +1,10 @@
 import Foundation
 
-@MainActor
-final class RedshiftService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class RedshiftService: LocalStackService {
     // MARK: - Cluster Operations
 
-    func describeClusters() async throws -> [RedshiftCluster] {
-        let data = try await client.redshiftRequest(action: "DescribeClusters")
+    func describeClusters(region: String? = nil) async throws -> [RedshiftCluster] {
+        let data = try await client.redshiftRequest(action: "DescribeClusters", region: region)
         return try RedshiftClusterListParser.parse(data)
     }
 

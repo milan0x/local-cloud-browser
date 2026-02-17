@@ -37,14 +37,7 @@ struct SupportModuleView: View {
                         supportCase: supportCase
                     )
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "lifepreserver")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a case")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "lifepreserver", message: "Select a case")
                 }
             }
             .frame(minWidth: 400)

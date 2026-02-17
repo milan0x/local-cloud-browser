@@ -185,14 +185,7 @@ struct KinesisStreamDetailPaneView: View {
     private var recordsPane: some View {
         VStack(spacing: 0) {
             if selectedShardID == nil {
-                VStack(spacing: 8) {
-                    Image(systemName: "doc.text.magnifyingglass")
-                        .font(.system(size: 32))
-                        .foregroundStyle(.secondary)
-                    Text("Select a shard to view records")
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                EmptyDetailView(icon: "doc.text.magnifyingglass", message: "Select a shard to view records")
             } else if isLoadingRecords && records.isEmpty {
                 ProgressView("Loading records...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

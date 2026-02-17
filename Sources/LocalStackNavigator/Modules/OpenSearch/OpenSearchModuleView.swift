@@ -38,14 +38,7 @@ struct OpenSearchModuleView: View {
                         toolbarState: toolbarState
                     )
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass.circle")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a domain")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "magnifyingglass.circle", message: "Select a domain")
                 }
             }
             .frame(minWidth: 400)

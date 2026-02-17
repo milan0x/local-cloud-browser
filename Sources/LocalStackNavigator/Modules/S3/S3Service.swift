@@ -1,16 +1,6 @@
 import Foundation
 
-@MainActor
-final class S3Service: ObservableObject {
-    private var client: LocalStackClient
-
-    init(client: LocalStackClient) {
-        self.client = client
-    }
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
+final class S3Service: LocalStackService {
 
     func listBuckets() async throws -> [S3Bucket] {
         let data = try await client.s3Request(method: "GET", path: "/")

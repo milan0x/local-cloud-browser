@@ -1,16 +1,9 @@
 import Foundation
 
-@MainActor
-final class ACMService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class ACMService: LocalStackService {
     // MARK: - Certificate Operations
 
-    func listCertificates() async throws -> [ACMCertificateSummary] {
+    func listCertificates(region: String? = nil) async throws -> [ACMCertificateSummary] {
         var allCerts: [ACMCertificateSummary] = []
         var nextToken: String?
 
@@ -19,7 +12,7 @@ final class ACMService: ObservableObject {
             if let token = nextToken {
                 payload["NextToken"] = token
             }
-            let data = try await client.acmRequest(action: "ListCertificates", payload: payload)
+            let data = try await client.acmRequest(action: "ListCertificates", payload: payload, region: region)
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 break
             }

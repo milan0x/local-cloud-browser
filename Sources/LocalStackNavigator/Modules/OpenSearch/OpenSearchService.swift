@@ -1,20 +1,14 @@
 import Foundation
 
-@MainActor
-final class OpenSearchService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class OpenSearchService: LocalStackService {
     // MARK: - Domain Operations
 
-    func listDomains() async throws -> [OpenSearchDomain] {
+    func listDomains(region: String? = nil) async throws -> [OpenSearchDomain] {
         let listResponse = try await client.opensearchRequest(
             action: "ListDomainNames",
             method: "GET",
-            path: "/domain"
+            path: "/domain",
+            region: region
         )
         guard let json = try JSONSerialization.jsonObject(with: listResponse.data) as? [String: Any],
               let domainNames = json["DomainNames"] as? [[String: Any]] else {

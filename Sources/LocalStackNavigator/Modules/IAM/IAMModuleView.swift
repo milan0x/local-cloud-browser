@@ -67,14 +67,7 @@ struct IAMModuleView: View {
                         entityName: policyArn
                     )
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "person.2")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select an entity")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "person.2", message: "Select an entity")
                 }
             }
             .frame(minWidth: 400)

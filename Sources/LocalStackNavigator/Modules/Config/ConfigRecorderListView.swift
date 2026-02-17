@@ -9,20 +9,19 @@ struct ConfigRecorderListView: View {
     @Binding var activeRecorder: ConfigurationRecorder?
     var restoreRecorderName: String?
 
-    @State private var recorders: [ConfigurationRecorder] = []
+    @StateObject private var regionLoader = FavoriteRegionLoader<ConfigurationRecorder>()
+    @StateObject private var loader = ListLoader<ConfigurationRecorder>()
+    private var recorders: [ConfigurationRecorder] { loader.items }
     @State private var statuses: [String: ConfigurationRecorderStatus] = [:]
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
     @State private var showCreateSheet = false
     @State private var recordersToDelete: [ConfigurationRecorder] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var searchText = ""
 
     var body: some View {
         VStack(spacing: 0) {
             recorderListContent
+            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             ConfigCreateRecorderView(service: service)
@@ -52,13 +51,15 @@ struct ConfigRecorderListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadRecorders() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && recordersToDelete.isEmpty && !isLoading }) {
+        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.describeConfigurationRecorders(region: $0) }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && recordersToDelete.isEmpty && !loader.isLoading }) {
             loadRecorders(force: true, silent: true)
+            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedRecorderIDs = []
             activeRecorder = nil
-            recorders = []
+            loader.items = []
             statuses = [:]
             loadRecorders(force: true)
         }
@@ -90,33 +91,8 @@ struct ConfigRecorderListView: View {
 
     // MARK: - Content
 
-    @ViewBuilder
     private var recorderListContent: some View {
-        if isLoading && recorders.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading recorders...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, recorders.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadRecorders(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if recorders.isEmpty {
-            EmptyStateView(icon: "gearshape.2", message: "No recorders", secondaryMessage: "Recorders are mocked — resource changes are NOT recorded")
-            .contextMenu {
-                Button("Create Recorder") {
-                    showCreateSheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: recorders.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading recorders...", onRetry: { loadRecorders(force: true) }) {
             VStack(spacing: 0) {
                 if recorders.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter recorders")
@@ -124,7 +100,12 @@ struct ConfigRecorderListView: View {
                         .padding(.vertical, 4)
                     Divider()
                 }
-                List(filteredRecorders, selection: $selectedRecorderIDs) { recorder in
+                List(selection: $selectedRecorderIDs) {
+                    if recorders.isEmpty {
+                        EmptyStateView(icon: "gearshape.2", message: "No recorders", secondaryMessage: "Recorders are mocked — resource changes are NOT recorded")
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(filteredRecorders) { recorder in
                     HStack {
                         Text(recorder.name)
                             .fontWeight(.medium)
@@ -154,9 +135,23 @@ struct ConfigRecorderListView: View {
                         }
                         .disabled(appState.isReadOnly)
                     }
+                    }
+                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
+                        selectBy: \.name
+                    ) { item in
+                        HStack {
+                            Text(item.name)
+                                .fontWeight(.medium)
+                                .lineLimit(1)
+                            Spacer()
+                            if let status = statuses[item.name] {
+                                StatusBadge(text: status.recording ? "RECORDING" : "STOPPED", color: status.recording ? .green : .gray)
+                            }
+                        }
+                    }
                 }
                 .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
+                    if loader.errorMessage != nil {
                         ConnectionLostBanner()
                     }
                 }
@@ -167,15 +162,17 @@ struct ConfigRecorderListView: View {
                     .disabled(appState.isReadOnly)
                 }
 
-                Divider()
-                HStack {
-                    Text("\(recorders.count) recorder\(recorders.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
+                if !recorders.isEmpty {
+                    Divider()
+                    HStack {
+                        Text("\(recorders.count) recorder\(recorders.count == 1 ? "" : "s")")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
             }
         }
     }
@@ -190,41 +187,26 @@ struct ConfigRecorderListView: View {
     // MARK: - Data
 
     private func loadRecorders(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.describeConfigurationRecorders()
-                let freshRecorders = loaded.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-                if recorders != freshRecorders {
-                    recorders = freshRecorders
-                }
-                // Load statuses
-                let loadedStatuses = try await service.describeConfigurationRecorderStatus()
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.describeConfigurationRecorders() },
+            sort: { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        ) { [self] items in
+            // Load statuses
+            if let loadedStatuses = try? await service.describeConfigurationRecorderStatus() {
                 var map: [String: ConfigurationRecorderStatus] = [:]
                 for s in loadedStatuses { map[s.name] = s }
                 statuses = map
-
-                if !hasRestoredSession, let savedName = restoreRecorderName,
-                   let recorder = recorders.first(where: { $0.name == savedName }) {
-                    selectedRecorderIDs = [recorder.id]
-                    activeRecorder = recorder
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+
+            if !loader.hasRestoredSession, let savedName = restoreRecorderName,
+               let recorder = items.first(where: { $0.name == savedName }) {
+                selectedRecorderIDs = [recorder.id]
+                activeRecorder = recorder
+            }
+            loader.hasRestoredSession = true
+            if let item = regionLoader.consumePendingSelection(from: items, by: \.name) {
+                selectedRecorderIDs = [item.id]
+                activeRecorder = item
             }
         }
     }

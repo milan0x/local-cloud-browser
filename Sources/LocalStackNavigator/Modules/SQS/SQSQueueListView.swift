@@ -8,16 +8,14 @@ struct SQSQueueListView: View {
     @Binding var activeQueue: SQSQueue?
     var restoreQueueName: String?
 
-    @State private var queues: [SQSQueue] = []
-    @State private var hasRestoredSession = false
+    @StateObject private var regionLoader = FavoriteRegionLoader<SQSQueue>()
+    @StateObject private var loader = ListLoader<SQSQueue>()
+    private var queues: [SQSQueue] { loader.items }
     @State private var messageCounts: [String: Int] = [:]  // queueUrl -> count
-    @State private var isLoading = false
-    @State private var errorMessage: String?
     @State private var showCreateSheet = false
     @State private var queuesToDelete: [SQSQueue] = []
     @State private var queueToPurge: SQSQueue?
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var queueToShowAttributes: SQSQueue?
 
     var body: some View {
@@ -25,34 +23,20 @@ struct SQSQueueListView: View {
             queueListHeader
             Divider()
             queueListContent
+            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             SQSCreateQueueView(service: service, existingQueueNames: Set(queues.map(\.queueName)))
                 .onDisappear { loadQueues(force: true) }
         }
-        .alert(
-            queuesToDelete.count == 1
-                ? "Delete Queue"
-                : "Delete \(queuesToDelete.count) Queues",
-            isPresented: Binding(
-                get: { !queuesToDelete.isEmpty },
-                set: { if !$0 { queuesToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteQueues(queuesToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                queuesToDelete = []
-            }
-        } message: {
-            if queuesToDelete.count == 1, let queue = queuesToDelete.first {
+        .deleteConfirmation(items: $queuesToDelete, noun: "Queue") { items in
+            if items.count == 1, let queue = items.first {
                 Text("Are you sure you want to delete \"\(queue.queueName)\"?\n\nThis cannot be undone.")
             } else {
-                let names = queuesToDelete.map(\.queueName).joined(separator: "\n")
+                let names = items.map(\.queueName).joined(separator: "\n")
                 Text("Are you sure you want to delete these queues?\n\n\(names)\n\nThis cannot be undone.")
             }
-        }
+        } onDelete: { deleteQueues($0) }
         .alert(
             "Purge Queue",
             isPresented: Binding(
@@ -79,13 +63,15 @@ struct SQSQueueListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadQueues() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && queuesToDelete.isEmpty && queueToPurge == nil && queueToShowAttributes == nil && !isLoading }) {
+        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listQueues(region: $0) }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && queuesToDelete.isEmpty && queueToPurge == nil && queueToShowAttributes == nil && !loader.isLoading }) {
             loadQueues(force: true, silent: true)
+            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedQueueIDs = []
             activeQueue = nil
-            queues = []
+            loader.items = []
             messageCounts = [:]
             loadQueues(force: true)
         }
@@ -99,127 +85,107 @@ struct SQSQueueListView: View {
     // MARK: - Header
 
     private var queueListHeader: some View {
-        HStack {
-            Text("Queues")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadQueues(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadQueues(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: queueDeleteDisabled, help: selectedQueueIDs.count <= 1 ? "Delete Queue" : "Delete \(selectedQueueIDs.count) Queues") {
-                queuesToDelete = queues.filter { selectedQueueIDs.contains($0.id) }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "Queues",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: queueDeleteDisabled,
+            deleteHelp: selectedQueueIDs.count <= 1 ? "Delete Queue" : "Delete \(selectedQueueIDs.count) Queues",
+            onRefresh: { loadQueues(force: true) },
+            onCreate: { showCreateSheet = true },
+            onDelete: { queuesToDelete = queues.filter { selectedQueueIDs.contains($0.id) } }
+        )
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var queueListContent: some View {
-        if isLoading && queues.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading queues...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadQueues(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if queues.isEmpty {
-            EmptyStateView(icon: "tray.2", message: "No queues")
-            .contextMenu {
-                Button("Create Queue") {
-                    showCreateSheet = true
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: queues.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading queues...", onRetry: { loadQueues(force: true) }) {
+            List(selection: $selectedQueueIDs) {
+                if queues.isEmpty {
+                    EmptyStateView(icon: "tray.2", message: "No queues")
+                        .listRowSeparator(.hidden)
                 }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
-            List(queues, selection: $selectedQueueIDs) { queue in
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(queue.queueName)
-                        .fontWeight(.medium)
-                        .lineLimit(1)
-                    HStack(spacing: 6) {
-                        StatusBadge(text: queue.isFifo ? "FIFO" : "Standard", color: queue.isFifo ? .blue : .gray)
-                        if let count = messageCounts[queue.queueUrl] {
-                            Text("~\(count) msgs")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+
+                ForEach(queues) { queue in
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(queue.queueName)
+                            .fontWeight(.medium)
+                            .lineLimit(1)
+                        HStack(spacing: 6) {
+                            StatusBadge(text: queue.isFifo ? "FIFO" : "Standard", color: queue.isFifo ? .blue : .gray)
+                            if let count = messageCounts[queue.queueUrl] {
+                                Text("~\(count) msgs")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
-                }
-                .tag(queue.id)
-                .contextMenu {
-                    Button("View Attributes") {
-                        queueToShowAttributes = queue
-                    }
-                    Divider()
-                    Button("Copy Queue URL") { copyToClipboard(queue.queueUrl) }
-                    Button("Copy Queue ARN") {
-                        if let arn = queue.queueArn(region: appState.region) {
-                            copyToClipboard(arn)
+                    .tag(queue.id)
+                    .contextMenu {
+                        Button("View Attributes") {
+                            queueToShowAttributes = queue
                         }
-                    }
-                    Button("Copy Queue Name") { copyToClipboard(queue.queueName) }
-                    Menu("Copy as AWS CLI") {
-                        Button("Send Message") {
-                            copyToClipboard(queue.sendMessageCLI(endpointUrl: appState.endpoint, region: appState.region))
+                        Divider()
+                        Button("Copy Queue URL") { copyToClipboard(queue.queueUrl) }
+                        Button("Copy Queue ARN") {
+                            if let arn = queue.queueArn(region: appState.region) {
+                                copyToClipboard(arn)
+                            }
                         }
-                        Button("Receive Message") {
-                            copyToClipboard(queue.receiveMessageCLI(endpointUrl: appState.endpoint, region: appState.region))
+                        Button("Copy Queue Name") { copyToClipboard(queue.queueName) }
+                        Menu("Copy as AWS CLI") {
+                            Button("Send Message") {
+                                copyToClipboard(queue.sendMessageCLI(endpointUrl: appState.endpoint, region: appState.region))
+                            }
+                            Button("Receive Message") {
+                                copyToClipboard(queue.receiveMessageCLI(endpointUrl: appState.endpoint, region: appState.region))
+                            }
+                            Button("Get Attributes") {
+                                copyToClipboard(queue.getAttributesCLI(endpointUrl: appState.endpoint, region: appState.region))
+                            }
                         }
-                        Button("Get Attributes") {
-                            copyToClipboard(queue.getAttributesCLI(endpointUrl: appState.endpoint, region: appState.region))
-                        }
-                    }
-                    Divider()
-                    Button("Create Queue") {
-                        showCreateSheet = true
-                    }
-                    .disabled(appState.isReadOnly)
-                    Divider()
-                    Button("Purge Queue") {
-                        queueToPurge = queue
-                    }
-                    .disabled(appState.isReadOnly)
-                    Divider()
-                    if selectedQueueIDs.count > 1 && selectedQueueIDs.contains(queue.id) {
-                        let selected = queues.filter { selectedQueueIDs.contains($0.id) }
-                        Button("Delete \(selected.count) Queues", role: .destructive) {
-                            queuesToDelete = selected
+                        Divider()
+                        Button("Create Queue") {
+                            showCreateSheet = true
                         }
                         .disabled(appState.isReadOnly)
-                    } else {
-                        Button("Delete", role: .destructive) {
-                            queuesToDelete = [queue]
+                        Divider()
+                        Button("Purge Queue") {
+                            queueToPurge = queue
                         }
                         .disabled(appState.isReadOnly)
+                        Divider()
+                        if selectedQueueIDs.count > 1 && selectedQueueIDs.contains(queue.id) {
+                            let selected = queues.filter { selectedQueueIDs.contains($0.id) }
+                            Button("Delete \(selected.count) Queues", role: .destructive) {
+                                queuesToDelete = selected
+                            }
+                            .disabled(appState.isReadOnly)
+                        } else {
+                            Button("Delete", role: .destructive) {
+                                queuesToDelete = [queue]
+                            }
+                            .disabled(appState.isReadOnly)
+                        }
+                    }
+                }
+
+                FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
+                    selectBy: \.queueName
+                ) { queue in
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(queue.queueName)
+                            .fontWeight(.medium)
+                            .lineLimit(1)
+                        HStack(spacing: 6) {
+                            StatusBadge(text: queue.isFifo ? "FIFO" : "Standard", color: queue.isFifo ? .blue : .gray)
+                        }
                     }
                 }
             }
             .overlay(alignment: .bottom) {
-                if errorMessage != nil {
+                if loader.errorMessage != nil {
                     ConnectionLostBanner()
                 }
             }
@@ -242,37 +208,21 @@ struct SQSQueueListView: View {
     // MARK: - Data
 
     private func loadQueues(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.listQueues()
-                let freshQueues = loaded.sorted { $0.queueName.localizedStandardCompare($1.queueName) == .orderedAscending }
-                if queues != freshQueues {
-                    queues = freshQueues
-                }
-                if !hasRestoredSession, let savedName = restoreQueueName,
-                   let queue = queues.first(where: { $0.queueName == savedName }) {
-                    selectedQueueIDs = [queue.id]
-                    activeQueue = queue
-                }
-                hasRestoredSession = true
-                await fetchMessageCounts()
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.listQueues() },
+            sort: { $0.queueName.localizedStandardCompare($1.queueName) == .orderedAscending }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedName = restoreQueueName,
+               let queue = items.first(where: { $0.queueName == savedName }) {
+                selectedQueueIDs = [queue.id]
+                activeQueue = queue
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            loader.hasRestoredSession = true
+            if let item = regionLoader.consumePendingSelection(from: items, by: \.queueName) {
+                selectedQueueIDs = [item.id]
+                activeQueue = item
             }
+            await fetchMessageCounts()
         }
     }
 
@@ -292,20 +242,13 @@ struct SQSQueueListView: View {
 
     private func deleteQueues(_ targets: [SQSQueue]) {
         Task {
-            var deletedIDs: Set<SQSQueue.ID> = []
-            for queue in targets {
-                do {
-                    try await service.deleteQueue(queueUrl: queue.queueUrl)
-                    deletedIDs.insert(queue.id)
-                } catch {
-                    serviceError = error.asServiceError
-                }
+            let (deleted, error) = await batchDelete(targets) {
+                try await service.deleteQueue(queueUrl: $0.queueUrl)
             }
-            if !deletedIDs.isEmpty {
-                selectedQueueIDs.subtract(deletedIDs)
-                if let active = activeQueue, deletedIDs.contains(active.id) {
-                    activeQueue = nil
-                }
+            if let error { serviceError = error }
+            if !deleted.isEmpty {
+                selectedQueueIDs.subtract(deleted)
+                if let active = activeQueue, deleted.contains(active.id) { activeQueue = nil }
                 loadQueues(force: true)
             }
         }

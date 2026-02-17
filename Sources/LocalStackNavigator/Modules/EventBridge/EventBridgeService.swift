@@ -1,16 +1,9 @@
 import Foundation
 
-@MainActor
-final class EventBridgeService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class EventBridgeService: LocalStackService {
     // MARK: - Event Buses
 
-    func listEventBuses() async throws -> [EventBridgeBus] {
+    func listEventBuses(region: String? = nil) async throws -> [EventBridgeBus] {
         var allBuses: [EventBridgeBus] = []
         var nextToken: String? = nil
 
@@ -19,7 +12,7 @@ final class EventBridgeService: ObservableObject {
             if let token = nextToken {
                 payload["NextToken"] = token
             }
-            let data = try await client.eventBridgeRequest(action: "ListEventBuses", payload: payload)
+            let data = try await client.eventBridgeRequest(action: "ListEventBuses", payload: payload, region: region)
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 break
             }

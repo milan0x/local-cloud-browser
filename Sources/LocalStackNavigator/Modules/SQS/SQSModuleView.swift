@@ -39,14 +39,7 @@ struct SQSModuleView: View {
                         favoriteStore: favoriteStore
                     )
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "tray.2")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a queue")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "tray.2", message: "Select a queue")
                 }
             }
             .frame(minWidth: 400)

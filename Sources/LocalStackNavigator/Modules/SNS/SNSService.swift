@@ -1,16 +1,9 @@
 import Foundation
 
-@MainActor
-final class SNSService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class SNSService: LocalStackService {
     // MARK: - Topic Operations
 
-    func listTopics() async throws -> [SNSTopic] {
+    func listTopics(region: String? = nil) async throws -> [SNSTopic] {
         var topics: [SNSTopic] = []
         var nextToken: String? = nil
 
@@ -19,7 +12,7 @@ final class SNSService: ObservableObject {
             if let token = nextToken {
                 params["NextToken"] = token
             }
-            let data = try await client.snsRequest(action: "ListTopics", params: params)
+            let data = try await client.snsRequest(action: "ListTopics", params: params, region: region)
             let xml = try SNSXMLParser.parse(data)
             let arns = xml.all("TopicArn")
             for arn in arns {

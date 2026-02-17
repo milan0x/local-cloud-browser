@@ -38,14 +38,7 @@ struct CloudWatchLogsModuleView: View {
                         toolbarState: toolbarState
                     )
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "doc.text.magnifyingglass")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a log group")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "doc.text.magnifyingglass", message: "Select a log group")
                 }
             }
             .frame(minWidth: 400)

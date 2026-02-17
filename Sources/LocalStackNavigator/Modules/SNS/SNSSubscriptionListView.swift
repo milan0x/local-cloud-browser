@@ -7,17 +7,15 @@ struct SNSSubscriptionListView: View {
     @ObservedObject var toolbarState: SNSToolbarState
     @EnvironmentObject private var appState: AppState
 
-    @State private var subscriptions: [SNSSubscription] = []
+    @StateObject private var loader = ListLoader<SNSSubscription>()
+    private var subscriptions: [SNSSubscription] { loader.items }
     @State private var selectedSubscriptionIDs: Set<SNSSubscription.ID> = []
-    @State private var isLoading = false
-    @State private var errorMessage: String?
     @State private var serviceError: ServiceError?
     @State private var searchQuery = ""
     @State private var showPublishSheet = false
     @State private var showSubscribeSheet = false
     @State private var showAttributesSheet = false
     @State private var subscriptionsToDelete: [SNSSubscription] = []
-    @State private var lastLoadTime: Date?
     @State private var detailSubscription: SNSSubscription?
 
     private var sortedSubscriptions: [SNSSubscription] {
@@ -56,36 +54,20 @@ struct SNSSubscriptionListView: View {
         .sheet(item: $detailSubscription) { sub in
             SNSSubscriptionAttributesView(service: service, subscription: sub)
         }
-        .alert(
-            subscriptionsToDelete.count == 1
-                ? "Unsubscribe"
-                : "Unsubscribe \(subscriptionsToDelete.count) Subscriptions",
-            isPresented: Binding(
-                get: { !subscriptionsToDelete.isEmpty },
-                set: { if !$0 { subscriptionsToDelete = [] } }
-            )
-        ) {
-            Button("Unsubscribe", role: .destructive) {
-                unsubscribeAll(subscriptionsToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                subscriptionsToDelete = []
-            }
-        } message: {
-            if subscriptionsToDelete.count == 1, let sub = subscriptionsToDelete.first {
+        .deleteConfirmation(items: $subscriptionsToDelete, title: { $0 == 1 ? "Unsubscribe" : "Unsubscribe \($0) Subscriptions" }, actionLabel: "Unsubscribe") { items in
+            if items.count == 1, let sub = items.first {
                 Text("Remove subscription for \(sub.protocol_):\(sub.endpoint)?\n\nThis cannot be undone.")
             } else {
-                Text("Remove \(subscriptionsToDelete.count) subscriptions?\n\nThis cannot be undone.")
+                Text("Remove \(items.count) subscriptions?\n\nThis cannot be undone.")
             }
-        }
+        } onDelete: { unsubscribeAll($0) }
         .serviceErrorAlert(error: $serviceError)
         .task(id: topic.id) {
-            subscriptions = []
+            loader.items = []
             selectedSubscriptionIDs = []
-            lastLoadTime = nil
             loadSubscriptions()
         }
-        .onAutoRefresh(canRefresh: { !showPublishSheet && !showSubscribeSheet && !showAttributesSheet && detailSubscription == nil && subscriptionsToDelete.isEmpty && !isLoading }) {
+        .onAutoRefresh(canRefresh: { !showPublishSheet && !showSubscribeSheet && !showAttributesSheet && detailSubscription == nil && subscriptionsToDelete.isEmpty && !loader.isLoading }) {
             loadSubscriptions(force: true, silent: true)
         }
         .onChange(of: selectedSubscriptionIDs) {
@@ -128,24 +110,11 @@ struct SNSSubscriptionListView: View {
 
     // MARK: - Content
 
-    @ViewBuilder
     private var subscriptionContent: some View {
-        if isLoading && subscriptions.isEmpty {
-            ProgressView("Loading subscriptions...")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadSubscriptions(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if subscriptions.isEmpty {
-            EmptyStateView(icon: "bell.slash", message: "No subscriptions", secondaryMessage: "Add a subscription to receive notifications from this topic.")
-        } else {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: subscriptions.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading subscriptions...", onRetry: { loadSubscriptions(force: true) }) {
+            if subscriptions.isEmpty {
+                EmptyStateView(icon: "bell.slash", message: "No subscriptions", secondaryMessage: "Add a subscription to receive notifications from this topic.")
+            } else {
             Table(sortedSubscriptions, selection: $selectedSubscriptionIDs) {
                 TableColumn("Protocol") { sub in
                     Text(sub.protocol_)
@@ -247,6 +216,7 @@ struct SNSSubscriptionListView: View {
                       !sub.isPending else { return }
                 detailSubscription = sub
             }
+            }
         }
     }
 
@@ -268,7 +238,7 @@ struct SNSSubscriptionListView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if isLoading {
+            if loader.isLoading {
                 ProgressView()
                     .controlSize(.small)
             }
@@ -280,30 +250,10 @@ struct SNSSubscriptionListView: View {
     // MARK: - Data
 
     private func loadSubscriptions(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.listSubscriptions(topicArn: topic.topicArn)
-                if subscriptions != loaded {
-                    subscriptions = loaded
-                }
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
-            }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
-            }
-        }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.listSubscriptions(topicArn: topic.topicArn) },
+            sort: { _, _ in false }
+        )
     }
 
     private func unsubscribeAll(_ targets: [SNSSubscription]) {
@@ -319,7 +269,7 @@ struct SNSSubscriptionListView: View {
                 }
             }
             if !deletedIDs.isEmpty {
-                subscriptions.removeAll { deletedIDs.contains($0.id) }
+                loader.items.removeAll { deletedIDs.contains($0.id) }
                 selectedSubscriptionIDs.subtract(deletedIDs)
             }
         }

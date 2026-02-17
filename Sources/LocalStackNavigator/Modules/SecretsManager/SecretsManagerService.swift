@@ -1,17 +1,10 @@
 import Foundation
 
-@MainActor
-final class SecretsManagerService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class SecretsManagerService: LocalStackService {
     // MARK: - Secret Operations
 
-    func listSecrets() async throws -> [Secret] {
-        let data = try await client.secretsManagerRequest(action: "ListSecrets")
+    func listSecrets(region: String? = nil) async throws -> [Secret] {
+        let data = try await client.secretsManagerRequest(action: "ListSecrets", region: region)
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let secretList = json["SecretList"] as? [[String: Any]] else {
             return []

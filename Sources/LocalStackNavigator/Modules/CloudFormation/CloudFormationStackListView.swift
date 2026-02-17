@@ -9,14 +9,12 @@ struct CloudFormationStackListView: View {
     @Binding var activeStack: CloudFormationStack?
     var restoreStackName: String?
 
-    @State private var stacks: [CloudFormationStack] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
+    @StateObject private var regionLoader = FavoriteRegionLoader<CloudFormationStack>()
+    @StateObject private var loader = ListLoader<CloudFormationStack>()
+    private var stacks: [CloudFormationStack] { loader.items }
     @State private var showCreateSheet = false
     @State private var stacksToDelete: [CloudFormationStack] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var stackToShowDetail: CloudFormationStack?
     @State private var searchText = ""
 
@@ -32,46 +30,34 @@ struct CloudFormationStackListView: View {
             stackListHeader
             Divider()
             stackListContent
+            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             CloudFormationCreateStackView(service: service, existingStackNames: Set(stacks.map(\.stackName)))
                 .onDisappear { loadStacks(force: true) }
         }
-        .alert(
-            stacksToDelete.count == 1
-                ? "Delete Stack"
-                : "Delete \(stacksToDelete.count) Stacks",
-            isPresented: Binding(
-                get: { !stacksToDelete.isEmpty },
-                set: { if !$0 { stacksToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteStacks(stacksToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                stacksToDelete = []
-            }
-        } message: {
-            if stacksToDelete.count == 1, let stack = stacksToDelete.first {
+        .deleteConfirmation(items: $stacksToDelete, noun: "Stack") { items in
+            if items.count == 1, let stack = items.first {
                 Text("Are you sure you want to delete \"\(stack.stackName)\"?\n\nAll resources in this stack will be deleted.")
             } else {
-                let names = stacksToDelete.map(\.stackName).joined(separator: "\n")
+                let names = items.map(\.stackName).joined(separator: "\n")
                 Text("Are you sure you want to delete these stacks?\n\n\(names)\n\nThis cannot be undone.")
             }
-        }
+        } onDelete: { deleteStacks($0) }
         .sheet(item: $stackToShowDetail) { stack in
             CloudFormationStackDetailView(service: service, stackName: stack.stackName)
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadStacks() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && stacksToDelete.isEmpty && stackToShowDetail == nil && !isLoading }) {
+        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listStacks(region: $0) }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && stacksToDelete.isEmpty && stackToShowDetail == nil && !loader.isLoading }) {
             loadStacks(force: true, silent: true)
+            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedStackIDs = []
             activeStack = nil
-            stacks = []
+            loader.items = []
             loadStacks(force: true)
         }
         .syncSelection(selectedStackIDs, items: stacks, activeItem: $activeStack)
@@ -105,65 +91,25 @@ struct CloudFormationStackListView: View {
     // MARK: - Header
 
     private var stackListHeader: some View {
-        HStack {
-            Text("Stacks")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadStacks(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadStacks(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: stackDeleteDisabled, help: selectedStackIDs.count <= 1 ? "Delete Stack" : "Delete \(selectedStackIDs.count) Stacks") {
+        ListHeaderBar(
+            title: "Stacks",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: stackDeleteDisabled,
+            deleteHelp: selectedStackIDs.count <= 1 ? "Delete Stack" : "Delete \(selectedStackIDs.count) Stacks",
+            onRefresh: { loadStacks(force: true) },
+            onCreate: { showCreateSheet = true },
+            onDelete: {
                 let deletable = stacks.filter { selectedStackIDs.contains($0.id) }
-                if !deletable.isEmpty {
-                    stacksToDelete = deletable
-                }
+                if !deletable.isEmpty { stacksToDelete = deletable }
             }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        )
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var stackListContent: some View {
-        if isLoading && stacks.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading stacks...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, stacks.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadStacks(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if stacks.isEmpty {
-            EmptyStateView(icon: "square.stack.3d.down.right", message: "No stacks")
-            .contextMenu {
-                Button("Create Stack") {
-                    showCreateSheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: stacks.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading stacks...", onRetry: { loadStacks(force: true) }) {
             VStack(spacing: 0) {
                 if stacks.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter stacks")
@@ -171,7 +117,12 @@ struct CloudFormationStackListView: View {
                         .padding(.vertical, 4)
                     Divider()
                 }
-                List(filteredStacks, selection: $selectedStackIDs) { stack in
+                List(selection: $selectedStackIDs) {
+                    if stacks.isEmpty {
+                        EmptyStateView(icon: "square.stack.3d.down.right", message: "No stacks")
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(filteredStacks) { stack in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(stack.stackName)
                             .fontWeight(.medium)
@@ -220,9 +171,23 @@ struct CloudFormationStackListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
+                    }
+                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
+                        selectBy: \.stackName
+                    ) { item in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(item.stackName)
+                                    .fontWeight(.medium)
+                                    .lineLimit(1)
+                                StatusBadge(text: item.stackStatus, color: item.statusColor.swiftUIColor)
+                            }
+                            Spacer()
+                        }
+                    }
                 }
                 .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
+                    if loader.errorMessage != nil {
                         ConnectionLostBanner()
                     }
                 }
@@ -240,21 +205,7 @@ struct CloudFormationStackListView: View {
                     }
                 })
 
-                // Status bar
-                Divider()
-                HStack {
-                    Text("\(stacks.count) stack\(stacks.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if selectedStackIDs.count > 1 {
-                        Text("(\(selectedStackIDs.count) selected)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+                ListStatusBar(totalCount: stacks.count, selectedCount: selectedStackIDs.count, noun: "stack")
             }
         }
     }
@@ -262,55 +213,32 @@ struct CloudFormationStackListView: View {
     // MARK: - Data
 
     private func loadStacks(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.listStacks()
-                let freshStacks = loaded.sorted { $0.stackName.localizedStandardCompare($1.stackName) == .orderedAscending }
-                if stacks != freshStacks {
-                    stacks = freshStacks
-                }
-                if !hasRestoredSession, let savedName = restoreStackName,
-                   let stack = stacks.first(where: { $0.stackName == savedName }) {
-                    selectedStackIDs = [stack.id]
-                    activeStack = stack
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.listStacks() },
+            sort: { $0.stackName.localizedStandardCompare($1.stackName) == .orderedAscending }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedName = restoreStackName,
+               let stack = items.first(where: { $0.stackName == savedName }) {
+                selectedStackIDs = [stack.id]
+                activeStack = stack
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            loader.hasRestoredSession = true
+            if let item = regionLoader.consumePendingSelection(from: items, by: \.stackName) {
+                selectedStackIDs = [item.id]
+                activeStack = item
             }
         }
     }
 
     private func deleteStacks(_ targets: [CloudFormationStack]) {
         Task {
-            var deletedIDs: Set<CloudFormationStack.ID> = []
-            for stack in targets {
-                do {
-                    try await service.deleteStack(name: stack.stackName)
-                    deletedIDs.insert(stack.id)
-                } catch {
-                    serviceError = error.asServiceError
-                }
+            let (deleted, error) = await batchDelete(targets) {
+                try await service.deleteStack(name: $0.stackName)
             }
-            if !deletedIDs.isEmpty {
-                selectedStackIDs.subtract(deletedIDs)
-                if let active = activeStack, deletedIDs.contains(active.id) {
-                    activeStack = nil
-                }
+            if let error { serviceError = error }
+            if !deleted.isEmpty {
+                selectedStackIDs.subtract(deleted)
+                if let active = activeStack, deleted.contains(active.id) { activeStack = nil }
                 loadStacks(force: true)
             }
         }

@@ -163,7 +163,7 @@ final class LocalStackClient: ObservableObject {
         "ListQueueTags", "ListDeadLetterSourceQueues",
     ]
 
-    func sqsRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+    func sqsRequest(action: String, payload: [String: Any] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.sqsReadActions.contains(action) {
             Log.warn("Blocked SQS \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "SQS:\(action)")
@@ -173,7 +173,7 @@ final class LocalStackClient: ObservableObject {
         // SQS queries. We send a minimal (unsigned) credential so LocalStack knows
         // which region we're targeting. Signatures are not validated.
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/sqs/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/sqs/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -205,7 +205,7 @@ final class LocalStackClient: ObservableObject {
         return set
     }()
 
-    func snsRequest(action: String, params: [String: String] = [:]) async throws -> Data {
+    func snsRequest(action: String, params: [String: String] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.snsReadActions.contains(action) {
             Log.warn("Blocked SNS \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "SNS:\(action)")
@@ -222,7 +222,7 @@ final class LocalStackClient: ObservableObject {
             .joined(separator: "&")
         let body = bodyString.data(using: .utf8)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/sns/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/sns/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -243,7 +243,7 @@ final class LocalStackClient: ObservableObject {
         "ListIdentities", "GetIdentityVerificationAttributes",
     ]
 
-    func sesRequest(action: String, params: [String: String] = [:]) async throws -> Data {
+    func sesRequest(action: String, params: [String: String] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.sesReadActions.contains(action) {
             Log.warn("Blocked SES \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "SES:\(action)")
@@ -260,7 +260,7 @@ final class LocalStackClient: ObservableObject {
             .joined(separator: "&")
         let body = bodyString.data(using: .utf8)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/ses/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/ses/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -282,14 +282,14 @@ final class LocalStackClient: ObservableObject {
         "DescribeTimeToLive", "ListTagsOfResource",
     ]
 
-    func dynamodbRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+    func dynamodbRequest(action: String, payload: [String: Any] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.dynamodbReadActions.contains(action) {
             Log.warn("Blocked DynamoDB \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "DynamoDB:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/dynamodb/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/dynamodb/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -308,10 +308,10 @@ final class LocalStackClient: ObservableObject {
 
     // MARK: - DynamoDB Streams (JSON protocol)
 
-    func dynamodbStreamsRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+    func dynamodbStreamsRequest(action: String, payload: [String: Any] = [:], region: String? = nil) async throws -> Data {
         let body = try JSONSerialization.data(withJSONObject: payload)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/dynamodb/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/dynamodb/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -335,14 +335,14 @@ final class LocalStackClient: ObservableObject {
         "ListSecrets", "DescribeSecret", "GetSecretValue",
     ]
 
-    func secretsManagerRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+    func secretsManagerRequest(action: String, payload: [String: Any] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.secretsManagerReadActions.contains(action) {
             Log.warn("Blocked SecretsManager \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "SecretsManager:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/secretsmanager/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/secretsmanager/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -367,14 +367,14 @@ final class LocalStackClient: ObservableObject {
         "GetParametersByPath", "ListTagsForResource",
     ]
 
-    func ssmRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+    func ssmRequest(action: String, payload: [String: Any] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.ssmReadActions.contains(action) {
             Log.warn("Blocked SSM \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "SSM:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/ssm/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/ssm/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -398,14 +398,14 @@ final class LocalStackClient: ObservableObject {
         "DescribeLogGroups", "DescribeLogStreams", "GetLogEvents", "FilterLogEvents",
     ]
 
-    func cloudWatchLogsRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+    func cloudWatchLogsRequest(action: String, payload: [String: Any] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.cloudWatchLogsReadActions.contains(action) {
             Log.warn("Blocked CloudWatchLogs \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "CloudWatchLogs:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/logs/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/logs/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -429,14 +429,14 @@ final class LocalStackClient: ObservableObject {
         "ListEventBuses", "ListRules", "DescribeRule", "ListTargetsByRule", "ListTagsForResource",
     ]
 
-    func eventBridgeRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+    func eventBridgeRequest(action: String, payload: [String: Any] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.eventBridgeReadActions.contains(action) {
             Log.warn("Blocked EventBridge \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "EventBridge:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/events/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/events/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -460,14 +460,14 @@ final class LocalStackClient: ObservableObject {
         "ListScheduleGroups", "GetScheduleGroup", "ListSchedules", "GetSchedule",
     ]
 
-    func schedulerRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+    func schedulerRequest(action: String, payload: [String: Any] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.schedulerReadActions.contains(action) {
             Log.warn("Blocked Scheduler \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "Scheduler:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/scheduler/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/scheduler/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -494,7 +494,7 @@ final class LocalStackClient: ObservableObject {
         "ListGroupsForUser", "ListGroups", "GetGroup",
     ]
 
-    func iamRequest(action: String, params: [String: String] = [:]) async throws -> Data {
+    func iamRequest(action: String, params: [String: String] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.iamReadActions.contains(action) {
             Log.warn("Blocked IAM \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "IAM:\(action)")
@@ -511,7 +511,7 @@ final class LocalStackClient: ObservableObject {
             .joined(separator: "&")
         let body = bodyString.data(using: .utf8)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/iam/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/iam/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -533,7 +533,7 @@ final class LocalStackClient: ObservableObject {
         "ListStackResources", "DescribeStackEvents", "GetTemplate",
     ]
 
-    func cloudFormationRequest(action: String, params: [String: String] = [:]) async throws -> Data {
+    func cloudFormationRequest(action: String, params: [String: String] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.cloudFormationReadActions.contains(action) {
             Log.warn("Blocked CloudFormation \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "CloudFormation:\(action)")
@@ -550,7 +550,7 @@ final class LocalStackClient: ObservableObject {
             .joined(separator: "&")
         let body = bodyString.data(using: .utf8)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/cloudformation/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/cloudformation/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -577,14 +577,15 @@ final class LocalStackClient: ObservableObject {
         action: String,
         method: String,
         path: String,
-        body: Data? = nil
+        body: Data? = nil,
+        region: String? = nil
     ) async throws -> HTTPResponse {
         if appState.isReadOnly && !Self.apiGatewayReadActions.contains(action) {
             Log.warn("Blocked APIGateway \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "APIGateway:\(action)")
         }
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/apigateway/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/apigateway/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         var headers = ["Authorization": auth]
         if body != nil {
@@ -608,14 +609,14 @@ final class LocalStackClient: ObservableObject {
         "ListCertificates", "DescribeCertificate", "GetCertificate", "ListTagsForCertificate",
     ]
 
-    func acmRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+    func acmRequest(action: String, payload: [String: Any] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.acmReadActions.contains(action) {
             Log.warn("Blocked ACM \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "ACM:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/acm/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/acm/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -640,14 +641,14 @@ final class LocalStackClient: ObservableObject {
         "ListShards", "GetShardIterator", "GetRecords", "ListTagsForStream",
     ]
 
-    func kinesisRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+    func kinesisRequest(action: String, payload: [String: Any] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.kinesisReadActions.contains(action) {
             Log.warn("Blocked Kinesis \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "Kinesis:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/kinesis/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/kinesis/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -671,14 +672,14 @@ final class LocalStackClient: ObservableObject {
         "ListDeliveryStreams", "DescribeDeliveryStream",
     ]
 
-    func firehoseRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+    func firehoseRequest(action: String, payload: [String: Any] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.firehoseReadActions.contains(action) {
             Log.warn("Blocked Firehose \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "Firehose:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/firehose/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/firehose/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -702,14 +703,14 @@ final class LocalStackClient: ObservableObject {
         "ListKeys", "DescribeKey", "GetKeyPolicy", "ListAliases",
     ]
 
-    func kmsRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+    func kmsRequest(action: String, payload: [String: Any] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.kmsReadActions.contains(action) {
             Log.warn("Blocked KMS \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "KMS:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/kms/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/kms/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -733,14 +734,14 @@ final class LocalStackClient: ObservableObject {
         "ListMetrics", "GetMetricStatistics", "GetMetricData", "DescribeAlarms", "DescribeAlarmsForMetric",
     ]
 
-    func cloudWatchRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+    func cloudWatchRequest(action: String, payload: [String: Any] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.cloudWatchReadActions.contains(action) {
             Log.warn("Blocked CloudWatch \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "CloudWatch:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/monitoring/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/monitoring/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -768,14 +769,14 @@ final class LocalStackClient: ObservableObject {
         "ListTagsForResource",
     ]
 
-    func route53ResolverRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+    func route53ResolverRequest(action: String, payload: [String: Any] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.route53ResolverReadActions.contains(action) {
             Log.warn("Blocked Route53Resolver \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "Route53Resolver:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/route53resolver/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/route53resolver/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -797,10 +798,11 @@ final class LocalStackClient: ObservableObject {
     func route53Request(
         method: String,
         path: String,
-        body: Data? = nil
+        body: Data? = nil,
+        region: String? = nil
     ) async throws -> Data {
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/route53/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/route53/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: method,
@@ -820,7 +822,7 @@ final class LocalStackClient: ObservableObject {
         "DescribeClusters",
     ]
 
-    func redshiftRequest(action: String, params: [String: String] = [:]) async throws -> Data {
+    func redshiftRequest(action: String, params: [String: String] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.redshiftReadActions.contains(action) {
             Log.warn("Blocked Redshift \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "Redshift:\(action)")
@@ -838,7 +840,7 @@ final class LocalStackClient: ObservableObject {
             .joined(separator: "&")
         let body = bodyString.data(using: .utf8)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/redshift/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/redshift/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -863,14 +865,15 @@ final class LocalStackClient: ObservableObject {
         action: String,
         method: String,
         path: String,
-        body: Data? = nil
+        body: Data? = nil,
+        region: String? = nil
     ) async throws -> HTTPResponse {
         if appState.isReadOnly && !Self.opensearchReadActions.contains(action) {
             Log.warn("Blocked OpenSearch \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "OpenSearch:\(action)")
         }
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/es/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/es/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         var headers = ["Authorization": auth]
         if body != nil {
@@ -895,7 +898,7 @@ final class LocalStackClient: ObservableObject {
         "DescribeVpcs", "DescribeSubnets", "DescribeImages",
     ]
 
-    func ec2Request(action: String, params: [String: String] = [:]) async throws -> Data {
+    func ec2Request(action: String, params: [String: String] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.ec2ReadActions.contains(action) {
             Log.warn("Blocked EC2 \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "EC2:\(action)")
@@ -913,7 +916,7 @@ final class LocalStackClient: ObservableObject {
             .joined(separator: "&")
         let body = bodyString.data(using: .utf8)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/ec2/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/ec2/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -935,14 +938,14 @@ final class LocalStackClient: ObservableObject {
         "DescribeExecution", "GetExecutionHistory",
     ]
 
-    func stepFunctionsRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+    func stepFunctionsRequest(action: String, payload: [String: Any] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.stepFunctionsReadActions.contains(action) {
             Log.warn("Blocked StepFunctions \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "StepFunctions:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/states/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/states/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -966,7 +969,7 @@ final class LocalStackClient: ObservableObject {
         "GetCallerIdentity",
     ]
 
-    func stsRequest(action: String, params: [String: String] = [:]) async throws -> Data {
+    func stsRequest(action: String, params: [String: String] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.stsReadActions.contains(action) {
             Log.warn("Blocked STS \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "STS:\(action)")
@@ -984,7 +987,7 @@ final class LocalStackClient: ObservableObject {
             .joined(separator: "&")
         let body = bodyString.data(using: .utf8)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/sts/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/sts/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -1009,14 +1012,15 @@ final class LocalStackClient: ObservableObject {
         action: String,
         method: String,
         path: String,
-        body: Data? = nil
+        body: Data? = nil,
+        region: String? = nil
     ) async throws -> HTTPResponse {
         if appState.isReadOnly && !Self.lambdaReadActions.contains(action) {
             Log.warn("Blocked Lambda \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "Lambda:\(action)")
         }
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/lambda/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/lambda/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         var headers = ["Authorization": auth]
         if body != nil {
@@ -1044,14 +1048,15 @@ final class LocalStackClient: ObservableObject {
         action: String,
         method: String,
         path: String,
-        body: Data? = nil
+        body: Data? = nil,
+        region: String? = nil
     ) async throws -> Data {
         if appState.isReadOnly && !Self.resourceGroupsReadActions.contains(action) {
             Log.warn("Blocked ResourceGroups \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "ResourceGroups:\(action)")
         }
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/resource-groups/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/resource-groups/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         var headers = ["Authorization": auth]
         if body != nil {
@@ -1077,14 +1082,14 @@ final class LocalStackClient: ObservableObject {
         "DescribeDeliveryChannels", "DescribeDeliveryChannelStatus",
     ]
 
-    func configRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+    func configRequest(action: String, payload: [String: Any] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.configReadActions.contains(action) {
             Log.warn("Blocked Config \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "Config:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/config/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/config/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -1139,14 +1144,14 @@ final class LocalStackClient: ObservableObject {
         "ListTranscriptionJobs", "GetTranscriptionJob",
     ]
 
-    func transcribeRequest(action: String, payload: [String: Any] = [:]) async throws -> Data {
+    func transcribeRequest(action: String, payload: [String: Any] = [:], region: String? = nil) async throws -> Data {
         if appState.isReadOnly && !Self.transcribeReadActions.contains(action) {
             Log.warn("Blocked Transcribe \(action) — read-only mode", category: "HTTP")
             throw LocalStackClientError.readOnlyBlocked(method: "Transcribe:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(appState.region)/transcribe/aws4_request"
+        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/transcribe/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
         let response = try await executeRequest(
             method: "POST",
@@ -1161,6 +1166,10 @@ final class LocalStackClient: ObservableObject {
             skipReadOnlyCheck: true
         )
         return response.data
+    }
+
+    private func effectiveRegion(_ override: String?) -> String {
+        override ?? appState.region
     }
 
     private static let iso8601DateOnly: DateFormatter = {

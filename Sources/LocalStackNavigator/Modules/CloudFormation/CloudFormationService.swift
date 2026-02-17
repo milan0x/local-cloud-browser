@@ -1,16 +1,9 @@
 import Foundation
 
-@MainActor
-final class CloudFormationService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class CloudFormationService: LocalStackService {
     // MARK: - Stacks
 
-    func listStacks() async throws -> [CloudFormationStack] {
+    func listStacks(region: String? = nil) async throws -> [CloudFormationStack] {
         var allStacks: [CloudFormationStack] = []
         var nextToken: String? = nil
 
@@ -34,7 +27,7 @@ final class CloudFormationService: ObservableObject {
             if let token = nextToken {
                 params["NextToken"] = token
             }
-            let data = try await client.cloudFormationRequest(action: "ListStacks", params: params)
+            let data = try await client.cloudFormationRequest(action: "ListStacks", params: params, region: region)
             let xml = try SNSXMLParser.parse(data)
 
             for member in xml.memberDicts {

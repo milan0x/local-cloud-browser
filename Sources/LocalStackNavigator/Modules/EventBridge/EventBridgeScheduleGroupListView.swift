@@ -9,15 +9,12 @@ struct EventBridgeScheduleGroupListView: View {
     @Binding var activeGroup: SchedulerScheduleGroup?
     var restoreGroupName: String?
 
-    @State private var groups: [SchedulerScheduleGroup] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
     @State private var showCreateSheet = false
     @State private var groupsToDelete: [SchedulerScheduleGroup] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var searchText = ""
+    @StateObject private var loader = ListLoader<SchedulerScheduleGroup>()
+    private var groups: [SchedulerScheduleGroup] { loader.items }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,38 +26,23 @@ struct EventBridgeScheduleGroupListView: View {
             EventBridgeCreateScheduleGroupView(service: service, existingGroupNames: Set(groups.map(\.name)))
                 .onDisappear { loadGroups(force: true) }
         }
-        .alert(
-            groupsToDelete.count == 1
-                ? "Delete Schedule Group"
-                : "Delete \(groupsToDelete.count) Schedule Groups",
-            isPresented: Binding(
-                get: { !groupsToDelete.isEmpty },
-                set: { if !$0 { groupsToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteGroups(groupsToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                groupsToDelete = []
-            }
-        } message: {
-            if groupsToDelete.count == 1, let group = groupsToDelete.first {
+        .deleteConfirmation(items: $groupsToDelete, noun: "Schedule Group") { items in
+            if items.count == 1, let group = items.first {
                 Text("Are you sure you want to delete \"\(group.name)\"?\n\nAll schedules in this group will be permanently deleted.")
             } else {
-                let names = groupsToDelete.map(\.name).joined(separator: "\n")
+                let names = items.map(\.name).joined(separator: "\n")
                 Text("Are you sure you want to delete these schedule groups?\n\n\(names)\n\nThis cannot be undone.")
             }
-        }
+        } onDelete: { deleteGroups($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadGroups() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && groupsToDelete.isEmpty && !isLoading }) {
+        .onAutoRefresh(canRefresh: { !showCreateSheet && groupsToDelete.isEmpty && !loader.isLoading }) {
             loadGroups(force: true, silent: true)
         }
         .resetOnConnectionChange {
             selectedGroupIDs = []
             activeGroup = nil
-            groups = []
+            loader.items = []
             loadGroups(force: true)
         }
         .syncSelection(selectedGroupIDs, items: groups, activeItem: $activeGroup)
@@ -91,65 +73,25 @@ struct EventBridgeScheduleGroupListView: View {
     // MARK: - Header
 
     private var groupListHeader: some View {
-        HStack {
-            Text("Schedule Groups")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadGroups(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadGroups(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: groupDeleteDisabled, help: selectedGroupIDs.count <= 1 ? "Delete Schedule Group" : "Delete \(selectedGroupIDs.count) Schedule Groups") {
+        ListHeaderBar(
+            title: "Schedule Groups",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: groupDeleteDisabled,
+            deleteHelp: selectedGroupIDs.count <= 1 ? "Delete Schedule Group" : "Delete \(selectedGroupIDs.count) Schedule Groups",
+            onRefresh: { loadGroups(force: true) },
+            onCreate: { showCreateSheet = true },
+            onDelete: {
                 let deletable = groups.filter { selectedGroupIDs.contains($0.id) && !$0.isDefault }
-                if !deletable.isEmpty {
-                    groupsToDelete = deletable
-                }
+                if !deletable.isEmpty { groupsToDelete = deletable }
             }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        )
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var groupListContent: some View {
-        if isLoading && groups.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading schedule groups...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, groups.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadGroups(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if groups.isEmpty {
-            EmptyStateView(icon: "calendar.badge.clock", message: "No schedule groups")
-            .contextMenu {
-                Button("Create Schedule Group") {
-                    showCreateSheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: groups.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading schedule groups...", onRetry: { loadGroups(force: true) }) {
             VStack(spacing: 0) {
                 if groups.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter schedule groups")
@@ -157,7 +99,12 @@ struct EventBridgeScheduleGroupListView: View {
                         .padding(.vertical, 4)
                     Divider()
                 }
-                List(filteredGroups, selection: $selectedGroupIDs) { group in
+                List(selection: $selectedGroupIDs) {
+                    if groups.isEmpty {
+                        EmptyStateView(icon: "calendar.badge.clock", message: "No schedule groups")
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(filteredGroups) { group in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(group.name)
                             .fontWeight(.medium)
@@ -191,9 +138,10 @@ struct EventBridgeScheduleGroupListView: View {
                             .disabled(appState.isReadOnly || group.isDefault)
                         }
                     }
+                    }
                 }
                 .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
+                    if loader.errorMessage != nil {
                         ConnectionLostBanner()
                     }
                 }
@@ -204,21 +152,7 @@ struct EventBridgeScheduleGroupListView: View {
                     .disabled(appState.isReadOnly)
                 }
 
-                // Status bar
-                Divider()
-                HStack {
-                    Text("\(groups.count) group\(groups.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if selectedGroupIDs.count > 1 {
-                        Text("(\(selectedGroupIDs.count) selected)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+                ListStatusBar(totalCount: groups.count, selectedCount: selectedGroupIDs.count, noun: "schedule group")
             }
         }
     }
@@ -226,51 +160,26 @@ struct EventBridgeScheduleGroupListView: View {
     // MARK: - Data
 
     private func loadGroups(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.listScheduleGroups()
-                let freshGroups = loaded.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-                if groups != freshGroups {
-                    groups = freshGroups
-                }
-                if !hasRestoredSession, let savedName = restoreGroupName,
-                   let group = groups.first(where: { $0.name == savedName }) {
-                    selectedGroupIDs = [group.id]
-                    activeGroup = group
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.listScheduleGroups() },
+            sort: { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedName = restoreGroupName,
+               let group = items.first(where: { $0.name == savedName }) {
+                selectedGroupIDs = [group.id]
+                activeGroup = group
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
-            }
+            loader.hasRestoredSession = true
         }
     }
 
     private func deleteGroups(_ targets: [SchedulerScheduleGroup]) {
+        let nonDefault = targets.filter { !$0.isDefault }
         Task {
-            var deletedIDs: Set<SchedulerScheduleGroup.ID> = []
-            for group in targets {
-                guard !group.isDefault else { continue }
-                do {
-                    try await service.deleteScheduleGroup(name: group.name)
-                    deletedIDs.insert(group.id)
-                } catch {
-                    serviceError = error.asServiceError
-                }
+            let (deletedIDs, lastError) = await batchDelete(nonDefault) { group in
+                try await service.deleteScheduleGroup(name: group.name)
             }
+            if let lastError { serviceError = lastError }
             if !deletedIDs.isEmpty {
                 selectedGroupIDs.subtract(deletedIDs)
                 if let active = activeGroup, deletedIDs.contains(active.id) {

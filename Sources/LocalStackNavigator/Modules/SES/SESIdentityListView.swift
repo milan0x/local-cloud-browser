@@ -9,14 +9,12 @@ struct SESIdentityListView: View {
     @Binding var activeIdentity: SESIdentity?
     var restoreIdentityName: String?
 
-    @State private var identities: [SESIdentity] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
+    @StateObject private var loader = ListLoader<SESIdentity>()
+    @StateObject private var regionLoader = FavoriteRegionLoader<SESIdentity>()
+    private var identities: [SESIdentity] { loader.items }
     @State private var showVerifySheet = false
     @State private var identitiesToDelete: [SESIdentity] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var searchText = ""
 
     var body: some View {
@@ -24,45 +22,33 @@ struct SESIdentityListView: View {
             identityListHeader
             Divider()
             identityListContent
+            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showVerifySheet) {
             SESVerifyIdentityView(
                 service: service,
-                existingIdentities: identities.map(\.identity)
+                existingIdentities: loader.items.map(\.identity)
             )
             .onDisappear { loadIdentities(force: true) }
         }
-        .alert(
-            identitiesToDelete.count == 1
-                ? "Delete Identity"
-                : "Delete \(identitiesToDelete.count) Identities",
-            isPresented: Binding(
-                get: { !identitiesToDelete.isEmpty },
-                set: { if !$0 { identitiesToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteIdentities(identitiesToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                identitiesToDelete = []
-            }
-        } message: {
-            if identitiesToDelete.count == 1, let identity = identitiesToDelete.first {
+        .deleteConfirmation(items: $identitiesToDelete, noun: "Identity", pluralNoun: "Identities") { items in
+            if items.count == 1, let identity = items.first {
                 Text("Are you sure you want to delete \"\(identity.identity)\"?")
             } else {
-                Text("Are you sure you want to delete \(identitiesToDelete.count) identities?")
+                Text("Are you sure you want to delete \(items.count) identities?")
             }
-        }
+        } onDelete: { deleteIdentities($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadIdentities() }
-        .onAutoRefresh(canRefresh: { !showVerifySheet && identitiesToDelete.isEmpty && !isLoading }) {
+        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listIdentities(region: $0) }
+        .onAutoRefresh(canRefresh: { !showVerifySheet && identitiesToDelete.isEmpty && !loader.isLoading }) {
             loadIdentities(force: true, silent: true)
+            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedIdentityIDs = []
             activeIdentity = nil
-            identities = []
+            loader.items = []
             loadIdentities(force: true)
         }
         .syncSelection(selectedIdentityIDs, items: identities, activeItem: $activeIdentity)
@@ -98,62 +84,22 @@ struct SESIdentityListView: View {
     // MARK: - Header
 
     private var identityListHeader: some View {
-        HStack {
-            Text("Identities")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadIdentities(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showVerifySheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadIdentities(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: identityDeleteDisabled, help: selectedIdentityIDs.count <= 1 ? "Delete Identity" : "Delete \(selectedIdentityIDs.count) Identities") {
-                identitiesToDelete = identities.filter { selectedIdentityIDs.contains($0.id) }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "Identities",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: identityDeleteDisabled,
+            deleteHelp: selectedIdentityIDs.count <= 1 ? "Delete Identity" : "Delete \(selectedIdentityIDs.count) Identities",
+            onRefresh: { loadIdentities(force: true) },
+            onCreate: { showVerifySheet = true },
+            onDelete: { identitiesToDelete = identities.filter { selectedIdentityIDs.contains($0.id) } }
+        )
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var identityListContent: some View {
-        if isLoading && identities.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading identities...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, identities.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadIdentities(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if identities.isEmpty {
-            EmptyStateView(icon: "envelope", message: "No identities")
-            .contextMenu {
-                Button("Verify Identity") {
-                    showVerifySheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: identities.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading identities...", onRetry: { loadIdentities(force: true) }) {
             VStack(spacing: 0) {
                 if identities.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter identities")
@@ -161,7 +107,12 @@ struct SESIdentityListView: View {
                         .padding(.vertical, 4)
                     Divider()
                 }
-                List(filteredIdentities, selection: $selectedIdentityIDs) { identity in
+                List(selection: $selectedIdentityIDs) {
+                    if identities.isEmpty {
+                        EmptyStateView(icon: "envelope", message: "No identities")
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(filteredIdentities) { identity in
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(identity.identity)
@@ -205,9 +156,20 @@ struct SESIdentityListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
+                    }
+                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
+                        selectBy: \.identity
+                    ) { identity in
+                        HStack {
+                            Text(identity.identity)
+                                .fontWeight(.medium)
+                                .lineLimit(1)
+                            Spacer()
+                        }
+                    }
                 }
                 .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
+                    if loader.errorMessage != nil {
                         ConnectionLostBanner()
                     }
                 }
@@ -218,21 +180,7 @@ struct SESIdentityListView: View {
                     .disabled(appState.isReadOnly)
                 }
 
-                // Status bar
-                Divider()
-                HStack {
-                    Text("\(identities.count) identit\(identities.count == 1 ? "y" : "ies")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if selectedIdentityIDs.count > 1 {
-                        Text("(\(selectedIdentityIDs.count) selected)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+                ListStatusBar(totalCount: identities.count, selectedCount: selectedIdentityIDs.count, noun: "identity", pluralNoun: "identities")
             }
         }
     }
@@ -248,57 +196,37 @@ struct SESIdentityListView: View {
     // MARK: - Data
 
     private func loadIdentities(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.listIdentities()
-                let sorted = loaded.sorted { $0.identity.localizedStandardCompare($1.identity) == .orderedAscending }
-                if identities != sorted {
-                    identities = sorted
-                }
-                if !hasRestoredSession, let savedName = restoreIdentityName,
-                   let identity = identities.first(where: { $0.identity == savedName }) {
-                    selectedIdentityIDs = [identity.id]
-                    activeIdentity = identity
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.listIdentities() },
+            sort: { $0.identity.localizedStandardCompare($1.identity) == .orderedAscending }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedName = restoreIdentityName,
+               let identity = items.first(where: { $0.identity == savedName }) {
+                selectedIdentityIDs = [identity.id]
+                activeIdentity = identity
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            loader.hasRestoredSession = true
+            if let item = regionLoader.consumePendingSelection(from: items, by: \.identity) {
+                selectedIdentityIDs = [item.id]
+                activeIdentity = item
             }
         }
     }
 
     private func deleteIdentities(_ targets: [SESIdentity]) {
         Task {
-            var deletedIDs: Set<SESIdentity.ID> = []
-            for identity in targets {
-                do {
-                    try await service.deleteIdentity(identity: identity.identity)
-                    deletedIDs.insert(identity.id)
-                } catch {
-                    serviceError = error.asServiceError
-                }
+            let (deleted, error) = await batchDelete(targets) {
+                try await service.deleteIdentity(identity: $0.identity)
             }
-            if !deletedIDs.isEmpty {
-                selectedIdentityIDs.subtract(deletedIDs)
-                if let active = activeIdentity, deletedIDs.contains(active.id) {
+            if let error { serviceError = error }
+            if !deleted.isEmpty {
+                selectedIdentityIDs.subtract(deleted)
+                if let active = activeIdentity, deleted.contains(active.id) {
                     activeIdentity = nil
                 }
                 loadIdentities(force: true)
             }
         }
     }
+
 }

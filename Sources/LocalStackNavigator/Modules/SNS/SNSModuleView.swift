@@ -37,14 +37,7 @@ struct SNSModuleView: View {
                         toolbarState: toolbarState
                     )
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "bell")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a topic")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "bell", message: "Select a topic")
                 }
             }
             .frame(minWidth: 400)

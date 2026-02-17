@@ -1,13 +1,6 @@
 import Foundation
 
-@MainActor
-final class IAMService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class IAMService: LocalStackService {
     // MARK: - Users
 
     func listUsers() async throws -> [IAMUser] {

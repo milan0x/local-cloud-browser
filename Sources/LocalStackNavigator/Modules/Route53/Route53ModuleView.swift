@@ -48,7 +48,7 @@ struct Route53ModuleView: View {
                             toolbarState: toolbarState
                         )
                     } else {
-                        emptyDetail("Select a hosted zone", icon: "globe.americas")
+                        EmptyDetailView(icon: "globe.americas", message: "Select a hosted zone")
                     }
                 } else {
                     if let endpoint = activeEndpoint {
@@ -57,7 +57,7 @@ struct Route53ModuleView: View {
                             endpoint: endpoint
                         )
                     } else {
-                        emptyDetail("Select a resolver endpoint", icon: "network")
+                        EmptyDetailView(icon: "network", message: "Select a resolver endpoint")
                     }
                 }
             }
@@ -133,27 +133,15 @@ struct Route53ModuleView: View {
     }
 
     private var listHeader: some View {
-        HStack {
-            Text("Route 53")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {}
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                toolbarState.pendingAction = tab == .zones ? .createZone : .createEndpoint
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {}
-
-            ListHeaderButton("trash", color: .red, isDisabled: deleteDisabled) {
-                toolbarState.pendingAction = tab == .zones ? .deleteZone : .deleteEndpoint
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "Route 53",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: deleteDisabled,
+            onRefresh: {},
+            onCreate: { toolbarState.pendingAction = tab == .zones ? .createZone : .createEndpoint },
+            onDelete: { toolbarState.pendingAction = tab == .zones ? .deleteZone : .deleteEndpoint }
+        )
     }
 
     private var deleteDisabled: Bool {
@@ -161,16 +149,6 @@ struct Route53ModuleView: View {
         return !hasSelection || appState.isReadOnly
     }
 
-    private func emptyDetail(_ text: String, icon: String) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
-            Text(text)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
 
     // MARK: - Session
 

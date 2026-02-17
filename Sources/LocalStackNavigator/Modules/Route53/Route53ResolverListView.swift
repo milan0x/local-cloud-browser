@@ -9,18 +9,15 @@ struct Route53ResolverListView: View {
     @Binding var activeEndpoint: ResolverEndpoint?
     var restoreEndpointId: String?
 
-    @State private var endpoints: [ResolverEndpoint] = []
     @State private var rules: [ResolverRule] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
     @State private var showCreateEndpointSheet = false
     @State private var showCreateRuleSheet = false
     @State private var endpointsToDelete: [ResolverEndpoint] = []
     @State private var rulesToDelete: [ResolverRule] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var searchText = ""
+    @StateObject private var loader = ListLoader<ResolverEndpoint>()
+    private var endpoints: [ResolverEndpoint] { loader.items }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,52 +31,26 @@ struct Route53ResolverListView: View {
             Route53ResolverCreateRuleView(service: service)
                 .onDisappear { loadData(force: true) }
         }
-        .alert(
-            "Delete Resolver Endpoint",
-            isPresented: Binding(
-                get: { !endpointsToDelete.isEmpty },
-                set: { if !$0 { endpointsToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteEndpoints(endpointsToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                endpointsToDelete = []
-            }
-        } message: {
-            if let ep = endpointsToDelete.first {
+        .deleteConfirmation(items: $endpointsToDelete, title: { _ in "Delete Resolver Endpoint" }, actionLabel: "Delete") { items in
+            if let ep = items.first {
                 Text("Are you sure you want to delete resolver endpoint \"\(ep.name)\"?\n\nThis action cannot be undone.")
             }
-        }
-        .alert(
-            "Delete Resolver Rule",
-            isPresented: Binding(
-                get: { !rulesToDelete.isEmpty },
-                set: { if !$0 { rulesToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteRules(rulesToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                rulesToDelete = []
-            }
-        } message: {
-            if let rule = rulesToDelete.first {
+        } onDelete: { deleteEndpoints($0) }
+        .deleteConfirmation(items: $rulesToDelete, title: { _ in "Delete Resolver Rule" }, actionLabel: "Delete") { items in
+            if let rule = items.first {
                 Text("Are you sure you want to delete resolver rule \"\(rule.name)\"?\n\nThis action cannot be undone.")
             }
-        }
+        } onDelete: { deleteRules($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadData() }
         .onAutoRefresh(canRefresh: { !showCreateEndpointSheet && !showCreateRuleSheet &&
-                  endpointsToDelete.isEmpty && rulesToDelete.isEmpty && !isLoading }) {
+                  endpointsToDelete.isEmpty && rulesToDelete.isEmpty && !loader.isLoading }) {
             loadData(force: true, silent: true)
         }
         .resetOnConnectionChange {
             selectedEndpointIDs = []
             activeEndpoint = nil
-            endpoints = []
+            loader.items = []
             rules = []
             loadData(force: true)
         }
@@ -124,67 +95,10 @@ struct Route53ResolverListView: View {
 
     // MARK: - Content
 
-    @ViewBuilder
     private var listContent: some View {
-        if isLoading && endpoints.isEmpty && rules.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading resolver...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, endpoints.isEmpty && rules.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadData(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if endpoints.isEmpty && rules.isEmpty {
-            EmptyStateView(icon: "network", message: "No resolver endpoints or rules")
-            .contextMenu {
-                Button("Create Endpoint") {
-                    showCreateEndpointSheet = true
-                }
-                .disabled(appState.isReadOnly)
-                Button("Create Rule") {
-                    showCreateRuleSheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
-            VStack(spacing: 0) {
-                if endpoints.count + rules.count > 5 {
-                    SearchBarView(query: $searchText, placeholder: "Filter endpoints & rules")
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                    Divider()
-                }
-                List(selection: $selectedEndpointIDs) {
-                    if !filteredEndpoints.isEmpty {
-                        Section("Endpoints") {
-                            ForEach(filteredEndpoints) { endpoint in
-                                endpointRow(endpoint)
-                                    .tag(endpoint.id)
-                            }
-                        }
-                    }
-                    if !filteredRules.isEmpty {
-                        Section("Rules") {
-                            ForEach(filteredRules) { rule in
-                                ruleRow(rule)
-                            }
-                        }
-                    }
-                }
-                .listStyle(.plain)
-                .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
-                        ConnectionLostBanner()
-                    }
-                }
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: endpoints.isEmpty && rules.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading resolver...", onRetry: { loadData(force: true) }) {
+            if endpoints.isEmpty && rules.isEmpty {
+                EmptyStateView(icon: "network", message: "No resolver endpoints or rules")
                 .contextMenu {
                     Button("Create Endpoint") {
                         showCreateEndpointSheet = true
@@ -195,17 +109,59 @@ struct Route53ResolverListView: View {
                     }
                     .disabled(appState.isReadOnly)
                 }
+            } else {
+                VStack(spacing: 0) {
+                    if endpoints.count + rules.count > 5 {
+                        SearchBarView(query: $searchText, placeholder: "Filter endpoints & rules")
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                        Divider()
+                    }
+                    List(selection: $selectedEndpointIDs) {
+                        if !filteredEndpoints.isEmpty {
+                            Section("Endpoints") {
+                                ForEach(filteredEndpoints) { endpoint in
+                                    endpointRow(endpoint)
+                                        .tag(endpoint.id)
+                                }
+                            }
+                        }
+                        if !filteredRules.isEmpty {
+                            Section("Rules") {
+                                ForEach(filteredRules) { rule in
+                                    ruleRow(rule)
+                                }
+                            }
+                        }
+                    }
+                    .listStyle(.plain)
+                    .overlay(alignment: .bottom) {
+                        if loader.errorMessage != nil {
+                            ConnectionLostBanner()
+                        }
+                    }
+                    .contextMenu {
+                        Button("Create Endpoint") {
+                            showCreateEndpointSheet = true
+                        }
+                        .disabled(appState.isReadOnly)
+                        Button("Create Rule") {
+                            showCreateRuleSheet = true
+                        }
+                        .disabled(appState.isReadOnly)
+                    }
 
-                // Status bar
-                Divider()
-                HStack {
-                    Text("\(endpoints.count) endpoint\(endpoints.count == 1 ? "" : "s"), \(rules.count) rule\(rules.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
+                    // Status bar
+                    Divider()
+                    HStack {
+                        Text("\(endpoints.count) endpoint\(endpoints.count == 1 ? "" : "s"), \(rules.count) rule\(rules.count == 1 ? "" : "s")")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
             }
         }
     }
@@ -343,56 +299,29 @@ struct Route53ResolverListView: View {
     // MARK: - Data
 
     private func loadData(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                async let endpointsResult = service.listResolverEndpoints()
-                async let rulesResult = service.listResolverRules()
-                let (loadedEndpoints, loadedRules) = try await (endpointsResult, rulesResult)
-                let freshEndpoints = loadedEndpoints.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-                let freshRules = loadedRules.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-                if endpoints != freshEndpoints {
-                    endpoints = freshEndpoints
-                }
-                if rules != freshRules {
-                    rules = freshRules
-                }
-                if !hasRestoredSession, let savedId = restoreEndpointId,
-                   let ep = endpoints.first(where: { $0.id == savedId }) {
-                    selectedEndpointIDs = [ep.id]
-                    activeEndpoint = ep
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.listResolverEndpoints() },
+            sort: { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        ) { [self] items in
+            if let freshRules = try? await service.listResolverRules() {
+                let sorted = freshRules.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+                if rules != sorted { rules = sorted }
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            if !loader.hasRestoredSession, let savedId = restoreEndpointId,
+               let ep = items.first(where: { $0.id == savedId }) {
+                selectedEndpointIDs = [ep.id]
+                activeEndpoint = ep
             }
+            loader.hasRestoredSession = true
         }
     }
 
     private func deleteEndpoints(_ targets: [ResolverEndpoint]) {
         Task {
-            var deletedIDs: Set<ResolverEndpoint.ID> = []
-            for ep in targets {
-                do {
-                    try await service.deleteResolverEndpoint(id: ep.id)
-                    deletedIDs.insert(ep.id)
-                } catch {
-                    serviceError = error.asServiceError
-                }
+            let (deletedIDs, lastError) = await batchDelete(targets) { ep in
+                try await service.deleteResolverEndpoint(id: ep.id)
             }
+            if let lastError { serviceError = lastError }
             if !deletedIDs.isEmpty {
                 selectedEndpointIDs.subtract(deletedIDs)
                 if let active = activeEndpoint, deletedIDs.contains(active.id) {
@@ -405,13 +334,10 @@ struct Route53ResolverListView: View {
 
     private func deleteRules(_ targets: [ResolverRule]) {
         Task {
-            for rule in targets {
-                do {
-                    try await service.deleteResolverRule(id: rule.id)
-                } catch {
-                    serviceError = error.asServiceError
-                }
+            let (_, lastError) = await batchDelete(targets) { rule in
+                try await service.deleteResolverRule(id: rule.id)
             }
+            if let lastError { serviceError = lastError }
             loadData(force: true)
         }
     }

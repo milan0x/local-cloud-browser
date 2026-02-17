@@ -9,14 +9,12 @@ struct APIGatewayAPIListView: View {
     @Binding var activeAPI: RestApi?
     var restoreAPIId: String?
 
-    @State private var apis: [RestApi] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
+    @StateObject private var regionLoader = FavoriteRegionLoader<RestApi>()
+    @StateObject private var loader = ListLoader<RestApi>()
+    private var apis: [RestApi] { loader.items }
     @State private var showCreateSheet = false
     @State private var apisToDelete: [RestApi] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var apiToShowDetail: RestApi?
     @State private var searchText = ""
 
@@ -25,6 +23,7 @@ struct APIGatewayAPIListView: View {
             apiListHeader
             Divider()
             apiListContent
+            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             APIGatewayCreateAPIView(service: service, existingAPINames: Set(apis.map(\.name)))
@@ -58,13 +57,15 @@ struct APIGatewayAPIListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadAPIs() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && apisToDelete.isEmpty && apiToShowDetail == nil && !isLoading }) {
+        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listRestApis(region: $0) }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && apisToDelete.isEmpty && apiToShowDetail == nil && !loader.isLoading }) {
             loadAPIs(force: true, silent: true)
+            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedAPIIDs = []
             activeAPI = nil
-            apis = []
+            loader.items = []
             loadAPIs(force: true)
         }
         .syncSelection(selectedAPIIDs, items: apis, activeItem: $activeAPI)
@@ -95,62 +96,22 @@ struct APIGatewayAPIListView: View {
     // MARK: - Header
 
     private var apiListHeader: some View {
-        HStack {
-            Text("REST APIs")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadAPIs(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadAPIs(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: apiDeleteDisabled, help: selectedAPIIDs.count <= 1 ? "Delete API" : "Delete \(selectedAPIIDs.count) APIs") {
-                apisToDelete = apis.filter { selectedAPIIDs.contains($0.id) }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "REST APIs",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: apiDeleteDisabled,
+            deleteHelp: selectedAPIIDs.count <= 1 ? "Delete API" : "Delete \(selectedAPIIDs.count) APIs",
+            onRefresh: { loadAPIs(force: true) },
+            onCreate: { showCreateSheet = true },
+            onDelete: { apisToDelete = apis.filter { selectedAPIIDs.contains($0.id) } }
+        )
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var apiListContent: some View {
-        if isLoading && apis.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading REST APIs...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, apis.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadAPIs(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if apis.isEmpty {
-            EmptyStateView(icon: "network", message: "No REST APIs")
-            .contextMenu {
-                Button("Create REST API") {
-                    showCreateSheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: apis.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading REST APIs...", onRetry: { loadAPIs(force: true) }) {
             VStack(spacing: 0) {
                 if apis.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter APIs")
@@ -158,7 +119,12 @@ struct APIGatewayAPIListView: View {
                         .padding(.vertical, 4)
                     Divider()
                 }
-                List(filteredAPIs, selection: $selectedAPIIDs) { api in
+                List(selection: $selectedAPIIDs) {
+                    if apis.isEmpty {
+                        EmptyStateView(icon: "network", message: "No REST APIs")
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(filteredAPIs) { api in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(api.name)
                             .fontWeight(.medium)
@@ -209,9 +175,26 @@ struct APIGatewayAPIListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
+                    }
+                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
+                        selectBy: \.name
+                    ) { item in
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(item.name)
+                                .fontWeight(.medium)
+                                .lineLimit(1)
+                            HStack(spacing: 6) {
+                                StatusBadge(text: item.endpointType, color: .blue)
+                                Text(item.id)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
                 }
                 .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
+                    if loader.errorMessage != nil {
                         ConnectionLostBanner()
                     }
                 }
@@ -229,21 +212,7 @@ struct APIGatewayAPIListView: View {
                     }
                 })
 
-                // Status bar
-                Divider()
-                HStack {
-                    Text("\(apis.count) API\(apis.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if selectedAPIIDs.count > 1 {
-                        Text("(\(selectedAPIIDs.count) selected)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+                ListStatusBar(totalCount: apis.count, selectedCount: selectedAPIIDs.count, noun: "API")
             }
         }
     }
@@ -251,35 +220,19 @@ struct APIGatewayAPIListView: View {
     // MARK: - Data
 
     private func loadAPIs(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.listRestApis()
-                let freshAPIs = loaded.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-                if apis != freshAPIs {
-                    apis = freshAPIs
-                }
-                if !hasRestoredSession, let savedId = restoreAPIId,
-                   let api = apis.first(where: { $0.id == savedId }) {
-                    selectedAPIIDs = [api.id]
-                    activeAPI = api
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.listRestApis() },
+            sort: { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedId = restoreAPIId,
+               let api = items.first(where: { $0.id == savedId }) {
+                selectedAPIIDs = [api.id]
+                activeAPI = api
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            loader.hasRestoredSession = true
+            if let item = regionLoader.consumePendingSelection(from: items, by: \.name) {
+                selectedAPIIDs = [item.id]
+                activeAPI = item
             }
         }
     }

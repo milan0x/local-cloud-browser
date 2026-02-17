@@ -37,14 +37,7 @@ struct ACMModuleView: View {
                         certificate: cert
                     )
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "checkmark.seal")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a certificate")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "checkmark.seal", message: "Select a certificate")
                 }
             }
             .frame(minWidth: 400)

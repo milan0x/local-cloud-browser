@@ -9,62 +9,48 @@ struct LambdaFunctionListView: View {
     @Binding var activeFunction: LambdaFunction?
     var restoreFunctionName: String?
 
-    @State private var functions: [LambdaFunction] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
     @State private var showCreateSheet = false
     @State private var functionsToDelete: [LambdaFunction] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var functionToShowDetail: LambdaFunction?
     @State private var searchText = ""
+    @StateObject private var regionLoader = FavoriteRegionLoader<LambdaFunction>()
+    @StateObject private var loader = ListLoader<LambdaFunction>()
+    private var functions: [LambdaFunction] { loader.items }
 
     var body: some View {
         VStack(spacing: 0) {
             functionListHeader
             Divider()
             functionListContent
+            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             LambdaCreateFunctionView(service: service, existingFunctionNames: Set(functions.map(\.functionName)))
                 .onDisappear { loadFunctions(force: true) }
         }
-        .alert(
-            functionsToDelete.count == 1
-                ? "Delete Function"
-                : "Delete \(functionsToDelete.count) Functions",
-            isPresented: Binding(
-                get: { !functionsToDelete.isEmpty },
-                set: { if !$0 { functionsToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteFunctions(functionsToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                functionsToDelete = []
-            }
-        } message: {
-            if functionsToDelete.count == 1, let fn = functionsToDelete.first {
+        .deleteConfirmation(items: $functionsToDelete, noun: "Function") { items in
+            if items.count == 1, let fn = items.first {
                 Text("Are you sure you want to delete \"\(fn.functionName)\"?\n\nThis cannot be undone.")
             } else {
-                let names = functionsToDelete.map(\.functionName).joined(separator: "\n")
+                let names = items.map(\.functionName).joined(separator: "\n")
                 Text("Are you sure you want to delete these functions?\n\n\(names)\n\nThis cannot be undone.")
             }
-        }
+        } onDelete: { deleteFunctions($0) }
         .sheet(item: $functionToShowDetail) { function in
             LambdaFunctionDetailView(service: service, function: function)
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadFunctions() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && functionsToDelete.isEmpty && functionToShowDetail == nil && !isLoading }) {
+        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listFunctions(region: $0) }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && functionsToDelete.isEmpty && functionToShowDetail == nil && !loader.isLoading }) {
             loadFunctions(force: true, silent: true)
+            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedFunctionIDs = []
             activeFunction = nil
-            functions = []
+            loader.items = []
             loadFunctions(force: true)
         }
         .syncSelection(selectedFunctionIDs, items: functions, activeItem: $activeFunction)
@@ -98,62 +84,22 @@ struct LambdaFunctionListView: View {
     // MARK: - Header
 
     private var functionListHeader: some View {
-        HStack {
-            Text("Functions")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadFunctions(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadFunctions(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: functionDeleteDisabled, help: selectedFunctionIDs.count <= 1 ? "Delete Function" : "Delete \(selectedFunctionIDs.count) Functions") {
-                functionsToDelete = functions.filter { selectedFunctionIDs.contains($0.id) }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "Functions",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: functionDeleteDisabled,
+            deleteHelp: selectedFunctionIDs.count <= 1 ? "Delete Function" : "Delete \(selectedFunctionIDs.count) Functions",
+            onRefresh: { loadFunctions(force: true) },
+            onCreate: { showCreateSheet = true },
+            onDelete: { functionsToDelete = functions.filter { selectedFunctionIDs.contains($0.id) } }
+        )
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var functionListContent: some View {
-        if isLoading && functions.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading functions...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, functions.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadFunctions(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if functions.isEmpty {
-            EmptyStateView(icon: "function", message: "No functions")
-            .contextMenu {
-                Button("Create Function") {
-                    showCreateSheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: functions.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading functions...", onRetry: { loadFunctions(force: true) }) {
             VStack(spacing: 0) {
                 if functions.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter functions")
@@ -161,7 +107,12 @@ struct LambdaFunctionListView: View {
                         .padding(.vertical, 4)
                     Divider()
                 }
-                List(filteredFunctions, selection: $selectedFunctionIDs) { function in
+                List(selection: $selectedFunctionIDs) {
+                    if functions.isEmpty {
+                        EmptyStateView(icon: "function", message: "No functions")
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(filteredFunctions) { function in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(function.functionName)
                             .fontWeight(.medium)
@@ -218,9 +169,22 @@ struct LambdaFunctionListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
+                    }
+                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
+                        selectBy: \.functionName
+                    ) { function in
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(function.functionName)
+                                .fontWeight(.medium)
+                                .lineLimit(1)
+                            if !function.runtime.isEmpty {
+                                StatusBadge(text: function.runtime, color: .gray)
+                            }
+                        }
+                    }
                 }
                 .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
+                    if loader.errorMessage != nil {
                         ConnectionLostBanner()
                     }
                 }
@@ -238,21 +202,7 @@ struct LambdaFunctionListView: View {
                     }
                 })
 
-                // Status bar
-                Divider()
-                HStack {
-                    Text("\(functions.count) function\(functions.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if selectedFunctionIDs.count > 1 {
-                        Text("(\(selectedFunctionIDs.count) selected)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+                ListStatusBar(totalCount: functions.count, selectedCount: selectedFunctionIDs.count, noun: "function")
             }
         }
     }
@@ -271,57 +221,37 @@ struct LambdaFunctionListView: View {
     // MARK: - Data
 
     private func loadFunctions(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.listFunctions()
-                let freshFunctions = loaded.sorted { $0.functionName.localizedStandardCompare($1.functionName) == .orderedAscending }
-                if functions != freshFunctions {
-                    functions = freshFunctions
-                }
-                if !hasRestoredSession, let savedName = restoreFunctionName,
-                   let function = functions.first(where: { $0.functionName == savedName }) {
-                    selectedFunctionIDs = [function.id]
-                    activeFunction = function
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.listFunctions() },
+            sort: { $0.functionName.localizedStandardCompare($1.functionName) == .orderedAscending }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedName = restoreFunctionName,
+               let function = items.first(where: { $0.functionName == savedName }) {
+                selectedFunctionIDs = [function.id]
+                activeFunction = function
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            loader.hasRestoredSession = true
+            if let item = regionLoader.consumePendingSelection(from: items, by: \.functionName) {
+                selectedFunctionIDs = [item.id]
+                activeFunction = item
             }
         }
     }
 
     private func deleteFunctions(_ targets: [LambdaFunction]) {
         Task {
-            var deletedIDs: Set<LambdaFunction.ID> = []
-            for function in targets {
-                do {
-                    try await service.deleteFunction(name: function.functionName)
-                    deletedIDs.insert(function.id)
-                } catch {
-                    serviceError = error.asServiceError
-                }
+            let (deleted, error) = await batchDelete(targets) {
+                try await service.deleteFunction(name: $0.functionName)
             }
-            if !deletedIDs.isEmpty {
-                selectedFunctionIDs.subtract(deletedIDs)
-                if let active = activeFunction, deletedIDs.contains(active.id) {
+            if let error { serviceError = error }
+            if !deleted.isEmpty {
+                selectedFunctionIDs.subtract(deleted)
+                if let active = activeFunction, deleted.contains(active.id) {
                     activeFunction = nil
                 }
                 loadFunctions(force: true)
             }
         }
     }
+
 }

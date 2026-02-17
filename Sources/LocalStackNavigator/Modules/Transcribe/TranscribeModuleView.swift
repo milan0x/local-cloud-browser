@@ -37,14 +37,7 @@ struct TranscribeModuleView: View {
                         job: job
                     )
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "waveform")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a transcription job")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "waveform", message: "Select a transcription job")
                 }
             }
             .frame(minWidth: 400)

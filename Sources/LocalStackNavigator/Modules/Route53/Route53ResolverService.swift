@@ -1,13 +1,6 @@
 import Foundation
 
-@MainActor
-final class Route53ResolverService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class Route53ResolverService: LocalStackService {
     // MARK: - Resolver Endpoint Operations
 
     func listResolverEndpoints() async throws -> [ResolverEndpoint] {

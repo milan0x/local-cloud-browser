@@ -8,21 +8,20 @@ struct CloudWatchAlarmListView: View {
     @Binding var activeAlarm: CloudWatchAlarm?
     var restoreAlarmName: String?
 
-    @State private var alarms: [CloudWatchAlarm] = []
     @State private var selectedAlarmIDs: Set<CloudWatchAlarm.ID> = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var lastLoadTime: Date?
     @State private var searchText = ""
     @State private var serviceError: ServiceError?
     @State private var showCreateAlarmSheet = false
     @State private var alarmsToDelete: [CloudWatchAlarm] = []
     @State private var showSetStateSheet = false
+    @StateObject private var regionLoader = FavoriteRegionLoader<CloudWatchAlarm>()
+    @StateObject private var loader = ListLoader<CloudWatchAlarm>()
+    private var alarms: [CloudWatchAlarm] { loader.items }
 
     var body: some View {
         VStack(spacing: 0) {
             listContent
+            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateAlarmSheet) {
             CloudWatchCreateAlarmView(service: service, existingAlarmNames: Set(alarms.map(\.alarmName)))
@@ -34,33 +33,24 @@ struct CloudWatchAlarmListView: View {
                     .onDisappear { loadAlarms(force: true) }
             }
         }
-        .alert(
-            alarmsToDelete.count == 1
-                ? "Delete Alarm"
-                : "Delete \(alarmsToDelete.count) Alarms",
-            isPresented: Binding(
-                get: { !alarmsToDelete.isEmpty },
-                set: { if !$0 { alarmsToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) { deleteAlarms(alarmsToDelete) }
-            Button("Cancel", role: .cancel) { alarmsToDelete = [] }
-        } message: {
-            if alarmsToDelete.count == 1, let alarm = alarmsToDelete.first {
+        .deleteConfirmation(items: $alarmsToDelete, noun: "Alarm") { items in
+            if items.count == 1, let alarm = items.first {
                 Text("Are you sure you want to delete alarm \"\(alarm.alarmName)\"?")
             } else {
-                Text("Are you sure you want to delete \(alarmsToDelete.count) alarms?")
+                Text("Are you sure you want to delete \(items.count) alarms?")
             }
-        }
+        } onDelete: { deleteAlarms($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadAlarms() }
-        .onAutoRefresh(canRefresh: { !showCreateAlarmSheet && !showSetStateSheet && alarmsToDelete.isEmpty && !isLoading }) {
+        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.describeAlarms(region: $0) }
+        .onAutoRefresh(canRefresh: { !showCreateAlarmSheet && !showSetStateSheet && alarmsToDelete.isEmpty && !loader.isLoading }) {
             loadAlarms(force: true, silent: true)
+            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedAlarmIDs = []
             activeAlarm = nil
-            alarms = []
+            loader.items = []
             loadAlarms(force: true)
         }
         .syncSelection(selectedAlarmIDs, items: alarms, activeItem: $activeAlarm)
@@ -98,31 +88,8 @@ struct CloudWatchAlarmListView: View {
         }
     }
 
-    @ViewBuilder
     private var listContent: some View {
-        if isLoading && alarms.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading alarms...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, alarms.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadAlarms(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if alarms.isEmpty {
-            EmptyStateView(icon: "bell", message: "No alarms")
-            .contextMenu {
-                Button("Create Alarm") { showCreateAlarmSheet = true }
-                    .disabled(appState.isReadOnly)
-            }
-        } else {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: alarms.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading alarms...", onRetry: { loadAlarms(force: true) }) {
             VStack(spacing: 0) {
                 if alarms.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter alarms")
@@ -130,7 +97,12 @@ struct CloudWatchAlarmListView: View {
                         .padding(.vertical, 4)
                     Divider()
                 }
-                List(filteredAlarms, selection: $selectedAlarmIDs) { alarm in
+                List(selection: $selectedAlarmIDs) {
+                    if alarms.isEmpty {
+                        EmptyStateView(icon: "bell", message: "No alarms")
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(filteredAlarms) { alarm in
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(alarm.alarmName)
@@ -180,14 +152,33 @@ struct CloudWatchAlarmListView: View {
                                 .disabled(appState.isReadOnly)
                         }
                     }
+                    }
+                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
+                        selectBy: \.alarmName
+                    ) { item in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(item.alarmName)
+                                    .fontWeight(.medium)
+                                    .lineLimit(1)
+                                Text(item.metricName)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            alarmStateBadge(item.alarmState)
+                        }
+                    }
                 }
                 .contextMenu {
                     Button("Create Alarm") { showCreateAlarmSheet = true }
                         .disabled(appState.isReadOnly)
                 }
 
-                Divider()
-                HStack {
+                if !alarms.isEmpty {
+                    Divider()
+                    HStack {
                     Text("\(alarms.count) alarm\(alarms.count == 1 ? "" : "s")")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -196,10 +187,11 @@ struct CloudWatchAlarmListView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    Spacer()
+                        Spacer()
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
             }
         }
     }
@@ -211,35 +203,19 @@ struct CloudWatchAlarmListView: View {
     // MARK: - Data
 
     private func loadAlarms(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.describeAlarms()
-                let freshAlarms = loaded.sorted { $0.alarmName.localizedStandardCompare($1.alarmName) == .orderedAscending }
-                if alarms != freshAlarms {
-                    alarms = freshAlarms
-                }
-                if !hasRestoredSession, let savedName = restoreAlarmName,
-                   let alarm = alarms.first(where: { $0.alarmName == savedName }) {
-                    selectedAlarmIDs = [alarm.id]
-                    activeAlarm = alarm
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.describeAlarms() },
+            sort: { $0.alarmName.localizedStandardCompare($1.alarmName) == .orderedAscending }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedName = restoreAlarmName,
+               let alarm = items.first(where: { $0.alarmName == savedName }) {
+                selectedAlarmIDs = [alarm.id]
+                activeAlarm = alarm
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            loader.hasRestoredSession = true
+            if let item = regionLoader.consumePendingSelection(from: items, by: \.alarmName) {
+                selectedAlarmIDs = [item.id]
+                activeAlarm = item
             }
         }
     }

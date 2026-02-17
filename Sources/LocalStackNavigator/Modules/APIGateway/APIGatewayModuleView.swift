@@ -38,14 +38,7 @@ struct APIGatewayModuleView: View {
                         toolbarState: toolbarState
                     )
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "network")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a REST API")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "network", message: "Select a REST API")
                 }
             }
             .frame(minWidth: 400)

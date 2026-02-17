@@ -45,13 +45,13 @@ struct ConfigModuleView: View {
                             recorder: recorder
                         )
                     } else {
-                        emptyDetail("Select a recorder", icon: "gearshape.2")
+                        EmptyDetailView(icon: "gearshape.2", message: "Select a recorder")
                     }
                 } else {
                     if let channel = activeChannel {
                         ConfigDeliveryChannelDetailView(channel: channel)
                     } else {
-                        emptyDetail("Select a delivery channel", icon: "tray.and.arrow.down")
+                        EmptyDetailView(icon: "tray.and.arrow.down", message: "Select a delivery channel")
                     }
                 }
             }
@@ -126,27 +126,15 @@ struct ConfigModuleView: View {
     }
 
     private var listHeader: some View {
-        HStack {
-            Text("Config")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {}
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                toolbarState.pendingAction = tab == .recorders ? .createRecorder : .createChannel
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {}
-
-            ListHeaderButton("trash", color: .red, isDisabled: configDeleteDisabled) {
-                toolbarState.pendingAction = tab == .recorders ? .deleteRecorder : .deleteChannel
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "Config",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: configDeleteDisabled,
+            onRefresh: {},
+            onCreate: { toolbarState.pendingAction = tab == .recorders ? .createRecorder : .createChannel },
+            onDelete: { toolbarState.pendingAction = tab == .recorders ? .deleteRecorder : .deleteChannel }
+        )
     }
 
     private var configDeleteDisabled: Bool {
@@ -154,16 +142,6 @@ struct ConfigModuleView: View {
         return !hasSelection || appState.isReadOnly
     }
 
-    private func emptyDetail(_ text: String, icon: String) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
-            Text(text)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
 
     // MARK: - Session
 

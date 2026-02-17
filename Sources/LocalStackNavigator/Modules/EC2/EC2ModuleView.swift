@@ -55,14 +55,7 @@ struct EC2ModuleView: View {
                 } else if let keyName = selectedKeyName, entityType == .keyPairs {
                     EC2KeyPairDetailView(keyName: keyName)
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "server.rack")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a resource")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "server.rack", message: "Select a resource")
                 }
             }
             .frame(minWidth: 400)
