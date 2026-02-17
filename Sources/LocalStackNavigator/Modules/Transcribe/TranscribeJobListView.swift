@@ -10,7 +10,6 @@ struct TranscribeJobListView: View {
     var restoreJobName: String?
 
     @StateObject private var loader = ListLoader<TranscriptionJob>()
-    @StateObject private var regionLoader = FavoriteRegionLoader<TranscriptionJob>()
     private var jobs: [TranscriptionJob] { loader.items }
     @State private var showCreateSheet = false
     @State private var jobsToDelete: [TranscriptionJob] = []
@@ -22,7 +21,6 @@ struct TranscribeJobListView: View {
             jobListHeader
             Divider()
             jobListContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             TranscribeCreateJobView(service: service)
@@ -37,10 +35,8 @@ struct TranscribeJobListView: View {
         } onDelete: { deleteJobs($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadJobs() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listTranscriptionJobs(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateSheet && jobsToDelete.isEmpty && !loader.isLoading }) {
             loadJobs(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedJobIDs = []
@@ -129,6 +125,7 @@ struct TranscribeJobListView: View {
                         Spacer()
                         statusBadge(for: job)
                     }
+                    .foregroundStyle(selectedJobIDs.contains(job.id) ? Color.white : Color.primary)
                     .tag(job.id)
                     .contextMenu {
                         Button("Copy Job Name") { copyToClipboard(job.jobName) }
@@ -162,24 +159,6 @@ struct TranscribeJobListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
-                    }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.jobName
-                    ) { item in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(item.jobName)
-                                    .fontWeight(.medium)
-                                    .lineLimit(1)
-                                if !item.languageCode.isEmpty {
-                                    Text(item.languageCode)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            Spacer()
-                            StatusBadge(text: item.jobStatus, color: statusColor(item.jobStatus))
-                        }
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -230,10 +209,6 @@ struct TranscribeJobListView: View {
                 activeJob = job
             }
             loader.hasRestoredSession = true
-            if let item = regionLoader.consumePendingSelection(from: items, by: \.jobName) {
-                selectedJobIDs = [item.id]
-                activeJob = item
-            }
         }
     }
 

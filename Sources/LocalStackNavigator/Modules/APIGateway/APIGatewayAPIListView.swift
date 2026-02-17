@@ -9,7 +9,6 @@ struct APIGatewayAPIListView: View {
     @Binding var activeAPI: RestApi?
     var restoreAPIId: String?
 
-    @StateObject private var regionLoader = FavoriteRegionLoader<RestApi>()
     @StateObject private var loader = ListLoader<RestApi>()
     private var apis: [RestApi] { loader.items }
     @State private var showCreateSheet = false
@@ -23,7 +22,6 @@ struct APIGatewayAPIListView: View {
             apiListHeader
             Divider()
             apiListContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             APIGatewayCreateAPIView(service: service, existingAPINames: Set(apis.map(\.name)))
@@ -57,10 +55,8 @@ struct APIGatewayAPIListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadAPIs() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listRestApis(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateSheet && apisToDelete.isEmpty && apiToShowDetail == nil && !loader.isLoading }) {
             loadAPIs(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedAPIIDs = []
@@ -137,6 +133,7 @@ struct APIGatewayAPIListView: View {
                                 .lineLimit(1)
                         }
                     }
+                    .foregroundStyle(selectedAPIIDs.contains(api.id) ? Color.white : Color.primary)
                     .tag(api.id)
                     .contextMenu {
                         Button("View Details") {
@@ -176,22 +173,6 @@ struct APIGatewayAPIListView: View {
                         }
                     }
                     }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.name
-                    ) { item in
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(item.name)
-                                .fontWeight(.medium)
-                                .lineLimit(1)
-                            HStack(spacing: 6) {
-                                StatusBadge(text: item.endpointType, color: .blue)
-                                Text(item.id)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                        }
-                    }
                 }
                 .overlay(alignment: .bottom) {
                     if loader.errorMessage != nil {
@@ -230,10 +211,6 @@ struct APIGatewayAPIListView: View {
                 activeAPI = api
             }
             loader.hasRestoredSession = true
-            if let item = regionLoader.consumePendingSelection(from: items, by: \.name) {
-                selectedAPIIDs = [item.id]
-                activeAPI = item
-            }
         }
     }
 

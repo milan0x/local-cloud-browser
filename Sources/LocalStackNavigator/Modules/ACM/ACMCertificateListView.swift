@@ -14,7 +14,6 @@ struct ACMCertificateListView: View {
     @State private var certsToDelete: [ACMCertificateSummary] = []
     @State private var serviceError: ServiceError?
     @State private var searchText = ""
-    @StateObject private var regionLoader = FavoriteRegionLoader<ACMCertificateSummary>()
     @StateObject private var loader = ListLoader<ACMCertificateSummary>()
     private var certificates: [ACMCertificateSummary] { loader.items }
 
@@ -23,7 +22,6 @@ struct ACMCertificateListView: View {
             certListHeader
             Divider()
             certListContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showRequestSheet) {
             ACMRequestCertificateView(service: service)
@@ -42,10 +40,8 @@ struct ACMCertificateListView: View {
         } onDelete: { deleteCertificates($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadCertificates() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listCertificates(region: $0) }
         .onAutoRefresh(canRefresh: { !showRequestSheet && !showImportSheet && certsToDelete.isEmpty && !loader.isLoading }) {
             loadCertificates(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedCertIDs = []
@@ -133,6 +129,7 @@ struct ACMCertificateListView: View {
                             typeBadge(cert.type)
                         }
                     }
+                    .foregroundStyle(selectedCertIDs.contains(cert.id) ? Color.white : Color.primary)
                     .tag(cert.id)
                     .contextMenu {
                         Button("Copy ARN") { copyToClipboard(cert.certificateArn) }
@@ -171,23 +168,6 @@ struct ACMCertificateListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
-                    }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.certificateArn
-                    ) { item in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(item.displayDomain)
-                                    .fontWeight(.medium)
-                                    .lineLimit(1)
-                                Text(item.truncatedArn)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                            Spacer()
-                            statusBadge(item.status)
-                        }
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -245,10 +225,6 @@ struct ACMCertificateListView: View {
                 activeCertificate = cert
             }
             loader.hasRestoredSession = true
-            if let item = regionLoader.consumePendingSelection(from: items, by: \.certificateArn) {
-                selectedCertIDs = [item.id]
-                activeCertificate = item
-            }
         }
     }
 

@@ -10,7 +10,6 @@ struct StepFunctionsStateMachineListView: View {
     var restoreName: String?
 
     @StateObject private var loader = ListLoader<StateMachineSummary>()
-    @StateObject private var regionLoader = FavoriteRegionLoader<StateMachineSummary>()
     private var machines: [StateMachineSummary] { loader.items }
     @State private var showCreateSheet = false
     @State private var machinesToDelete: [StateMachineSummary] = []
@@ -22,7 +21,6 @@ struct StepFunctionsStateMachineListView: View {
             listHeader
             Divider()
             listContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             StepFunctionsCreateStateMachineView(service: service)
@@ -37,10 +35,8 @@ struct StepFunctionsStateMachineListView: View {
         } onDelete: { deleteMachines($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadMachines() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listStateMachines(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateSheet && machinesToDelete.isEmpty && !loader.isLoading }) {
             loadMachines(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedIDs = []
@@ -117,6 +113,7 @@ struct StepFunctionsStateMachineListView: View {
                         Spacer()
                         typeBadge(machine.type)
                     }
+                    .foregroundStyle(selectedIDs.contains(machine.id) ? Color.white : Color.primary)
                     .tag(machine.id)
                     .contextMenu {
                         Button("Copy Name") { copyToClipboard(machine.name) }
@@ -152,17 +149,6 @@ struct StepFunctionsStateMachineListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
-                    }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.name
-                    ) { machine in
-                        HStack {
-                            Text(machine.name)
-                                .fontWeight(.medium)
-                                .lineLimit(1)
-                            Spacer()
-                            StatusBadge(text: machine.type, color: machine.type == "STANDARD" ? .blue : .purple)
-                        }
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -207,10 +193,6 @@ struct StepFunctionsStateMachineListView: View {
                 activeMachine = machine
             }
             loader.hasRestoredSession = true
-            if let machine = regionLoader.consumePendingSelection(from: items, by: \.name) {
-                selectedIDs = [machine.id]
-                activeMachine = machine
-            }
         }
     }
 

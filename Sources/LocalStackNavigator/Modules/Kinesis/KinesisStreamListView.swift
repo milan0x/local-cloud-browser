@@ -14,14 +14,12 @@ struct KinesisStreamListView: View {
     @State private var showPutRecordSheet = false
     @State private var serviceError: ServiceError?
     @State private var searchText = ""
-    @StateObject private var regionLoader = FavoriteRegionLoader<KinesisStreamSummary>()
     @StateObject private var loader = ListLoader<KinesisStreamSummary>()
     private var streams: [KinesisStreamSummary] { loader.items }
 
     var body: some View {
         VStack(spacing: 0) {
             streamListContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             KinesisCreateStreamView(service: service)
@@ -41,10 +39,8 @@ struct KinesisStreamListView: View {
         } onDelete: { deleteStreams($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadStreams() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listStreams(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateSheet && streamsToDelete.isEmpty && !showPutRecordSheet && !loader.isLoading }) {
             loadStreams(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedStreamIDs = []
@@ -108,6 +104,7 @@ struct KinesisStreamListView: View {
                         modeBadge(stream.streamMode)
                         statusBadge(stream.streamStatus)
                     }
+                    .foregroundStyle(selectedStreamIDs.contains(stream.id) ? Color.white : Color.primary)
                     .tag(stream.id)
                     .contextMenu {
                         Button("Copy Name") { copyToClipboard(stream.streamName) }
@@ -142,17 +139,6 @@ struct KinesisStreamListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
-                    }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.streamName
-                    ) { stream in
-                        HStack {
-                            Text(stream.streamName)
-                                .fontWeight(.medium)
-                                .lineLimit(1)
-                            Spacer()
-                            StatusBadge(text: stream.streamStatus, color: stream.streamStatus == "ACTIVE" ? .green : .gray)
-                        }
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -210,10 +196,6 @@ struct KinesisStreamListView: View {
                 activeStream = stream
             }
             loader.hasRestoredSession = true
-            if let item = regionLoader.consumePendingSelection(from: items, by: \.streamName) {
-                selectedStreamIDs = [item.id]
-                activeStream = item
-            }
         }
     }
 

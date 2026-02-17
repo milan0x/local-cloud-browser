@@ -9,7 +9,6 @@ struct ResourceGroupsListView: View {
     @Binding var activeGroup: ResourceGroupSummary?
     var restoreGroupName: String?
 
-    @StateObject private var regionLoader = FavoriteRegionLoader<ResourceGroupSummary>()
     @StateObject private var loader = ListLoader<ResourceGroupSummary>()
     private var groups: [ResourceGroupSummary] { loader.items }
     @State private var showCreateSheet = false
@@ -22,7 +21,6 @@ struct ResourceGroupsListView: View {
             listHeader
             Divider()
             listContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             ResourceGroupsCreateView(service: service)
@@ -37,10 +35,8 @@ struct ResourceGroupsListView: View {
         } onDelete: { deleteGroups($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadGroups() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listGroups(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateSheet && groupsToDelete.isEmpty && !loader.isLoading }) {
             loadGroups(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedGroupIDs = []
@@ -120,6 +116,7 @@ struct ResourceGroupsListView: View {
                                 .lineLimit(2)
                         }
                     }
+                    .foregroundStyle(selectedGroupIDs.contains(group.id) ? Color.white : Color.primary)
                     .tag(group.id)
                     .contextMenu {
                         Button("Copy Name") { copyToClipboard(group.name) }
@@ -157,21 +154,6 @@ struct ResourceGroupsListView: View {
                         }
                     }
                     }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.name
-                    ) { item in
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(item.name)
-                                .fontWeight(.medium)
-                                .lineLimit(1)
-                            if !item.description.isEmpty {
-                                Text(item.description)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(2)
-                            }
-                        }
-                    }
                 }
                 .overlay(alignment: .bottom) {
                     if loader.errorMessage != nil {
@@ -203,10 +185,6 @@ struct ResourceGroupsListView: View {
                 activeGroup = group
             }
             loader.hasRestoredSession = true
-            if let item = regionLoader.consumePendingSelection(from: items, by: \.name) {
-                selectedGroupIDs = [item.id]
-                activeGroup = item
-            }
         }
     }
 

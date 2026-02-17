@@ -9,7 +9,6 @@ struct ConfigRecorderListView: View {
     @Binding var activeRecorder: ConfigurationRecorder?
     var restoreRecorderName: String?
 
-    @StateObject private var regionLoader = FavoriteRegionLoader<ConfigurationRecorder>()
     @StateObject private var loader = ListLoader<ConfigurationRecorder>()
     private var recorders: [ConfigurationRecorder] { loader.items }
     @State private var statuses: [String: ConfigurationRecorderStatus] = [:]
@@ -21,7 +20,6 @@ struct ConfigRecorderListView: View {
     var body: some View {
         VStack(spacing: 0) {
             recorderListContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             ConfigCreateRecorderView(service: service)
@@ -51,10 +49,8 @@ struct ConfigRecorderListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadRecorders() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.describeConfigurationRecorders(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateSheet && recordersToDelete.isEmpty && !loader.isLoading }) {
             loadRecorders(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedRecorderIDs = []
@@ -113,6 +109,7 @@ struct ConfigRecorderListView: View {
                         Spacer()
                         recordingBadge(for: recorder.name)
                     }
+                    .foregroundStyle(selectedRecorderIDs.contains(recorder.id) ? Color.white : Color.primary)
                     .tag(recorder.id)
                     .contextMenu {
                         Button("Copy Name") { copyToClipboard(recorder.name) }
@@ -136,19 +133,7 @@ struct ConfigRecorderListView: View {
                         .disabled(appState.isReadOnly)
                     }
                     }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.name
-                    ) { item in
-                        HStack {
-                            Text(item.name)
-                                .fontWeight(.medium)
-                                .lineLimit(1)
-                            Spacer()
-                            if let status = statuses[item.name] {
-                                StatusBadge(text: status.recording ? "RECORDING" : "STOPPED", color: status.recording ? .green : .gray)
-                            }
-                        }
-                    }
+
                 }
                 .overlay(alignment: .bottom) {
                     if loader.errorMessage != nil {
@@ -204,10 +189,6 @@ struct ConfigRecorderListView: View {
                 activeRecorder = recorder
             }
             loader.hasRestoredSession = true
-            if let item = regionLoader.consumePendingSelection(from: items, by: \.name) {
-                selectedRecorderIDs = [item.id]
-                activeRecorder = item
-            }
         }
     }
 

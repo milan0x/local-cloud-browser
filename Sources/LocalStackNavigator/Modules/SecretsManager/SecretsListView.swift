@@ -14,7 +14,6 @@ struct SecretsListView: View {
     @State private var serviceError: ServiceError?
     @State private var secretToShowDetail: Secret?
     @State private var searchText = ""
-    @StateObject private var regionLoader = FavoriteRegionLoader<Secret>()
     @StateObject private var loader = ListLoader<Secret>()
     private var secrets: [Secret] { loader.items }
 
@@ -23,7 +22,6 @@ struct SecretsListView: View {
             secretListHeader
             Divider()
             secretListContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             CreateSecretView(service: service, existingSecretNames: Set(secrets.map(\.name)))
@@ -42,10 +40,8 @@ struct SecretsListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadSecrets() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listSecrets(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateSheet && secretsToDelete.isEmpty && secretToShowDetail == nil && !loader.isLoading }) {
             loadSecrets(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedSecretIDs = []
@@ -124,6 +120,7 @@ struct SecretsListView: View {
                                 .lineLimit(1)
                         }
                     }
+                    .foregroundStyle(selectedSecretIDs.contains(secret.id) ? Color.white : Color.primary)
                     .tag(secret.id)
                     .contextMenu {
                         Button("View Details") {
@@ -159,21 +156,6 @@ struct SecretsListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
-                    }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.name
-                    ) { secret in
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(secret.name)
-                                .fontWeight(.medium)
-                                .lineLimit(1)
-                            if let desc = secret.description, !desc.isEmpty {
-                                Text(desc)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                        }
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -213,10 +195,6 @@ struct SecretsListView: View {
                 activeSecret = secret
             }
             loader.hasRestoredSession = true
-            if let secret = regionLoader.consumePendingSelection(from: items, by: \.name) {
-                selectedSecretIDs = [secret.id]
-                activeSecret = secret
-            }
         }
     }
 

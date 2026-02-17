@@ -122,6 +122,7 @@ struct Route53ResolverListView: View {
                             Section("Endpoints") {
                                 ForEach(filteredEndpoints) { endpoint in
                                     endpointRow(endpoint)
+                                        .foregroundStyle(selectedEndpointIDs.contains(endpoint.id) ? Color.white : Color.primary)
                                         .tag(endpoint.id)
                                 }
                             }

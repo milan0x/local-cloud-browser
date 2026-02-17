@@ -14,15 +14,11 @@ struct CloudWatchAlarmListView: View {
     @State private var showCreateAlarmSheet = false
     @State private var alarmsToDelete: [CloudWatchAlarm] = []
     @State private var showSetStateSheet = false
-    @StateObject private var regionLoader = FavoriteRegionLoader<CloudWatchAlarm>()
     @StateObject private var loader = ListLoader<CloudWatchAlarm>()
     private var alarms: [CloudWatchAlarm] { loader.items }
 
     var body: some View {
-        VStack(spacing: 0) {
-            listContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
-        }
+        listContent
         .sheet(isPresented: $showCreateAlarmSheet) {
             CloudWatchCreateAlarmView(service: service, existingAlarmNames: Set(alarms.map(\.alarmName)))
                 .onDisappear { loadAlarms(force: true) }
@@ -42,10 +38,8 @@ struct CloudWatchAlarmListView: View {
         } onDelete: { deleteAlarms($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadAlarms() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.describeAlarms(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateAlarmSheet && !showSetStateSheet && alarmsToDelete.isEmpty && !loader.isLoading }) {
             loadAlarms(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedAlarmIDs = []
@@ -116,6 +110,7 @@ struct CloudWatchAlarmListView: View {
                         Spacer()
                         alarmStateBadge(alarm.alarmState)
                     }
+                    .foregroundStyle(selectedAlarmIDs.contains(alarm.id) ? Color.white : Color.primary)
                     .tag(alarm.id)
                     .contextMenu {
                         Button("Copy Alarm Name") { copyToClipboard(alarm.alarmName) }
@@ -152,23 +147,6 @@ struct CloudWatchAlarmListView: View {
                                 .disabled(appState.isReadOnly)
                         }
                     }
-                    }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.alarmName
-                    ) { item in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(item.alarmName)
-                                    .fontWeight(.medium)
-                                    .lineLimit(1)
-                                Text(item.metricName)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                            Spacer()
-                            alarmStateBadge(item.alarmState)
-                        }
                     }
                 }
                 .contextMenu {
@@ -213,10 +191,6 @@ struct CloudWatchAlarmListView: View {
                 activeAlarm = alarm
             }
             loader.hasRestoredSession = true
-            if let item = regionLoader.consumePendingSelection(from: items, by: \.alarmName) {
-                selectedAlarmIDs = [item.id]
-                activeAlarm = item
-            }
         }
     }
 

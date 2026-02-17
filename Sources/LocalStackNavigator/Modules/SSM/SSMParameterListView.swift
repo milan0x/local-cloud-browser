@@ -10,7 +10,6 @@ struct SSMParameterListView: View {
     var restoreParameterName: String?
 
     @StateObject private var loader = ListLoader<SSMParameter>()
-    @StateObject private var regionLoader = FavoriteRegionLoader<SSMParameter>()
     private var parameters: [SSMParameter] { loader.items }
     @State private var showCreateSheet = false
     @State private var parametersToDelete: [SSMParameter] = []
@@ -23,7 +22,6 @@ struct SSMParameterListView: View {
             parameterListHeader
             Divider()
             parameterListContent
-            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             SSMCreateParameterView(service: service, existingParameterNames: Set(loader.items.map(\.name)))
@@ -42,10 +40,8 @@ struct SSMParameterListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadParameters() }
-        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.describeParameters(region: $0) }
         .onAutoRefresh(canRefresh: { !showCreateSheet && parametersToDelete.isEmpty && parameterToShowDetail == nil && !loader.isLoading }) {
             loadParameters(force: true, silent: true)
-            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedParameterIDs = []
@@ -127,6 +123,7 @@ struct SSMParameterListView: View {
                             }
                         }
                     }
+                    .foregroundStyle(selectedParameterIDs.contains(parameter.id) ? Color.white : Color.primary)
                     .tag(parameter.id)
                     .contextMenu {
                         Button("View Details") {
@@ -164,18 +161,6 @@ struct SSMParameterListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
-                    }
-                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
-                        selectBy: \.name
-                    ) { item in
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(item.name)
-                                .fontWeight(.medium)
-                                .lineLimit(1)
-                            HStack(spacing: 4) {
-                                StatusBadge(text: item.displayType, color: typeColor(item.type))
-                            }
-                        }
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -223,10 +208,6 @@ struct SSMParameterListView: View {
                 activeParameter = parameter
             }
             loader.hasRestoredSession = true
-            if let item = regionLoader.consumePendingSelection(from: items, by: \.name) {
-                selectedParameterIDs = [item.id]
-                activeParameter = item
-            }
         }
     }
 
