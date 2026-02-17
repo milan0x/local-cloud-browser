@@ -5,6 +5,7 @@ struct SNSSubscriptionListView: View {
     @ObservedObject var service: SNSService
     let topic: SNSTopic
     @ObservedObject var toolbarState: SNSToolbarState
+    var searchFocusTrigger: Int = 0
     @EnvironmentObject private var appState: AppState
 
     @StateObject private var loader = ListLoader<SNSSubscription>()
@@ -102,7 +103,7 @@ struct SNSSubscriptionListView: View {
 
             Spacer()
 
-            SearchBarView(query: $searchQuery, placeholder: "Search subscriptions")
+            SearchBarView(query: $searchQuery, placeholder: "Search subscriptions", focusTrigger: searchFocusTrigger)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

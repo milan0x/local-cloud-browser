@@ -7,6 +7,7 @@ struct SQSQueueListView: View {
     @Binding var selectedQueueIDs: Set<SQSQueue.ID>
     @Binding var activeQueue: SQSQueue?
     var restoreQueueName: String?
+    var searchFocusTrigger: Int = 0
 
     @StateObject private var loader = ListLoader<SQSQueue>()
     private var queues: [SQSQueue] { loader.items }
@@ -106,7 +107,7 @@ struct SQSQueueListView: View {
         ListLoadingContent(isLoading: loader.isLoading, isEmpty: queues.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading queues...", onRetry: { loadQueues(force: true) }) {
             VStack(spacing: 0) {
                 if queues.count > 5 {
-                    SearchBarView(query: $searchText, placeholder: "Filter queues")
+                    SearchBarView(query: $searchText, placeholder: "Filter queues", focusTrigger: searchFocusTrigger)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                     Divider()

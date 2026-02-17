@@ -18,6 +18,7 @@ struct S3ObjectBrowserView: View {
     @ObservedObject var toolbarState: S3ToolbarState
     var restoreBucketName: String?
     var restorePath: [String]?
+    var searchFocusTrigger: Int = 0
 
     @State private var objects: [S3Object] = []
     @State private var prefixes: [S3Prefix] = []
@@ -466,7 +467,7 @@ struct S3ObjectBrowserView: View {
 
             Spacer()
 
-            SearchBarView(query: $searchQuery, placeholder: "Search in folder")
+            SearchBarView(query: $searchQuery, placeholder: "Search in folder", focusTrigger: searchFocusTrigger)
                 .padding(.trailing, 8)
         }
     }
