@@ -88,6 +88,9 @@ struct S3ObjectBrowserView: View {
     // Session restore
     @State private var hasRestoredPath = false
 
+    // Table focus
+    @FocusState private var isTableFocused: Bool
+
     // Search & filter
     @State private var searchQuery = ""
     @State private var allPageObjects: [S3Object]?
@@ -150,10 +153,12 @@ struct S3ObjectBrowserView: View {
                 pathComponents = restoredPath
                 navigationHistory = [restoredPath]
                 historyIndex = 0
+                selectedRowIDs = []
                 clearSearch()
                 appState.autoRefresh.resetState()
                 resetPagination()
                 loadObjects(force: true)
+                refocusTable()
             }
             .onAutoRefresh(canRefresh: { !anySheetOpen && !isLoading }) {
                 loadObjects(force: true, silent: true)
@@ -171,6 +176,18 @@ struct S3ObjectBrowserView: View {
             // Clear object selection when bucket list is clicked
             .onChange(of: toolbarState.clearSelectionTrigger) {
                 selectedRowIDs = []
+            }
+            // Double-click bucket — navigate to root
+            .onChange(of: toolbarState.resetToRootTrigger) {
+                pathComponents = []
+                navigationHistory = [[]]
+                historyIndex = 0
+                selectedRowIDs = []
+                clearSearch()
+                resetPagination()
+                syncToolbarNavigation()
+                loadObjects(force: true)
+                refocusTable()
             }
             // Handle toolbar actions
             .onChange(of: toolbarState.pendingAction) { _, action in
@@ -684,6 +701,7 @@ struct S3ObjectBrowserView: View {
             .width(min: 60, ideal: 80)
             .customizationID("actions")
         }
+        .focused($isTableFocused)
         .contextMenu(forSelectionType: RowItem.ID.self) { ids in
             if ids.isEmpty {
                 Button("Create Folder") {
@@ -1688,25 +1706,31 @@ struct S3ObjectBrowserView: View {
         navigationHistory.append(components)
         historyIndex += 1
         pathComponents = components
+        selectedRowIDs = []
         resetPagination()
         syncToolbarNavigation()
         loadObjects(force: true)
+        refocusTable()
     }
 
     private func navigateBack() {
         guard canGoBack else { return }
         historyIndex -= 1
         pathComponents = navigationHistory[historyIndex]
+        selectedRowIDs = []
         resetPagination()
         syncToolbarNavigation()
         loadObjects(force: true)
+        refocusTable()
     }
 
     private func navigateForward() {
         guard canGoForward else { return }
         historyIndex += 1
         pathComponents = navigationHistory[historyIndex]
+        selectedRowIDs = []
         resetPagination()
+        refocusTable()
         syncToolbarNavigation()
         loadObjects(force: true)
     }
@@ -1714,6 +1738,12 @@ struct S3ObjectBrowserView: View {
     private func syncToolbarNavigation() {
         toolbarState.canGoBack = canGoBack
         toolbarState.canGoForward = canGoForward
+    }
+
+    private func refocusTable() {
+        DispatchQueue.main.async {
+            isTableFocused = true
+        }
     }
 
     // MARK: - Actions

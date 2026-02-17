@@ -13,6 +13,9 @@ final class S3ToolbarState: ObservableObject {
     // Bucket list interaction — clears browser object selection
     @Published var clearSelectionTrigger = 0
 
+    // Double-click bucket — resets browser to bucket root
+    @Published var resetToRootTrigger = 0
+
     // Action trigger — written by toolbar, consumed by browser view
     @Published var pendingAction: Action?
 
