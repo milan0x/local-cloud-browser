@@ -9,6 +9,11 @@ struct SNSModuleView: View {
     @State private var selectedTopicIDs: Set<SNSTopic.ID> = []
     @State private var activeTopic: SNSTopic?
 
+    // Cmd+F search focus cycling
+    @State private var detailSearchFocusTrigger = 0
+    @State private var listSearchFocusTrigger = 0
+    @State private var lastSearchTarget = SearchTarget.detail
+
     // Session restore: captured once when the view is created
     @State private var restoreTopicArn: String?
 
@@ -25,7 +30,8 @@ struct SNSModuleView: View {
                 service: service,
                 selectedTopicIDs: $selectedTopicIDs,
                 activeTopic: $activeTopic,
-                restoreTopicArn: restoreTopicArn
+                restoreTopicArn: restoreTopicArn,
+                searchFocusTrigger: listSearchFocusTrigger
             )
             .frame(width: 280)
 
@@ -34,7 +40,8 @@ struct SNSModuleView: View {
                     SNSSubscriptionListView(
                         service: service,
                         topic: topic,
-                        toolbarState: toolbarState
+                        toolbarState: toolbarState,
+                        searchFocusTrigger: detailSearchFocusTrigger
                     )
                 } else {
                     EmptyDetailView(icon: "bell", message: "Select a topic")
@@ -52,11 +59,34 @@ struct SNSModuleView: View {
         .onChange(of: activeTopic) {
             toolbarState.reset()
             LastSessionStore.saveSNSTopic(activeTopic?.topicArn)
+            lastSearchTarget = .detail
+        }
+        .background {
+            Button("") { cycleCmdF() }
+                .keyboardShortcut("f", modifiers: .command)
+                .frame(width: 0, height: 0)
         }
         .onAppear {
             service.updateClient(client)
         }
     }
+
+    private func cycleCmdF() {
+        if activeTopic != nil, lastSearchTarget != .detail {
+            detailSearchFocusTrigger += 1
+            lastSearchTarget = .detail
+        } else if activeTopic != nil {
+            listSearchFocusTrigger += 1
+            lastSearchTarget = .list
+        } else {
+            listSearchFocusTrigger += 1
+            lastSearchTarget = .list
+        }
+    }
+}
+
+private enum SearchTarget {
+    case detail, list
 }
 
 struct SNSModule: LocalStackModule {

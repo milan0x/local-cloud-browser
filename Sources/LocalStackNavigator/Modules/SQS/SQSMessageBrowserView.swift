@@ -6,6 +6,7 @@ struct SQSMessageBrowserView: View {
     let queue: SQSQueue
     @ObservedObject var toolbarState: SQSToolbarState
     @ObservedObject var favoriteStore: SQSFavoriteStore
+    var searchFocusTrigger: Int = 0
     @EnvironmentObject private var appState: AppState
 
     @State private var messages: [SQSMessage] = []
@@ -146,7 +147,7 @@ struct SQSMessageBrowserView: View {
 
             Spacer()
 
-            SearchBarView(query: $searchQuery, placeholder: "Search messages")
+            SearchBarView(query: $searchQuery, placeholder: "Search messages", focusTrigger: searchFocusTrigger)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

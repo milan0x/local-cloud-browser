@@ -10,6 +10,11 @@ struct SQSModuleView: View {
     @State private var selectedQueueIDs: Set<SQSQueue.ID> = []
     @State private var activeQueue: SQSQueue?
 
+    // Cmd+F search focus cycling
+    @State private var detailSearchFocusTrigger = 0
+    @State private var listSearchFocusTrigger = 0
+    @State private var lastSearchTarget = SearchTarget.detail
+
     // Session restore: captured once when the view is created
     @State private var restoreQueueName: String?
 
@@ -26,7 +31,8 @@ struct SQSModuleView: View {
                 service: service,
                 selectedQueueIDs: $selectedQueueIDs,
                 activeQueue: $activeQueue,
-                restoreQueueName: restoreQueueName
+                restoreQueueName: restoreQueueName,
+                searchFocusTrigger: listSearchFocusTrigger
             )
             .frame(width: 280)
 
@@ -36,7 +42,8 @@ struct SQSModuleView: View {
                         service: service,
                         queue: queue,
                         toolbarState: toolbarState,
-                        favoriteStore: favoriteStore
+                        favoriteStore: favoriteStore,
+                        searchFocusTrigger: detailSearchFocusTrigger
                     )
                 } else {
                     EmptyDetailView(icon: "tray.2", message: "Select a queue")
@@ -54,11 +61,34 @@ struct SQSModuleView: View {
         .onChange(of: activeQueue) {
             toolbarState.reset()
             LastSessionStore.saveSQSQueue(activeQueue?.queueName)
+            lastSearchTarget = .detail
+        }
+        .background {
+            Button("") { cycleCmdF() }
+                .keyboardShortcut("f", modifiers: .command)
+                .frame(width: 0, height: 0)
         }
         .onAppear {
             service.updateClient(client)
         }
     }
+
+    private func cycleCmdF() {
+        if activeQueue != nil, lastSearchTarget != .detail {
+            detailSearchFocusTrigger += 1
+            lastSearchTarget = .detail
+        } else if activeQueue != nil {
+            listSearchFocusTrigger += 1
+            lastSearchTarget = .list
+        } else {
+            listSearchFocusTrigger += 1
+            lastSearchTarget = .list
+        }
+    }
+}
+
+private enum SearchTarget {
+    case detail, list
 }
 
 struct SQSModule: LocalStackModule {

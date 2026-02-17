@@ -8,6 +8,7 @@ struct S3BucketListView: View {
     @Binding var activeBucket: S3Bucket?
     @ObservedObject var toolbarState: S3ToolbarState
     var restoreBucketName: String?
+    var searchFocusTrigger: Int = 0
 
     @Environment(\.openWindow) private var openWindow
     @StateObject private var loader = ListLoader<S3Bucket>()
@@ -157,7 +158,7 @@ struct S3BucketListView: View {
             } else {
                 VStack(spacing: 0) {
                     if buckets.count > 5 {
-                        SearchBarView(query: $searchText, placeholder: "Filter buckets")
+                        SearchBarView(query: $searchText, placeholder: "Filter buckets", focusTrigger: searchFocusTrigger)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                         Divider()

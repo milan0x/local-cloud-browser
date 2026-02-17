@@ -7,6 +7,7 @@ struct SNSTopicListView: View {
     @Binding var selectedTopicIDs: Set<SNSTopic.ID>
     @Binding var activeTopic: SNSTopic?
     var restoreTopicArn: String?
+    var searchFocusTrigger: Int = 0
 
     @StateObject private var loader = ListLoader<SNSTopic>()
     private var topics: [SNSTopic] { loader.items }
@@ -84,7 +85,7 @@ struct SNSTopicListView: View {
         ListLoadingContent(isLoading: loader.isLoading, isEmpty: topics.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading topics...", onRetry: { loadTopics(force: true) }) {
             VStack(spacing: 0) {
                 if topics.count > 5 {
-                    SearchBarView(query: $searchText, placeholder: "Filter topics")
+                    SearchBarView(query: $searchText, placeholder: "Filter topics", focusTrigger: searchFocusTrigger)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                     Divider()
