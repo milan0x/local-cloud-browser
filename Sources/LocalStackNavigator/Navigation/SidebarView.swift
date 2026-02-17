@@ -14,15 +14,18 @@ struct SidebarView: View {
     @State private var editorSheet: EditorSheet?
     @State private var showConnectionBubble = false
     @State private var bubbleDismissedByUser = false
+    @State private var collapsedCategories: Set<RouteCategory> = []
 
     var body: some View {
         List(selection: $appState.selectedRoute) {
             ForEach(Route.grouped, id: \.category) { group in
-                Section(group.category.displayName) {
+                Section(isExpanded: expandedBinding(for: group.category)) {
                     ForEach(group.routes) { route in
                         Label(route.displayName, systemImage: route.systemImage)
                             .tag(route)
                     }
+                } header: {
+                    Text(group.category.displayName)
                 }
             }
         }
@@ -315,6 +318,19 @@ struct SidebarView: View {
         case "error", "disabled": return .red
         default: return .orange
         }
+    }
+
+    private func expandedBinding(for category: RouteCategory) -> Binding<Bool> {
+        Binding(
+            get: { !collapsedCategories.contains(category) },
+            set: { isExpanded in
+                if isExpanded {
+                    collapsedCategories.remove(category)
+                } else {
+                    collapsedCategories.insert(category)
+                }
+            }
+        )
     }
 
     private var readOnlyToggle: some View {
