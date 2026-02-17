@@ -9,10 +9,11 @@ struct S3ModuleView: View {
     @State private var selectedBucketIDs: Set<S3Bucket.ID> = []
     @State private var activeBucket: S3Bucket?
 
-    // Cmd+F search focus cycling
+    // Pane focus
     @State private var detailSearchFocusTrigger = 0
     @State private var listSearchFocusTrigger = 0
-    @State private var lastSearchTarget = SearchTarget.detail
+    @State private var listPaneFocusTrigger = 0
+    @State private var detailPaneFocusTrigger = 0
 
     // Session restore: captured once when the view is created (route switch or launch).
     // Passed to children so they can restore without reading stale data from LastSessionStore.
@@ -36,9 +37,15 @@ struct S3ModuleView: View {
                 activeBucket: $activeBucket,
                 toolbarState: toolbarState,
                 restoreBucketName: restoreBucketName,
-                searchFocusTrigger: listSearchFocusTrigger
+                searchFocusTrigger: listSearchFocusTrigger,
+                paneFocusTrigger: listPaneFocusTrigger
             )
             .frame(width: 280)
+            .onKeyPress(.rightArrow) {
+                guard activeBucket != nil else { return .ignored }
+                detailPaneFocusTrigger += 1
+                return .handled
+            }
 
             // Primary pane
             Group {
@@ -50,13 +57,18 @@ struct S3ModuleView: View {
                         toolbarState: toolbarState,
                         restoreBucketName: restoreBucketName,
                         restorePath: restorePath,
-                        searchFocusTrigger: detailSearchFocusTrigger
+                        searchFocusTrigger: detailSearchFocusTrigger,
+                        paneFocusTrigger: detailPaneFocusTrigger
                     )
                 } else {
                     EmptyDetailView(icon: "externaldrive", message: "Select a bucket")
                 }
             }
             .frame(minWidth: 400)
+            .onKeyPress(.leftArrow) {
+                listPaneFocusTrigger += 1
+                return .handled
+            }
         }
         .toolbar {
             S3Toolbar(
@@ -68,34 +80,17 @@ struct S3ModuleView: View {
         .onChange(of: activeBucket) {
             toolbarState.reset()
             LastSessionStore.saveS3Bucket(activeBucket?.name)
-            lastSearchTarget = .detail
         }
-        .background {
-            Button("") { cycleCmdF() }
-                .keyboardShortcut("f", modifiers: .command)
-                .frame(width: 0, height: 0)
-        }
+        .cmdFSearchCycling(
+            hasDetail: activeBucket != nil,
+            activeItemID: activeBucket?.id,
+            listSearchFocusTrigger: $listSearchFocusTrigger,
+            detailSearchFocusTrigger: $detailSearchFocusTrigger
+        )
         .onAppear {
             service.updateClient(client)
         }
     }
-
-    private func cycleCmdF() {
-        if activeBucket != nil, lastSearchTarget != .detail {
-            detailSearchFocusTrigger += 1
-            lastSearchTarget = .detail
-        } else if activeBucket != nil {
-            listSearchFocusTrigger += 1
-            lastSearchTarget = .list
-        } else {
-            listSearchFocusTrigger += 1
-            lastSearchTarget = .list
-        }
-    }
-}
-
-private enum SearchTarget {
-    case detail, list
 }
 
 struct S3Module: LocalStackModule {

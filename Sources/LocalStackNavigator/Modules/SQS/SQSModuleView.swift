@@ -10,10 +10,11 @@ struct SQSModuleView: View {
     @State private var selectedQueueIDs: Set<SQSQueue.ID> = []
     @State private var activeQueue: SQSQueue?
 
-    // Cmd+F search focus cycling
+    // Pane focus
     @State private var detailSearchFocusTrigger = 0
     @State private var listSearchFocusTrigger = 0
-    @State private var lastSearchTarget = SearchTarget.detail
+    @State private var listPaneFocusTrigger = 0
+    @State private var detailPaneFocusTrigger = 0
 
     // Session restore: captured once when the view is created
     @State private var restoreQueueName: String?
@@ -32,9 +33,15 @@ struct SQSModuleView: View {
                 selectedQueueIDs: $selectedQueueIDs,
                 activeQueue: $activeQueue,
                 restoreQueueName: restoreQueueName,
-                searchFocusTrigger: listSearchFocusTrigger
+                searchFocusTrigger: listSearchFocusTrigger,
+                paneFocusTrigger: listPaneFocusTrigger
             )
             .frame(width: 280)
+            .onKeyPress(.rightArrow) {
+                guard activeQueue != nil else { return .ignored }
+                detailPaneFocusTrigger += 1
+                return .handled
+            }
 
             Group {
                 if let queue = activeQueue {
@@ -43,13 +50,18 @@ struct SQSModuleView: View {
                         queue: queue,
                         toolbarState: toolbarState,
                         favoriteStore: favoriteStore,
-                        searchFocusTrigger: detailSearchFocusTrigger
+                        searchFocusTrigger: detailSearchFocusTrigger,
+                        paneFocusTrigger: detailPaneFocusTrigger
                     )
                 } else {
                     EmptyDetailView(icon: "tray.2", message: "Select a queue")
                 }
             }
             .frame(minWidth: 400)
+            .onKeyPress(.leftArrow) {
+                listPaneFocusTrigger += 1
+                return .handled
+            }
         }
         .toolbar {
             SQSToolbar(
@@ -61,34 +73,17 @@ struct SQSModuleView: View {
         .onChange(of: activeQueue) {
             toolbarState.reset()
             LastSessionStore.saveSQSQueue(activeQueue?.queueName)
-            lastSearchTarget = .detail
         }
-        .background {
-            Button("") { cycleCmdF() }
-                .keyboardShortcut("f", modifiers: .command)
-                .frame(width: 0, height: 0)
-        }
+        .cmdFSearchCycling(
+            hasDetail: activeQueue != nil,
+            activeItemID: activeQueue?.id,
+            listSearchFocusTrigger: $listSearchFocusTrigger,
+            detailSearchFocusTrigger: $detailSearchFocusTrigger
+        )
         .onAppear {
             service.updateClient(client)
         }
     }
-
-    private func cycleCmdF() {
-        if activeQueue != nil, lastSearchTarget != .detail {
-            detailSearchFocusTrigger += 1
-            lastSearchTarget = .detail
-        } else if activeQueue != nil {
-            listSearchFocusTrigger += 1
-            lastSearchTarget = .list
-        } else {
-            listSearchFocusTrigger += 1
-            lastSearchTarget = .list
-        }
-    }
-}
-
-private enum SearchTarget {
-    case detail, list
 }
 
 struct SQSModule: LocalStackModule {

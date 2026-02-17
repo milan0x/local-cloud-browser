@@ -19,6 +19,7 @@ struct S3ObjectBrowserView: View {
     var restoreBucketName: String?
     var restorePath: [String]?
     var searchFocusTrigger: Int = 0
+    var paneFocusTrigger: Int = 0
 
     @State private var objects: [S3Object] = []
     @State private var prefixes: [S3Prefix] = []
@@ -159,7 +160,6 @@ struct S3ObjectBrowserView: View {
                 appState.autoRefresh.resetState()
                 resetPagination()
                 loadObjects(force: true)
-                refocusTable()
             }
             .onAutoRefresh(canRefresh: { !anySheetOpen && !isLoading }) {
                 loadObjects(force: true, silent: true)
@@ -264,6 +264,13 @@ struct S3ObjectBrowserView: View {
             breadcrumbBar
             Divider()
             contentArea
+        }
+        .onChange(of: paneFocusTrigger) {
+            isTableFocused = true
+            let selectable = sortedRowItems.filter { $0.id != Self.parentRowID }
+            if selectable.count == 1, let only = selectable.first {
+                selectedRowIDs = [only.id]
+            }
         }
         .onChange(of: searchQuery) {
             if !searchQuery.isEmpty {

@@ -8,7 +8,9 @@ struct SQSQueueListView: View {
     @Binding var activeQueue: SQSQueue?
     var restoreQueueName: String?
     var searchFocusTrigger: Int = 0
+    var paneFocusTrigger: Int = 0
 
+    @FocusState private var isListFocused: Bool
     @StateObject private var loader = ListLoader<SQSQueue>()
     private var queues: [SQSQueue] { loader.items }
     @State private var messageCounts: [String: Int] = [:]  // queueUrl -> count
@@ -74,6 +76,9 @@ struct SQSQueueListView: View {
             loadQueues(force: true)
         }
         .syncSelection(selectedQueueIDs, items: queues, activeItem: $activeQueue)
+        .onChange(of: paneFocusTrigger) {
+            isListFocused = true
+        }
     }
 
     private var filteredQueues: [SQSQueue] {
@@ -195,6 +200,7 @@ struct SQSQueueListView: View {
                 }
                 .disabled(appState.isReadOnly)
             }
+            .focused($isListFocused)
             .background(DoubleClickDetector {
                 if selectedQueueIDs.count == 1,
                    let id = selectedQueueIDs.first,

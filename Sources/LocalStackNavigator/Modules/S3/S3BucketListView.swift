@@ -9,8 +9,10 @@ struct S3BucketListView: View {
     @ObservedObject var toolbarState: S3ToolbarState
     var restoreBucketName: String?
     var searchFocusTrigger: Int = 0
+    var paneFocusTrigger: Int = 0
 
     @Environment(\.openWindow) private var openWindow
+    @FocusState private var isListFocused: Bool
     @StateObject private var loader = ListLoader<S3Bucket>()
     private var buckets: [S3Bucket] { loader.items }
     @State private var showCreateSheet = false
@@ -108,6 +110,9 @@ struct S3BucketListView: View {
             loadBuckets(force: true)
         }
         .syncSelection(selectedBucketIDs, items: buckets, activeItem: $activeBucket)
+        .onChange(of: paneFocusTrigger) {
+            isListFocused = true
+        }
     }
 
     private var filteredBuckets: [S3Bucket] {
@@ -212,6 +217,7 @@ struct S3BucketListView: View {
                             }
                         }
                     }
+                    .focused($isListFocused)
                     .background(DoubleClickDetector {
                         guard selectedBucketIDs.count == 1 else { return }
                         toolbarState.resetToRootTrigger += 1
