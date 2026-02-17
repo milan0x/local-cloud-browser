@@ -195,6 +195,10 @@ struct S3BucketListView: View {
                         }
                     }
                 }
+                .background(DoubleClickDetector {
+                    guard selectedBucketIDs.count == 1 else { return }
+                    toolbarState.resetToRootTrigger += 1
+                })
                 .overlay(alignment: .bottom) {
                     if loader.errorMessage != nil {
                         ConnectionLostBanner()
