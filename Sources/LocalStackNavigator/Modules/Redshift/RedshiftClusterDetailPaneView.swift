@@ -20,6 +20,7 @@ struct RedshiftClusterDetailPaneView: View {
             }
             .padding(16)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onChange(of: toolbarState.pendingAction) {
             guard let action = toolbarState.pendingAction else { return }
             switch action {
