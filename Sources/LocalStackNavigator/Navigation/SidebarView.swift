@@ -99,13 +99,17 @@ struct SidebarView: View {
     }
 
     private var bottomBar: some View {
-        HStack {
-            connectionIndicator
-            Spacer()
-            readOnlyToggle
+        VStack(spacing: 0) {
+            Divider()
+            HStack {
+                connectionIndicator
+                Spacer()
+                readOnlyToggle
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .background(.bar)
     }
 
     private var connectionLostBubble: some View {
