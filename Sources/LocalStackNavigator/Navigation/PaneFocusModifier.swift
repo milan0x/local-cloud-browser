@@ -20,6 +20,7 @@ private struct CmdFSearchCyclingModifier<ID: Equatable>: ViewModifier {
                 Button("") { cycleCmdF() }
                     .keyboardShortcut("f", modifiers: .command)
                     .frame(width: 0, height: 0)
+                    .opacity(0)
             }
             .onChange(of: activeItemID) {
                 lastSearchTarget = .detail
