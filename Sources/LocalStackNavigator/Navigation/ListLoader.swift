@@ -30,6 +30,7 @@ final class ListLoader<Item: Identifiable & Equatable>: ObservableObject {
                 if items != fresh {
                     items = fresh
                 }
+                if errorMessage != nil { errorMessage = nil }
                 await afterLoad?(items)
             } catch {
                 if !silent {
