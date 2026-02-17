@@ -7,7 +7,9 @@ struct SQSMessageBrowserView: View {
     @ObservedObject var toolbarState: SQSToolbarState
     @ObservedObject var favoriteStore: SQSFavoriteStore
     var searchFocusTrigger: Int = 0
+    var paneFocusTrigger: Int = 0
     @EnvironmentObject private var appState: AppState
+    @FocusState private var isTableFocused: Bool
 
     @State private var messages: [SQSMessage] = []
     @State private var selectedMessageIDs: Set<SQSMessage.ID> = []
@@ -115,6 +117,12 @@ struct SQSMessageBrowserView: View {
         .onChange(of: selectedMessageIDs) {
             toolbarState.hasSelection = !selectedMessageIDs.isEmpty
             armedFavoriteId = nil
+        }
+        .onChange(of: paneFocusTrigger) {
+            isTableFocused = true
+            if sortedMessages.count == 1, let only = sortedMessages.first {
+                selectedMessageIDs = [only.id]
+            }
         }
         .onChange(of: toolbarState.pendingAction) {
             guard let action = toolbarState.pendingAction else { return }
@@ -290,6 +298,7 @@ struct SQSMessageBrowserView: View {
                 .width(min: 80, ideal: 100)
                 .customizationID("actions")
             }
+            .focused($isTableFocused)
             .contextMenu(forSelectionType: SQSMessage.ID.self) { selection in
                 if let id = selection.first, let msg = messages.first(where: { $0.id == id }) {
                     Button("View Details") {

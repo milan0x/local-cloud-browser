@@ -9,10 +9,11 @@ struct SNSModuleView: View {
     @State private var selectedTopicIDs: Set<SNSTopic.ID> = []
     @State private var activeTopic: SNSTopic?
 
-    // Cmd+F search focus cycling
+    // Pane focus
     @State private var detailSearchFocusTrigger = 0
     @State private var listSearchFocusTrigger = 0
-    @State private var lastSearchTarget = SearchTarget.detail
+    @State private var listPaneFocusTrigger = 0
+    @State private var detailPaneFocusTrigger = 0
 
     // Session restore: captured once when the view is created
     @State private var restoreTopicArn: String?
@@ -31,9 +32,15 @@ struct SNSModuleView: View {
                 selectedTopicIDs: $selectedTopicIDs,
                 activeTopic: $activeTopic,
                 restoreTopicArn: restoreTopicArn,
-                searchFocusTrigger: listSearchFocusTrigger
+                searchFocusTrigger: listSearchFocusTrigger,
+                paneFocusTrigger: listPaneFocusTrigger
             )
             .frame(width: 280)
+            .onKeyPress(.rightArrow) {
+                guard activeTopic != nil else { return .ignored }
+                detailPaneFocusTrigger += 1
+                return .handled
+            }
 
             Group {
                 if let topic = activeTopic {
@@ -41,13 +48,18 @@ struct SNSModuleView: View {
                         service: service,
                         topic: topic,
                         toolbarState: toolbarState,
-                        searchFocusTrigger: detailSearchFocusTrigger
+                        searchFocusTrigger: detailSearchFocusTrigger,
+                        paneFocusTrigger: detailPaneFocusTrigger
                     )
                 } else {
                     EmptyDetailView(icon: "bell", message: "Select a topic")
                 }
             }
             .frame(minWidth: 400)
+            .onKeyPress(.leftArrow) {
+                listPaneFocusTrigger += 1
+                return .handled
+            }
         }
         .toolbar {
             SNSToolbar(
@@ -59,34 +71,17 @@ struct SNSModuleView: View {
         .onChange(of: activeTopic) {
             toolbarState.reset()
             LastSessionStore.saveSNSTopic(activeTopic?.topicArn)
-            lastSearchTarget = .detail
         }
-        .background {
-            Button("") { cycleCmdF() }
-                .keyboardShortcut("f", modifiers: .command)
-                .frame(width: 0, height: 0)
-        }
+        .cmdFSearchCycling(
+            hasDetail: activeTopic != nil,
+            activeItemID: activeTopic?.id,
+            listSearchFocusTrigger: $listSearchFocusTrigger,
+            detailSearchFocusTrigger: $detailSearchFocusTrigger
+        )
         .onAppear {
             service.updateClient(client)
         }
     }
-
-    private func cycleCmdF() {
-        if activeTopic != nil, lastSearchTarget != .detail {
-            detailSearchFocusTrigger += 1
-            lastSearchTarget = .detail
-        } else if activeTopic != nil {
-            listSearchFocusTrigger += 1
-            lastSearchTarget = .list
-        } else {
-            listSearchFocusTrigger += 1
-            lastSearchTarget = .list
-        }
-    }
-}
-
-private enum SearchTarget {
-    case detail, list
 }
 
 struct SNSModule: LocalStackModule {

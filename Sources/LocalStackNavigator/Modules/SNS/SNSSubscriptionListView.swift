@@ -6,7 +6,9 @@ struct SNSSubscriptionListView: View {
     let topic: SNSTopic
     @ObservedObject var toolbarState: SNSToolbarState
     var searchFocusTrigger: Int = 0
+    var paneFocusTrigger: Int = 0
     @EnvironmentObject private var appState: AppState
+    @FocusState private var isTableFocused: Bool
 
     @StateObject private var loader = ListLoader<SNSSubscription>()
     private var subscriptions: [SNSSubscription] { loader.items }
@@ -73,6 +75,12 @@ struct SNSSubscriptionListView: View {
         }
         .onChange(of: selectedSubscriptionIDs) {
             toolbarState.hasSubscriptionSelection = !selectedSubscriptionIDs.isEmpty
+        }
+        .onChange(of: paneFocusTrigger) {
+            isTableFocused = true
+            if sortedSubscriptions.count == 1, let only = sortedSubscriptions.first {
+                selectedSubscriptionIDs = [only.id]
+            }
         }
         .onChange(of: toolbarState.pendingAction) {
             guard let action = toolbarState.pendingAction else { return }
@@ -181,6 +189,7 @@ struct SNSSubscriptionListView: View {
                 }
                 .width(min: 80, ideal: 110)
             }
+            .focused($isTableFocused)
             .contextMenu(forSelectionType: SNSSubscription.ID.self) { selection in
                 if let id = selection.first, let sub = subscriptions.first(where: { $0.id == id }) {
                     if selection.count == 1 && !sub.isPending {

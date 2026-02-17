@@ -8,7 +8,9 @@ struct SNSTopicListView: View {
     @Binding var activeTopic: SNSTopic?
     var restoreTopicArn: String?
     var searchFocusTrigger: Int = 0
+    var paneFocusTrigger: Int = 0
 
+    @FocusState private var isListFocused: Bool
     @StateObject private var loader = ListLoader<SNSTopic>()
     private var topics: [SNSTopic] { loader.items }
     @State private var subscriptionCounts: [String: Int] = [:]  // topicArn -> count
@@ -52,6 +54,9 @@ struct SNSTopicListView: View {
             loadTopics(force: true)
         }
         .syncSelection(selectedTopicIDs, items: topics, activeItem: $activeTopic)
+        .onChange(of: paneFocusTrigger) {
+            isListFocused = true
+        }
     }
 
     private var filteredTopics: [SNSTopic] {
@@ -161,6 +166,7 @@ struct SNSTopicListView: View {
                 }
                 .disabled(appState.isReadOnly)
             }
+            .focused($isListFocused)
             .background(DoubleClickDetector {
                 if selectedTopicIDs.count == 1,
                    let id = selectedTopicIDs.first,
