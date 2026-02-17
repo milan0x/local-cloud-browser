@@ -9,14 +9,12 @@ struct SSMParameterListView: View {
     @Binding var activeParameter: SSMParameter?
     var restoreParameterName: String?
 
-    @State private var parameters: [SSMParameter] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
+    @StateObject private var loader = ListLoader<SSMParameter>()
+    @StateObject private var regionLoader = FavoriteRegionLoader<SSMParameter>()
+    private var parameters: [SSMParameter] { loader.items }
     @State private var showCreateSheet = false
     @State private var parametersToDelete: [SSMParameter] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var parameterToShowDetail: SSMParameter?
     @State private var searchText = ""
 
@@ -25,46 +23,34 @@ struct SSMParameterListView: View {
             parameterListHeader
             Divider()
             parameterListContent
+            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
-            SSMCreateParameterView(service: service, existingParameterNames: Set(parameters.map(\.name)))
+            SSMCreateParameterView(service: service, existingParameterNames: Set(loader.items.map(\.name)))
                 .onDisappear { loadParameters(force: true) }
         }
-        .alert(
-            parametersToDelete.count == 1
-                ? "Delete Parameter"
-                : "Delete \(parametersToDelete.count) Parameters",
-            isPresented: Binding(
-                get: { !parametersToDelete.isEmpty },
-                set: { if !$0 { parametersToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteParameters(parametersToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                parametersToDelete = []
-            }
-        } message: {
-            if parametersToDelete.count == 1, let param = parametersToDelete.first {
+        .deleteConfirmation(items: $parametersToDelete, noun: "Parameter") { items in
+            if items.count == 1, let param = items.first {
                 Text("Are you sure you want to delete \"\(param.name)\"?\n\nThis cannot be undone.")
             } else {
-                let names = parametersToDelete.map(\.name).joined(separator: "\n")
+                let names = items.map(\.name).joined(separator: "\n")
                 Text("Are you sure you want to delete these parameters?\n\n\(names)\n\nThis cannot be undone.")
             }
-        }
+        } onDelete: { deleteParameters($0) }
         .sheet(item: $parameterToShowDetail) { parameter in
             SSMParameterDetailView(service: service, parameter: parameter)
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadParameters() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && parametersToDelete.isEmpty && parameterToShowDetail == nil && !isLoading }) {
+        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.describeParameters(region: $0) }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && parametersToDelete.isEmpty && parameterToShowDetail == nil && !loader.isLoading }) {
             loadParameters(force: true, silent: true)
+            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedParameterIDs = []
             activeParameter = nil
-            parameters = []
+            loader.items = []
             loadParameters(force: true)
         }
         .syncSelection(selectedParameterIDs, items: parameters, activeItem: $activeParameter)
@@ -98,62 +84,22 @@ struct SSMParameterListView: View {
     // MARK: - Header
 
     private var parameterListHeader: some View {
-        HStack {
-            Text("Parameters")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadParameters(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadParameters(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: parameterDeleteDisabled, help: selectedParameterIDs.count <= 1 ? "Delete Parameter" : "Delete \(selectedParameterIDs.count) Parameters") {
-                parametersToDelete = parameters.filter { selectedParameterIDs.contains($0.id) }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "Parameters",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: parameterDeleteDisabled,
+            deleteHelp: selectedParameterIDs.count <= 1 ? "Delete Parameter" : "Delete \(selectedParameterIDs.count) Parameters",
+            onRefresh: { loadParameters(force: true) },
+            onCreate: { showCreateSheet = true },
+            onDelete: { parametersToDelete = parameters.filter { selectedParameterIDs.contains($0.id) } }
+        )
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var parameterListContent: some View {
-        if isLoading && parameters.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading parameters...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, parameters.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadParameters(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if parameters.isEmpty {
-            EmptyStateView(icon: "list.bullet.rectangle", message: "No parameters")
-            .contextMenu {
-                Button("Create Parameter") {
-                    showCreateSheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: parameters.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading parameters...", onRetry: { loadParameters(force: true) }) {
             VStack(spacing: 0) {
                 if parameters.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter parameters")
@@ -161,7 +107,12 @@ struct SSMParameterListView: View {
                         .padding(.vertical, 4)
                     Divider()
                 }
-                List(filteredParameters, selection: $selectedParameterIDs) { parameter in
+                List(selection: $selectedParameterIDs) {
+                    if parameters.isEmpty {
+                        EmptyStateView(icon: "list.bullet.rectangle", message: "No parameters")
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(filteredParameters) { parameter in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(parameter.name)
                             .fontWeight(.medium)
@@ -213,9 +164,22 @@ struct SSMParameterListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
+                    }
+                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
+                        selectBy: \.name
+                    ) { item in
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(item.name)
+                                .fontWeight(.medium)
+                                .lineLimit(1)
+                            HStack(spacing: 4) {
+                                StatusBadge(text: item.displayType, color: typeColor(item.type))
+                            }
+                        }
+                    }
                 }
                 .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
+                    if loader.errorMessage != nil {
                         ConnectionLostBanner()
                     }
                 }
@@ -233,21 +197,7 @@ struct SSMParameterListView: View {
                     }
                 })
 
-                // Status bar
-                Divider()
-                HStack {
-                    Text("\(parameters.count) parameter\(parameters.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if selectedParameterIDs.count > 1 {
-                        Text("(\(selectedParameterIDs.count) selected)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+                ListStatusBar(totalCount: parameters.count, selectedCount: selectedParameterIDs.count, noun: "parameter")
             }
         }
     }
@@ -263,53 +213,32 @@ struct SSMParameterListView: View {
     // MARK: - Data
 
     private func loadParameters(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.describeParameters()
-                let freshParameters = loaded.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-                if parameters != freshParameters {
-                    parameters = freshParameters
-                }
-                if !hasRestoredSession, let savedName = restoreParameterName,
-                   let parameter = parameters.first(where: { $0.name == savedName }) {
-                    selectedParameterIDs = [parameter.id]
-                    activeParameter = parameter
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.describeParameters() },
+            sort: { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedName = restoreParameterName,
+               let parameter = items.first(where: { $0.name == savedName }) {
+                selectedParameterIDs = [parameter.id]
+                activeParameter = parameter
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            loader.hasRestoredSession = true
+            if let item = regionLoader.consumePendingSelection(from: items, by: \.name) {
+                selectedParameterIDs = [item.id]
+                activeParameter = item
             }
         }
     }
 
     private func deleteParameters(_ targets: [SSMParameter]) {
         Task {
-            var deletedIDs: Set<SSMParameter.ID> = []
-            for parameter in targets {
-                do {
-                    try await service.deleteParameter(name: parameter.name)
-                    deletedIDs.insert(parameter.id)
-                } catch {
-                    serviceError = error.asServiceError
-                }
+            let (deleted, error) = await batchDelete(targets) {
+                try await service.deleteParameter(name: $0.name)
             }
-            if !deletedIDs.isEmpty {
-                selectedParameterIDs.subtract(deletedIDs)
-                if let active = activeParameter, deletedIDs.contains(active.id) {
+            if let error { serviceError = error }
+            if !deleted.isEmpty {
+                selectedParameterIDs.subtract(deleted)
+                if let active = activeParameter, deleted.contains(active.id) {
                     activeParameter = nil
                 }
                 loadParameters(force: true)

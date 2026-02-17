@@ -37,14 +37,7 @@ struct ResourceGroupsModuleView: View {
                         group: group
                     )
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "square.3.layers.3d")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a group")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "square.3.layers.3d", message: "Select a group")
                 }
             }
             .frame(minWidth: 400)

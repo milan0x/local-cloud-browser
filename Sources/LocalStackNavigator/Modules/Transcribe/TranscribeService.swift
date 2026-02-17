@@ -1,21 +1,14 @@
 import Foundation
 
-@MainActor
-final class TranscribeService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class TranscribeService: LocalStackService {
     // MARK: - Job Operations
 
-    func listTranscriptionJobs(status: String? = nil) async throws -> [TranscriptionJob] {
+    func listTranscriptionJobs(status: String? = nil, region: String? = nil) async throws -> [TranscriptionJob] {
         var payload: [String: Any] = [:]
         if let status {
             payload["Status"] = status
         }
-        let data = try await client.transcribeRequest(action: "ListTranscriptionJobs", payload: payload)
+        let data = try await client.transcribeRequest(action: "ListTranscriptionJobs", payload: payload, region: region)
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let summaries = json["TranscriptionJobSummaries"] as? [[String: Any]] else {
             return []

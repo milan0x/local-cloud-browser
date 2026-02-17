@@ -9,14 +9,12 @@ struct TranscribeJobListView: View {
     @Binding var activeJob: TranscriptionJob?
     var restoreJobName: String?
 
-    @State private var jobs: [TranscriptionJob] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
+    @StateObject private var loader = ListLoader<TranscriptionJob>()
+    @StateObject private var regionLoader = FavoriteRegionLoader<TranscriptionJob>()
+    private var jobs: [TranscriptionJob] { loader.items }
     @State private var showCreateSheet = false
     @State private var jobsToDelete: [TranscriptionJob] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var searchText = ""
 
     var body: some View {
@@ -24,42 +22,30 @@ struct TranscribeJobListView: View {
             jobListHeader
             Divider()
             jobListContent
+            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             TranscribeCreateJobView(service: service)
                 .onDisappear { loadJobs(force: true) }
         }
-        .alert(
-            jobsToDelete.count == 1
-                ? "Delete Transcription Job"
-                : "Delete \(jobsToDelete.count) Transcription Jobs",
-            isPresented: Binding(
-                get: { !jobsToDelete.isEmpty },
-                set: { if !$0 { jobsToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteJobs(jobsToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                jobsToDelete = []
-            }
-        } message: {
-            if jobsToDelete.count == 1, let job = jobsToDelete.first {
+        .deleteConfirmation(items: $jobsToDelete, noun: "Transcription Job") { items in
+            if items.count == 1, let job = items.first {
                 Text("Are you sure you want to delete transcription job \"\(job.jobName)\"?")
             } else {
-                Text("Are you sure you want to delete \(jobsToDelete.count) transcription jobs?")
+                Text("Are you sure you want to delete \(items.count) transcription jobs?")
             }
-        }
+        } onDelete: { deleteJobs($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadJobs() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && jobsToDelete.isEmpty && !isLoading }) {
+        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listTranscriptionJobs(region: $0) }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && jobsToDelete.isEmpty && !loader.isLoading }) {
             loadJobs(force: true, silent: true)
+            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedJobIDs = []
             activeJob = nil
-            jobs = []
+            loader.items = []
             loadJobs(force: true)
         }
         .syncSelection(selectedJobIDs, items: jobs, activeItem: $activeJob)
@@ -95,66 +81,22 @@ struct TranscribeJobListView: View {
     // MARK: - Header
 
     private var jobListHeader: some View {
-        HStack {
-            Text("Jobs")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadJobs(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadJobs(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: jobDeleteDisabled, help: selectedJobIDs.count <= 1 ? "Delete Transcription Job" : "Delete \(selectedJobIDs.count) Jobs") {
-                jobsToDelete = jobs.filter { selectedJobIDs.contains($0.id) }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "Jobs",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: jobDeleteDisabled,
+            deleteHelp: selectedJobIDs.count <= 1 ? "Delete Transcription Job" : "Delete \(selectedJobIDs.count) Jobs",
+            onRefresh: { loadJobs(force: true) },
+            onCreate: { showCreateSheet = true },
+            onDelete: { jobsToDelete = jobs.filter { selectedJobIDs.contains($0.id) } }
+        )
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var jobListContent: some View {
-        if isLoading && jobs.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading jobs...")
-                if appState.connectionError != nil {
-                    Label("Connection lost \u{2014} retrying...", systemImage: "bolt.horizontal.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, jobs.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadJobs(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if jobs.isEmpty {
-            EmptyStateView(icon: "waveform", message: "No transcription jobs")
-            .contextMenu {
-                Button("Start Transcription Job") {
-                    showCreateSheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: jobs.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading jobs...", onRetry: { loadJobs(force: true) }) {
             VStack(spacing: 0) {
                 if jobs.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter jobs")
@@ -162,7 +104,12 @@ struct TranscribeJobListView: View {
                         .padding(.vertical, 4)
                     Divider()
                 }
-                List(filteredJobs, selection: $selectedJobIDs) { job in
+                List(selection: $selectedJobIDs) {
+                    if jobs.isEmpty {
+                        EmptyStateView(icon: "waveform", message: "No transcription jobs")
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(filteredJobs) { job in
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(job.jobName)
@@ -215,9 +162,28 @@ struct TranscribeJobListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
+                    }
+                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
+                        selectBy: \.jobName
+                    ) { item in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(item.jobName)
+                                    .fontWeight(.medium)
+                                    .lineLimit(1)
+                                if !item.languageCode.isEmpty {
+                                    Text(item.languageCode)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                            StatusBadge(text: item.jobStatus, color: statusColor(item.jobStatus))
+                        }
+                    }
                 }
                 .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
+                    if loader.errorMessage != nil {
                         ConnectionLostBanner()
                     }
                 }
@@ -228,21 +194,7 @@ struct TranscribeJobListView: View {
                     .disabled(appState.isReadOnly)
                 }
 
-                // Status bar
-                Divider()
-                HStack {
-                    Text("\(jobs.count) job\(jobs.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if selectedJobIDs.count > 1 {
-                        Text("(\(selectedJobIDs.count) selected)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+                ListStatusBar(totalCount: jobs.count, selectedCount: selectedJobIDs.count, noun: "job")
             }
         }
     }
@@ -268,55 +220,32 @@ struct TranscribeJobListView: View {
     // MARK: - Data
 
     private func loadJobs(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.listTranscriptionJobs()
-                let freshJobs = loaded.sorted {
-                    ($0.creationTime ?? .distantPast) > ($1.creationTime ?? .distantPast)
-                }
-                if jobs != freshJobs {
-                    jobs = freshJobs
-                }
-                if !hasRestoredSession, let savedName = restoreJobName,
-                   let job = jobs.first(where: { $0.jobName == savedName }) {
-                    selectedJobIDs = [job.id]
-                    activeJob = job
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.listTranscriptionJobs() },
+            sort: { ($0.creationTime ?? .distantPast) > ($1.creationTime ?? .distantPast) }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedName = restoreJobName,
+               let job = items.first(where: { $0.jobName == savedName }) {
+                selectedJobIDs = [job.id]
+                activeJob = job
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            loader.hasRestoredSession = true
+            if let item = regionLoader.consumePendingSelection(from: items, by: \.jobName) {
+                selectedJobIDs = [item.id]
+                activeJob = item
             }
         }
     }
 
     private func deleteJobs(_ targets: [TranscriptionJob]) {
         Task {
-            var deletedIDs: Set<TranscriptionJob.ID> = []
-            for job in targets {
-                do {
-                    try await service.deleteTranscriptionJob(name: job.jobName)
-                    deletedIDs.insert(job.id)
-                } catch {
-                    serviceError = error.asServiceError
-                }
+            let (deleted, error) = await batchDelete(targets) {
+                try await service.deleteTranscriptionJob(name: $0.jobName)
             }
-            if !deletedIDs.isEmpty {
-                selectedJobIDs.subtract(deletedIDs)
-                if let active = activeJob, deletedIDs.contains(active.id) {
+            if let error { serviceError = error }
+            if !deleted.isEmpty {
+                selectedJobIDs.subtract(deleted)
+                if let active = activeJob, deleted.contains(active.id) {
                     activeJob = nil
                 }
                 loadJobs(force: true)

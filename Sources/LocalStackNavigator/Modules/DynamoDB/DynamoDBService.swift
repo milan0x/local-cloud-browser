@@ -1,17 +1,10 @@
 import Foundation
 
-@MainActor
-final class DynamoDBService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class DynamoDBService: LocalStackService {
     // MARK: - Table Operations
 
-    func listTables() async throws -> [DynamoDBTable] {
-        let data = try await client.dynamodbRequest(action: "ListTables")
+    func listTables(region: String? = nil) async throws -> [DynamoDBTable] {
+        let data = try await client.dynamodbRequest(action: "ListTables", region: region)
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let tableNames = json["TableNames"] as? [String] else {
             return []

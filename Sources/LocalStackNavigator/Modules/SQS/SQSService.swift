@@ -1,17 +1,10 @@
 import Foundation
 
-@MainActor
-final class SQSService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class SQSService: LocalStackService {
     // MARK: - Queue Operations
 
-    func listQueues() async throws -> [SQSQueue] {
-        let data = try await client.sqsRequest(action: "ListQueues")
+    func listQueues(region: String? = nil) async throws -> [SQSQueue] {
+        let data = try await client.sqsRequest(action: "ListQueues", region: region)
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let urls = json["QueueUrls"] as? [String] else {
             return []

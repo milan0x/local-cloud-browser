@@ -9,62 +9,48 @@ struct CloudWatchLogsGroupListView: View {
     @Binding var activeLogGroup: CloudWatchLogGroup?
     var restoreLogGroupName: String?
 
-    @State private var logGroups: [CloudWatchLogGroup] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
     @State private var showCreateSheet = false
     @State private var logGroupsToDelete: [CloudWatchLogGroup] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var logGroupToShowDetail: CloudWatchLogGroup?
     @State private var searchText = ""
+    @StateObject private var regionLoader = FavoriteRegionLoader<CloudWatchLogGroup>()
+    @StateObject private var loader = ListLoader<CloudWatchLogGroup>()
+    private var logGroups: [CloudWatchLogGroup] { loader.items }
 
     var body: some View {
         VStack(spacing: 0) {
             logGroupListHeader
             Divider()
             logGroupListContent
+            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             CloudWatchLogsCreateGroupView(service: service, existingGroupNames: Set(logGroups.map(\.logGroupName)))
                 .onDisappear { loadLogGroups(force: true) }
         }
-        .alert(
-            logGroupsToDelete.count == 1
-                ? "Delete Log Group"
-                : "Delete \(logGroupsToDelete.count) Log Groups",
-            isPresented: Binding(
-                get: { !logGroupsToDelete.isEmpty },
-                set: { if !$0 { logGroupsToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteLogGroups(logGroupsToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                logGroupsToDelete = []
-            }
-        } message: {
-            if logGroupsToDelete.count == 1, let group = logGroupsToDelete.first {
+        .deleteConfirmation(items: $logGroupsToDelete, noun: "Log Group") { items in
+            if items.count == 1, let group = items.first {
                 Text("Are you sure you want to delete \"\(group.logGroupName)\"?\n\nAll log streams and events in this group will be permanently deleted.")
             } else {
-                let names = logGroupsToDelete.map(\.logGroupName).joined(separator: "\n")
+                let names = items.map(\.logGroupName).joined(separator: "\n")
                 Text("Are you sure you want to delete these log groups?\n\n\(names)\n\nThis cannot be undone.")
             }
-        }
+        } onDelete: { deleteLogGroups($0) }
         .sheet(item: $logGroupToShowDetail) { logGroup in
             CloudWatchLogsGroupDetailView(logGroup: logGroup)
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadLogGroups() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && logGroupsToDelete.isEmpty && logGroupToShowDetail == nil && !isLoading }) {
+        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.describeLogGroups(region: $0) }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && logGroupsToDelete.isEmpty && logGroupToShowDetail == nil && !loader.isLoading }) {
             loadLogGroups(force: true, silent: true)
+            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedLogGroupIDs = []
             activeLogGroup = nil
-            logGroups = []
+            loader.items = []
             loadLogGroups(force: true)
         }
         .syncSelection(selectedLogGroupIDs, items: logGroups, activeItem: $activeLogGroup)
@@ -98,62 +84,22 @@ struct CloudWatchLogsGroupListView: View {
     // MARK: - Header
 
     private var logGroupListHeader: some View {
-        HStack {
-            Text("Log Groups")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadLogGroups(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadLogGroups(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: logGroupDeleteDisabled, help: selectedLogGroupIDs.count <= 1 ? "Delete Log Group" : "Delete \(selectedLogGroupIDs.count) Log Groups") {
-                logGroupsToDelete = logGroups.filter { selectedLogGroupIDs.contains($0.id) }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "Log Groups",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: logGroupDeleteDisabled,
+            deleteHelp: selectedLogGroupIDs.count <= 1 ? "Delete Log Group" : "Delete \(selectedLogGroupIDs.count) Log Groups",
+            onRefresh: { loadLogGroups(force: true) },
+            onCreate: { showCreateSheet = true },
+            onDelete: { logGroupsToDelete = logGroups.filter { selectedLogGroupIDs.contains($0.id) } }
+        )
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var logGroupListContent: some View {
-        if isLoading && logGroups.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading log groups...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, logGroups.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadLogGroups(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if logGroups.isEmpty {
-            EmptyStateView(icon: "doc.text.magnifyingglass", message: "No log groups")
-            .contextMenu {
-                Button("Create Log Group") {
-                    showCreateSheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: logGroups.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading log groups...", onRetry: { loadLogGroups(force: true) }) {
             VStack(spacing: 0) {
                 if logGroups.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter log groups")
@@ -161,7 +107,12 @@ struct CloudWatchLogsGroupListView: View {
                         .padding(.vertical, 4)
                     Divider()
                 }
-                List(filteredLogGroups, selection: $selectedLogGroupIDs) { logGroup in
+                List(selection: $selectedLogGroupIDs) {
+                    if logGroups.isEmpty {
+                        EmptyStateView(icon: "doc.text.magnifyingglass", message: "No log groups")
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(filteredLogGroups) { logGroup in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(logGroup.logGroupName)
                             .fontWeight(.medium)
@@ -212,9 +163,19 @@ struct CloudWatchLogsGroupListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
+                    }
+                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
+                        selectBy: \.logGroupName
+                    ) { item in
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(item.logGroupName)
+                                .fontWeight(.medium)
+                                .lineLimit(1)
+                        }
+                    }
                 }
                 .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
+                    if loader.errorMessage != nil {
                         ConnectionLostBanner()
                     }
                 }
@@ -232,21 +193,7 @@ struct CloudWatchLogsGroupListView: View {
                     }
                 })
 
-                // Status bar
-                Divider()
-                HStack {
-                    Text("\(logGroups.count) log group\(logGroups.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if selectedLogGroupIDs.count > 1 {
-                        Text("(\(selectedLogGroupIDs.count) selected)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+                ListStatusBar(totalCount: logGroups.count, selectedCount: selectedLogGroupIDs.count, noun: "log group")
             }
         }
     }
@@ -254,53 +201,32 @@ struct CloudWatchLogsGroupListView: View {
     // MARK: - Data
 
     private func loadLogGroups(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.describeLogGroups()
-                let freshGroups = loaded.sorted { $0.logGroupName.localizedStandardCompare($1.logGroupName) == .orderedAscending }
-                if logGroups != freshGroups {
-                    logGroups = freshGroups
-                }
-                if !hasRestoredSession, let savedName = restoreLogGroupName,
-                   let logGroup = logGroups.first(where: { $0.logGroupName == savedName }) {
-                    selectedLogGroupIDs = [logGroup.id]
-                    activeLogGroup = logGroup
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.describeLogGroups() },
+            sort: { $0.logGroupName.localizedStandardCompare($1.logGroupName) == .orderedAscending }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedName = restoreLogGroupName,
+               let logGroup = items.first(where: { $0.logGroupName == savedName }) {
+                selectedLogGroupIDs = [logGroup.id]
+                activeLogGroup = logGroup
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            loader.hasRestoredSession = true
+            if let item = regionLoader.consumePendingSelection(from: items, by: \.logGroupName) {
+                selectedLogGroupIDs = [item.id]
+                activeLogGroup = item
             }
         }
     }
 
     private func deleteLogGroups(_ targets: [CloudWatchLogGroup]) {
         Task {
-            var deletedIDs: Set<CloudWatchLogGroup.ID> = []
-            for logGroup in targets {
-                do {
-                    try await service.deleteLogGroup(name: logGroup.logGroupName)
-                    deletedIDs.insert(logGroup.id)
-                } catch {
-                    serviceError = error.asServiceError
-                }
+            let (deleted, error) = await batchDelete(targets) {
+                try await service.deleteLogGroup(name: $0.logGroupName)
             }
-            if !deletedIDs.isEmpty {
-                selectedLogGroupIDs.subtract(deletedIDs)
-                if let active = activeLogGroup, deletedIDs.contains(active.id) {
+            if let error { serviceError = error }
+            if !deleted.isEmpty {
+                selectedLogGroupIDs.subtract(deleted)
+                if let active = activeLogGroup, deleted.contains(active.id) {
                     activeLogGroup = nil
                 }
                 loadLogGroups(force: true)

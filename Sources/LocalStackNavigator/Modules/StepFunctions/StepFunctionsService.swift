@@ -1,16 +1,9 @@
 import Foundation
 
-@MainActor
-final class StepFunctionsService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class StepFunctionsService: LocalStackService {
     // MARK: - State Machine Operations
 
-    func listStateMachines() async throws -> [StateMachineSummary] {
+    func listStateMachines(region: String? = nil) async throws -> [StateMachineSummary] {
         var allMachines: [StateMachineSummary] = []
         var nextToken: String?
         repeat {
@@ -18,7 +11,7 @@ final class StepFunctionsService: ObservableObject {
             if let token = nextToken {
                 payload["nextToken"] = token
             }
-            let data = try await client.stepFunctionsRequest(action: "ListStateMachines", payload: payload)
+            let data = try await client.stepFunctionsRequest(action: "ListStateMachines", payload: payload, region: region)
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let machines = json["stateMachines"] as? [[String: Any]] else {
                 break

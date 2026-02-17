@@ -1,16 +1,9 @@
 import Foundation
 
-@MainActor
-final class LambdaService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class LambdaService: LocalStackService {
     // MARK: - Function Operations
 
-    func listFunctions() async throws -> [LambdaFunction] {
+    func listFunctions(region: String? = nil) async throws -> [LambdaFunction] {
         var allFunctions: [LambdaFunction] = []
         var marker: String? = nil
 
@@ -22,7 +15,8 @@ final class LambdaService: ObservableObject {
             let response = try await client.lambdaRequest(
                 action: "ListFunctions",
                 method: "GET",
-                path: path
+                path: path,
+                region: region
             )
             guard let json = try JSONSerialization.jsonObject(with: response.data) as? [String: Any] else {
                 break

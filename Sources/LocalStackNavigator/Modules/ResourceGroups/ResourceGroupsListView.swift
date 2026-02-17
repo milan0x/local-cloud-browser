@@ -9,14 +9,12 @@ struct ResourceGroupsListView: View {
     @Binding var activeGroup: ResourceGroupSummary?
     var restoreGroupName: String?
 
-    @State private var groups: [ResourceGroupSummary] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
+    @StateObject private var regionLoader = FavoriteRegionLoader<ResourceGroupSummary>()
+    @StateObject private var loader = ListLoader<ResourceGroupSummary>()
+    private var groups: [ResourceGroupSummary] { loader.items }
     @State private var showCreateSheet = false
     @State private var groupsToDelete: [ResourceGroupSummary] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var searchText = ""
 
     var body: some View {
@@ -24,42 +22,30 @@ struct ResourceGroupsListView: View {
             listHeader
             Divider()
             listContent
+            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             ResourceGroupsCreateView(service: service)
                 .onDisappear { loadGroups(force: true) }
         }
-        .alert(
-            groupsToDelete.count == 1
-                ? "Delete Resource Group"
-                : "Delete \(groupsToDelete.count) Resource Groups",
-            isPresented: Binding(
-                get: { !groupsToDelete.isEmpty },
-                set: { if !$0 { groupsToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteGroups(groupsToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                groupsToDelete = []
-            }
-        } message: {
-            if groupsToDelete.count == 1, let group = groupsToDelete.first {
+        .deleteConfirmation(items: $groupsToDelete, noun: "Resource Group") { items in
+            if items.count == 1, let group = items.first {
                 Text("Are you sure you want to delete the resource group \"\(group.name)\"?")
             } else {
-                Text("Are you sure you want to delete \(groupsToDelete.count) resource groups?")
+                Text("Are you sure you want to delete \(items.count) resource groups?")
             }
-        }
+        } onDelete: { deleteGroups($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadGroups() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && groupsToDelete.isEmpty && !isLoading }) {
+        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listGroups(region: $0) }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && groupsToDelete.isEmpty && !loader.isLoading }) {
             loadGroups(force: true, silent: true)
+            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedGroupIDs = []
             activeGroup = nil
-            groups = []
+            loader.items = []
             loadGroups(force: true)
         }
         .syncSelection(selectedGroupIDs, items: groups, activeItem: $activeGroup)
@@ -94,62 +80,22 @@ struct ResourceGroupsListView: View {
     // MARK: - Header
 
     private var listHeader: some View {
-        HStack {
-            Text("Resource Groups")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadGroups(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadGroups(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: deleteDisabled, help: selectedGroupIDs.count <= 1 ? "Delete Resource Group" : "Delete \(selectedGroupIDs.count) Resource Groups") {
-                groupsToDelete = groups.filter { selectedGroupIDs.contains($0.id) }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "Resource Groups",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: deleteDisabled,
+            deleteHelp: selectedGroupIDs.count <= 1 ? "Delete Resource Group" : "Delete \(selectedGroupIDs.count) Resource Groups",
+            onRefresh: { loadGroups(force: true) },
+            onCreate: { showCreateSheet = true },
+            onDelete: { groupsToDelete = groups.filter { selectedGroupIDs.contains($0.id) } }
+        )
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var listContent: some View {
-        if isLoading && groups.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading resource groups...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, groups.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadGroups(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if groups.isEmpty {
-            EmptyStateView(icon: "square.3.layers.3d", message: "No resource groups")
-            .contextMenu {
-                Button("Create Resource Group") {
-                    showCreateSheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: groups.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading resource groups...", onRetry: { loadGroups(force: true) }) {
             VStack(spacing: 0) {
                 if groups.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter groups")
@@ -157,7 +103,12 @@ struct ResourceGroupsListView: View {
                         .padding(.vertical, 4)
                     Divider()
                 }
-                List(filteredGroups, selection: $selectedGroupIDs) { group in
+                List(selection: $selectedGroupIDs) {
+                    if groups.isEmpty {
+                        EmptyStateView(icon: "square.3.layers.3d", message: "No resource groups")
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(filteredGroups) { group in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(group.name)
                             .fontWeight(.medium)
@@ -205,9 +156,25 @@ struct ResourceGroupsListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
+                    }
+                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
+                        selectBy: \.name
+                    ) { item in
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(item.name)
+                                .fontWeight(.medium)
+                                .lineLimit(1)
+                            if !item.description.isEmpty {
+                                Text(item.description)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                            }
+                        }
+                    }
                 }
                 .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
+                    if loader.errorMessage != nil {
                         ConnectionLostBanner()
                     }
                 }
@@ -218,21 +185,7 @@ struct ResourceGroupsListView: View {
                     .disabled(appState.isReadOnly)
                 }
 
-                // Status bar
-                Divider()
-                HStack {
-                    Text("\(groups.count) group\(groups.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if selectedGroupIDs.count > 1 {
-                        Text("(\(selectedGroupIDs.count) selected)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+                ListStatusBar(totalCount: groups.count, selectedCount: selectedGroupIDs.count, noun: "group")
             }
         }
     }
@@ -240,53 +193,32 @@ struct ResourceGroupsListView: View {
     // MARK: - Data
 
     private func loadGroups(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.listGroups()
-                let freshGroups = loaded.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-                if groups != freshGroups {
-                    groups = freshGroups
-                }
-                if !hasRestoredSession, let savedName = restoreGroupName,
-                   let group = groups.first(where: { $0.name == savedName }) {
-                    selectedGroupIDs = [group.id]
-                    activeGroup = group
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.listGroups() },
+            sort: { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedName = restoreGroupName,
+               let group = items.first(where: { $0.name == savedName }) {
+                selectedGroupIDs = [group.id]
+                activeGroup = group
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            loader.hasRestoredSession = true
+            if let item = regionLoader.consumePendingSelection(from: items, by: \.name) {
+                selectedGroupIDs = [item.id]
+                activeGroup = item
             }
         }
     }
 
     private func deleteGroups(_ targets: [ResourceGroupSummary]) {
         Task {
-            var deletedIDs: Set<ResourceGroupSummary.ID> = []
-            for group in targets {
-                do {
-                    try await service.deleteGroup(name: group.name)
-                    deletedIDs.insert(group.id)
-                } catch {
-                    serviceError = error.asServiceError
-                }
+            let (deleted, error) = await batchDelete(targets) {
+                try await service.deleteGroup(name: $0.name)
             }
-            if !deletedIDs.isEmpty {
-                selectedGroupIDs.subtract(deletedIDs)
-                if let active = activeGroup, deletedIDs.contains(active.id) {
+            if let error { serviceError = error }
+            if !deleted.isEmpty {
+                selectedGroupIDs.subtract(deleted)
+                if let active = activeGroup, deleted.contains(active.id) {
                     activeGroup = nil
                 }
                 loadGroups(force: true)

@@ -38,14 +38,7 @@ struct CloudWatchModuleView: View {
                 } else if tab == .alarms, let alarm = activeAlarm {
                     CloudWatchAlarmDetailView(alarm: alarm)
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "chart.xyaxis.line")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text(tab == .metrics ? "Select a metric" : "Select an alarm")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "chart.xyaxis.line", message: tab == .metrics ? "Select a metric" : "Select an alarm")
                 }
             }
             .frame(minWidth: 400)
@@ -112,27 +105,15 @@ struct CloudWatchModuleView: View {
     }
 
     private var listHeader: some View {
-        HStack {
-            Text("CloudWatch")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {}
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                toolbarState.pendingAction = tab == .metrics ? .putMetric : .createAlarm
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {}
-
-            ListHeaderButton("trash", color: .red, isDisabled: cwDeleteDisabled) {
-                toolbarState.pendingAction = .deleteAlarm
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "CloudWatch",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: cwDeleteDisabled,
+            onRefresh: {},
+            onCreate: { toolbarState.pendingAction = tab == .metrics ? .putMetric : .createAlarm },
+            onDelete: { toolbarState.pendingAction = .deleteAlarm }
+        )
     }
 
     private var cwDeleteDisabled: Bool {

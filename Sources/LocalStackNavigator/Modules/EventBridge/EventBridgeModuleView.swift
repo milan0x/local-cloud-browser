@@ -50,7 +50,7 @@ struct EventBridgeModuleView: View {
                             toolbarState: toolbarState
                         )
                     } else {
-                        emptyDetail("Select an event bus", icon: "bolt.horizontal")
+                        EmptyDetailView(icon: "bolt.horizontal", message: "Select an event bus")
                     }
                 } else {
                     if let group = activeGroup {
@@ -61,7 +61,7 @@ struct EventBridgeModuleView: View {
                             restoreScheduleName: restoreScheduleName
                         )
                     } else {
-                        emptyDetail("Select a schedule group", icon: "calendar.badge.clock")
+                        EmptyDetailView(icon: "calendar.badge.clock", message: "Select a schedule group")
                     }
                 }
             }
@@ -133,16 +133,6 @@ struct EventBridgeModuleView: View {
         }
     }
 
-    private func emptyDetail(_ text: String, icon: String) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
-            Text(text)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
 
     // MARK: - Session
 

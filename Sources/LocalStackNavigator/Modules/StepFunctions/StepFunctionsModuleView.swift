@@ -41,14 +41,7 @@ struct StepFunctionsModuleView: View {
                 if let machine = activeMachine {
                     detailPane(for: machine)
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "arrow.triangle.branch")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a state machine")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "arrow.triangle.branch", message: "Select a state machine")
                 }
             }
             .frame(minWidth: 400)

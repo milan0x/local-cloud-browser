@@ -38,14 +38,7 @@ struct SecretsManagerModuleView: View {
                         toolbarState: toolbarState
                     )
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "key")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a secret")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "key", message: "Select a secret")
                 }
             }
             .frame(minWidth: 400)

@@ -11,17 +11,10 @@ struct FilteredLogEventsResult {
     let nextToken: String?
 }
 
-@MainActor
-final class CloudWatchLogsService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class CloudWatchLogsService: LocalStackService {
     // MARK: - Log Groups
 
-    func describeLogGroups() async throws -> [CloudWatchLogGroup] {
+    func describeLogGroups(region: String? = nil) async throws -> [CloudWatchLogGroup] {
         var allGroups: [CloudWatchLogGroup] = []
         var nextToken: String? = nil
 
@@ -30,7 +23,7 @@ final class CloudWatchLogsService: ObservableObject {
             if let token = nextToken {
                 payload["nextToken"] = token
             }
-            let data = try await client.cloudWatchLogsRequest(action: "DescribeLogGroups", payload: payload)
+            let data = try await client.cloudWatchLogsRequest(action: "DescribeLogGroups", payload: payload, region: region)
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 break
             }

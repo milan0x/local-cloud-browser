@@ -7,10 +7,8 @@ struct CloudWatchMetricListView: View {
     @EnvironmentObject private var appState: AppState
     @Binding var activeMetric: CloudWatchMetric?
 
-    @State private var metrics: [CloudWatchMetric] = []
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var lastLoadTime: Date?
+    @StateObject private var loader = ListLoader<CloudWatchMetric>()
+    private var metrics: [CloudWatchMetric] { loader.items }
     @State private var searchText = ""
     @State private var serviceError: ServiceError?
     @State private var showPutMetricSheet = false
@@ -43,12 +41,12 @@ struct CloudWatchMetricListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadMetrics() }
-        .onAutoRefresh(canRefresh: { !showPutMetricSheet && !isLoading }) {
+        .onAutoRefresh(canRefresh: { !showPutMetricSheet && !loader.isLoading }) {
             loadMetrics(force: true, silent: true)
         }
         .resetOnConnectionChange {
             activeMetric = nil
-            metrics = []
+            loader.items = []
             loadMetrics(force: true)
         }
         .onChange(of: toolbarState.pendingAction) {
@@ -64,13 +62,13 @@ struct CloudWatchMetricListView: View {
 
     @ViewBuilder
     private var listContent: some View {
-        if isLoading && metrics.isEmpty {
+        if loader.isLoading && metrics.isEmpty {
             VStack(spacing: 12) {
                 ProgressView("Loading metrics...")
                 ConnectionRetryingLabel()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, metrics.isEmpty {
+        } else if let errorMessage = loader.errorMessage, metrics.isEmpty {
             VStack(spacing: 8) {
                 Image(systemName: "exclamationmark.triangle")
                     .font(.title)
@@ -159,34 +157,13 @@ struct CloudWatchMetricListView: View {
     // MARK: - Data
 
     private func loadMetrics(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.listMetrics()
-                let freshMetrics = loaded.sorted {
-                    let cmp = $0.namespace.localizedStandardCompare($1.namespace)
-                    if cmp != .orderedSame { return cmp == .orderedAscending }
-                    return $0.metricName.localizedStandardCompare($1.metricName) == .orderedAscending
-                }
-                if metrics != freshMetrics {
-                    metrics = freshMetrics
-                }
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.listMetrics() },
+            sort: {
+                let cmp = $0.namespace.localizedStandardCompare($1.namespace)
+                if cmp != .orderedSame { return cmp == .orderedAscending }
+                return $0.metricName.localizedStandardCompare($1.metricName) == .orderedAscending
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
-            }
-        }
+        )
     }
 }

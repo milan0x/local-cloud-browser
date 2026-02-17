@@ -16,7 +16,7 @@ struct S3BrowserWindow: View {
 
     init(target: S3BrowserTarget) {
         self.target = target
-        _service = StateObject(wrappedValue: S3Service(client: LocalStackClient(appState: AppState())))
+        _service = StateObject(wrappedValue: S3Service())
     }
 
     var body: some View {

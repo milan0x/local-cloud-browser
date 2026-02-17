@@ -9,62 +9,48 @@ struct SecretsListView: View {
     @Binding var activeSecret: Secret?
     var restoreSecretName: String?
 
-    @State private var secrets: [Secret] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
     @State private var showCreateSheet = false
     @State private var secretsToDelete: [Secret] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var secretToShowDetail: Secret?
     @State private var searchText = ""
+    @StateObject private var regionLoader = FavoriteRegionLoader<Secret>()
+    @StateObject private var loader = ListLoader<Secret>()
+    private var secrets: [Secret] { loader.items }
 
     var body: some View {
         VStack(spacing: 0) {
             secretListHeader
             Divider()
             secretListContent
+            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             CreateSecretView(service: service, existingSecretNames: Set(secrets.map(\.name)))
                 .onDisappear { loadSecrets(force: true) }
         }
-        .alert(
-            secretsToDelete.count == 1
-                ? "Delete Secret"
-                : "Delete \(secretsToDelete.count) Secrets",
-            isPresented: Binding(
-                get: { !secretsToDelete.isEmpty },
-                set: { if !$0 { secretsToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteSecrets(secretsToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                secretsToDelete = []
-            }
-        } message: {
-            if secretsToDelete.count == 1, let secret = secretsToDelete.first {
+        .deleteConfirmation(items: $secretsToDelete, noun: "Secret") { items in
+            if items.count == 1, let secret = items.first {
                 Text("Are you sure you want to delete \"\(secret.name)\"?\n\nThis cannot be undone.")
             } else {
-                let names = secretsToDelete.map(\.name).joined(separator: "\n")
+                let names = items.map(\.name).joined(separator: "\n")
                 Text("Are you sure you want to delete these secrets?\n\n\(names)\n\nThis cannot be undone.")
             }
-        }
+        } onDelete: { deleteSecrets($0) }
         .sheet(item: $secretToShowDetail) { secret in
             SecretDetailView(service: service, secret: secret)
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadSecrets() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && secretsToDelete.isEmpty && secretToShowDetail == nil && !isLoading }) {
+        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listSecrets(region: $0) }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && secretsToDelete.isEmpty && secretToShowDetail == nil && !loader.isLoading }) {
             loadSecrets(force: true, silent: true)
+            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedSecretIDs = []
             activeSecret = nil
-            secrets = []
+            loader.items = []
             loadSecrets(force: true)
         }
         .syncSelection(selectedSecretIDs, items: secrets, activeItem: $activeSecret)
@@ -98,62 +84,22 @@ struct SecretsListView: View {
     // MARK: - Header
 
     private var secretListHeader: some View {
-        HStack {
-            Text("Secrets")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadSecrets(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadSecrets(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: secretDeleteDisabled, help: selectedSecretIDs.count <= 1 ? "Delete Secret" : "Delete \(selectedSecretIDs.count) Secrets") {
-                secretsToDelete = secrets.filter { selectedSecretIDs.contains($0.id) }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "Secrets",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: secretDeleteDisabled,
+            deleteHelp: selectedSecretIDs.count <= 1 ? "Delete Secret" : "Delete \(selectedSecretIDs.count) Secrets",
+            onRefresh: { loadSecrets(force: true) },
+            onCreate: { showCreateSheet = true },
+            onDelete: { secretsToDelete = secrets.filter { selectedSecretIDs.contains($0.id) } }
+        )
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var secretListContent: some View {
-        if isLoading && secrets.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading secrets...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, secrets.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadSecrets(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if secrets.isEmpty {
-            EmptyStateView(icon: "key", message: "No secrets")
-            .contextMenu {
-                Button("Create Secret") {
-                    showCreateSheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: secrets.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading secrets...", onRetry: { loadSecrets(force: true) }) {
             VStack(spacing: 0) {
                 if secrets.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter secrets")
@@ -161,7 +107,12 @@ struct SecretsListView: View {
                         .padding(.vertical, 4)
                     Divider()
                 }
-                List(filteredSecrets, selection: $selectedSecretIDs) { secret in
+                List(selection: $selectedSecretIDs) {
+                    if secrets.isEmpty {
+                        EmptyStateView(icon: "key", message: "No secrets")
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(filteredSecrets) { secret in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(secret.name)
                             .fontWeight(.medium)
@@ -208,9 +159,25 @@ struct SecretsListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
+                    }
+                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
+                        selectBy: \.name
+                    ) { secret in
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(secret.name)
+                                .fontWeight(.medium)
+                                .lineLimit(1)
+                            if let desc = secret.description, !desc.isEmpty {
+                                Text(desc)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
                 }
                 .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
+                    if loader.errorMessage != nil {
                         ConnectionLostBanner()
                     }
                 }
@@ -228,21 +195,7 @@ struct SecretsListView: View {
                     }
                 })
 
-                // Status bar
-                Divider()
-                HStack {
-                    Text("\(secrets.count) secret\(secrets.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if selectedSecretIDs.count > 1 {
-                        Text("(\(selectedSecretIDs.count) selected)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+                ListStatusBar(totalCount: secrets.count, selectedCount: selectedSecretIDs.count, noun: "secret")
             }
         }
     }
@@ -250,57 +203,37 @@ struct SecretsListView: View {
     // MARK: - Data
 
     private func loadSecrets(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.listSecrets()
-                let freshSecrets = loaded.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-                if secrets != freshSecrets {
-                    secrets = freshSecrets
-                }
-                if !hasRestoredSession, let savedName = restoreSecretName,
-                   let secret = secrets.first(where: { $0.name == savedName }) {
-                    selectedSecretIDs = [secret.id]
-                    activeSecret = secret
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.listSecrets() },
+            sort: { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedName = restoreSecretName,
+               let secret = items.first(where: { $0.name == savedName }) {
+                selectedSecretIDs = [secret.id]
+                activeSecret = secret
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            loader.hasRestoredSession = true
+            if let secret = regionLoader.consumePendingSelection(from: items, by: \.name) {
+                selectedSecretIDs = [secret.id]
+                activeSecret = secret
             }
         }
     }
 
     private func deleteSecrets(_ targets: [Secret]) {
         Task {
-            var deletedIDs: Set<Secret.ID> = []
-            for secret in targets {
-                do {
-                    try await service.deleteSecret(secretId: secret.arn)
-                    deletedIDs.insert(secret.id)
-                } catch {
-                    serviceError = error.asServiceError
-                }
+            let (deleted, error) = await batchDelete(targets) {
+                try await service.deleteSecret(secretId: $0.arn)
             }
-            if !deletedIDs.isEmpty {
-                selectedSecretIDs.subtract(deletedIDs)
-                if let active = activeSecret, deletedIDs.contains(active.id) {
+            if let error { serviceError = error }
+            if !deleted.isEmpty {
+                selectedSecretIDs.subtract(deleted)
+                if let active = activeSecret, deleted.contains(active.id) {
                     activeSecret = nil
                 }
                 loadSecrets(force: true)
             }
         }
     }
+
 }

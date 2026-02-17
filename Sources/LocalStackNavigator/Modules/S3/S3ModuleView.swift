@@ -16,7 +16,7 @@ struct S3ModuleView: View {
 
     init() {
         // Placeholder — real client injected via onAppear
-        _service = StateObject(wrappedValue: S3Service(client: LocalStackClient(appState: AppState())))
+        _service = StateObject(wrappedValue: S3Service())
         if let saved = LastSessionStore.load() {
             _restoreBucketName = State(initialValue: saved.s3BucketName)
             _restorePath = State(initialValue: saved.s3Path)
@@ -46,14 +46,7 @@ struct S3ModuleView: View {
                         restorePath: restorePath
                     )
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "externaldrive")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a bucket")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "externaldrive", message: "Select a bucket")
                 }
             }
             .frame(minWidth: 400)

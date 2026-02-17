@@ -38,14 +38,7 @@ struct LambdaModuleView: View {
                         toolbarState: toolbarState
                     )
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "function")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a function")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "function", message: "Select a function")
                 }
             }
             .frame(minWidth: 400)

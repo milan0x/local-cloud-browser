@@ -38,14 +38,7 @@ struct RedshiftModuleView: View {
                         toolbarState: toolbarState
                     )
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "cylinder.split.1x2")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a cluster")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "cylinder.split.1x2", message: "Select a cluster")
                 }
             }
             .frame(minWidth: 400)

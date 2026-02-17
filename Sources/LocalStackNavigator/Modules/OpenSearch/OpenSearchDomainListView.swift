@@ -9,57 +9,43 @@ struct OpenSearchDomainListView: View {
     @Binding var activeDomain: OpenSearchDomain?
     var restoreDomainName: String?
 
-    @State private var domains: [OpenSearchDomain] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
     @State private var showCreateSheet = false
     @State private var domainsToDelete: [OpenSearchDomain] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var searchText = ""
+    @StateObject private var regionLoader = FavoriteRegionLoader<OpenSearchDomain>()
+    @StateObject private var loader = ListLoader<OpenSearchDomain>()
+    private var domains: [OpenSearchDomain] { loader.items }
 
     var body: some View {
         VStack(spacing: 0) {
             domainListHeader
             Divider()
             domainListContent
+            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             OpenSearchCreateDomainView(service: service)
                 .onDisappear { loadDomains(force: true) }
         }
-        .alert(
-            domainsToDelete.count == 1
-                ? "Delete Domain"
-                : "Delete \(domainsToDelete.count) Domains",
-            isPresented: Binding(
-                get: { !domainsToDelete.isEmpty },
-                set: { if !$0 { domainsToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteDomains(domainsToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                domainsToDelete = []
-            }
-        } message: {
-            if domainsToDelete.count == 1, let domain = domainsToDelete.first {
+        .deleteConfirmation(items: $domainsToDelete, noun: "Domain") { items in
+            if items.count == 1, let domain = items.first {
                 Text("Are you sure you want to delete domain \"\(domain.domainName)\"?")
             } else {
-                Text("Are you sure you want to delete \(domainsToDelete.count) domains?")
+                Text("Are you sure you want to delete \(items.count) domains?")
             }
-        }
+        } onDelete: { deleteDomains($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadDomains() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && domainsToDelete.isEmpty && !isLoading }) {
+        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listDomains(region: $0) }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && domainsToDelete.isEmpty && !loader.isLoading }) {
             loadDomains(force: true, silent: true)
+            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedDomainIDs = []
             activeDomain = nil
-            domains = []
+            loader.items = []
             loadDomains(force: true)
         }
         .syncSelection(selectedDomainIDs, items: domains, activeItem: $activeDomain)
@@ -94,62 +80,22 @@ struct OpenSearchDomainListView: View {
     // MARK: - Header
 
     private var domainListHeader: some View {
-        HStack {
-            Text("Domains")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadDomains(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadDomains(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: domainDeleteDisabled, help: selectedDomainIDs.count <= 1 ? "Delete Domain" : "Delete \(selectedDomainIDs.count) Domains") {
-                domainsToDelete = domains.filter { selectedDomainIDs.contains($0.id) }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "Domains",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: domainDeleteDisabled,
+            deleteHelp: selectedDomainIDs.count <= 1 ? "Delete Domain" : "Delete \(selectedDomainIDs.count) Domains",
+            onRefresh: { loadDomains(force: true) },
+            onCreate: { showCreateSheet = true },
+            onDelete: { domainsToDelete = domains.filter { selectedDomainIDs.contains($0.id) } }
+        )
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var domainListContent: some View {
-        if isLoading && domains.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading domains...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, domains.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadDomains(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if domains.isEmpty {
-            EmptyStateView(icon: "magnifyingglass.circle", message: "No domains")
-            .contextMenu {
-                Button("Create Domain") {
-                    showCreateSheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: domains.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading domains...", onRetry: { loadDomains(force: true) }) {
             VStack(spacing: 0) {
                 if domains.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter domains")
@@ -157,7 +103,12 @@ struct OpenSearchDomainListView: View {
                         .padding(.vertical, 4)
                     Divider()
                 }
-                List(filteredDomains, selection: $selectedDomainIDs) { domain in
+                List(selection: $selectedDomainIDs) {
+                    if domains.isEmpty {
+                        EmptyStateView(icon: "magnifyingglass.circle", message: "No domains")
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(filteredDomains) { domain in
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(domain.domainName)
@@ -207,9 +158,27 @@ struct OpenSearchDomainListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
+                    }
+                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
+                        selectBy: \.domainName
+                    ) { domain in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(domain.domainName)
+                                    .fontWeight(.medium)
+                                    .lineLimit(1)
+                                Text(domain.engineDisplayName)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            StatusBadge(text: domain.status, color: statusColor(domain.status))
+                        }
+                    }
                 }
                 .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
+                    if loader.errorMessage != nil {
                         ConnectionLostBanner()
                     }
                 }
@@ -220,21 +189,7 @@ struct OpenSearchDomainListView: View {
                     .disabled(appState.isReadOnly)
                 }
 
-                // Status bar
-                Divider()
-                HStack {
-                    Text("\(domains.count) domain\(domains.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if selectedDomainIDs.count > 1 {
-                        Text("(\(selectedDomainIDs.count) selected)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+                ListStatusBar(totalCount: domains.count, selectedCount: selectedDomainIDs.count, noun: "domain")
             }
         }
     }
@@ -255,57 +210,37 @@ struct OpenSearchDomainListView: View {
     // MARK: - Data
 
     private func loadDomains(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.listDomains()
-                let freshDomains = loaded.sorted { $0.domainName.localizedStandardCompare($1.domainName) == .orderedAscending }
-                if domains != freshDomains {
-                    domains = freshDomains
-                }
-                if !hasRestoredSession, let savedName = restoreDomainName,
-                   let domain = domains.first(where: { $0.domainName == savedName }) {
-                    selectedDomainIDs = [domain.id]
-                    activeDomain = domain
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.listDomains() },
+            sort: { $0.domainName.localizedStandardCompare($1.domainName) == .orderedAscending }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedName = restoreDomainName,
+               let domain = items.first(where: { $0.domainName == savedName }) {
+                selectedDomainIDs = [domain.id]
+                activeDomain = domain
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            loader.hasRestoredSession = true
+            if let domain = regionLoader.consumePendingSelection(from: items, by: \.domainName) {
+                selectedDomainIDs = [domain.id]
+                activeDomain = domain
             }
         }
     }
 
     private func deleteDomains(_ targets: [OpenSearchDomain]) {
         Task {
-            var deletedIDs: Set<OpenSearchDomain.ID> = []
-            for domain in targets {
-                do {
-                    try await service.deleteDomain(name: domain.domainName)
-                    deletedIDs.insert(domain.id)
-                } catch {
-                    serviceError = error.asServiceError
-                }
+            let (deleted, error) = await batchDelete(targets) {
+                try await service.deleteDomain(name: $0.domainName)
             }
-            if !deletedIDs.isEmpty {
-                selectedDomainIDs.subtract(deletedIDs)
-                if let active = activeDomain, deletedIDs.contains(active.id) {
+            if let error { serviceError = error }
+            if !deleted.isEmpty {
+                selectedDomainIDs.subtract(deleted)
+                if let active = activeDomain, deleted.contains(active.id) {
                     activeDomain = nil
                 }
                 loadDomains(force: true)
             }
         }
     }
+
 }

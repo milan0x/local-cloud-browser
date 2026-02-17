@@ -167,31 +167,16 @@ struct IAMEntityListView: View {
     // MARK: - Header
 
     private var listHeader: some View {
-        HStack {
-            Text("IAM")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadEntities(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet()
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadEntities(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: deleteDisabled, help: "Delete") {
-                deleteCurrentSelection()
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "IAM",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: deleteDisabled,
+            deleteHelp: "Delete",
+            onRefresh: { loadEntities(force: true) },
+            onCreate: { showCreateSheet() },
+            onDelete: { deleteCurrentSelection() }
+        )
     }
 
     private var deleteDisabled: Bool {
@@ -254,7 +239,7 @@ struct IAMEntityListView: View {
                     .contextMenu { userContextMenu(user) }
                 }
                 .contextMenu { createContextMenu }
-                statusBar(count: users.count, label: "user", selectedCount: selectedUserIDs.count)
+                ListStatusBar(totalCount: users.count, selectedCount: selectedUserIDs.count, noun: "user")
             }
         }
     }
@@ -327,7 +312,7 @@ struct IAMEntityListView: View {
                     .contextMenu { roleContextMenu(role) }
                 }
                 .contextMenu { createContextMenu }
-                statusBar(count: roles.count, label: "role", selectedCount: selectedRoleIDs.count)
+                ListStatusBar(totalCount: roles.count, selectedCount: selectedRoleIDs.count, noun: "role")
             }
         }
     }
@@ -402,7 +387,7 @@ struct IAMEntityListView: View {
                     .contextMenu { policyContextMenu(policy) }
                 }
                 .contextMenu { createContextMenu }
-                statusBar(count: policies.count, label: "polic", pluralSuffix: "ies", singularSuffix: "y", selectedCount: selectedPolicyIDs.count)
+                ListStatusBar(totalCount: policies.count, selectedCount: selectedPolicyIDs.count, noun: "policy", pluralNoun: "policies")
             }
         }
     }
@@ -461,24 +446,6 @@ struct IAMEntityListView: View {
     private func emptyView(_ text: String, icon: String) -> some View {
         EmptyStateView(icon: icon, message: text)
             .contextMenu { createContextMenu }
-    }
-
-    @ViewBuilder
-    private func statusBar(count: Int, label: String, pluralSuffix: String = "s", singularSuffix: String = "", selectedCount: Int) -> some View {
-        Divider()
-        HStack {
-            Text("\(count) \(label)\(count == 1 ? singularSuffix : pluralSuffix)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if selectedCount > 1 {
-                Text("(\(selectedCount) selected)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4)
     }
 
     // MARK: - Actions

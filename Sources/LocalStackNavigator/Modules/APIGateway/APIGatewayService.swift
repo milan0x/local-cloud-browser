@@ -1,20 +1,14 @@
 import Foundation
 
-@MainActor
-final class APIGatewayService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class APIGatewayService: LocalStackService {
     // MARK: - REST API Operations
 
-    func listRestApis() async throws -> [RestApi] {
+    func listRestApis(region: String? = nil) async throws -> [RestApi] {
         let response = try await client.apiGatewayRequest(
             action: "GetRestApis",
             method: "GET",
-            path: ""
+            path: "",
+            region: region
         )
         guard let json = try JSONSerialization.jsonObject(with: response.data) as? [String: Any],
               let items = json["item"] as? [[String: Any]] else {

@@ -1,16 +1,9 @@
 import Foundation
 
-@MainActor
-final class KinesisService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class KinesisService: LocalStackService {
     // MARK: - Stream Operations
 
-    func listStreams() async throws -> [KinesisStreamSummary] {
+    func listStreams(region: String? = nil) async throws -> [KinesisStreamSummary] {
         var allStreams: [KinesisStreamSummary] = []
         var hasMore = true
         var exclusiveStartName: String?
@@ -20,7 +13,7 @@ final class KinesisService: ObservableObject {
             if let startName = exclusiveStartName {
                 payload["ExclusiveStartStreamName"] = startName
             }
-            let data = try await client.kinesisRequest(action: "ListStreams", payload: payload)
+            let data = try await client.kinesisRequest(action: "ListStreams", payload: payload, region: region)
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 break
             }

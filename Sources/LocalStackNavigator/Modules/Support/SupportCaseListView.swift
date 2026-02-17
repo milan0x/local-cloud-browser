@@ -9,14 +9,11 @@ struct SupportCaseListView: View {
     @Binding var activeCase: SupportCase?
     var restoreCaseId: String?
 
-    @State private var cases: [SupportCase] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
+    @StateObject private var loader = ListLoader<SupportCase>()
+    private var cases: [SupportCase] { loader.items }
     @State private var showCreateSheet = false
     @State private var caseToResolve: SupportCase?
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var searchText = ""
     @State private var showResolved = false
 
@@ -54,13 +51,13 @@ struct SupportCaseListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadCases() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && caseToResolve == nil && !isLoading }) {
+        .onAutoRefresh(canRefresh: { !showCreateSheet && caseToResolve == nil && !loader.isLoading }) {
             loadCases(force: true, silent: true)
         }
         .resetOnConnectionChange {
             selectedCaseIDs = []
             activeCase = nil
-            cases = []
+            loader.items = []
             loadCases(force: true)
         }
         .syncSelection(selectedCaseIDs, items: cases, activeItem: $activeCase)
@@ -109,25 +106,13 @@ struct SupportCaseListView: View {
     // MARK: - Header
 
     private var caseListHeader: some View {
-        HStack {
-            Text("Cases")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadCases(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadCases(force: true)
-            }
-
+        ListHeaderBar(
+            title: "Cases",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            onRefresh: { loadCases(force: true) },
+            onCreate: { showCreateSheet = true }
+        ) {
             Toggle(isOn: $showResolved) {
                 Image(systemName: "checkmark.circle")
             }
@@ -135,113 +120,87 @@ struct SupportCaseListView: View {
             .buttonStyle(.borderless)
             .help(showResolved ? "Hide resolved cases" : "Show resolved cases")
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var caseListContent: some View {
-        if isLoading && cases.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading cases...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, cases.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadCases(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if cases.isEmpty {
-            EmptyStateView(icon: "lifepreserver", message: "No cases")
-            .contextMenu {
-                Button("Create Case") {
-                    showCreateSheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
-            VStack(spacing: 0) {
-                if cases.count > 5 {
-                    SearchBarView(query: $searchText, placeholder: "Filter cases")
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                    Divider()
-                }
-                List(filteredCases, selection: $selectedCaseIDs) { supportCase in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(supportCase.subject)
-                                .fontWeight(.medium)
-                                .lineLimit(1)
-                            if !supportCase.displayId.isEmpty {
-                                Text(supportCase.displayId)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                        }
-                        Spacer()
-                        VStack(alignment: .trailing, spacing: 3) {
-                            statusBadge(supportCase)
-                            severityBadge(supportCase)
-                        }
-                    }
-                    .tag(supportCase.id)
-                    .contextMenu {
-                        Button("Copy Case ID") { copyToClipboard(supportCase.caseId) }
-                        Menu("Copy as AWS CLI") {
-                            Button("Describe Case") {
-                                copyToClipboard(supportCase.describeCaseCLI(endpointUrl: appState.endpoint, region: appState.region))
-                            }
-                            Button("List Cases") {
-                                copyToClipboard(SupportCase.listCasesCLI(endpointUrl: appState.endpoint, region: appState.region))
-                            }
-                            Button("Resolve Case") {
-                                copyToClipboard(supportCase.resolveCaseCLI(endpointUrl: appState.endpoint, region: appState.region))
-                            }
-                        }
-                        Divider()
-                        Button("Create Case") {
-                            showCreateSheet = true
-                        }
-                        .disabled(appState.isReadOnly)
-                        Divider()
-                        Button("Resolve") {
-                            caseToResolve = supportCase
-                        }
-                        .disabled(appState.isReadOnly || supportCase.status.lowercased() == "resolved")
-                    }
-                }
-                .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
-                        ConnectionLostBanner()
-                    }
-                }
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: cases.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading cases...", onRetry: { loadCases(force: true) }) {
+            if cases.isEmpty {
+                EmptyStateView(icon: "lifepreserver", message: "No cases")
                 .contextMenu {
                     Button("Create Case") {
                         showCreateSheet = true
                     }
                     .disabled(appState.isReadOnly)
                 }
+            } else {
+                VStack(spacing: 0) {
+                    if cases.count > 5 {
+                        SearchBarView(query: $searchText, placeholder: "Filter cases")
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                        Divider()
+                    }
+                    List(filteredCases, selection: $selectedCaseIDs) { supportCase in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(supportCase.subject)
+                                    .fontWeight(.medium)
+                                    .lineLimit(1)
+                                if !supportCase.displayId.isEmpty {
+                                    Text(supportCase.displayId)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 3) {
+                                statusBadge(supportCase)
+                                severityBadge(supportCase)
+                            }
+                        }
+                        .tag(supportCase.id)
+                        .contextMenu {
+                            Button("Copy Case ID") { copyToClipboard(supportCase.caseId) }
+                            Menu("Copy as AWS CLI") {
+                                Button("Describe Case") {
+                                    copyToClipboard(supportCase.describeCaseCLI(endpointUrl: appState.endpoint, region: appState.region))
+                                }
+                                Button("List Cases") {
+                                    copyToClipboard(SupportCase.listCasesCLI(endpointUrl: appState.endpoint, region: appState.region))
+                                }
+                                Button("Resolve Case") {
+                                    copyToClipboard(supportCase.resolveCaseCLI(endpointUrl: appState.endpoint, region: appState.region))
+                                }
+                            }
+                            Divider()
+                            Button("Create Case") {
+                                showCreateSheet = true
+                            }
+                            .disabled(appState.isReadOnly)
+                            Divider()
+                            Button("Resolve") {
+                                caseToResolve = supportCase
+                            }
+                            .disabled(appState.isReadOnly || supportCase.status.lowercased() == "resolved")
+                        }
+                    }
+                    .overlay(alignment: .bottom) {
+                        if loader.errorMessage != nil {
+                            ConnectionLostBanner()
+                        }
+                    }
+                    .contextMenu {
+                        Button("Create Case") {
+                            showCreateSheet = true
+                        }
+                        .disabled(appState.isReadOnly)
+                    }
 
-                // Status bar
-                Divider()
-                HStack {
-                    Text("\(cases.count) case\(cases.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
+                    ListStatusBar(totalCount: cases.count, selectedCount: selectedCaseIDs.count, noun: "case")
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
             }
         }
     }
@@ -261,43 +220,19 @@ struct SupportCaseListView: View {
     // MARK: - Data
 
     private func loadCases(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.describeCases(includeResolved: showResolved)
-                let freshCases = loaded.sorted {
-                    let cmp = $0.subject.localizedStandardCompare($1.subject)
-                    return cmp == .orderedAscending || (cmp == .orderedSame && $0.caseId < $1.caseId)
-                }
-                // Only update if the case IDs or statuses changed — LocalStack's
-                // mock can return subtly different field values on each call.
-                let oldSnapshot = cases.map { "\($0.caseId)|\($0.status)" }
-                let newSnapshot = freshCases.map { "\($0.caseId)|\($0.status)" }
-                if oldSnapshot != newSnapshot {
-                    cases = freshCases
-                }
-                if !hasRestoredSession, let savedId = restoreCaseId,
-                   let restored = cases.first(where: { $0.caseId == savedId }) {
-                    selectedCaseIDs = [restored.id]
-                    activeCase = restored
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.describeCases(includeResolved: showResolved) },
+            sort: {
+                let cmp = $0.subject.localizedStandardCompare($1.subject)
+                return cmp == .orderedAscending || (cmp == .orderedSame && $0.caseId < $1.caseId)
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedId = restoreCaseId,
+               let restored = items.first(where: { $0.caseId == savedId }) {
+                selectedCaseIDs = [restored.id]
+                activeCase = restored
             }
+            loader.hasRestoredSession = true
         }
     }
 

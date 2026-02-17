@@ -1,17 +1,10 @@
 import Foundation
 
-@MainActor
-final class KMSService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class KMSService: LocalStackService {
     // MARK: - Key Operations
 
-    func listKeys() async throws -> [KMSKey] {
-        let data = try await client.kmsRequest(action: "ListKeys")
+    func listKeys(region: String? = nil) async throws -> [KMSKey] {
+        let data = try await client.kmsRequest(action: "ListKeys", region: region)
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let keys = json["Keys"] as? [[String: Any]] else {
             return []

@@ -47,7 +47,7 @@ struct KinesisModuleView: View {
                             streamName: stream.streamName
                         )
                     } else {
-                        emptyDetail("Select a stream", icon: "arrow.right.arrow.left.square")
+                        EmptyDetailView(icon: "arrow.right.arrow.left.square", message: "Select a stream")
                     }
                 } else {
                     if let stream = activeDeliveryStream {
@@ -56,7 +56,7 @@ struct KinesisModuleView: View {
                             deliveryStreamName: stream.deliveryStreamName
                         )
                     } else {
-                        emptyDetail("Select a delivery stream", icon: "flame")
+                        EmptyDetailView(icon: "flame", message: "Select a delivery stream")
                     }
                 }
             }
@@ -132,27 +132,15 @@ struct KinesisModuleView: View {
     }
 
     private var listHeader: some View {
-        HStack {
-            Text("Kinesis")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {}
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                toolbarState.pendingAction = tab == .streams ? .createStream : .createDeliveryStream
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {}
-
-            ListHeaderButton("trash", color: .red, isDisabled: kinesisDeleteDisabled) {
-                toolbarState.pendingAction = tab == .streams ? .deleteStream : .deleteDeliveryStream
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "Kinesis",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: kinesisDeleteDisabled,
+            onRefresh: {},
+            onCreate: { toolbarState.pendingAction = tab == .streams ? .createStream : .createDeliveryStream },
+            onDelete: { toolbarState.pendingAction = tab == .streams ? .deleteStream : .deleteDeliveryStream }
+        )
     }
 
     private var kinesisDeleteDisabled: Bool {
@@ -160,16 +148,6 @@ struct KinesisModuleView: View {
         return !hasSelection || appState.isReadOnly
     }
 
-    private func emptyDetail(_ text: String, icon: String) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
-            Text(text)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
 
     // MARK: - Session
 

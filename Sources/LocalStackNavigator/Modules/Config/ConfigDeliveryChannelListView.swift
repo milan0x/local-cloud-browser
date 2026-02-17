@@ -9,15 +9,12 @@ struct ConfigDeliveryChannelListView: View {
     @Binding var activeChannel: DeliveryChannel?
     var restoreChannelName: String?
 
-    @State private var channels: [DeliveryChannel] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
     @State private var showCreateSheet = false
     @State private var channelsToDelete: [DeliveryChannel] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var searchText = ""
+    @StateObject private var loader = ListLoader<DeliveryChannel>()
+    private var channels: [DeliveryChannel] { loader.items }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -51,13 +48,13 @@ struct ConfigDeliveryChannelListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadChannels() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && channelsToDelete.isEmpty && !isLoading }) {
+        .onAutoRefresh(canRefresh: { !showCreateSheet && channelsToDelete.isEmpty && !loader.isLoading }) {
             loadChannels(force: true, silent: true)
         }
         .resetOnConnectionChange {
             selectedChannelIDs = []
             activeChannel = nil
-            channels = []
+            loader.items = []
             loadChannels(force: true)
         }
         .syncSelection(selectedChannelIDs, items: channels, activeItem: $activeChannel)
@@ -88,34 +85,18 @@ struct ConfigDeliveryChannelListView: View {
 
     // MARK: - Content
 
-    @ViewBuilder
     private var channelListContent: some View {
-        if isLoading && channels.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading delivery channels...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, channels.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadChannels(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if channels.isEmpty {
-            EmptyStateView(icon: "tray.and.arrow.down", message: "No delivery channels")
-            .contextMenu {
-                Button("Create Delivery Channel") {
-                    showCreateSheet = true
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: channels.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading delivery channels...", onRetry: { loadChannels(force: true) }) {
+            if channels.isEmpty {
+                EmptyStateView(icon: "tray.and.arrow.down", message: "No delivery channels")
+                .contextMenu {
+                    Button("Create Delivery Channel") {
+                        showCreateSheet = true
+                    }
+                    .disabled(appState.isReadOnly)
                 }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
-            VStack(spacing: 0) {
+            } else {
+                VStack(spacing: 0) {
                 if channels.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter channels")
                         .padding(.horizontal, 8)
@@ -158,7 +139,7 @@ struct ConfigDeliveryChannelListView: View {
                     }
                 }
                 .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
+                    if loader.errorMessage != nil {
                         ConnectionLostBanner()
                     }
                 }
@@ -179,42 +160,23 @@ struct ConfigDeliveryChannelListView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 4)
             }
+            }
         }
     }
 
     // MARK: - Data
 
     private func loadChannels(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.describeDeliveryChannels()
-                let freshChannels = loaded.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-                if channels != freshChannels {
-                    channels = freshChannels
-                }
-                if !hasRestoredSession, let savedName = restoreChannelName,
-                   let channel = channels.first(where: { $0.name == savedName }) {
-                    selectedChannelIDs = [channel.id]
-                    activeChannel = channel
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.describeDeliveryChannels() },
+            sort: { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedName = restoreChannelName,
+               let channel = items.first(where: { $0.name == savedName }) {
+                selectedChannelIDs = [channel.id]
+                activeChannel = channel
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
-            }
+            loader.hasRestoredSession = true
         }
     }
 

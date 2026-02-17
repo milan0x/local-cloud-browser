@@ -1,16 +1,9 @@
 import Foundation
 
-@MainActor
-final class SESService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class SESService: LocalStackService {
     // MARK: - Identity Operations
 
-    func listIdentities() async throws -> [SESIdentity] {
+    func listIdentities(region: String? = nil) async throws -> [SESIdentity] {
         var identities: [SESIdentity] = []
         var nextToken: String? = nil
 
@@ -19,7 +12,7 @@ final class SESService: ObservableObject {
             if let token = nextToken {
                 params["NextToken"] = token
             }
-            let data = try await client.sesRequest(action: "ListIdentities", params: params)
+            let data = try await client.sesRequest(action: "ListIdentities", params: params, region: region)
             let xml = try SNSXMLParser.parse(data)
             let members = xml.all("member")
             for member in members {

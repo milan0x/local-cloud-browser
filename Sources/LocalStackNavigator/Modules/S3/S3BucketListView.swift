@@ -10,14 +10,11 @@ struct S3BucketListView: View {
     var restoreBucketName: String?
 
     @Environment(\.openWindow) private var openWindow
-    @State private var buckets: [S3Bucket] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
+    @StateObject private var loader = ListLoader<S3Bucket>()
+    private var buckets: [S3Bucket] { loader.items }
     @State private var showCreateSheet = false
     @State private var bucketsToDelete: [S3Bucket] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var forceDeleteBuckets: [S3Bucket] = []
     @State private var forceDeleteConfirmation = ""
     @State private var isForceDeleting = false
@@ -48,32 +45,17 @@ struct S3BucketListView: View {
             toolbarState.clearSelectionTrigger += 1
         })
         .sheet(isPresented: $showCreateSheet) {
-            S3CreateBucketView(service: service, existingBucketNames: Set(buckets.map(\.name)))
+            S3CreateBucketView(service: service, existingBucketNames: Set(loader.items.map(\.name)))
                 .onDisappear { loadBuckets(force: true) }
         }
-        .alert(
-            bucketsToDelete.count == 1
-                ? "Delete Bucket"
-                : "Delete \(bucketsToDelete.count) Buckets",
-            isPresented: Binding(
-                get: { !bucketsToDelete.isEmpty },
-                set: { if !$0 { bucketsToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteBuckets(bucketsToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                bucketsToDelete = []
-            }
-        } message: {
-            if bucketsToDelete.count == 1, let bucket = bucketsToDelete.first {
+        .deleteConfirmation(items: $bucketsToDelete, noun: "Bucket") { items in
+            if items.count == 1, let bucket = items.first {
                 Text("Are you sure you want to delete \"\(bucket.name)\"?\n\nThis cannot be undone.")
             } else {
-                let names = bucketsToDelete.map(\.name).joined(separator: "\n")
+                let names = items.map(\.name).joined(separator: "\n")
                 Text("Are you sure you want to delete these buckets?\n\n\(names)\n\nThis cannot be undone.")
             }
-        }
+        } onDelete: { deleteBuckets($0) }
         .serviceErrorAlert(error: $serviceError)
         .alert(
             forceDeleteBuckets.count == 1
@@ -114,13 +96,13 @@ struct S3BucketListView: View {
             }
         }
         .task { loadBuckets() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && bucketsToDelete.isEmpty && forceDeleteBuckets.isEmpty && !isForceDeleting && !isLoading }) {
+        .onAutoRefresh(canRefresh: { !showCreateSheet && bucketsToDelete.isEmpty && forceDeleteBuckets.isEmpty && !isForceDeleting && !loader.isLoading }) {
             loadBuckets(force: true, silent: true)
         }
         .onChange(of: appState.connectionVersion) {
             selectedBucketIDs = []
             activeBucket = nil
-            buckets = []
+            loader.items = []
             loadBuckets(force: true)
         }
         .syncSelection(selectedBucketIDs, items: buckets, activeItem: $activeBucket)
@@ -140,122 +122,89 @@ struct S3BucketListView: View {
     // MARK: - Header
 
     private var bucketListHeader: some View {
-        HStack {
-            Text("Buckets")
-                .font(.headline)
-                .lineLimit(1)
-            Text("Global")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadBuckets(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadBuckets(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: bucketDeleteDisabled, help: bucketDeleteHelp) {
-                bucketsToDelete = buckets.filter { selectedBucketIDs.contains($0.id) }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "Buckets",
+            subtitle: "Global",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: bucketDeleteDisabled,
+            deleteHelp: bucketDeleteHelp,
+            onRefresh: { loadBuckets(force: true) },
+            onCreate: { showCreateSheet = true },
+            onDelete: { bucketsToDelete = buckets.filter { selectedBucketIDs.contains($0.id) } }
+        )
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var bucketListContent: some View {
-        if isLoading && buckets.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading buckets...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadBuckets(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if buckets.isEmpty {
-            EmptyStateView(icon: "externaldrive", message: "No buckets")
-            .contextMenu {
-                Button("Create Bucket") {
-                    showCreateSheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
-            List(buckets, selection: $selectedBucketIDs) { bucket in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(bucket.name)
-                        .fontWeight(.medium)
-                    if let date = bucket.creationDate {
-                        Text(Self.dateFormatter.string(from: date))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .tag(bucket.id)
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: buckets.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading buckets...", onRetry: { loadBuckets(force: true) }) {
+            if buckets.isEmpty {
+                EmptyStateView(icon: "externaldrive", message: "No buckets")
                 .contextMenu {
-                    Button("Open in New Window") {
-                        openWindow(value: S3BrowserTarget(bucket: bucket.name, prefix: nil))
-                    }
-                    Divider()
-                    if selectedBucketIDs.count > 1 && selectedBucketIDs.contains(bucket.id) {
-                        let selected = buckets.filter { selectedBucketIDs.contains($0.id) }
-                        let names = selected.map(\.name)
-                        let uris = names.map { "s3://\($0)" }
-                        Button("Copy \(names.count) Names") { copyToClipboard(names.joined(separator: "\n")) }
-                        Button("Copy \(names.count) S3 URIs") { copyToClipboard(uris.joined(separator: "\n")) }
-                    } else {
-                        Button("Copy Name") { copyToClipboard(bucket.name) }
-                        Button("Copy S3 URI") { copyToClipboard("s3://\(bucket.name)") }
-                    }
-                    Divider()
                     Button("Create Bucket") {
                         showCreateSheet = true
                     }
                     .disabled(appState.isReadOnly)
-                    Divider()
-                    if selectedBucketIDs.count > 1 && selectedBucketIDs.contains(bucket.id) {
-                        let selected = buckets.filter { selectedBucketIDs.contains($0.id) }
-                        Button("Delete \(selected.count) Buckets", role: .destructive) {
-                            bucketsToDelete = selected
+                }
+            } else {
+                List(buckets, selection: $selectedBucketIDs) { bucket in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(bucket.name)
+                            .fontWeight(.medium)
+                        if let date = bucket.creationDate {
+                            Text(Self.dateFormatter.string(from: date))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .tag(bucket.id)
+                    .contextMenu {
+                        Button("Open in New Window") {
+                            openWindow(value: S3BrowserTarget(bucket: bucket.name, prefix: nil))
+                        }
+                        Divider()
+                        if selectedBucketIDs.count > 1 && selectedBucketIDs.contains(bucket.id) {
+                            let selected = buckets.filter { selectedBucketIDs.contains($0.id) }
+                            let names = selected.map(\.name)
+                            let uris = names.map { "s3://\($0)" }
+                            Button("Copy \(names.count) Names") { copyToClipboard(names.joined(separator: "\n")) }
+                            Button("Copy \(names.count) S3 URIs") { copyToClipboard(uris.joined(separator: "\n")) }
+                        } else {
+                            Button("Copy Name") { copyToClipboard(bucket.name) }
+                            Button("Copy S3 URI") { copyToClipboard("s3://\(bucket.name)") }
+                        }
+                        Divider()
+                        Button("Create Bucket") {
+                            showCreateSheet = true
                         }
                         .disabled(appState.isReadOnly)
-                    } else {
-                        Button("Delete", role: .destructive) {
-                            bucketsToDelete = [bucket]
+                        Divider()
+                        if selectedBucketIDs.count > 1 && selectedBucketIDs.contains(bucket.id) {
+                            let selected = buckets.filter { selectedBucketIDs.contains($0.id) }
+                            Button("Delete \(selected.count) Buckets", role: .destructive) {
+                                bucketsToDelete = selected
+                            }
+                            .disabled(appState.isReadOnly)
+                        } else {
+                            Button("Delete", role: .destructive) {
+                                bucketsToDelete = [bucket]
+                            }
+                            .disabled(appState.isReadOnly)
                         }
-                        .disabled(appState.isReadOnly)
                     }
                 }
-            }
-            .overlay(alignment: .bottom) {
-                if errorMessage != nil {
-                    ConnectionLostBanner()
+                .overlay(alignment: .bottom) {
+                    if loader.errorMessage != nil {
+                        ConnectionLostBanner()
+                    }
                 }
-            }
-            .contextMenu {
-                Button("Create Bucket") {
-                    showCreateSheet = true
+                .contextMenu {
+                    Button("Create Bucket") {
+                        showCreateSheet = true
+                    }
+                    .disabled(appState.isReadOnly)
                 }
-                .disabled(appState.isReadOnly)
             }
         }
     }
@@ -263,42 +212,23 @@ struct S3BucketListView: View {
     // MARK: - Data
 
     private func loadBuckets(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let freshBuckets = try await service.listBuckets().sorted { a, b in
-                    switch (a.creationDate, b.creationDate) {
-                    case let (dateA?, dateB?): return dateA > dateB
-                    case (_?, nil): return true
-                    case (nil, _?): return false
-                    case (nil, nil): return a.name.localizedStandardCompare(b.name) == .orderedAscending
-                    }
-                }
-                if buckets != freshBuckets {
-                    buckets = freshBuckets
-                }
-                if !hasRestoredSession, let savedName = restoreBucketName,
-                   let bucket = buckets.first(where: { $0.name == savedName }) {
-                    selectedBucketIDs = [bucket.id]
-                    activeBucket = bucket
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.listBuckets() },
+            sort: { a, b in
+                switch (a.creationDate, b.creationDate) {
+                case let (dateA?, dateB?): return dateA > dateB
+                case (_?, nil): return true
+                case (nil, _?): return false
+                case (nil, nil): return a.name.localizedStandardCompare(b.name) == .orderedAscending
                 }
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedName = restoreBucketName,
+               let bucket = items.first(where: { $0.name == savedName }) {
+                selectedBucketIDs = [bucket.id]
+                activeBucket = bucket
             }
+            loader.hasRestoredSession = true
         }
     }
 
@@ -319,7 +249,7 @@ struct S3BucketListView: View {
                             serviceError = parsed
                         }
                     } else {
-                        errorMessage = error.localizedDescription
+                        loader.errorMessage = error.localizedDescription
                     }
                 }
             }
@@ -349,7 +279,7 @@ struct S3BucketListView: View {
                        let parsed = clientError.serviceError {
                         serviceError = parsed
                     } else {
-                        errorMessage = error.localizedDescription
+                        loader.errorMessage = error.localizedDescription
                     }
                 }
             }

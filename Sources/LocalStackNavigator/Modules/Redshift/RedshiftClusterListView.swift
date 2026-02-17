@@ -9,57 +9,43 @@ struct RedshiftClusterListView: View {
     @Binding var activeCluster: RedshiftCluster?
     var restoreClusterId: String?
 
-    @State private var clusters: [RedshiftCluster] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
     @State private var showCreateSheet = false
     @State private var clustersToDelete: [RedshiftCluster] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var searchText = ""
+    @StateObject private var regionLoader = FavoriteRegionLoader<RedshiftCluster>()
+    @StateObject private var loader = ListLoader<RedshiftCluster>()
+    private var clusters: [RedshiftCluster] { loader.items }
 
     var body: some View {
         VStack(spacing: 0) {
             clusterListHeader
             Divider()
             clusterListContent
+            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             RedshiftCreateClusterView(service: service)
                 .onDisappear { loadClusters(force: true) }
         }
-        .alert(
-            clustersToDelete.count == 1
-                ? "Delete Cluster"
-                : "Delete \(clustersToDelete.count) Clusters",
-            isPresented: Binding(
-                get: { !clustersToDelete.isEmpty },
-                set: { if !$0 { clustersToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteClusters(clustersToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                clustersToDelete = []
-            }
-        } message: {
-            if clustersToDelete.count == 1, let cluster = clustersToDelete.first {
+        .deleteConfirmation(items: $clustersToDelete, noun: "Cluster") { items in
+            if items.count == 1, let cluster = items.first {
                 Text("Are you sure you want to delete cluster \"\(cluster.clusterIdentifier)\"?\n\nThe final snapshot will be skipped.")
             } else {
-                Text("Are you sure you want to delete \(clustersToDelete.count) clusters?\n\nFinal snapshots will be skipped.")
+                Text("Are you sure you want to delete \(items.count) clusters?\n\nFinal snapshots will be skipped.")
             }
-        }
+        } onDelete: { deleteClusters($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadClusters() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && clustersToDelete.isEmpty && !isLoading }) {
+        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.describeClusters(region: $0) }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && clustersToDelete.isEmpty && !loader.isLoading }) {
             loadClusters(force: true, silent: true)
+            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedClusterIDs = []
             activeCluster = nil
-            clusters = []
+            loader.items = []
             loadClusters(force: true)
         }
         .syncSelection(selectedClusterIDs, items: clusters, activeItem: $activeCluster)
@@ -94,62 +80,22 @@ struct RedshiftClusterListView: View {
     // MARK: - Header
 
     private var clusterListHeader: some View {
-        HStack {
-            Text("Clusters")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadClusters(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadClusters(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: clusterDeleteDisabled, help: selectedClusterIDs.count <= 1 ? "Delete Cluster" : "Delete \(selectedClusterIDs.count) Clusters") {
-                clustersToDelete = clusters.filter { selectedClusterIDs.contains($0.id) }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "Clusters",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: clusterDeleteDisabled,
+            deleteHelp: selectedClusterIDs.count <= 1 ? "Delete Cluster" : "Delete \(selectedClusterIDs.count) Clusters",
+            onRefresh: { loadClusters(force: true) },
+            onCreate: { showCreateSheet = true },
+            onDelete: { clustersToDelete = clusters.filter { selectedClusterIDs.contains($0.id) } }
+        )
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var clusterListContent: some View {
-        if isLoading && clusters.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading clusters...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, clusters.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadClusters(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if clusters.isEmpty {
-            EmptyStateView(icon: "cylinder.split.1x2", message: "No clusters")
-            .contextMenu {
-                Button("Create Cluster") {
-                    showCreateSheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: clusters.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading clusters...", onRetry: { loadClusters(force: true) }) {
             VStack(spacing: 0) {
                 if clusters.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter clusters")
@@ -157,7 +103,12 @@ struct RedshiftClusterListView: View {
                         .padding(.vertical, 4)
                     Divider()
                 }
-                List(filteredClusters, selection: $selectedClusterIDs) { cluster in
+                List(selection: $selectedClusterIDs) {
+                    if clusters.isEmpty {
+                        EmptyStateView(icon: "cylinder.split.1x2", message: "No clusters")
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(filteredClusters) { cluster in
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(cluster.clusterIdentifier)
@@ -204,9 +155,27 @@ struct RedshiftClusterListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
+                    }
+                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
+                        selectBy: \.clusterIdentifier
+                    ) { cluster in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(cluster.clusterIdentifier)
+                                    .fontWeight(.medium)
+                                    .lineLimit(1)
+                                Text(cluster.nodeType)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            StatusBadge(text: cluster.clusterStatus, color: statusColor(cluster.clusterStatus))
+                        }
+                    }
                 }
                 .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
+                    if loader.errorMessage != nil {
                         ConnectionLostBanner()
                     }
                 }
@@ -217,21 +186,7 @@ struct RedshiftClusterListView: View {
                     .disabled(appState.isReadOnly)
                 }
 
-                // Status bar
-                Divider()
-                HStack {
-                    Text("\(clusters.count) cluster\(clusters.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if selectedClusterIDs.count > 1 {
-                        Text("(\(selectedClusterIDs.count) selected)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+                ListStatusBar(totalCount: clusters.count, selectedCount: selectedClusterIDs.count, noun: "cluster")
             }
         }
     }
@@ -253,57 +208,35 @@ struct RedshiftClusterListView: View {
     // MARK: - Data
 
     private func loadClusters(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.describeClusters()
-                let freshClusters = loaded.sorted { $0.clusterIdentifier.localizedStandardCompare($1.clusterIdentifier) == .orderedAscending }
-                if clusters != freshClusters {
-                    clusters = freshClusters
-                }
-                if !hasRestoredSession, let savedId = restoreClusterId,
-                   let cluster = clusters.first(where: { $0.clusterIdentifier == savedId }) {
-                    selectedClusterIDs = [cluster.id]
-                    activeCluster = cluster
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.describeClusters() },
+            sort: { $0.clusterIdentifier.localizedStandardCompare($1.clusterIdentifier) == .orderedAscending }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedId = restoreClusterId,
+               let cluster = items.first(where: { $0.clusterIdentifier == savedId }) {
+                selectedClusterIDs = [cluster.id]
+                activeCluster = cluster
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            loader.hasRestoredSession = true
+            if let cluster = regionLoader.consumePendingSelection(from: items, by: \.clusterIdentifier) {
+                selectedClusterIDs = [cluster.id]
+                activeCluster = cluster
             }
         }
     }
 
     private func deleteClusters(_ targets: [RedshiftCluster]) {
         Task {
-            var deletedIDs: Set<RedshiftCluster.ID> = []
-            for cluster in targets {
-                do {
-                    try await service.deleteCluster(id: cluster.clusterIdentifier)
-                    deletedIDs.insert(cluster.id)
-                } catch {
-                    serviceError = error.asServiceError
-                }
+            let (deleted, error) = await batchDelete(targets) {
+                try await service.deleteCluster(id: $0.clusterIdentifier)
             }
-            if !deletedIDs.isEmpty {
-                selectedClusterIDs.subtract(deletedIDs)
-                if let active = activeCluster, deletedIDs.contains(active.id) {
-                    activeCluster = nil
-                }
+            if let error { serviceError = error }
+            if !deleted.isEmpty {
+                selectedClusterIDs.subtract(deleted)
+                if let active = activeCluster, deleted.contains(active.id) { activeCluster = nil }
                 loadClusters(force: true)
             }
         }
     }
+
 }

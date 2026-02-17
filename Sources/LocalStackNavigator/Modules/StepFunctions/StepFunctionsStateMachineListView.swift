@@ -9,14 +9,12 @@ struct StepFunctionsStateMachineListView: View {
     @Binding var activeMachine: StateMachineSummary?
     var restoreName: String?
 
-    @State private var machines: [StateMachineSummary] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
+    @StateObject private var loader = ListLoader<StateMachineSummary>()
+    @StateObject private var regionLoader = FavoriteRegionLoader<StateMachineSummary>()
+    private var machines: [StateMachineSummary] { loader.items }
     @State private var showCreateSheet = false
     @State private var machinesToDelete: [StateMachineSummary] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var searchText = ""
 
     var body: some View {
@@ -24,42 +22,30 @@ struct StepFunctionsStateMachineListView: View {
             listHeader
             Divider()
             listContent
+            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             StepFunctionsCreateStateMachineView(service: service)
                 .onDisappear { loadMachines(force: true) }
         }
-        .alert(
-            machinesToDelete.count == 1
-                ? "Delete State Machine"
-                : "Delete \(machinesToDelete.count) State Machines",
-            isPresented: Binding(
-                get: { !machinesToDelete.isEmpty },
-                set: { if !$0 { machinesToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteMachines(machinesToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                machinesToDelete = []
-            }
-        } message: {
-            if machinesToDelete.count == 1, let machine = machinesToDelete.first {
+        .deleteConfirmation(items: $machinesToDelete, noun: "State Machine") { items in
+            if items.count == 1, let machine = items.first {
                 Text("Are you sure you want to delete state machine \"\(machine.name)\"?")
             } else {
-                Text("Are you sure you want to delete \(machinesToDelete.count) state machines?")
+                Text("Are you sure you want to delete \(items.count) state machines?")
             }
-        }
+        } onDelete: { deleteMachines($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadMachines() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && machinesToDelete.isEmpty && !isLoading }) {
+        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listStateMachines(region: $0) }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && machinesToDelete.isEmpty && !loader.isLoading }) {
             loadMachines(force: true, silent: true)
+            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedIDs = []
             activeMachine = nil
-            machines = []
+            loader.items = []
             loadMachines(force: true)
         }
         .syncSelection(selectedIDs, items: machines, activeItem: $activeMachine)
@@ -95,62 +81,22 @@ struct StepFunctionsStateMachineListView: View {
     // MARK: - Header
 
     private var listHeader: some View {
-        HStack {
-            Text("State Machines")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadMachines(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadMachines(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: deleteDisabled, help: selectedIDs.count <= 1 ? "Delete State Machine" : "Delete \(selectedIDs.count) State Machines") {
-                machinesToDelete = machines.filter { selectedIDs.contains($0.id) }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "State Machines",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: deleteDisabled,
+            deleteHelp: selectedIDs.count <= 1 ? "Delete State Machine" : "Delete \(selectedIDs.count) State Machines",
+            onRefresh: { loadMachines(force: true) },
+            onCreate: { showCreateSheet = true },
+            onDelete: { machinesToDelete = machines.filter { selectedIDs.contains($0.id) } }
+        )
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var listContent: some View {
-        if isLoading && machines.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading state machines...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, machines.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadMachines(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if machines.isEmpty {
-            EmptyStateView(icon: "arrow.triangle.branch", message: "No state machines")
-            .contextMenu {
-                Button("Create State Machine") {
-                    showCreateSheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: machines.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading state machines...", onRetry: { loadMachines(force: true) }) {
             VStack(spacing: 0) {
                 if machines.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter state machines")
@@ -158,7 +104,12 @@ struct StepFunctionsStateMachineListView: View {
                         .padding(.vertical, 4)
                     Divider()
                 }
-                List(filteredMachines, selection: $selectedIDs) { machine in
+                List(selection: $selectedIDs) {
+                    if machines.isEmpty {
+                        EmptyStateView(icon: "arrow.triangle.branch", message: "No state machines")
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(filteredMachines) { machine in
                     HStack {
                         Text(machine.name)
                             .fontWeight(.medium)
@@ -201,9 +152,21 @@ struct StepFunctionsStateMachineListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
+                    }
+                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
+                        selectBy: \.name
+                    ) { machine in
+                        HStack {
+                            Text(machine.name)
+                                .fontWeight(.medium)
+                                .lineLimit(1)
+                            Spacer()
+                            StatusBadge(text: machine.type, color: machine.type == "STANDARD" ? .blue : .purple)
+                        }
+                    }
                 }
                 .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
+                    if loader.errorMessage != nil {
                         ConnectionLostBanner()
                     }
                 }
@@ -214,21 +177,7 @@ struct StepFunctionsStateMachineListView: View {
                     .disabled(appState.isReadOnly)
                 }
 
-                // Status bar
-                Divider()
-                HStack {
-                    Text("\(machines.count) state machine\(machines.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if selectedIDs.count > 1 {
-                        Text("(\(selectedIDs.count) selected)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+                ListStatusBar(totalCount: machines.count, selectedCount: selectedIDs.count, noun: "state machine")
             }
         }
     }
@@ -248,58 +197,37 @@ struct StepFunctionsStateMachineListView: View {
     // MARK: - Data
 
     private func loadMachines(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.listStateMachines()
-                let sorted = loaded.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-                if machines != sorted {
-                    machines = sorted
-                }
-                if !hasRestoredSession, let savedName = restoreName,
-                   let machine = machines.first(where: { $0.name == savedName }) {
-                    selectedIDs = [machine.id]
-                    activeMachine = machine
-                }
-                hasRestoredSession = true
-                if !silent { errorMessage = nil }
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.listStateMachines() },
+            sort: { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedName = restoreName,
+               let machine = items.first(where: { $0.name == savedName }) {
+                selectedIDs = [machine.id]
+                activeMachine = machine
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            loader.hasRestoredSession = true
+            if let machine = regionLoader.consumePendingSelection(from: items, by: \.name) {
+                selectedIDs = [machine.id]
+                activeMachine = machine
             }
         }
     }
 
     private func deleteMachines(_ targets: [StateMachineSummary]) {
         Task {
-            var deletedIDs: Set<StateMachineSummary.ID> = []
-            for machine in targets {
-                do {
-                    try await service.deleteStateMachine(arn: machine.stateMachineArn)
-                    deletedIDs.insert(machine.id)
-                } catch {
-                    serviceError = error.asServiceError
-                }
+            let (deleted, error) = await batchDelete(targets) {
+                try await service.deleteStateMachine(arn: $0.stateMachineArn)
             }
-            if !deletedIDs.isEmpty {
-                selectedIDs.subtract(deletedIDs)
-                if let active = activeMachine, deletedIDs.contains(active.id) {
+            if let error { serviceError = error }
+            if !deleted.isEmpty {
+                selectedIDs.subtract(deleted)
+                if let active = activeMachine, deleted.contains(active.id) {
                     activeMachine = nil
                 }
                 loadMachines(force: true)
             }
         }
     }
+
 }

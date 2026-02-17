@@ -38,14 +38,7 @@ struct SSMModuleView: View {
                         toolbarState: toolbarState
                     )
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "list.bullet.rectangle")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a parameter")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "list.bullet.rectangle", message: "Select a parameter")
                 }
             }
             .frame(minWidth: 400)

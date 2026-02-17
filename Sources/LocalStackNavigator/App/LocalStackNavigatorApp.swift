@@ -6,6 +6,7 @@ struct LocalStackNavigatorApp: App {
     @StateObject private var appState: AppState
     @StateObject private var client: LocalStackClient
     @StateObject private var profileStore: ConnectionProfileStore
+    @StateObject private var favoriteStore: FavoriteRegionStore
 
     init() {
         // Make the process a regular foreground app (dock icon, menu bar, keyboard focus).
@@ -31,9 +32,14 @@ struct LocalStackNavigatorApp: App {
         } else {
             LastSessionStore.clearSubResources()
         }
+        let favStore = FavoriteRegionStore()
+        if let profileId = store.activeProfileId {
+            favStore.switchProfile(to: profileId.uuidString)
+        }
         _appState = StateObject(wrappedValue: state)
         _client = StateObject(wrappedValue: LocalStackClient(appState: state))
         _profileStore = StateObject(wrappedValue: store)
+        _favoriteStore = StateObject(wrappedValue: favStore)
     }
 
     var body: some Scene {
@@ -42,7 +48,13 @@ struct LocalStackNavigatorApp: App {
                 .environmentObject(appState)
                 .environmentObject(client)
                 .environmentObject(profileStore)
+                .environmentObject(favoriteStore)
                 .environmentObject(appState.autoRefresh)
+                .onChange(of: profileStore.activeProfileId) { _, newId in
+                    if let newId {
+                        favoriteStore.switchProfile(to: newId.uuidString)
+                    }
+                }
                 .onAppear {
                     NSApplication.shared.activate(ignoringOtherApps: true)
                 }

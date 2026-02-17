@@ -1,13 +1,6 @@
 import Foundation
 
-@MainActor
-final class Route53Service: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class Route53Service: LocalStackService {
     // MARK: - Hosted Zone Operations
 
     func listHostedZones() async throws -> [Route53HostedZone] {

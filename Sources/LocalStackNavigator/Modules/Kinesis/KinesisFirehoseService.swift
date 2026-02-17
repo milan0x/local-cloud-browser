@@ -1,13 +1,6 @@
 import Foundation
 
-@MainActor
-final class KinesisFirehoseService: ObservableObject {
-    private var client: LocalStackClient!
-
-    func updateClient(_ newClient: LocalStackClient) {
-        self.client = newClient
-    }
-
+final class KinesisFirehoseService: LocalStackService {
     // MARK: - Delivery Stream Operations
 
     func listDeliveryStreams() async throws -> [FirehoseDeliveryStreamSummary] {

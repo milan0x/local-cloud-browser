@@ -9,61 +9,47 @@ struct KMSKeyListView: View {
     @Binding var activeKey: KMSKey?
     var restoreKeyId: String?
 
-    @State private var keys: [KMSKey] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
     @State private var showCreateSheet = false
     @State private var keysToDelete: [KMSKey] = []
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var keyToShowDetail: KMSKey?
     @State private var searchText = ""
+    @StateObject private var regionLoader = FavoriteRegionLoader<KMSKey>()
+    @StateObject private var loader = ListLoader<KMSKey>()
+    private var keys: [KMSKey] { loader.items }
 
     var body: some View {
         VStack(spacing: 0) {
             keyListHeader
             Divider()
             keyListContent
+            AddFavoriteRegionButton(currentRegion: appState.region)
         }
         .sheet(isPresented: $showCreateSheet) {
             KMSCreateKeyView(service: service)
                 .onDisappear { loadKeys(force: true) }
         }
-        .alert(
-            keysToDelete.count == 1
-                ? "Schedule Key Deletion"
-                : "Schedule \(keysToDelete.count) Key Deletions",
-            isPresented: Binding(
-                get: { !keysToDelete.isEmpty },
-                set: { if !$0 { keysToDelete = [] } }
-            )
-        ) {
-            Button("Schedule Deletion", role: .destructive) {
-                deleteKeys(keysToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                keysToDelete = []
-            }
-        } message: {
-            if keysToDelete.count == 1, let key = keysToDelete.first {
+        .deleteConfirmation(items: $keysToDelete, title: { $0 == 1 ? "Schedule Key Deletion" : "Schedule \($0) Key Deletions" }, actionLabel: "Schedule Deletion") { items in
+            if items.count == 1, let key = items.first {
                 Text("Are you sure you want to schedule deletion for key \"\(key.truncatedId)\"?\n\nThe key will be deleted after a waiting period.")
             } else {
-                Text("Are you sure you want to schedule deletion for \(keysToDelete.count) keys?\n\nThe keys will be deleted after a waiting period.")
+                Text("Are you sure you want to schedule deletion for \(items.count) keys?\n\nThe keys will be deleted after a waiting period.")
             }
-        }
+        } onDelete: { deleteKeys($0) }
         .sheet(item: $keyToShowDetail) { key in
             KMSKeyDetailSheet(service: service, key: key)
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadKeys() }
-        .onAutoRefresh(canRefresh: { !showCreateSheet && keysToDelete.isEmpty && keyToShowDetail == nil && !isLoading }) {
+        .favoriteRegionSupport(regionLoader: regionLoader) { [service] in try await service.listKeys(region: $0) }
+        .onAutoRefresh(canRefresh: { !showCreateSheet && keysToDelete.isEmpty && keyToShowDetail == nil && !loader.isLoading }) {
             loadKeys(force: true, silent: true)
+            regionLoader.loadAllExpanded(silent: true)
         }
         .resetOnConnectionChange {
             selectedKeyIDs = []
             activeKey = nil
-            keys = []
+            loader.items = []
             loadKeys(force: true)
         }
         .syncSelection(selectedKeyIDs, items: keys, activeItem: $activeKey)
@@ -100,62 +86,22 @@ struct KMSKeyListView: View {
     // MARK: - Header
 
     private var keyListHeader: some View {
-        HStack {
-            Text("Keys")
-                .font(.headline)
-                .lineLimit(1)
-
-            AutoRefreshIndicatorView(manager: appState.autoRefresh) {
-                loadKeys(force: true)
-            }
-
-            Spacer()
-
-            ListHeaderButton("plus", isDisabled: appState.isReadOnly) {
-                showCreateSheet = true
-            }
-
-            AutoRefreshMenuView(interval: Binding(get: { appState.autoRefresh.interval }, set: { appState.autoRefresh.interval = $0 })) {
-                loadKeys(force: true)
-            }
-
-            ListHeaderButton("trash", color: .red, isDisabled: keyDeleteDisabled, help: selectedKeyIDs.count <= 1 ? "Schedule Key Deletion" : "Schedule \(selectedKeyIDs.count) Key Deletions") {
-                keysToDelete = keys.filter { selectedKeyIDs.contains($0.id) }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ListHeaderBar(
+            title: "Keys",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            deleteDisabled: keyDeleteDisabled,
+            deleteHelp: selectedKeyIDs.count <= 1 ? "Schedule Key Deletion" : "Schedule \(selectedKeyIDs.count) Key Deletions",
+            onRefresh: { loadKeys(force: true) },
+            onCreate: { showCreateSheet = true },
+            onDelete: { keysToDelete = keys.filter { selectedKeyIDs.contains($0.id) } }
+        )
     }
 
     // MARK: - Content
 
-    @ViewBuilder
     private var keyListContent: some View {
-        if isLoading && keys.isEmpty {
-            VStack(spacing: 12) {
-                ProgressView("Loading keys...")
-                ConnectionRetryingLabel()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, keys.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadKeys(force: true) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if keys.isEmpty {
-            EmptyStateView(icon: "lock.shield", message: "No keys")
-            .contextMenu {
-                Button("Create Key") {
-                    showCreateSheet = true
-                }
-                .disabled(appState.isReadOnly)
-            }
-        } else {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: keys.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading keys...", onRetry: { loadKeys(force: true) }) {
             VStack(spacing: 0) {
                 if keys.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter keys")
@@ -163,7 +109,12 @@ struct KMSKeyListView: View {
                         .padding(.vertical, 4)
                     Divider()
                 }
-                List(filteredKeys, selection: $selectedKeyIDs) { key in
+                List(selection: $selectedKeyIDs) {
+                    if keys.isEmpty {
+                        EmptyStateView(icon: "lock.shield", message: "No keys")
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(filteredKeys) { key in
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(key.truncatedId)
@@ -214,9 +165,21 @@ struct KMSKeyListView: View {
                             .disabled(appState.isReadOnly)
                         }
                     }
+                    }
+                    FavoriteRegionSections(loader: regionLoader, currentRegion: appState.region,
+                        selectBy: \.keyId
+                    ) { item in
+                        HStack {
+                            Text(item.truncatedId)
+                                .fontWeight(.medium)
+                                .lineLimit(1)
+                            Spacer()
+                            stateBadge(for: item)
+                        }
+                    }
                 }
                 .overlay(alignment: .bottom) {
-                    if errorMessage != nil {
+                    if loader.errorMessage != nil {
                         ConnectionLostBanner()
                     }
                 }
@@ -234,21 +197,7 @@ struct KMSKeyListView: View {
                     }
                 })
 
-                // Status bar
-                Divider()
-                HStack {
-                    Text("\(keys.count) key\(keys.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if selectedKeyIDs.count > 1 {
-                        Text("(\(selectedKeyIDs.count) selected)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+                ListStatusBar(totalCount: keys.count, selectedCount: selectedKeyIDs.count, noun: "key")
             }
         }
     }
@@ -269,50 +218,29 @@ struct KMSKeyListView: View {
     // MARK: - Data
 
     private func loadKeys(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.listKeys()
-                let freshKeys = loaded.sorted { ($0.description.isEmpty ? $0.keyId : $0.description).localizedStandardCompare($1.description.isEmpty ? $1.keyId : $1.description) == .orderedAscending }
-                if keys != freshKeys {
-                    keys = freshKeys
-                }
-                if !hasRestoredSession, let savedId = restoreKeyId,
-                   let key = keys.first(where: { $0.keyId == savedId }) {
-                    selectedKeyIDs = [key.id]
-                    activeKey = key
-                }
-                hasRestoredSession = true
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
+        loader.load(force: force, silent: silent,
+            fetch: { [service] in try await service.listKeys() },
+            sort: { ($0.description.isEmpty ? $0.keyId : $0.description).localizedStandardCompare($1.description.isEmpty ? $1.keyId : $1.description) == .orderedAscending }
+        ) { [self] items in
+            if !loader.hasRestoredSession, let savedId = restoreKeyId,
+               let key = items.first(where: { $0.keyId == savedId }) {
+                selectedKeyIDs = [key.id]
+                activeKey = key
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            loader.hasRestoredSession = true
+            if let item = regionLoader.consumePendingSelection(from: items, by: \.keyId) {
+                selectedKeyIDs = [item.id]
+                activeKey = item
             }
         }
     }
 
     private func deleteKeys(_ targets: [KMSKey]) {
         Task {
-            var deletedIDs: Set<KMSKey.ID> = []
-            for key in targets {
-                do {
-                    try await service.scheduleKeyDeletion(keyId: key.keyId)
-                    deletedIDs.insert(key.id)
-                } catch {
-                    serviceError = error.asServiceError
-                }
+            let (deletedIDs, lastError) = await batchDelete(targets) { key in
+                try await service.scheduleKeyDeletion(keyId: key.keyId)
             }
+            if let lastError { serviceError = lastError }
             if !deletedIDs.isEmpty {
                 selectedKeyIDs.subtract(deletedIDs)
                 if let active = activeKey, deletedIDs.contains(active.id) {

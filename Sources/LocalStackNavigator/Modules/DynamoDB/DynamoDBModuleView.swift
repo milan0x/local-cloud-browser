@@ -40,14 +40,7 @@ struct DynamoDBModuleView: View {
                         tableDetail: detail
                     )
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "tablecells")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                        Text("Select a table")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyDetailView(icon: "tablecells", message: "Select a table")
                 }
             }
             .frame(minWidth: 400)
