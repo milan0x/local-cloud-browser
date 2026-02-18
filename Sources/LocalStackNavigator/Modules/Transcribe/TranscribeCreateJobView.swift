@@ -12,6 +12,7 @@ struct TranscribeCreateJobView: View {
     @State private var isSaving = false
     @State private var serviceError: ServiceError?
     @State private var hasAttemptedCreate = false
+    @State private var showS3Browser = false
 
     var onCreate: ((String) -> Void)? = nil
 
@@ -28,7 +29,10 @@ struct TranscribeCreateJobView: View {
                 }
 
                 Section {
-                    TextField("Media File URI", text: $mediaUri, prompt: Text("s3://bucket/key.wav"))
+                    HStack {
+                        TextField("Media File URI", text: $mediaUri, prompt: Text("s3://bucket/key.wav"))
+                        Button("Browse...") { showS3Browser = true }
+                    }
                     if hasAttemptedCreate && !isMediaUriValid {
                         Text("Media URI must start with s3://")
                             .font(.caption)
@@ -73,6 +77,11 @@ struct TranscribeCreateJobView: View {
         }
         .frame(width: 480)
         .serviceErrorAlert(error: $serviceError)
+        .sheet(isPresented: $showS3Browser) {
+            S3FileBrowserView(client: service.client, initialUri: mediaUri) { uri in
+                mediaUri = uri
+            }
+        }
     }
 
     private var isMediaUriValid: Bool {
