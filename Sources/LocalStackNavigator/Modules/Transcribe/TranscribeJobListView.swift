@@ -126,7 +126,7 @@ struct TranscribeJobListView: View {
                         Spacer()
                         statusBadge(for: job)
                     }
-                    .foregroundStyle(selectedJobIDs.contains(job.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(job.id)
                     .contextMenu {
                         Button("Copy Job Name") { copyToClipboard(job.jobName) }

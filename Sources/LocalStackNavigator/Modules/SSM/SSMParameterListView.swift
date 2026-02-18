@@ -126,7 +126,7 @@ struct SSMParameterListView: View {
                             }
                         }
                     }
-                    .foregroundStyle(selectedParameterIDs.contains(parameter.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(parameter.id)
                     .contextMenu {
                         Button("View Details") {

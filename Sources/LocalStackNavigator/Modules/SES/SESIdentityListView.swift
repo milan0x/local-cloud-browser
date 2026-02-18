@@ -121,7 +121,7 @@ struct SESIdentityListView: View {
                         typeBadge(for: identity)
                         verifiedBadge
                     }
-                    .foregroundStyle(selectedIdentityIDs.contains(identity.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(identity.id)
                     .contextMenu {
                         Button("Copy Identity") { copyToClipboard(identity.identity) }

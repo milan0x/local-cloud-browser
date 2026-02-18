@@ -119,7 +119,7 @@ struct OpenSearchDomainListView: View {
                         Spacer()
                         statusBadge(for: domain)
                     }
-                    .foregroundStyle(selectedDomainIDs.contains(domain.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(domain.id)
                     .contextMenu {
                         Button("Copy Name") { copyToClipboard(domain.domainName) }

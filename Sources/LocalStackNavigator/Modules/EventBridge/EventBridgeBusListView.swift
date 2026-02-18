@@ -124,7 +124,7 @@ struct EventBridgeBusListView: View {
                             StatusBadge(text: "default", color: .blue)
                         }
                     }
-                    .foregroundStyle(selectedBusIDs.contains(bus.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(bus.id)
                     .contextMenu {
                         Button("View Details") {

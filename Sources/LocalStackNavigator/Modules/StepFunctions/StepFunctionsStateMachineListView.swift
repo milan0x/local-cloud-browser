@@ -116,7 +116,7 @@ struct StepFunctionsStateMachineListView: View {
                         Spacer()
                         typeBadge(machine.type)
                     }
-                    .foregroundStyle(selectedIDs.contains(machine.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(machine.id)
                     .contextMenu {
                         Button("Copy Name") { copyToClipboard(machine.name) }

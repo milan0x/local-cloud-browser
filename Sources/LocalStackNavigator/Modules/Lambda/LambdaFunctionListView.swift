@@ -128,7 +128,7 @@ struct LambdaFunctionListView: View {
                             }
                         }
                     }
-                    .foregroundStyle(selectedFunctionIDs.contains(function.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(function.id)
                     .contextMenu {
                         Button("View Details") {

@@ -113,7 +113,7 @@ struct CloudWatchAlarmListView: View {
                         Spacer()
                         alarmStateBadge(alarm.alarmState)
                     }
-                    .foregroundStyle(selectedAlarmIDs.contains(alarm.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(alarm.id)
                     .contextMenu {
                         Button("Copy Alarm Name") { copyToClipboard(alarm.alarmName) }

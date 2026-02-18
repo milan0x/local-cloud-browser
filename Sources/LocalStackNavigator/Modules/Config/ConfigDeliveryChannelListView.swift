@@ -118,7 +118,7 @@ struct ConfigDeliveryChannelListView: View {
                                 .lineLimit(1)
                         }
                     }
-                    .foregroundStyle(selectedChannelIDs.contains(channel.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(channel.id)
                     .contextMenu {
                         Button("Copy Name") { copyToClipboard(channel.name) }

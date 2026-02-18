@@ -164,7 +164,7 @@ struct SupportCaseListView: View {
                                 severityBadge(supportCase)
                             }
                         }
-                        .foregroundStyle(selectedCaseIDs.contains(supportCase.id) ? Color.white : Color.primary)
+                        .selectionForeground()
                         .tag(supportCase.id)
                         .contextMenu {
                             Button("Copy Case ID") { copyToClipboard(supportCase.caseId) }

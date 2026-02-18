@@ -105,7 +105,7 @@ struct KinesisStreamListView: View {
                         modeBadge(stream.streamMode)
                         statusBadge(stream.streamStatus)
                     }
-                    .foregroundStyle(selectedStreamIDs.contains(stream.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(stream.id)
                     .contextMenu {
                         Button("Copy Name") { copyToClipboard(stream.streamName) }
