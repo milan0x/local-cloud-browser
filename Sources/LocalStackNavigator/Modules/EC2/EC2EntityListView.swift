@@ -26,6 +26,7 @@ struct EC2EntityListView: View {
     @State private var showRunInstanceSheet = false
     @State private var showCreateSecurityGroupSheet = false
     @State private var showCreateKeyPairSheet = false
+    @State private var pendingSelectName: String?
 
     // Delete
     @State private var instancesToTerminate: [EC2Instance] = []
@@ -82,14 +83,18 @@ struct EC2EntityListView: View {
             EC2CreateSecurityGroupView(
                 service: service,
                 existingNames: Set(securityGroups.map(\.groupName))
-            )
+            ) { name in
+                pendingSelectName = name
+            }
             .onDisappear { loadEntities(force: true) }
         }
         .sheet(isPresented: $showCreateKeyPairSheet) {
             EC2CreateKeyPairView(
                 service: service,
                 existingNames: Set(keyPairs.map(\.keyName))
-            )
+            ) { name in
+                pendingSelectName = name
+            }
             .onDisappear { loadEntities(force: true) }
         }
         // Terminate instances alert
@@ -574,6 +579,27 @@ struct EC2EntityListView: View {
                         }
                     }
                     hasRestoredSession = true
+                }
+
+                if let name = pendingSelectName {
+                    switch entityType {
+                    case .instances:
+                        if let inst = instances.first(where: { $0.instanceId == name }) {
+                            selectedInstanceIDs = [inst.id]
+                            selectedInstanceId = inst.instanceId
+                        }
+                    case .securityGroups:
+                        if let sg = securityGroups.first(where: { $0.groupName == name }) {
+                            selectedGroupIDs = [sg.id]
+                            selectedGroupId = sg.groupId
+                        }
+                    case .keyPairs:
+                        if let kp = keyPairs.first(where: { $0.keyName == name }) {
+                            selectedKeyPairIDs = [kp.id]
+                            selectedKeyName = kp.keyName
+                        }
+                    }
+                    pendingSelectName = nil
                 }
             } catch {
                 if !silent {

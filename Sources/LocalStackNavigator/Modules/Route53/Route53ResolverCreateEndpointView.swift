@@ -10,6 +10,7 @@ struct Route53ResolverCreateEndpointView: View {
     @State private var ip = ""
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
+    var onCreate: ((String) -> Void)? = nil
 
     private let directions = ["INBOUND", "OUTBOUND"]
 
@@ -69,6 +70,7 @@ struct Route53ResolverCreateEndpointView: View {
                     securityGroupIds: [securityGroupId.trimmingCharacters(in: .whitespaces)],
                     ipAddresses: [(subnetId: subnetId.trimmingCharacters(in: .whitespaces), ip: trimmedIp.isEmpty ? nil : trimmedIp)]
                 )
+                onCreate?(name.trimmingCharacters(in: .whitespaces))
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

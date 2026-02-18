@@ -9,6 +9,7 @@ struct IAMCreatePolicyView: View {
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
     var existingPolicyNames: Set<String>
+    var onCreate: ((String) -> Void)? = nil
 
     private static let namePattern = try! NSRegularExpression(pattern: "^[\\w+=,.@-]+$")
 
@@ -108,6 +109,7 @@ struct IAMCreatePolicyView: View {
                     policyDocument: policyDocument,
                     description: description.isEmpty ? nil : description
                 )
+                onCreate?(trimmedName)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

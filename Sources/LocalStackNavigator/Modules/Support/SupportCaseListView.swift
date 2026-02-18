@@ -11,6 +11,7 @@ struct SupportCaseListView: View {
 
     @StateObject private var loader = ListLoader<SupportCase>()
     private var cases: [SupportCase] { loader.items }
+    @State private var pendingSelectName: String?
     @State private var showCreateSheet = false
     @State private var caseToResolve: SupportCase?
     @State private var serviceError: ServiceError?
@@ -26,8 +27,10 @@ struct SupportCaseListView: View {
             caseListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            SupportCreateCaseView(service: service)
-                .onDisappear { loadCases(force: true) }
+            SupportCreateCaseView(service: service) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadCases(force: true) }
         }
         .alert(
             "Resolve Case",
@@ -234,6 +237,12 @@ struct SupportCaseListView: View {
                 activeCase = restored
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let restored = items.first(where: { $0.subject == name }) {
+                selectedCaseIDs = [restored.id]
+                activeCase = restored
+                pendingSelectName = nil
+            }
         }
     }
 

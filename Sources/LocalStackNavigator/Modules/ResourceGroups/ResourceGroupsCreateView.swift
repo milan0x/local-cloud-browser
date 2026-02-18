@@ -17,6 +17,8 @@ struct ResourceGroupsCreateView: View {
         var values = ""
     }
 
+    var onCreate: ((String) -> Void)? = nil
+
     var body: some View {
         VStack(spacing: 0) {
             Form {
@@ -113,6 +115,7 @@ struct ResourceGroupsCreateView: View {
                     tagFilters: filters,
                     resourceTypeFilters: typeFilters
                 )
+                onCreate?(trimmedName)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

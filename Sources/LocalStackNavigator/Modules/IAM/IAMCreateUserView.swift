@@ -7,6 +7,7 @@ struct IAMCreateUserView: View {
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
     var existingUserNames: Set<String>
+    var onCreate: ((String) -> Void)? = nil
 
     private static let namePattern = try! NSRegularExpression(pattern: "^[\\w+=,.@-]+$")
 
@@ -70,6 +71,7 @@ struct IAMCreateUserView: View {
         Task {
             do {
                 try await service.createUser(userName: trimmedName)
+                onCreate?(trimmedName)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

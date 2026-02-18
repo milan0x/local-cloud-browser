@@ -11,6 +11,7 @@ struct APIGatewayAPIListView: View {
 
     @StateObject private var loader = ListLoader<RestApi>()
     private var apis: [RestApi] { loader.items }
+    @State private var pendingSelectName: String?
     @State private var showCreateSheet = false
     @State private var apisToDelete: [RestApi] = []
     @State private var serviceError: ServiceError?
@@ -24,8 +25,10 @@ struct APIGatewayAPIListView: View {
             apiListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            APIGatewayCreateAPIView(service: service, existingAPINames: Set(apis.map(\.name)))
-                .onDisappear { loadAPIs(force: true) }
+            APIGatewayCreateAPIView(service: service, existingAPINames: Set(apis.map(\.name))) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadAPIs(force: true) }
         }
         .alert(
             apisToDelete.count == 1
@@ -211,6 +214,12 @@ struct APIGatewayAPIListView: View {
                 activeAPI = api
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let api = items.first(where: { $0.name == name }) {
+                selectedAPIIDs = [api.id]
+                activeAPI = api
+                pendingSelectName = nil
+            }
         }
     }
 

@@ -9,6 +9,7 @@ struct APIGatewayCreateAPIView: View {
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
     var existingAPINames: Set<String>
+    var onCreate: ((String) -> Void)? = nil
 
     private static let endpointTypes = ["REGIONAL", "EDGE", "PRIVATE"]
 
@@ -77,6 +78,7 @@ struct APIGatewayCreateAPIView: View {
                     description: description.trimmingCharacters(in: .whitespaces),
                     endpointType: endpointType
                 )
+                onCreate?(trimmedName)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

@@ -3,6 +3,7 @@ import SwiftUI
 struct SESVerifyIdentityView: View {
     @ObservedObject var service: SESService
     let existingIdentities: [String]
+    var onCreate: ((String) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
 
     @State private var identityType = "Email"
@@ -84,6 +85,7 @@ struct SESVerifyIdentityView: View {
                 } else {
                     try await service.verifyDomainIdentity(domain: trimmedValue)
                 }
+                onCreate?(trimmedValue)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

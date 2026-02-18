@@ -22,6 +22,7 @@ struct StepFunctionsCreateStateMachineView: View {
     """
     @State private var isSaving = false
     @State private var serviceError: ServiceError?
+    var onCreate: ((String) -> Void)? = nil
 
     private let types = ["STANDARD", "EXPRESS"]
 
@@ -74,6 +75,7 @@ struct StepFunctionsCreateStateMachineView: View {
                     roleArn: roleArn.trimmingCharacters(in: .whitespaces),
                     type: type
                 )
+                onCreate?(name.trimmingCharacters(in: .whitespaces))
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

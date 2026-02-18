@@ -13,6 +13,7 @@ struct CloudWatchAlarmListView: View {
     @State private var serviceError: ServiceError?
     @State private var showCreateAlarmSheet = false
     @State private var alarmsToDelete: [CloudWatchAlarm] = []
+    @State private var pendingSelectName: String?
     @State private var showSetStateSheet = false
     @StateObject private var loader = ListLoader<CloudWatchAlarm>()
     private var alarms: [CloudWatchAlarm] { loader.items }
@@ -20,8 +21,10 @@ struct CloudWatchAlarmListView: View {
     var body: some View {
         listContent
         .sheet(isPresented: $showCreateAlarmSheet) {
-            CloudWatchCreateAlarmView(service: service, existingAlarmNames: Set(alarms.map(\.alarmName)))
-                .onDisappear { loadAlarms(force: true) }
+            CloudWatchCreateAlarmView(service: service, existingAlarmNames: Set(alarms.map(\.alarmName))) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadAlarms(force: true) }
         }
         .sheet(isPresented: $showSetStateSheet) {
             if let alarm = activeAlarm {
@@ -191,6 +194,12 @@ struct CloudWatchAlarmListView: View {
                 activeAlarm = alarm
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let alarm = items.first(where: { $0.alarmName == name }) {
+                selectedAlarmIDs = [alarm.id]
+                activeAlarm = alarm
+                pendingSelectName = nil
+            }
         }
     }
 

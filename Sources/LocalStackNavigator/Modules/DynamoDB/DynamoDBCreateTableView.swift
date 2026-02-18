@@ -14,6 +14,7 @@ struct DynamoDBCreateTableView: View {
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
     var existingTableNames: Set<String>
+    var onCreate: ((String) -> Void)? = nil
 
     private static let keyTypes = [
         ("S", "String"),
@@ -138,8 +139,9 @@ struct DynamoDBCreateTableView: View {
         serviceError = nil
         Task {
             do {
+                let trimmedTableName = tableName.trimmingCharacters(in: .whitespaces)
                 try await service.createTable(
-                    tableName: tableName.trimmingCharacters(in: .whitespaces),
+                    tableName: trimmedTableName,
                     partitionKeyName: partitionKeyName.trimmingCharacters(in: .whitespaces),
                     partitionKeyType: partitionKeyType,
                     sortKeyName: hasSortKey ? sortKeyName.trimmingCharacters(in: .whitespaces) : nil,
@@ -147,6 +149,7 @@ struct DynamoDBCreateTableView: View {
                     streamEnabled: enableStreams,
                     streamViewType: enableStreams ? streamViewType : nil
                 )
+                onCreate?(trimmedTableName)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

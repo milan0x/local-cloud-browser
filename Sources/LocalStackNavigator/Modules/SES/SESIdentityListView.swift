@@ -15,6 +15,7 @@ struct SESIdentityListView: View {
     @State private var identitiesToDelete: [SESIdentity] = []
     @State private var serviceError: ServiceError?
     @State private var searchText = ""
+    @State private var pendingSelectName: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,7 +26,8 @@ struct SESIdentityListView: View {
         .sheet(isPresented: $showVerifySheet) {
             SESVerifyIdentityView(
                 service: service,
-                existingIdentities: loader.items.map(\.identity)
+                existingIdentities: loader.items.map(\.identity),
+                onCreate: { pendingSelectName = $0 }
             )
             .onDisappear { loadIdentities(force: true) }
         }
@@ -193,6 +195,12 @@ struct SESIdentityListView: View {
                 activeIdentity = identity
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let identity = items.first(where: { $0.identity == name }) {
+                selectedIdentityIDs = [identity.id]
+                activeIdentity = identity
+                pendingSelectName = nil
+            }
         }
     }
 

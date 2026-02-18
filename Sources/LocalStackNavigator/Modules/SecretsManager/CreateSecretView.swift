@@ -9,6 +9,7 @@ struct CreateSecretView: View {
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
     var existingSecretNames: Set<String>
+    var onCreate: ((String) -> Void)? = nil
 
     // Edit mode
     var editingSecret: Secret?
@@ -16,9 +17,10 @@ struct CreateSecretView: View {
 
     private var isEditing: Bool { editingSecret != nil }
 
-    init(service: SecretsManagerService, existingSecretNames: Set<String>, editingSecret: Secret? = nil, editingValue: String? = nil) {
+    init(service: SecretsManagerService, existingSecretNames: Set<String>, onCreate: ((String) -> Void)? = nil, editingSecret: Secret? = nil, editingValue: String? = nil) {
         self.service = service
         self.existingSecretNames = existingSecretNames
+        self.onCreate = onCreate
         self.editingSecret = editingSecret
         self.editingValue = editingValue
         _secretName = State(initialValue: editingSecret?.name ?? "")
@@ -94,6 +96,7 @@ struct CreateSecretView: View {
                         secretString: secretValue,
                         description: desc.isEmpty ? nil : desc
                     )
+                    onCreate?(name)
                 }
                 dismiss()
             } catch {

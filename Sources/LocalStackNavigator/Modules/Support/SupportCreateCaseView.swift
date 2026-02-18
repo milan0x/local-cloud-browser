@@ -12,6 +12,7 @@ struct SupportCreateCaseView: View {
     @State private var isSaving = false
     @State private var serviceError: ServiceError?
     @State private var hasAttemptedCreate = false
+    var onCreate: ((String) -> Void)? = nil
 
     private let severityLevels = ["low", "normal", "high", "urgent", "critical"]
 
@@ -118,6 +119,7 @@ struct SupportCreateCaseView: View {
                     categoryCode: trimmedCategory,
                     communicationBody: trimmedBody
                 )
+                onCreate?(trimmedSubject)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

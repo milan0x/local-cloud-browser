@@ -9,6 +9,7 @@ struct S3CreateBucketView: View {
     @State private var serviceError: ServiceError?
     @State private var isCreating = false
     var existingBucketNames: Set<String> = []
+    var onCreate: ((String) -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -73,6 +74,7 @@ struct S3CreateBucketView: View {
             do {
                 let regionValue = region.trimmingCharacters(in: .whitespaces)
                 try await service.createBucket(name: name, region: regionValue.isEmpty ? nil : regionValue)
+                onCreate?(name)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

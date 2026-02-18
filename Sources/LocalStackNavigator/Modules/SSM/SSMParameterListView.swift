@@ -16,6 +16,7 @@ struct SSMParameterListView: View {
     @State private var serviceError: ServiceError?
     @State private var parameterToShowDetail: SSMParameter?
     @State private var searchText = ""
+    @State private var pendingSelectName: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,8 +25,10 @@ struct SSMParameterListView: View {
             parameterListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            SSMCreateParameterView(service: service, existingParameterNames: Set(loader.items.map(\.name)))
-                .onDisappear { loadParameters(force: true) }
+            SSMCreateParameterView(service: service, existingParameterNames: Set(loader.items.map(\.name))) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadParameters(force: true) }
         }
         .deleteConfirmation(items: $parametersToDelete, noun: "Parameter") { items in
             if items.count == 1, let param = items.first {
@@ -208,6 +211,12 @@ struct SSMParameterListView: View {
                 activeParameter = parameter
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let parameter = items.first(where: { $0.name == name }) {
+                selectedParameterIDs = [parameter.id]
+                activeParameter = parameter
+                pendingSelectName = nil
+            }
         }
     }
 

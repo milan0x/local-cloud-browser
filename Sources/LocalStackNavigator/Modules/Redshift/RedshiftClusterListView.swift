@@ -13,6 +13,7 @@ struct RedshiftClusterListView: View {
     @State private var clustersToDelete: [RedshiftCluster] = []
     @State private var serviceError: ServiceError?
     @State private var searchText = ""
+    @State private var pendingSelectName: String?
     @StateObject private var loader = ListLoader<RedshiftCluster>()
     private var clusters: [RedshiftCluster] { loader.items }
 
@@ -23,7 +24,7 @@ struct RedshiftClusterListView: View {
             clusterListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            RedshiftCreateClusterView(service: service)
+            RedshiftCreateClusterView(service: service, onCreate: { pendingSelectName = $0 })
                 .onDisappear { loadClusters(force: true) }
         }
         .deleteConfirmation(items: $clustersToDelete, noun: "Cluster") { items in
@@ -198,6 +199,12 @@ struct RedshiftClusterListView: View {
                 activeCluster = cluster
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let cluster = items.first(where: { $0.clusterIdentifier == name }) {
+                selectedClusterIDs = [cluster.id]
+                activeCluster = cluster
+                pendingSelectName = nil
+            }
         }
     }
 

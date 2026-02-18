@@ -14,6 +14,7 @@ struct KinesisStreamListView: View {
     @State private var showPutRecordSheet = false
     @State private var serviceError: ServiceError?
     @State private var searchText = ""
+    @State private var pendingSelectName: String?
     @StateObject private var loader = ListLoader<KinesisStreamSummary>()
     private var streams: [KinesisStreamSummary] { loader.items }
 
@@ -22,7 +23,7 @@ struct KinesisStreamListView: View {
             streamListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            KinesisCreateStreamView(service: service)
+            KinesisCreateStreamView(service: service, onCreate: { pendingSelectName = $0 })
                 .onDisappear { loadStreams(force: true) }
         }
         .sheet(isPresented: $showPutRecordSheet) {
@@ -196,6 +197,12 @@ struct KinesisStreamListView: View {
                 activeStream = stream
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let stream = items.first(where: { $0.streamName == name }) {
+                selectedStreamIDs = [stream.id]
+                activeStream = stream
+                pendingSelectName = nil
+            }
         }
     }
 

@@ -10,6 +10,7 @@ struct SecretsListView: View {
     var restoreSecretName: String?
 
     @State private var showCreateSheet = false
+    @State private var pendingSelectName: String?
     @State private var secretsToDelete: [Secret] = []
     @State private var serviceError: ServiceError?
     @State private var secretToShowDetail: Secret?
@@ -24,8 +25,10 @@ struct SecretsListView: View {
             secretListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            CreateSecretView(service: service, existingSecretNames: Set(secrets.map(\.name)))
-                .onDisappear { loadSecrets(force: true) }
+            CreateSecretView(service: service, existingSecretNames: Set(secrets.map(\.name))) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadSecrets(force: true) }
         }
         .deleteConfirmation(items: $secretsToDelete, noun: "Secret") { items in
             if items.count == 1, let secret = items.first {
@@ -195,6 +198,12 @@ struct SecretsListView: View {
                 activeSecret = secret
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let secret = items.first(where: { $0.name == name }) {
+                selectedSecretIDs = [secret.id]
+                activeSecret = secret
+                pendingSelectName = nil
+            }
         }
     }
 

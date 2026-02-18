@@ -10,6 +10,7 @@ struct Route53ResolverListView: View {
     var restoreEndpointId: String?
 
     @State private var rules: [ResolverRule] = []
+    @State private var pendingSelectName: String?
     @State private var showCreateEndpointSheet = false
     @State private var showCreateRuleSheet = false
     @State private var endpointsToDelete: [ResolverEndpoint] = []
@@ -24,8 +25,10 @@ struct Route53ResolverListView: View {
             listContent
         }
         .sheet(isPresented: $showCreateEndpointSheet) {
-            Route53ResolverCreateEndpointView(service: service)
-                .onDisappear { loadData(force: true) }
+            Route53ResolverCreateEndpointView(service: service) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadData(force: true) }
         }
         .sheet(isPresented: $showCreateRuleSheet) {
             Route53ResolverCreateRuleView(service: service)
@@ -314,6 +317,12 @@ struct Route53ResolverListView: View {
                 activeEndpoint = ep
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let ep = items.first(where: { $0.name == name }) {
+                selectedEndpointIDs = [ep.id]
+                activeEndpoint = ep
+                pendingSelectName = nil
+            }
         }
     }
 

@@ -15,6 +15,7 @@ struct SQSQueueListView: View {
     private var queues: [SQSQueue] { loader.items }
     @State private var messageCounts: [String: Int] = [:]  // queueUrl -> count
     @State private var showCreateSheet = false
+    @State private var pendingSelectName: String?
     @State private var queuesToDelete: [SQSQueue] = []
     @State private var queueToPurge: SQSQueue?
     @State private var serviceError: ServiceError?
@@ -28,8 +29,10 @@ struct SQSQueueListView: View {
             queueListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            SQSCreateQueueView(service: service, existingQueueNames: Set(queues.map(\.queueName)))
-                .onDisappear { loadQueues(force: true) }
+            SQSCreateQueueView(service: service, existingQueueNames: Set(queues.map(\.queueName))) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadQueues(force: true) }
         }
         .deleteConfirmation(items: $queuesToDelete, noun: "Queue") { items in
             if items.count == 1, let queue = items.first {
@@ -225,6 +228,12 @@ struct SQSQueueListView: View {
                 activeQueue = queue
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let queue = items.first(where: { $0.queueName == name }) {
+                selectedQueueIDs = [queue.id]
+                activeQueue = queue
+                pendingSelectName = nil
+            }
             await fetchMessageCounts()
         }
     }

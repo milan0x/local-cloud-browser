@@ -22,6 +22,8 @@ struct OpenSearchCreateDomainView: View {
         "m5.large.search",
     ]
 
+    var onCreate: ((String) -> Void)? = nil
+
     var body: some View {
         VStack(spacing: 0) {
             Form {
@@ -113,6 +115,7 @@ struct OpenSearchCreateDomainView: View {
                     instanceType: instanceType,
                     instanceCount: instanceCount
                 )
+                onCreate?(trimmedName)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

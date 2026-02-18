@@ -9,6 +9,7 @@ struct ACMCertificateListView: View {
     @Binding var activeCertificate: ACMCertificateSummary?
     var restoreCertArn: String?
 
+    @State private var pendingSelectName: String?
     @State private var showRequestSheet = false
     @State private var showImportSheet = false
     @State private var certsToDelete: [ACMCertificateSummary] = []
@@ -24,12 +25,16 @@ struct ACMCertificateListView: View {
             certListContent
         }
         .sheet(isPresented: $showRequestSheet) {
-            ACMRequestCertificateView(service: service)
-                .onDisappear { loadCertificates(force: true) }
+            ACMRequestCertificateView(service: service) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadCertificates(force: true) }
         }
         .sheet(isPresented: $showImportSheet) {
-            ACMImportCertificateView(service: service)
-                .onDisappear { loadCertificates(force: true) }
+            ACMImportCertificateView(service: service) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadCertificates(force: true) }
         }
         .deleteConfirmation(items: $certsToDelete, noun: "Certificate") { items in
             if items.count == 1, let cert = items.first {
@@ -225,6 +230,12 @@ struct ACMCertificateListView: View {
                 activeCertificate = cert
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let cert = items.first(where: { $0.domainName == name || $0.certificateArn == name }) {
+                selectedCertIDs = [cert.id]
+                activeCertificate = cert
+                pendingSelectName = nil
+            }
         }
     }
 

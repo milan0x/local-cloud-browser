@@ -7,6 +7,7 @@ struct CloudWatchLogsCreateGroupView: View {
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
     var existingGroupNames: Set<String>
+    var onCreate: ((String) -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -57,6 +58,7 @@ struct CloudWatchLogsCreateGroupView: View {
             do {
                 let name = logGroupName.trimmingCharacters(in: .whitespaces)
                 try await service.createLogGroup(name: name)
+                onCreate?(name)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

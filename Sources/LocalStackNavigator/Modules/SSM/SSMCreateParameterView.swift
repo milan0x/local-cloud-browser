@@ -11,6 +11,7 @@ struct SSMCreateParameterView: View {
     @State private var isSaving = false
     @State private var showJsonHelper = false
     var existingParameterNames: Set<String>
+    var onCreate: ((String) -> Void)? = nil
 
     // Edit mode
     var editingParameter: SSMParameter?
@@ -20,9 +21,10 @@ struct SSMCreateParameterView: View {
 
     private static let parameterTypes = ["String", "StringList", "SecureString"]
 
-    init(service: SSMService, existingParameterNames: Set<String>, editingParameter: SSMParameter? = nil, editingValue: String? = nil) {
+    init(service: SSMService, existingParameterNames: Set<String>, onCreate: ((String) -> Void)? = nil, editingParameter: SSMParameter? = nil, editingValue: String? = nil) {
         self.service = service
         self.existingParameterNames = existingParameterNames
+        self.onCreate = onCreate
         self.editingParameter = editingParameter
         self.editingValue = editingValue
         _parameterName = State(initialValue: editingParameter?.name ?? "")
@@ -102,6 +104,7 @@ struct SSMCreateParameterView: View {
                     description: desc.isEmpty ? nil : desc,
                     overwrite: isEditing
                 )
+                if !isEditing { onCreate?(name) }
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

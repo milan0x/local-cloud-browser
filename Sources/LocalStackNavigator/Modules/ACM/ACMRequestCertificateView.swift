@@ -9,6 +9,7 @@ struct ACMRequestCertificateView: View {
     @State private var keyAlgorithm = "RSA_2048"
     @State private var isSaving = false
     @State private var serviceError: ServiceError?
+    var onCreate: ((String) -> Void)? = nil
 
     private let keyAlgorithms = ["RSA_2048", "EC_prime256v1", "EC_secp384r1"]
 
@@ -63,6 +64,7 @@ struct ACMRequestCertificateView: View {
                     sans: sansList,
                     keyAlgorithm: keyAlgorithm
                 )
+                onCreate?(trimmedDomain)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

@@ -7,6 +7,7 @@ struct EventBridgeCreateScheduleGroupView: View {
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
     var existingGroupNames: Set<String>
+    var onCreate: ((String) -> Void)? = nil
 
     private static let namePattern = try! NSRegularExpression(pattern: "^[A-Za-z0-9_-]+$")
 
@@ -75,6 +76,7 @@ struct EventBridgeCreateScheduleGroupView: View {
         Task {
             do {
                 try await service.createScheduleGroup(name: trimmedName)
+                onCreate?(trimmedName)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

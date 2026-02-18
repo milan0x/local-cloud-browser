@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ConfigCreateDeliveryChannelView: View {
     @ObservedObject var service: ConfigService
+    var onCreate: ((String) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var s3BucketName = ""
@@ -55,13 +56,15 @@ struct ConfigCreateDeliveryChannelView: View {
         serviceError = nil
         Task {
             do {
+                let channelName = name.trimmingCharacters(in: .whitespaces)
                 try await service.putDeliveryChannel(
-                    name: name.trimmingCharacters(in: .whitespaces),
+                    name: channelName,
                     s3BucketName: s3BucketName.trimmingCharacters(in: .whitespaces),
                     s3KeyPrefix: s3KeyPrefix.trimmingCharacters(in: .whitespaces),
                     snsTopicARN: snsTopicARN.trimmingCharacters(in: .whitespaces),
                     frequency: deliveryFrequency
                 )
+                onCreate?(channelName)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

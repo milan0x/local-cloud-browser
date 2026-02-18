@@ -7,6 +7,7 @@ struct EventBridgeCreateBusView: View {
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
     var existingBusNames: Set<String>
+    var onCreate: ((String) -> Void)? = nil
 
     private static let namePattern = try! NSRegularExpression(pattern: "^[\\.\\-_A-Za-z0-9]+$")
 
@@ -70,6 +71,7 @@ struct EventBridgeCreateBusView: View {
         Task {
             do {
                 try await service.createEventBus(name: trimmedName)
+                onCreate?(trimmedName)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

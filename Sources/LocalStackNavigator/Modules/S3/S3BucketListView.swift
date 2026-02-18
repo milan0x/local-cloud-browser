@@ -22,6 +22,7 @@ struct S3BucketListView: View {
     @State private var forceDeleteConfirmation = ""
     @State private var isForceDeleting = false
     @State private var searchText = ""
+    @State private var pendingSelectName: String?
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -49,8 +50,10 @@ struct S3BucketListView: View {
             toolbarState.clearSelectionTrigger += 1
         })
         .sheet(isPresented: $showCreateSheet) {
-            S3CreateBucketView(service: service, existingBucketNames: Set(loader.items.map(\.name)))
-                .onDisappear { loadBuckets(force: true) }
+            S3CreateBucketView(service: service, existingBucketNames: Set(loader.items.map(\.name))) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadBuckets(force: true) }
         }
         .deleteConfirmation(items: $bucketsToDelete, noun: "Bucket") { items in
             if items.count == 1, let bucket = items.first {
@@ -258,6 +261,12 @@ struct S3BucketListView: View {
                 activeBucket = bucket
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let bucket = items.first(where: { $0.name == name }) {
+                selectedBucketIDs = [bucket.id]
+                activeBucket = bucket
+                pendingSelectName = nil
+            }
         }
     }
 

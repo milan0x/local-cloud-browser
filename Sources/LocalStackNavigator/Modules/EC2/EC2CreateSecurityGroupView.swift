@@ -4,6 +4,7 @@ struct EC2CreateSecurityGroupView: View {
     @ObservedObject var service: EC2Service
     @Environment(\.dismiss) private var dismiss
     var existingNames: Set<String>
+    var onCreate: ((String) -> Void)? = nil
 
     @State private var groupName = ""
     @State private var groupDescription = ""
@@ -81,6 +82,7 @@ struct EC2CreateSecurityGroupView: View {
                     description: trimmedDescription,
                     vpcId: vpc.isEmpty ? nil : vpc
                 )
+                onCreate?(trimmedName)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

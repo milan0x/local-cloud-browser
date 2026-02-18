@@ -14,6 +14,7 @@ struct LambdaFunctionListView: View {
     @State private var serviceError: ServiceError?
     @State private var functionToShowDetail: LambdaFunction?
     @State private var searchText = ""
+    @State private var pendingSelectName: String?
     @StateObject private var loader = ListLoader<LambdaFunction>()
     private var functions: [LambdaFunction] { loader.items }
 
@@ -24,8 +25,10 @@ struct LambdaFunctionListView: View {
             functionListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            LambdaCreateFunctionView(service: service, existingFunctionNames: Set(functions.map(\.functionName)))
-                .onDisappear { loadFunctions(force: true) }
+            LambdaCreateFunctionView(service: service, existingFunctionNames: Set(functions.map(\.functionName))) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadFunctions(force: true) }
         }
         .deleteConfirmation(items: $functionsToDelete, noun: "Function") { items in
             if items.count == 1, let fn = items.first {
@@ -216,6 +219,12 @@ struct LambdaFunctionListView: View {
                 activeFunction = function
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let function = items.first(where: { $0.functionName == name }) {
+                selectedFunctionIDs = [function.id]
+                activeFunction = function
+                pendingSelectName = nil
+            }
         }
     }
 
