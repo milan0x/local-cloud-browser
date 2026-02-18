@@ -123,7 +123,7 @@ struct SecretsListView: View {
                                 .lineLimit(1)
                         }
                     }
-                    .foregroundStyle(selectedSecretIDs.contains(secret.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(secret.id)
                     .contextMenu {
                         Button("View Details") {

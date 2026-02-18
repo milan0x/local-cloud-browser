@@ -134,7 +134,7 @@ struct ACMCertificateListView: View {
                             typeBadge(cert.type)
                         }
                     }
-                    .foregroundStyle(selectedCertIDs.contains(cert.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(cert.id)
                     .contextMenu {
                         Button("Copy ARN") { copyToClipboard(cert.certificateArn) }

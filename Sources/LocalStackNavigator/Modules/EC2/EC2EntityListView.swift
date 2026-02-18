@@ -282,7 +282,7 @@ struct EC2EntityListView: View {
                             }
                         }
                     }
-                    .foregroundStyle(selectedInstanceIDs.contains(instance.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(instance.id)
                     .contextMenu { instanceContextMenu(instance) }
                 }
@@ -371,7 +371,7 @@ struct EC2EntityListView: View {
                             }
                         }
                     }
-                    .foregroundStyle(selectedGroupIDs.contains(sg.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(sg.id)
                     .contextMenu { securityGroupContextMenu(sg) }
                 }
@@ -437,7 +437,7 @@ struct EC2EntityListView: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
-                    .foregroundStyle(selectedKeyPairIDs.contains(kp.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(kp.id)
                     .contextMenu { keyPairContextMenu(kp) }
                 }

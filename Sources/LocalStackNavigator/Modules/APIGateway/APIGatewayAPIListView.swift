@@ -136,7 +136,7 @@ struct APIGatewayAPIListView: View {
                                 .lineLimit(1)
                         }
                     }
-                    .foregroundStyle(selectedAPIIDs.contains(api.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(api.id)
                     .contextMenu {
                         Button("View Details") {

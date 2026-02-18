@@ -109,7 +109,7 @@ struct KinesisFirehoseListView: View {
                         typeBadge(stream.deliveryStreamType)
                         statusBadge(stream.deliveryStreamStatus)
                     }
-                    .foregroundStyle(selectedStreamIDs.contains(stream.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(stream.id)
                     .contextMenu {
                         Button("Copy Name") { copyToClipboard(stream.deliveryStreamName) }

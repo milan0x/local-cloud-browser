@@ -123,7 +123,7 @@ struct DynamoDBTableListView: View {
                         .fontWeight(.medium)
                         .lineLimit(1)
                         .padding(.vertical, 3)
-                        .foregroundStyle(selectedTableIDs.contains(table.id) ? Color.white : Color.primary)
+                        .selectionForeground()
                         .tag(table.id)
                         .contextMenu {
                             Button("View Attributes") {

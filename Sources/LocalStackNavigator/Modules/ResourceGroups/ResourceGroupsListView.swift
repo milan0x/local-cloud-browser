@@ -117,7 +117,7 @@ struct ResourceGroupsListView: View {
                                 .lineLimit(2)
                         }
                     }
-                    .foregroundStyle(selectedGroupIDs.contains(group.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(group.id)
                     .contextMenu {
                         Button("Copy Name") { copyToClipboard(group.name) }

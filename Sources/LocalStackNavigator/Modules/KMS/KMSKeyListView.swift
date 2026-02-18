@@ -129,7 +129,7 @@ struct KMSKeyListView: View {
                         Spacer()
                         stateBadge(for: key)
                     }
-                    .foregroundStyle(selectedKeyIDs.contains(key.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(key.id)
                     .contextMenu {
                         Button("View Details") {

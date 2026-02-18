@@ -125,7 +125,7 @@ struct CloudWatchLogsGroupListView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .foregroundStyle(selectedLogGroupIDs.contains(logGroup.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(logGroup.id)
                     .contextMenu {
                         Button("View Details") {

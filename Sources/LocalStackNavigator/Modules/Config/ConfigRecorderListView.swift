@@ -112,7 +112,7 @@ struct ConfigRecorderListView: View {
                         Spacer()
                         recordingBadge(for: recorder.name)
                     }
-                    .foregroundStyle(selectedRecorderIDs.contains(recorder.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(recorder.id)
                     .contextMenu {
                         Button("Copy Name") { copyToClipboard(recorder.name) }

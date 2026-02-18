@@ -135,7 +135,7 @@ struct CloudFormationStackListView: View {
                             }
                         }
                     }
-                    .foregroundStyle(selectedStackIDs.contains(stack.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(stack.id)
                     .contextMenu {
                         Button("View Details") {

@@ -119,7 +119,7 @@ struct RedshiftClusterListView: View {
                         Spacer()
                         statusBadge(for: cluster)
                     }
-                    .foregroundStyle(selectedClusterIDs.contains(cluster.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(cluster.id)
                     .contextMenu {
                         Button("Copy Identifier") { copyToClipboard(cluster.clusterIdentifier) }

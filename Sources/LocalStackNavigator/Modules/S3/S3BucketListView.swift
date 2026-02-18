@@ -182,7 +182,7 @@ struct S3BucketListView: View {
                                         .foregroundStyle(.secondary)
                                 }
                             }
-                            .foregroundStyle(selectedBucketIDs.contains(bucket.id) ? Color.white : Color.primary)
+                            .selectionForeground()
                             .tag(bucket.id)
                             .contextMenu {
                                 Button("Open in New Window") {

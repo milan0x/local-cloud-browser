@@ -7,6 +7,7 @@ final class ListLoader<Item: Identifiable & Equatable>: ObservableObject {
     @Published var errorMessage: String?
     var hasRestoredSession = false
     private var lastLoadTime: Date?
+    private var isFetching = false
 
     func load(
         force: Bool = false,
@@ -15,10 +16,11 @@ final class ListLoader<Item: Identifiable & Equatable>: ObservableObject {
         sort: @escaping (Item, Item) -> Bool,
         afterLoad: (@MainActor (_ items: [Item]) async -> Void)? = nil
     ) {
-        guard !isLoading else { return }
+        guard !isFetching else { return }
         if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
             return
         }
+        isFetching = true
         if !silent {
             isLoading = true
             errorMessage = nil
@@ -39,8 +41,9 @@ final class ListLoader<Item: Identifiable & Equatable>: ObservableObject {
             }
             if !silent {
                 isLoading = false
-                lastLoadTime = Date()
             }
+            lastLoadTime = Date()
+            isFetching = false
         }
     }
 }

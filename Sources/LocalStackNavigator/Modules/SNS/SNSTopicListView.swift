@@ -117,7 +117,7 @@ struct SNSTopicListView: View {
                         }
                     }
                 }
-                .foregroundStyle(selectedTopicIDs.contains(topic.id) ? Color.white : Color.primary)
+                .selectionForeground()
                 .tag(topic.id)
                 .contextMenu {
                     Button("View Attributes") {

@@ -113,7 +113,7 @@ struct Route53ZoneListView: View {
                                 .foregroundStyle(.tertiary)
                             privateBadge(zone.privateZone)
                         }
-                        .foregroundStyle(selectedZoneIDs.contains(zone.id) ? Color.white : Color.primary)
+                        .selectionForeground()
                         .tag(zone.id)
                         .contextMenu {
                             Button("Copy Name") { copyToClipboard(zone.name) }

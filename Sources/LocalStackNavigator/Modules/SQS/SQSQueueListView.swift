@@ -140,7 +140,7 @@ struct SQSQueueListView: View {
                             }
                         }
                     }
-                    .foregroundStyle(selectedQueueIDs.contains(queue.id) ? Color.white : Color.primary)
+                    .selectionForeground()
                     .tag(queue.id)
                     .contextMenu {
                         Button("View Attributes") {
