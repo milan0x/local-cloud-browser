@@ -14,6 +14,7 @@ struct EventBridgeBusListView: View {
     @State private var serviceError: ServiceError?
     @State private var busToShowDetail: EventBridgeBus?
     @State private var searchText = ""
+    @State private var pendingSelectName: String?
     @StateObject private var loader = ListLoader<EventBridgeBus>()
     private var buses: [EventBridgeBus] { loader.items }
 
@@ -24,8 +25,10 @@ struct EventBridgeBusListView: View {
             busListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            EventBridgeCreateBusView(service: service, existingBusNames: Set(buses.map(\.name)))
-                .onDisappear { loadBuses(force: true) }
+            EventBridgeCreateBusView(service: service, existingBusNames: Set(buses.map(\.name))) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadBuses(force: true) }
         }
         .deleteConfirmation(items: $busesToDelete, noun: "Event Bus", pluralNoun: "Event Buses") { items in
             if items.count == 1, let bus = items.first {
@@ -195,6 +198,12 @@ struct EventBridgeBusListView: View {
                 activeBus = bus
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let bus = items.first(where: { $0.name == name }) {
+                selectedBusIDs = [bus.id]
+                activeBus = bus
+                pendingSelectName = nil
+            }
         }
     }
 

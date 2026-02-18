@@ -11,6 +11,8 @@ struct KinesisCreateStreamView: View {
 
     private let streamModes = ["PROVISIONED", "ON_DEMAND"]
 
+    var onCreate: ((String) -> Void)? = nil
+
     var body: some View {
         VStack(spacing: 0) {
             Form {
@@ -58,6 +60,7 @@ struct KinesisCreateStreamView: View {
                     shardCount: shardCount,
                     mode: streamMode
                 )
+                onCreate?(streamName.trimmingCharacters(in: .whitespaces))
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

@@ -9,6 +9,7 @@ struct CloudFormationCreateStackView: View {
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
     var existingStackNames: Set<String>
+    var onCreate: ((String) -> Void)? = nil
 
     struct ParameterRow: Identifiable {
         let id = UUID()
@@ -115,6 +116,7 @@ struct CloudFormationCreateStackView: View {
                     templateBody: templateBody,
                     parameters: cfParams
                 )
+                onCreate?(trimmedName)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

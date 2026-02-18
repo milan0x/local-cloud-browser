@@ -13,6 +13,7 @@ struct EventBridgeScheduleGroupListView: View {
     @State private var groupsToDelete: [SchedulerScheduleGroup] = []
     @State private var serviceError: ServiceError?
     @State private var searchText = ""
+    @State private var pendingSelectName: String?
     @StateObject private var loader = ListLoader<SchedulerScheduleGroup>()
     private var groups: [SchedulerScheduleGroup] { loader.items }
 
@@ -23,8 +24,10 @@ struct EventBridgeScheduleGroupListView: View {
             groupListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            EventBridgeCreateScheduleGroupView(service: service, existingGroupNames: Set(groups.map(\.name)))
-                .onDisappear { loadGroups(force: true) }
+            EventBridgeCreateScheduleGroupView(service: service, existingGroupNames: Set(groups.map(\.name))) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadGroups(force: true) }
         }
         .deleteConfirmation(items: $groupsToDelete, noun: "Schedule Group") { items in
             if items.count == 1, let group = items.first {
@@ -171,6 +174,12 @@ struct EventBridgeScheduleGroupListView: View {
                 activeGroup = group
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let group = items.first(where: { $0.name == name }) {
+                selectedGroupIDs = [group.id]
+                activeGroup = group
+                pendingSelectName = nil
+            }
         }
     }
 

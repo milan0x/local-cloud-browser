@@ -5,6 +5,7 @@ struct EC2RunInstanceView: View {
     @Environment(\.dismiss) private var dismiss
     let keyPairs: [EC2KeyPair]
     let securityGroups: [EC2SecurityGroup]
+    var onCreate: ((String) -> Void)? = nil
 
     @State private var imageId = "ami-ff0fea8310f3"
     @State private var instanceType = "t2.micro"

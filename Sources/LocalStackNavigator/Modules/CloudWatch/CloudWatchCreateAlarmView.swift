@@ -3,6 +3,7 @@ import SwiftUI
 struct CloudWatchCreateAlarmView: View {
     @ObservedObject var service: CloudWatchService
     let existingAlarmNames: Set<String>
+    var onCreate: ((String) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
 
     @State private var alarmName = ""
@@ -107,6 +108,7 @@ struct CloudWatchCreateAlarmView: View {
                     comparisonOperator: comparisonOperator.rawValue,
                     threshold: thresholdVal
                 )
+                onCreate?(trimmedName)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

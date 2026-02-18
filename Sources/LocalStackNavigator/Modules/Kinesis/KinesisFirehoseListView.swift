@@ -14,6 +14,7 @@ struct KinesisFirehoseListView: View {
     @State private var showPutRecordSheet = false
     @State private var serviceError: ServiceError?
     @State private var searchText = ""
+    @State private var pendingSelectName: String?
     @StateObject private var loader = ListLoader<FirehoseDeliveryStreamSummary>()
     private var streams: [FirehoseDeliveryStreamSummary] { loader.items }
 
@@ -22,7 +23,7 @@ struct KinesisFirehoseListView: View {
             streamListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            KinesisFirehoseCreateView(service: service)
+            KinesisFirehoseCreateView(service: service, onCreate: { pendingSelectName = $0 })
                 .onDisappear { loadStreams(force: true) }
         }
         .sheet(isPresented: $showPutRecordSheet) {
@@ -199,6 +200,12 @@ struct KinesisFirehoseListView: View {
                 activeStream = stream
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let stream = items.first(where: { $0.deliveryStreamName == name }) {
+                selectedStreamIDs = [stream.id]
+                activeStream = stream
+                pendingSelectName = nil
+            }
         }
     }
 

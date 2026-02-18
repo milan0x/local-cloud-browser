@@ -15,6 +15,7 @@ struct SNSTopicListView: View {
     private var topics: [SNSTopic] { loader.items }
     @State private var subscriptionCounts: [String: Int] = [:]  // topicArn -> count
     @State private var showCreateSheet = false
+    @State private var pendingSelectName: String?
     @State private var topicsToDelete: [SNSTopic] = []
     @State private var serviceError: ServiceError?
     @State private var topicToShowAttributes: SNSTopic?
@@ -27,8 +28,10 @@ struct SNSTopicListView: View {
             topicListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            SNSCreateTopicView(service: service, existingTopicNames: Set(loader.items.map(\.topicName)))
-                .onDisappear { loadTopics(force: true) }
+            SNSCreateTopicView(service: service, existingTopicNames: Set(loader.items.map(\.topicName))) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadTopics(force: true) }
         }
         .deleteConfirmation(items: $topicsToDelete, noun: "Topic") { items in
             if items.count == 1, let topic = items.first {
@@ -191,6 +194,12 @@ struct SNSTopicListView: View {
                 activeTopic = topic
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let topic = items.first(where: { $0.topicName == name }) {
+                selectedTopicIDs = [topic.id]
+                activeTopic = topic
+                pendingSelectName = nil
+            }
             await fetchSubscriptionCounts()
         }
     }

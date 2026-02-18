@@ -18,6 +18,7 @@ struct LambdaCreateFunctionView: View {
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
     var existingFunctionNames: Set<String>
+    var onCreate: ((String) -> Void)? = nil
 
     // Edit mode
     var editingFunction: LambdaFunction?
@@ -55,9 +56,10 @@ struct LambdaCreateFunctionView: View {
         ]),
     ]
 
-    init(service: LambdaService, existingFunctionNames: Set<String>, editingFunction: LambdaFunction? = nil) {
+    init(service: LambdaService, existingFunctionNames: Set<String>, onCreate: ((String) -> Void)? = nil, editingFunction: LambdaFunction? = nil) {
         self.service = service
         self.existingFunctionNames = existingFunctionNames
+        self.onCreate = onCreate
         self.editingFunction = editingFunction
         if let fn = editingFunction {
             _functionName = State(initialValue: fn.functionName)
@@ -276,6 +278,7 @@ struct LambdaCreateFunctionView: View {
                         environment: env
                     )
                 }
+                if !isEditing { onCreate?(name) }
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

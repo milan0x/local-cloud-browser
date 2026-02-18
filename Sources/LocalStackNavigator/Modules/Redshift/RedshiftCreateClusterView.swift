@@ -19,6 +19,8 @@ struct RedshiftCreateClusterView: View {
         "ra3.xlplus", "ra3.4xlarge", "ra3.16xlarge",
     ]
 
+    var onCreate: ((String) -> Void)? = nil
+
     var body: some View {
         VStack(spacing: 0) {
             Form {
@@ -107,6 +109,7 @@ struct RedshiftCreateClusterView: View {
                     dbName: dbName.trimmingCharacters(in: .whitespaces),
                     port: Int(portString) ?? 5439
                 )
+                onCreate?(clusterIdentifier.trimmingCharacters(in: .whitespaces))
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

@@ -15,6 +15,7 @@ struct ResourceGroupsListView: View {
     @State private var groupsToDelete: [ResourceGroupSummary] = []
     @State private var serviceError: ServiceError?
     @State private var searchText = ""
+    @State private var pendingSelectName: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -23,7 +24,7 @@ struct ResourceGroupsListView: View {
             listContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            ResourceGroupsCreateView(service: service)
+            ResourceGroupsCreateView(service: service, onCreate: { pendingSelectName = $0 })
                 .onDisappear { loadGroups(force: true) }
         }
         .deleteConfirmation(items: $groupsToDelete, noun: "Resource Group") { items in
@@ -185,6 +186,12 @@ struct ResourceGroupsListView: View {
                 activeGroup = group
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let group = items.first(where: { $0.name == name }) {
+                selectedGroupIDs = [group.id]
+                activeGroup = group
+                pendingSelectName = nil
+            }
         }
     }
 

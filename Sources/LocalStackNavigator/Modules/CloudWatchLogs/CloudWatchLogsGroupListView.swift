@@ -14,6 +14,7 @@ struct CloudWatchLogsGroupListView: View {
     @State private var serviceError: ServiceError?
     @State private var logGroupToShowDetail: CloudWatchLogGroup?
     @State private var searchText = ""
+    @State private var pendingSelectName: String?
     @StateObject private var loader = ListLoader<CloudWatchLogGroup>()
     private var logGroups: [CloudWatchLogGroup] { loader.items }
 
@@ -24,8 +25,10 @@ struct CloudWatchLogsGroupListView: View {
             logGroupListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            CloudWatchLogsCreateGroupView(service: service, existingGroupNames: Set(logGroups.map(\.logGroupName)))
-                .onDisappear { loadLogGroups(force: true) }
+            CloudWatchLogsCreateGroupView(service: service, existingGroupNames: Set(logGroups.map(\.logGroupName))) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadLogGroups(force: true) }
         }
         .deleteConfirmation(items: $logGroupsToDelete, noun: "Log Group") { items in
             if items.count == 1, let group = items.first {
@@ -199,6 +202,12 @@ struct CloudWatchLogsGroupListView: View {
                 activeLogGroup = logGroup
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let logGroup = items.first(where: { $0.logGroupName == name }) {
+                selectedLogGroupIDs = [logGroup.id]
+                activeLogGroup = logGroup
+                pendingSelectName = nil
+            }
         }
     }
 

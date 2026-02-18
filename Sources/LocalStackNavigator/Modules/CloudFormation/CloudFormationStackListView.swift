@@ -11,6 +11,7 @@ struct CloudFormationStackListView: View {
 
     @StateObject private var loader = ListLoader<CloudFormationStack>()
     private var stacks: [CloudFormationStack] { loader.items }
+    @State private var pendingSelectName: String?
     @State private var showCreateSheet = false
     @State private var stacksToDelete: [CloudFormationStack] = []
     @State private var serviceError: ServiceError?
@@ -31,8 +32,10 @@ struct CloudFormationStackListView: View {
             stackListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            CloudFormationCreateStackView(service: service, existingStackNames: Set(stacks.map(\.stackName)))
-                .onDisappear { loadStacks(force: true) }
+            CloudFormationCreateStackView(service: service, existingStackNames: Set(stacks.map(\.stackName))) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadStacks(force: true) }
         }
         .deleteConfirmation(items: $stacksToDelete, noun: "Stack") { items in
             if items.count == 1, let stack = items.first {
@@ -207,6 +210,12 @@ struct CloudFormationStackListView: View {
                 activeStack = stack
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let stack = items.first(where: { $0.stackName == name }) {
+                selectedStackIDs = [stack.id]
+                activeStack = stack
+                pendingSelectName = nil
+            }
         }
     }
 

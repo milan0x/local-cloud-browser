@@ -5,6 +5,7 @@ struct EC2CreateKeyPairView: View {
     @ObservedObject var service: EC2Service
     @Environment(\.dismiss) private var dismiss
     var existingNames: Set<String>
+    var onCreate: ((String) -> Void)? = nil
 
     @State private var keyName = ""
     @State private var serviceError: ServiceError?
@@ -145,6 +146,7 @@ struct EC2CreateKeyPairView: View {
             do {
                 let result = try await service.createKeyPair(keyName: trimmedName)
                 createdKeyPair = result
+                onCreate?(trimmedName)
             } catch {
                 serviceError = error.asServiceError
                 isSaving = false

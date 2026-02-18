@@ -9,6 +9,7 @@ struct Route53ZoneListView: View {
     @Binding var activeZone: Route53HostedZone?
     var restoreZoneId: String?
 
+    @State private var pendingSelectName: String?
     @State private var showCreateSheet = false
     @State private var zonesToDelete: [Route53HostedZone] = []
     @State private var serviceError: ServiceError?
@@ -21,8 +22,10 @@ struct Route53ZoneListView: View {
             zoneListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            Route53CreateZoneView(service: service)
-                .onDisappear { loadZones(force: true) }
+            Route53CreateZoneView(service: service) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadZones(force: true) }
         }
         .deleteConfirmation(items: $zonesToDelete, noun: "Hosted Zone") { items in
             if items.count == 1, let zone = items.first {
@@ -181,6 +184,12 @@ struct Route53ZoneListView: View {
                 activeZone = zone
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let zone = items.first(where: { $0.name == name }) {
+                selectedZoneIDs = [zone.id]
+                activeZone = zone
+                pendingSelectName = nil
+            }
         }
     }
 

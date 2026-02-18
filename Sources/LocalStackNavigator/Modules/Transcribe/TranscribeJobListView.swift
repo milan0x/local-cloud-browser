@@ -15,6 +15,7 @@ struct TranscribeJobListView: View {
     @State private var jobsToDelete: [TranscriptionJob] = []
     @State private var serviceError: ServiceError?
     @State private var searchText = ""
+    @State private var pendingSelectName: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -23,7 +24,7 @@ struct TranscribeJobListView: View {
             jobListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            TranscribeCreateJobView(service: service)
+            TranscribeCreateJobView(service: service, onCreate: { pendingSelectName = $0 })
                 .onDisappear { loadJobs(force: true) }
         }
         .deleteConfirmation(items: $jobsToDelete, noun: "Transcription Job") { items in
@@ -209,6 +210,12 @@ struct TranscribeJobListView: View {
                 activeJob = job
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let job = items.first(where: { $0.jobName == name }) {
+                selectedJobIDs = [job.id]
+                activeJob = job
+                pendingSelectName = nil
+            }
         }
     }
 

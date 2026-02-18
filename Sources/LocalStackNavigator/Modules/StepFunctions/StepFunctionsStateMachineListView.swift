@@ -11,6 +11,7 @@ struct StepFunctionsStateMachineListView: View {
 
     @StateObject private var loader = ListLoader<StateMachineSummary>()
     private var machines: [StateMachineSummary] { loader.items }
+    @State private var pendingSelectName: String?
     @State private var showCreateSheet = false
     @State private var machinesToDelete: [StateMachineSummary] = []
     @State private var serviceError: ServiceError?
@@ -23,8 +24,10 @@ struct StepFunctionsStateMachineListView: View {
             listContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            StepFunctionsCreateStateMachineView(service: service)
-                .onDisappear { loadMachines(force: true) }
+            StepFunctionsCreateStateMachineView(service: service) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadMachines(force: true) }
         }
         .deleteConfirmation(items: $machinesToDelete, noun: "State Machine") { items in
             if items.count == 1, let machine = items.first {
@@ -193,6 +196,12 @@ struct StepFunctionsStateMachineListView: View {
                 activeMachine = machine
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let machine = items.first(where: { $0.name == name }) {
+                selectedIDs = [machine.id]
+                activeMachine = machine
+                pendingSelectName = nil
+            }
         }
     }
 

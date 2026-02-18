@@ -14,6 +14,8 @@ struct KinesisFirehoseCreateView: View {
 
     private let compressionFormats = ["UNCOMPRESSED", "GZIP", "ZIP", "Snappy", "HADOOP_SNAPPY"]
 
+    var onCreate: ((String) -> Void)? = nil
+
     var body: some View {
         VStack(spacing: 0) {
             Form {
@@ -71,6 +73,7 @@ struct KinesisFirehoseCreateView: View {
                     bufferingSize: bufferingSize,
                     compression: compression
                 )
+                onCreate?(streamName.trimmingCharacters(in: .whitespaces))
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

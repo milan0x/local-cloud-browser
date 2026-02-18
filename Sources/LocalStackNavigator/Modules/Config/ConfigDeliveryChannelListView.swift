@@ -10,6 +10,7 @@ struct ConfigDeliveryChannelListView: View {
     var restoreChannelName: String?
 
     @State private var showCreateSheet = false
+    @State private var pendingSelectName: String?
     @State private var channelsToDelete: [DeliveryChannel] = []
     @State private var serviceError: ServiceError?
     @State private var searchText = ""
@@ -21,8 +22,10 @@ struct ConfigDeliveryChannelListView: View {
             channelListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            ConfigCreateDeliveryChannelView(service: service)
-                .onDisappear { loadChannels(force: true) }
+            ConfigCreateDeliveryChannelView(service: service) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadChannels(force: true) }
         }
         .alert(
             channelsToDelete.count == 1
@@ -178,6 +181,12 @@ struct ConfigDeliveryChannelListView: View {
                 activeChannel = channel
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let channel = items.first(where: { $0.name == name }) {
+                selectedChannelIDs = [channel.id]
+                activeChannel = channel
+                pendingSelectName = nil
+            }
         }
     }
 

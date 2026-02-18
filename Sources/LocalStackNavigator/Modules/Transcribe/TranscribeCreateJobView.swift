@@ -13,6 +13,8 @@ struct TranscribeCreateJobView: View {
     @State private var serviceError: ServiceError?
     @State private var hasAttemptedCreate = false
 
+    var onCreate: ((String) -> Void)? = nil
+
     var body: some View {
         VStack(spacing: 0) {
             Form {
@@ -100,6 +102,7 @@ struct TranscribeCreateJobView: View {
                         ? nil
                         : outputBucketName.trimmingCharacters(in: .whitespaces)
                 )
+                onCreate?(jobName.trimmingCharacters(in: .whitespaces))
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

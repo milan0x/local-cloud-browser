@@ -7,6 +7,7 @@ struct Route53CreateZoneView: View {
     @State private var comment = ""
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
+    var onCreate: ((String) -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -46,6 +47,7 @@ struct Route53CreateZoneView: View {
                     name: zoneName.trimmingCharacters(in: .whitespaces),
                     comment: comment.trimmingCharacters(in: .whitespaces)
                 )
+                onCreate?(zoneName.trimmingCharacters(in: .whitespaces))
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

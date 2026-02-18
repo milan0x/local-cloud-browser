@@ -9,6 +9,7 @@ struct SNSCreateTopicView: View {
     @State private var serviceError: ServiceError?
     @State private var isCreating = false
     var existingTopicNames: Set<String>
+    var onCreate: ((String) -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -90,6 +91,7 @@ struct SNSCreateTopicView: View {
         Task {
             do {
                 _ = try await service.createTopic(name: effectiveName, isFifo: isFifo)
+                onCreate?(effectiveName)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

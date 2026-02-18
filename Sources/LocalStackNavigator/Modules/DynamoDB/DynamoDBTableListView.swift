@@ -15,6 +15,7 @@ struct DynamoDBTableListView: View {
     @State private var serviceError: ServiceError?
     @State private var tableToShowAttributes: DynamoDBTable?
     @State private var searchText = ""
+    @State private var pendingSelectName: String?
     @StateObject private var loader = ListLoader<DynamoDBTable>()
     private var tables: [DynamoDBTable] { loader.items }
 
@@ -25,8 +26,10 @@ struct DynamoDBTableListView: View {
             tableListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            DynamoDBCreateTableView(service: service, existingTableNames: Set(tables.map(\.tableName)))
-                .onDisappear { loadTables(force: true) }
+            DynamoDBCreateTableView(service: service, existingTableNames: Set(tables.map(\.tableName))) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadTables(force: true) }
         }
         .deleteConfirmation(items: $tablesToDelete, noun: "Table") { items in
             if items.count == 1, let table = items.first {
@@ -194,6 +197,12 @@ struct DynamoDBTableListView: View {
                 activeTable = table
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let table = items.first(where: { $0.tableName == name }) {
+                selectedTableIDs = [table.id]
+                activeTable = table
+                pendingSelectName = nil
+            }
         }
     }
 

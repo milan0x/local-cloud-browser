@@ -13,6 +13,7 @@ struct ConfigRecorderListView: View {
     private var recorders: [ConfigurationRecorder] { loader.items }
     @State private var statuses: [String: ConfigurationRecorderStatus] = [:]
     @State private var showCreateSheet = false
+    @State private var pendingSelectName: String?
     @State private var recordersToDelete: [ConfigurationRecorder] = []
     @State private var serviceError: ServiceError?
     @State private var searchText = ""
@@ -22,8 +23,10 @@ struct ConfigRecorderListView: View {
             recorderListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            ConfigCreateRecorderView(service: service)
-                .onDisappear { loadRecorders(force: true) }
+            ConfigCreateRecorderView(service: service) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadRecorders(force: true) }
         }
         .alert(
             recordersToDelete.count == 1
@@ -189,6 +192,12 @@ struct ConfigRecorderListView: View {
                 activeRecorder = recorder
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let recorder = items.first(where: { $0.name == name }) {
+                selectedRecorderIDs = [recorder.id]
+                activeRecorder = recorder
+                pendingSelectName = nil
+            }
         }
     }
 

@@ -26,6 +26,7 @@ struct IAMEntityListView: View {
     @State private var showCreateUserSheet = false
     @State private var showCreateRoleSheet = false
     @State private var showCreatePolicySheet = false
+    @State private var pendingSelectName: String?
 
     // Delete
     @State private var usersToDelete: [IAMUser] = []
@@ -56,16 +57,22 @@ struct IAMEntityListView: View {
         }
         // Create sheets
         .sheet(isPresented: $showCreateUserSheet) {
-            IAMCreateUserView(service: service, existingUserNames: Set(users.map(\.userName)))
-                .onDisappear { loadEntities(force: true) }
+            IAMCreateUserView(service: service, existingUserNames: Set(users.map(\.userName))) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadEntities(force: true) }
         }
         .sheet(isPresented: $showCreateRoleSheet) {
-            IAMCreateRoleView(service: service, existingRoleNames: Set(roles.map(\.roleName)))
-                .onDisappear { loadEntities(force: true) }
+            IAMCreateRoleView(service: service, existingRoleNames: Set(roles.map(\.roleName))) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadEntities(force: true) }
         }
         .sheet(isPresented: $showCreatePolicySheet) {
-            IAMCreatePolicyView(service: service, existingPolicyNames: Set(policies.map(\.policyName)))
-                .onDisappear { loadEntities(force: true) }
+            IAMCreatePolicyView(service: service, existingPolicyNames: Set(policies.map(\.policyName))) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadEntities(force: true) }
         }
         // Delete alerts
         .alert(
@@ -526,6 +533,27 @@ struct IAMEntityListView: View {
                         }
                     }
                     hasRestoredSession = true
+                }
+
+                if let name = pendingSelectName {
+                    switch entityType {
+                    case .users:
+                        if let user = users.first(where: { $0.userName == name }) {
+                            selectedUserIDs = [user.id]
+                            selectedUserName = user.userName
+                        }
+                    case .roles:
+                        if let role = roles.first(where: { $0.roleName == name }) {
+                            selectedRoleIDs = [role.id]
+                            selectedRoleName = role.roleName
+                        }
+                    case .policies:
+                        if let policy = policies.first(where: { $0.policyName == name }) {
+                            selectedPolicyIDs = [policy.id]
+                            selectedPolicyArn = policy.arn
+                        }
+                    }
+                    pendingSelectName = nil
                 }
             } catch {
                 if !silent {

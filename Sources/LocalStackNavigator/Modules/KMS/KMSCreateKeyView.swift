@@ -2,6 +2,7 @@ import SwiftUI
 
 struct KMSCreateKeyView: View {
     @ObservedObject var service: KMSService
+    var onCreate: ((String) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var description = ""
     @State private var keyUsage = "ENCRYPT_DECRYPT"
@@ -62,6 +63,7 @@ struct KMSCreateKeyView: View {
                     keyUsage: keyUsage,
                     keySpec: keySpec
                 )
+                onCreate?(description.trimmingCharacters(in: .whitespaces))
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

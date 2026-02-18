@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ConfigCreateRecorderView: View {
     @ObservedObject var service: ConfigService
+    var onCreate: ((String) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var roleARN = ""
@@ -44,12 +45,14 @@ struct ConfigCreateRecorderView: View {
         serviceError = nil
         Task {
             do {
+                let recorderName = name.trimmingCharacters(in: .whitespaces)
                 try await service.putConfigurationRecorder(
-                    name: name.trimmingCharacters(in: .whitespaces),
+                    name: recorderName,
                     roleARN: roleARN.trimmingCharacters(in: .whitespaces),
                     allSupported: allSupported,
                     resourceTypes: []
                 )
+                onCreate?(recorderName)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

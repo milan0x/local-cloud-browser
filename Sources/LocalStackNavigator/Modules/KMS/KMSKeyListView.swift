@@ -10,6 +10,7 @@ struct KMSKeyListView: View {
     var restoreKeyId: String?
 
     @State private var showCreateSheet = false
+    @State private var pendingSelectName: String?
     @State private var keysToDelete: [KMSKey] = []
     @State private var serviceError: ServiceError?
     @State private var keyToShowDetail: KMSKey?
@@ -24,8 +25,10 @@ struct KMSKeyListView: View {
             keyListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            KMSCreateKeyView(service: service)
-                .onDisappear { loadKeys(force: true) }
+            KMSCreateKeyView(service: service) { name in
+                pendingSelectName = name
+            }
+            .onDisappear { loadKeys(force: true) }
         }
         .deleteConfirmation(items: $keysToDelete, title: { $0 == 1 ? "Schedule Key Deletion" : "Schedule \($0) Key Deletions" }, actionLabel: "Schedule Deletion") { items in
             if items.count == 1, let key = items.first {
@@ -214,6 +217,12 @@ struct KMSKeyListView: View {
                 activeKey = key
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let key = items.first(where: { $0.description == name }) {
+                selectedKeyIDs = [key.id]
+                activeKey = key
+                pendingSelectName = nil
+            }
         }
     }
 

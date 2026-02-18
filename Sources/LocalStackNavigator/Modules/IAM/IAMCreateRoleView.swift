@@ -9,6 +9,7 @@ struct IAMCreateRoleView: View {
     @State private var serviceError: ServiceError?
     @State private var isSaving = false
     var existingRoleNames: Set<String>
+    var onCreate: ((String) -> Void)? = nil
 
     private static let namePattern = try! NSRegularExpression(pattern: "^[\\w+=,.@-]+$")
 
@@ -110,6 +111,7 @@ struct IAMCreateRoleView: View {
                     assumeRolePolicyDocument: trustPolicy,
                     description: description.isEmpty ? nil : description
                 )
+                onCreate?(trimmedName)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

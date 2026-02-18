@@ -9,6 +9,7 @@ struct ACMImportCertificateView: View {
     @State private var chain = ""
     @State private var isSaving = false
     @State private var serviceError: ServiceError?
+    var onCreate: ((String) -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -60,11 +61,12 @@ struct ACMImportCertificateView: View {
         serviceError = nil
         Task {
             do {
-                _ = try await service.importCertificate(
+                let arn = try await service.importCertificate(
                     cert: certificate.trimmingCharacters(in: .whitespacesAndNewlines),
                     key: privateKey.trimmingCharacters(in: .whitespacesAndNewlines),
                     chain: chain.trimmingCharacters(in: .whitespacesAndNewlines)
                 )
+                onCreate?(arn)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

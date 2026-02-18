@@ -13,6 +13,7 @@ struct OpenSearchDomainListView: View {
     @State private var domainsToDelete: [OpenSearchDomain] = []
     @State private var serviceError: ServiceError?
     @State private var searchText = ""
+    @State private var pendingSelectName: String?
     @StateObject private var loader = ListLoader<OpenSearchDomain>()
     private var domains: [OpenSearchDomain] { loader.items }
 
@@ -23,7 +24,7 @@ struct OpenSearchDomainListView: View {
             domainListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            OpenSearchCreateDomainView(service: service)
+            OpenSearchCreateDomainView(service: service, onCreate: { pendingSelectName = $0 })
                 .onDisappear { loadDomains(force: true) }
         }
         .deleteConfirmation(items: $domainsToDelete, noun: "Domain") { items in
@@ -200,6 +201,12 @@ struct OpenSearchDomainListView: View {
                 activeDomain = domain
             }
             loader.hasRestoredSession = true
+            if let name = pendingSelectName,
+               let domain = items.first(where: { $0.domainName == name }) {
+                selectedDomainIDs = [domain.id]
+                activeDomain = domain
+                pendingSelectName = nil
+            }
         }
     }
 
