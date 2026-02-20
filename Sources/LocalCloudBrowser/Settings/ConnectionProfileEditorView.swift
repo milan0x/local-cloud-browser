@@ -13,9 +13,13 @@ struct ConnectionProfileEditorView: View {
     @State private var region: String
     @State private var accessKeyId: String
     @State private var secretAccessKey: String
+    @State private var healthPath: String
+    @State private var s3Domain: String
+    @State private var apiGatewayDomain: String
     @State private var testResult: TestResult?
     @State private var isTesting = false
     @State private var showDeleteConfirmation = false
+    @State private var showAdvanced = false
     @FocusState private var focusedField: String?
 
     enum TestResult {
@@ -33,6 +37,9 @@ struct ConnectionProfileEditorView: View {
         _region = State(initialValue: existing?.region ?? "us-east-1")
         _accessKeyId = State(initialValue: existing?.accessKeyId ?? "test")
         _secretAccessKey = State(initialValue: existing?.secretAccessKey ?? "test")
+        _healthPath = State(initialValue: Self.customOrEmpty(existing?.healthPath, default: ConnectionProfile.defaultHealthPath))
+        _s3Domain = State(initialValue: Self.customOrEmpty(existing?.s3Domain, default: ConnectionProfile.defaultS3Domain))
+        _apiGatewayDomain = State(initialValue: Self.customOrEmpty(existing?.apiGatewayDomain, default: ConnectionProfile.defaultApiGatewayDomain))
     }
 
     private var isValid: Bool {
@@ -51,6 +58,15 @@ struct ConnectionProfileEditorView: View {
                 }
                 TextField("Access Key ID", text: $accessKeyId)
                 SecureField("Secret Access Key", text: $secretAccessKey)
+
+                DisclosureGroup(isExpanded: $showAdvanced) {
+                    TextField("Health Check Path", text: $healthPath, prompt: Text("e.g. health"))
+                    TextField("S3 Domain", text: $s3Domain, prompt: Text("e.g. s3.localhost"))
+                    TextField("API Gateway Domain", text: $apiGatewayDomain, prompt: Text("e.g. execute-api.localhost"))
+                } label: {
+                    Text("Advanced")
+                        .onTapGesture { showAdvanced.toggle() }
+                }
 
                 Section {
                     HStack {
@@ -104,7 +120,10 @@ struct ConnectionProfileEditorView: View {
                         endpoint: endpoint,
                         region: region,
                         accessKeyId: accessKeyId,
-                        secretAccessKey: secretAccessKey
+                        secretAccessKey: secretAccessKey,
+                        healthPath: Self.valueOrDefault(healthPath, default: ConnectionProfile.defaultHealthPath),
+                        s3Domain: Self.valueOrDefault(s3Domain, default: ConnectionProfile.defaultS3Domain),
+                        apiGatewayDomain: Self.valueOrDefault(apiGatewayDomain, default: ConnectionProfile.defaultApiGatewayDomain)
                     )
                     onSave(profile)
                     dismiss()
@@ -114,7 +133,7 @@ struct ConnectionProfileEditorView: View {
             }
             .padding()
         }
-        .frame(width: 400, height: existing != nil ? 440 : 380)
+        .frame(width: 400, height: existing != nil ? 500 : 440)
         .alert("Delete Connection?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
@@ -143,9 +162,10 @@ struct ConnectionProfileEditorView: View {
     }
 
     private func testConnection() {
+        let path = Self.valueOrDefault(healthPath, default: ConnectionProfile.defaultHealthPath)
         guard let url = URL(string: endpoint.hasSuffix("/")
-            ? endpoint + "_localstack/health"
-            : endpoint + "/_localstack/health") else {
+            ? endpoint + path
+            : endpoint + "/" + path) else {
             testResult = .failure("Invalid URL")
             return
         }
@@ -186,5 +206,17 @@ struct ConnectionProfileEditorView: View {
             }
             isTesting = false
         }
+    }
+
+    /// Returns empty string when the value matches the default, so the placeholder shows through.
+    private static func customOrEmpty(_ value: String?, default fallback: String) -> String {
+        guard let value else { return "" }
+        return value == fallback ? "" : value
+    }
+
+    /// Returns the default when the field is blank.
+    private static func valueOrDefault(_ value: String, default fallback: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty ? fallback : trimmed
     }
 }
