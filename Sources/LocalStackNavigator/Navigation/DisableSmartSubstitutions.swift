@@ -25,12 +25,11 @@ private struct SmartSubstitutionsFixer: NSViewRepresentable {
 }
 
 private class FixerView: NSView {
-    private var observer: NSObjectProtocol?
     var textContainerInset: NSSize?
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        guard let window else {
+        guard window != nil else {
             removeObserver()
             return
         }
@@ -43,15 +42,12 @@ private class FixerView: NSView {
         // Observe every editing session start — catches SwiftUI reconfiguration,
         // field editor reuse, and focus changes between TextFields.
         removeObserver()
-        observer = NotificationCenter.default.addObserver(
-            forName: NSText.didBeginEditingNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self, weak window] notification in
-            guard let textView = notification.object as? NSTextView,
-                  textView.window === window else { return }
-            Self.disableSubstitutions(on: textView)
-        }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleDidBeginEditing),
+            name: NSText.didBeginEditingNotification,
+            object: nil
+        )
     }
 
     override func removeFromSuperview() {
@@ -60,10 +56,13 @@ private class FixerView: NSView {
     }
 
     private func removeObserver() {
-        if let observer {
-            NotificationCenter.default.removeObserver(observer)
-            self.observer = nil
-        }
+        NotificationCenter.default.removeObserver(self, name: NSText.didBeginEditingNotification, object: nil)
+    }
+
+    @objc private func handleDidBeginEditing(_ notification: Notification) {
+        guard let textView = notification.object as? NSTextView,
+              textView.window === window else { return }
+        Self.disableSubstitutions(on: textView)
     }
 
     private func configureExistingTextViews() {
