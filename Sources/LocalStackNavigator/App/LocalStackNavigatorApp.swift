@@ -37,7 +37,7 @@ struct LocalStackNavigatorApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup("Local Cloud Browser") {
             ContentView()
                 .environmentObject(appState)
                 .environmentObject(client)
