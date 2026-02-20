@@ -95,7 +95,7 @@ struct EventBridgeScheduleBrowserView: View {
         HStack(spacing: 6) {
             Image(systemName: "info.circle.fill")
                 .foregroundStyle(.orange)
-            Text("Schedules are stored but will NOT execute in LocalStack")
+            Text("Schedules are stored but may not execute in this environment")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

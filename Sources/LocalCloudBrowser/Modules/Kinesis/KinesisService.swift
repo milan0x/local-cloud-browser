@@ -18,7 +18,7 @@ final class KinesisService: BaseService {
                 break
             }
 
-            // AWS may return StreamSummaries (newer API) or StreamNames (older/LocalStack)
+            // AWS may return StreamSummaries (newer API) or StreamNames (older API)
             if let summaries = json["StreamSummaries"] as? [[String: Any]] {
                 allStreams.append(contentsOf: summaries.map { KinesisStreamSummary(from: $0) })
             } else if let names = json["StreamNames"] as? [String] {

@@ -1,7 +1,7 @@
-# LocalStack Navigator — Project Guide
+# Local Cloud Browser — Project Guide
 
 ## Overview
-Native macOS SwiftUI application for managing LocalStack AWS environments. Provides a GUI for browsing and interacting with LocalStack services (S3, SQS, SNS, Secrets Manager).
+Native macOS SwiftUI application for managing AWS-compatible endpoints. Provides a GUI for browsing and interacting with cloud services (S3, SQS, SNS, Secrets Manager).
 
 ## Tech Stack
 - **Language:** Swift 6.0
@@ -16,7 +16,7 @@ Sources/LocalCloudBrowser/
 ├── Navigation/    — Sidebar, content shell, route enum
 ├── Modules/       — Service modules (protocol + per-service views)
 ├── Safety/        — Endpoint validation, read-only interceptor
-├── Networking/    — HTTP client for LocalStack API
+├── Networking/    — HTTP client for AWS-compatible endpoints
 └── Settings/      — Connection configuration model
 ```
 

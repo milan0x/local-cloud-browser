@@ -279,7 +279,7 @@ struct SidebarView: View {
     private var healthPopover: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let info = appState.healthInfo {
-                Text("LocalStack Health")
+                Text("Endpoint Health")
                     .font(.headline)
 
                 Divider()

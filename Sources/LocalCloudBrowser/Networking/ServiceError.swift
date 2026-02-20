@@ -1,6 +1,6 @@
 import Foundation
 
-/// Parsed error response from LocalStack/AWS XML error bodies.
+/// Parsed error response from AWS XML error bodies.
 struct ServiceError: Identifiable {
     let id = UUID()
     let code: String
@@ -27,7 +27,7 @@ struct ServiceError: Identifiable {
         case "InvalidParameterValue":
             return "One or more parameter values are invalid. Check your input and try again."
         case "AccessDenied":
-            return "Access denied. Check your LocalStack configuration."
+            return "Access denied. Check your endpoint configuration."
         default:
             return message
         }

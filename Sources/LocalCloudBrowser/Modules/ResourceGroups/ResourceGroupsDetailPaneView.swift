@@ -143,7 +143,7 @@ struct ResourceGroupsDetailPaneView: View {
     private var resourcesSection: some View {
         GroupBox {
             if resourcesUnavailable {
-                Text("Resource matching is not supported by this LocalStack version")
+                Text("Resource matching is not supported by this endpoint")
                     .foregroundStyle(.secondary)
                     .font(.caption)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -237,7 +237,7 @@ struct ResourceGroupsDetailPaneView: View {
     private func loadDetails(silent: Bool = false) {
         if !silent { isLoading = true }
         Task {
-            // Call each API independently — either may be unimplemented in LocalStack/moto
+            // Call each API independently — either may be unimplemented
             do {
                 let loadedQuery = try await service.getGroupQuery(name: group.name)
                 query = loadedQuery

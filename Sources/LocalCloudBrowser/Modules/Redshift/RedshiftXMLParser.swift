@@ -2,7 +2,7 @@ import Foundation
 
 /// Parses Redshift Query/XML responses for DescribeClusters.
 ///
-/// LocalStack wraps each cluster in `<Cluster>` (not `<member>`):
+/// The endpoint wraps each cluster in `<Cluster>` (not `<member>`):
 /// ```xml
 /// <Clusters>
 ///   <Cluster>

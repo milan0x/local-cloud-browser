@@ -61,7 +61,7 @@ final class TranscribeService: BaseService {
     /// Fetches the transcript text from the transcript file URI.
     /// The URI points to an S3 object containing JSON with the transcript.
     func fetchTranscript(from uri: String) async throws -> String {
-        // The transcript URI from LocalStack is typically an HTTP URL to the S3 object
+        // The transcript URI is typically an HTTP URL to the S3 object
         guard let url = URL(string: uri) else { return "" }
 
         let (data, _) = try await URLSession.shared.data(from: url)

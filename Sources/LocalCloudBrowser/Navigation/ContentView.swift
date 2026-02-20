@@ -39,7 +39,7 @@ struct ContentView: View {
             }
             .foregroundStyle(.secondary)
             .disabled(true)
-            .help("S3 buckets are global on LocalStack, not region-specific")
+            .help("S3 buckets are global, not region-specific")
         } else {
             Menu {
                 ForEach(AWSRegion.allRegions, id: \.code) { region in
