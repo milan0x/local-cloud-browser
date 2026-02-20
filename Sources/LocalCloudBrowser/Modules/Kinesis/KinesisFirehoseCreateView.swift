@@ -23,9 +23,7 @@ struct KinesisFirehoseCreateView: View {
 
                 Section("S3 Destination") {
                     TextField("S3 Bucket ARN", text: $s3BucketARN)
-                        .textFieldStyle(.roundedBorder)
                     TextField("Prefix (optional)", text: $s3Prefix)
-                        .textFieldStyle(.roundedBorder)
 
                     Picker("Compression", selection: $compression) {
                         ForEach(compressionFormats, id: \.self) { format in

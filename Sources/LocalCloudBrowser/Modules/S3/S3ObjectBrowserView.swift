@@ -1195,7 +1195,6 @@ struct S3ObjectBrowserView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             TextField("Folder name", text: $newFolderName)
-                .textFieldStyle(.roundedBorder)
                 .onSubmit { if isValidFolderName { createFolder() } }
             if folderNameExists {
                 Text("An item named \"\(newFolderName.trimmingCharacters(in: .whitespaces))\" already exists in this folder.")
@@ -1265,7 +1264,6 @@ struct S3ObjectBrowserView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
             TextField("New name", text: $renameText)
-                .textFieldStyle(.roundedBorder)
                 .onSubmit { if isValid { performRename(item: item) } }
             if nameExists && trimmed != currentName {
                 Text("An item named \"\(trimmed)\" already exists in this folder.")
@@ -1353,7 +1351,6 @@ struct S3ObjectBrowserView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 TextField("e.g. folder/subfolder/", text: $moveDestination)
-                    .textFieldStyle(.roundedBorder)
                     .onSubmit {
                         if !isMoveDisabled { requestMove() }
                     }
@@ -1603,7 +1600,6 @@ struct S3ObjectBrowserView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 TextField("e.g. folder/subfolder/", text: $destinationBucketPrefix)
-                    .textFieldStyle(.roundedBorder)
             }
 
             HStack {

@@ -27,11 +27,8 @@ struct Route53ResolverCreateEndpointView: View {
 
                 Section("Network") {
                     TextField("Security Group ID", text: $securityGroupId)
-                        .textFieldStyle(.roundedBorder)
                     TextField("Subnet ID", text: $subnetId)
-                        .textFieldStyle(.roundedBorder)
                     TextField("IP Address (optional)", text: $ip)
-                        .textFieldStyle(.roundedBorder)
                 }
             }
             .formStyle(.grouped)
