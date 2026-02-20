@@ -132,7 +132,6 @@ struct DynamoDBPutItemView: View {
         Section("Primary Key") {
             LabeledContent {
                 TextField("", text: $partitionKeyValue, prompt: Text("Enter value"))
-                    .textFieldStyle(.roundedBorder)
                     .disabled(isEditing)
             } label: {
                 HStack(spacing: 6) {
@@ -143,7 +142,6 @@ struct DynamoDBPutItemView: View {
             if let skName = sortKeyName {
                 LabeledContent {
                     TextField("", text: $sortKeyValue, prompt: Text("Enter value"))
-                        .textFieldStyle(.roundedBorder)
                         .disabled(isEditing)
                 } label: {
                     HStack(spacing: 6) {

@@ -30,9 +30,7 @@ struct Route53ResolverCreateRuleView: View {
                 if ruleType == "FORWARD" {
                     Section("Forwarding") {
                         TextField("Resolver Endpoint ID (optional)", text: $resolverEndpointId)
-                            .textFieldStyle(.roundedBorder)
                         TextField("Target IP", text: $targetIp)
-                            .textFieldStyle(.roundedBorder)
                         Stepper("Target Port: \(targetPort)", value: $targetPort, in: 1...65535)
                     }
                 }

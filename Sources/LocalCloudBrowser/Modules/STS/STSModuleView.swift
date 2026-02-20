@@ -100,7 +100,6 @@ struct STSModuleView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     TextField("arn:aws:iam::000000000000:role/MyRole", text: $roleArn)
-                        .textFieldStyle(.roundedBorder)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -108,7 +107,6 @@ struct STSModuleView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     TextField("session-name", text: $sessionName)
-                        .textFieldStyle(.roundedBorder)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -116,7 +114,6 @@ struct STSModuleView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     TextField("3600", text: $durationSeconds)
-                        .textFieldStyle(.roundedBorder)
                 }
 
                 HStack {

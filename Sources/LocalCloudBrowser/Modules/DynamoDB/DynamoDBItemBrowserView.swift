@@ -218,7 +218,6 @@ struct DynamoDBItemBrowserView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 TextField("Filter expression (optional)", text: $filterExpression)
-                    .textFieldStyle(.roundedBorder)
                     .font(.caption)
             }
         }
@@ -252,7 +251,6 @@ struct DynamoDBItemBrowserView: View {
                 .font(.caption)
                 .fontWeight(.medium)
             TextField("Partition key value", text: $queryPartitionValue)
-                .textFieldStyle(.roundedBorder)
                 .font(.caption)
         }
 
@@ -270,7 +268,6 @@ struct DynamoDBItemBrowserView: View {
                 .frame(width: 120)
 
                 TextField("Sort key value", text: $querySortValue)
-                    .textFieldStyle(.roundedBorder)
                     .font(.caption)
 
                 if querySortOperator == .between {
@@ -278,7 +275,6 @@ struct DynamoDBItemBrowserView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     TextField("Value 2", text: $querySortValue2)
-                        .textFieldStyle(.roundedBorder)
                         .font(.caption)
                 }
             }
