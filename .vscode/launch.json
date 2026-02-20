@@ -5,20 +5,20 @@
             "request": "launch",
             "args": [],
             "cwd": "${workspaceFolder:localstack-navigator}",
-            "name": "Debug LocalStackNavigator",
-            "target": "LocalStackNavigator",
+            "name": "Debug LocalCloudBrowser",
+            "target": "LocalCloudBrowser",
             "configuration": "debug",
-            "preLaunchTask": "swift: Build Debug LocalStackNavigator"
+            "preLaunchTask": "swift: Build Debug LocalCloudBrowser"
         },
         {
             "type": "swift",
             "request": "launch",
             "args": [],
             "cwd": "${workspaceFolder:localstack-navigator}",
-            "name": "Release LocalStackNavigator",
-            "target": "LocalStackNavigator",
+            "name": "Release LocalCloudBrowser",
+            "target": "LocalCloudBrowser",
             "configuration": "release",
-            "preLaunchTask": "swift: Build Release LocalStackNavigator"
+            "preLaunchTask": "swift: Build Release LocalCloudBrowser"
         }
     ]
 }

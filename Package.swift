@@ -3,7 +3,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "LocalStackNavigator",
+    name: "LocalCloudBrowser",
     platforms: [
         .macOS(.v14)
     ],
@@ -12,17 +12,17 @@ let package = Package(
     dependencies: [],
     targets: [
         .executableTarget(
-            name: "LocalStackNavigator",
-            path: "Sources/LocalStackNavigator",
+            name: "LocalCloudBrowser",
+            path: "Sources/LocalCloudBrowser",
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("Quartz"),
             ]
         ),
         .testTarget(
-            name: "LocalStackNavigatorTests",
-            dependencies: ["LocalStackNavigator"],
-            path: "Tests/LocalStackNavigatorTests"
+            name: "LocalCloudBrowserTests",
+            dependencies: ["LocalCloudBrowser"],
+            path: "Tests/LocalCloudBrowserTests"
         )
     ]
 )
