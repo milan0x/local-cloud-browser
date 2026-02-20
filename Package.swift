@@ -13,7 +13,11 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "LocalStackNavigator",
-            path: "Sources/LocalStackNavigator"
+            path: "Sources/LocalStackNavigator",
+            linkerSettings: [
+                .linkedFramework("AppKit"),
+                .linkedFramework("Quartz"),
+            ]
         ),
         .testTarget(
             name: "LocalStackNavigatorTests",

@@ -1,5 +1,4 @@
 import SwiftUI
-import AppKit
 
 struct TranscribeJobDetailPaneView: View {
     @ObservedObject var service: TranscribeService
@@ -170,21 +169,16 @@ struct TranscribeJobDetailPaneView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Spacer()
-                                Button {
-                                    NSPasteboard.general.clearContents()
-                                    NSPasteboard.general.setString(text, forType: .string)
-                                } label: {
-                                    Label("Copy Transcript", systemImage: "doc.on.doc")
-                                        .font(.caption)
-                                }
-                                .buttonStyle(.borderless)
+                                CopyTranscriptButton(text: text)
                             }
+                            .padding(.trailing, 4)
                             Text(text)
                                 .textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(8)
                                 .background(.background.secondary, in: RoundedRectangle(cornerRadius: 6))
                         }
+                        .padding(.top, 4)
                     }
                 } else {
                     HStack(spacing: 8) {
@@ -260,5 +254,41 @@ struct TranscribeJobDetailPaneView: View {
             }
             if !silent { isLoading = false }
         }
+    }
+}
+
+private struct CopyTranscriptButton: View {
+    let text: String
+
+    @State private var showCopied = false
+
+    var body: some View {
+        Button {
+            copyToClipboard(text)
+            withAnimation(.easeInOut(duration: 0.15)) {
+                showCopied = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    showCopied = false
+                }
+            }
+        } label: {
+            Label("Copy Transcript Text", systemImage: "doc.on.doc")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .blur(radius: showCopied ? 3 : 0)
+                .animation(.easeInOut(duration: 0.2), value: showCopied)
+                .overlay {
+                    if showCopied {
+                        Label("Copied to Clipboard", systemImage: "checkmark")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.green)
+                            .transition(.opacity.animation(.easeInOut(duration: 0.15)))
+                    }
+                }
+        }
+        .buttonStyle(.borderless)
     }
 }
