@@ -144,8 +144,9 @@ struct APIStage: Identifiable, Hashable {
         variables = dict["stageVariables"] as? [String: String] ?? [:]
     }
 
-    func invokeUrl(apiId: String) -> String {
-        "http://\(apiId).execute-api.localhost.localstack.cloud:4566/\(stageName)/"
+    func invokeUrl(apiId: String, domain: String, port: Int?) -> String {
+        let portSuffix = port.map { ":\($0)" } ?? ""
+        return "http://\(apiId).\(domain)\(portSuffix)/\(stageName)/"
     }
 
     func pathStyleInvokeUrl(apiId: String, endpoint: String) -> String {

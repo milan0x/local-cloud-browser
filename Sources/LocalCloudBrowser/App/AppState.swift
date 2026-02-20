@@ -33,6 +33,9 @@ final class AppState: ObservableObject {
     @Published var healthInfo: HealthInfo?
     @Published var isReadOnly: Bool = false
     @Published var endpoint: String = "http://localhost:4566"
+    @Published var healthPath: String = ConnectionProfile.defaultHealthPath
+    @Published var s3Domain: String = ConnectionProfile.defaultS3Domain
+    @Published var apiGatewayDomain: String = ConnectionProfile.defaultApiGatewayDomain
     @Published var selectedRoute: Route? = nil
     @Published var region: String = "us-east-1"
     @Published var activeConnectionName: String = "default connection"
@@ -67,6 +70,9 @@ final class AppState: ObservableObject {
     func applyProfile(_ profile: ConnectionProfile) {
         endpoint = profile.endpoint
         region = profile.region
+        healthPath = profile.healthPath
+        s3Domain = profile.s3Domain
+        apiGatewayDomain = profile.apiGatewayDomain
         activeConnectionName = profile.name
         connectionVersion += 1
         connectionStatus = .disconnected
@@ -87,7 +93,7 @@ final class AppState: ObservableObject {
     }
 
     private func performHealthCheck() async {
-        guard let url = URL(string: endpoint + "/_localstack/health") else {
+        guard let url = URL(string: endpoint + "/" + healthPath) else {
             connectionStatus = .disconnected
             healthInfo = nil
             return
