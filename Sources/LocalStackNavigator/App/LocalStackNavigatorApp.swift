@@ -12,7 +12,7 @@ struct LocalStackNavigatorApp: App {
         // Required because SPM executable targets don't get this automatically.
         NSApplication.shared.setActivationPolicy(.regular)
 
-        Log.info("LocalStack Navigator starting", category: "App")
+        Log.info("Local Cloud Browser starting", category: "App")
         AppPreferences.cleanPreviewTempDirectory()
 
         UserDefaults.standard.register(defaults: [
