@@ -8,7 +8,6 @@ enum AppPreferences {
     static let healthCheckIntervalKey = "healthCheckInterval"
     static let doubleClickHidesJsonHelperKey = "doubleClickHidesJsonHelper"
     static let disableJsonHelperPlaceholdersKey = "disableSQSPlaceholders"
-    static let hasCompletedOnboardingKey = "hasCompletedOnboarding"
     static let defaultHealthCheckInterval: Double = 2.0
 
     /// Default preview size limit in megabytes.

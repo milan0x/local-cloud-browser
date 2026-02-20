@@ -3,16 +3,6 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var profileStore: ConnectionProfileStore
-    @AppStorage(AppPreferences.hasCompletedOnboardingKey) private var hasCompletedOnboarding = false
-
-    private var showOnboarding: Binding<Bool> {
-        Binding(
-            get: { !hasCompletedOnboarding },
-            set: { newValue in
-                if !newValue { hasCompletedOnboarding = true }
-            }
-        )
-    }
 
     var body: some View {
         NavigationSplitView {
@@ -31,9 +21,6 @@ struct ContentView: View {
         }
         .onChange(of: appState.selectedRoute) {
             LastSessionStore.saveRoute(appState.selectedRoute)
-        }
-        .sheet(isPresented: showOnboarding) {
-            WelcomeSheet()
         }
     }
 
