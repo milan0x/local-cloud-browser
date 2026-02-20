@@ -20,7 +20,7 @@ struct S3CreateBucketView: View {
                 }
 
                 Section {
-                    Label("S3 buckets are global on LocalStack — no region isolation.", systemImage: "info.circle")
+                    Label("S3 buckets are global — no region isolation.", systemImage: "info.circle")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

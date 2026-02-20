@@ -87,7 +87,7 @@ struct APIGatewayModelTests {
             "stageName": "prod",
             "deploymentId": "d1",
         ])
-        let url = stage.invokeUrl(apiId: "abc123")
+        let url = stage.invokeUrl(apiId: "abc123", domain: "execute-api.localhost.localstack.cloud", port: 4566)
         #expect(url == "http://abc123.execute-api.localhost.localstack.cloud:4566/prod/")
     }
 

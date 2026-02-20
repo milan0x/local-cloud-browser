@@ -95,7 +95,7 @@ struct SESSentEmail: Identifiable {
 
         // Parse subject from either Body.subject or top-level Subject
         if let bodyDict = dict["Body"] as? [String: Any] {
-            // LocalStack may put subject inside Body
+            // Endpoint may put subject inside Body
             self.subject = bodyDict["subject"] as? String
                 ?? (dict["Subject"] as? String ?? "")
         } else {

@@ -59,12 +59,12 @@ struct SupportCreateCaseView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "info.circle")
                                 .foregroundStyle(.blue)
-                            Text("LocalStack Mock Limitations")
+                            Text("Emulator Limitations")
                                 .font(.caption)
                                 .fontWeight(.semibold)
                                 .foregroundStyle(.secondary)
                         }
-                        Text("• Severity may not be respected by LocalStack")
+                        Text("• Severity may not be respected by the endpoint")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Text("• \"Submitted By\" is auto-assigned and cannot be changed")

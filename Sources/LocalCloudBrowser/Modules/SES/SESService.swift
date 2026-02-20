@@ -79,7 +79,7 @@ final class SESService: BaseService {
         return xml.first("MessageId") ?? ""
     }
 
-    // MARK: - Sent Emails (LocalStack internal endpoint)
+    // MARK: - Sent Emails (internal endpoint)
 
     func listSentEmails() async throws -> [SESSentEmail] {
         let data = try await client.get(path: "/_aws/ses")

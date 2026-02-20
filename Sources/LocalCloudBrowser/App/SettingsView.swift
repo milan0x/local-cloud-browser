@@ -74,7 +74,7 @@ struct SettingsView: View {
                     Text("4 seconds").tag(4.0)
                     Text("5 seconds").tag(5.0)
                 }
-                Text("How often to check the LocalStack connection status. Lower values detect connection changes faster.")
+                Text("How often to check the connection status. Lower values detect connection changes faster.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

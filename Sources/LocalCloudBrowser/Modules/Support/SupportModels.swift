@@ -82,7 +82,7 @@ struct SupportCase: Identifiable, Hashable {
         categoryCode = dict["categoryCode"] as? String ?? ""
         severityCode = dict["severityCode"] as? String ?? ""
         submittedBy = dict["submittedBy"] as? String ?? ""
-        // timeCreated can come back as a String or a Number from LocalStack
+        // timeCreated can come back as a String or a Number
         if let str = dict["timeCreated"] as? String {
             timeCreated = str
         } else if let num = dict["timeCreated"] as? Double {

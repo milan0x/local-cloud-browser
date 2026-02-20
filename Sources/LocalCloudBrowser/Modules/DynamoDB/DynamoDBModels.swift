@@ -227,13 +227,13 @@ enum AttributeValue: Hashable {
     }
 
     /// Parse from DynamoDB JSON format: `{"S": "value"}`, `{"N": "123"}`, etc.
-    /// Handles LocalStack quirks: N values may arrive as actual numbers, BOOL as 0/1.
+    /// Handles endpoint quirks: N values may arrive as actual numbers, BOOL as 0/1.
     static func fromJSON(_ dict: [String: Any]) -> AttributeValue? {
         if let s = dict["S"] as? String { return .string(s) }
         if let n = dict["N"] as? String {
             return .number(n)
         } else if let n = dict["N"] as? NSNumber {
-            // LocalStack may return N as an actual number instead of a string
+            // Endpoint may return N as an actual number instead of a string
             return .number(n.stringValue)
         }
         if let b = dict["B"] as? String { return .binary(b) }

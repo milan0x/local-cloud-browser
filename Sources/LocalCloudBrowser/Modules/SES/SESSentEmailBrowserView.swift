@@ -37,7 +37,7 @@ struct SESSentEmailBrowserView: View {
             Button("Clear All", role: .destructive) { clearEmails() }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("This will delete all \(emails.count) captured sent email\(emails.count == 1 ? "" : "s") from LocalStack. This cannot be undone.")
+            Text("This will delete all \(emails.count) captured sent email\(emails.count == 1 ? "" : "s") from the endpoint. This cannot be undone.")
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadEmails() }
