@@ -93,7 +93,7 @@ struct TranscribeJobListView: View {
     // MARK: - Content
 
     private var jobListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: jobs.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading jobs...", onRetry: { loadJobs(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: jobs.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading jobs...", emptyIcon: "waveform", emptyMessage: "No transcription jobs", onRetry: { loadJobs(force: true) }) {
             VStack(spacing: 0) {
                 if jobs.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter jobs")
@@ -102,10 +102,6 @@ struct TranscribeJobListView: View {
                     Divider()
                 }
                 List(selection: $selectedJobIDs) {
-                    if jobs.isEmpty {
-                        EmptyStateView(icon: "waveform", message: "No transcription jobs")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredJobs) { job in
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {

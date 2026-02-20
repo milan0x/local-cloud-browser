@@ -91,7 +91,7 @@ struct ConfigRecorderListView: View {
     // MARK: - Content
 
     private var recorderListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: recorders.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading recorders...", onRetry: { loadRecorders(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: recorders.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading recorders...", emptyIcon: "gearshape.2", emptyMessage: "No recorders", emptySecondaryMessage: "Recorders are mocked — resource changes are NOT recorded", onRetry: { loadRecorders(force: true) }) {
             VStack(spacing: 0) {
                 if recorders.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter recorders")
@@ -100,10 +100,6 @@ struct ConfigRecorderListView: View {
                     Divider()
                 }
                 List(selection: $selectedRecorderIDs) {
-                    if recorders.isEmpty {
-                        EmptyStateView(icon: "gearshape.2", message: "No recorders", secondaryMessage: "Recorders are mocked — resource changes are NOT recorded")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredRecorders) { recorder in
                     HStack {
                         Text(recorder.name)

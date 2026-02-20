@@ -83,7 +83,7 @@ struct KinesisStreamListView: View {
     // MARK: - Content
 
     private var streamListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: streams.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading streams...", onRetry: { loadStreams(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: streams.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading streams...", emptyIcon: "arrow.right.arrow.left.square", emptyMessage: "No streams", onRetry: { loadStreams(force: true) }) {
             VStack(spacing: 0) {
                 if streams.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter streams")
@@ -92,10 +92,6 @@ struct KinesisStreamListView: View {
                     Divider()
                 }
                 List(selection: $selectedStreamIDs) {
-                    if streams.isEmpty {
-                        EmptyStateView(icon: "arrow.right.arrow.left.square", message: "No streams")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredStreams) { stream in
                     HStack {
                         Text(stream.streamName)

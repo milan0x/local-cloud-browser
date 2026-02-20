@@ -90,7 +90,7 @@ struct SNSTopicListView: View {
     // MARK: - Content
 
     private var topicListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: topics.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading topics...", onRetry: { loadTopics(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: topics.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading topics...", emptyIcon: "bell", emptyMessage: "No topics", onRetry: { loadTopics(force: true) }) {
             VStack(spacing: 0) {
                 if topics.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter topics", focusTrigger: searchFocusTrigger)
@@ -99,10 +99,6 @@ struct SNSTopicListView: View {
                     Divider()
                 }
                 List(selection: $selectedTopicIDs) {
-                    if topics.isEmpty {
-                        EmptyStateView(icon: "bell", message: "No topics")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredTopics) { topic in
                 VStack(alignment: .leading, spacing: 3) {
                     Text(topic.topicName)

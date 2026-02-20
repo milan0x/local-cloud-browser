@@ -92,7 +92,7 @@ struct RedshiftClusterListView: View {
     // MARK: - Content
 
     private var clusterListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: clusters.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading clusters...", onRetry: { loadClusters(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: clusters.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading clusters...", emptyIcon: "cylinder.split.1x2", emptyMessage: "No clusters", onRetry: { loadClusters(force: true) }) {
             VStack(spacing: 0) {
                 if clusters.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter clusters")
@@ -101,10 +101,6 @@ struct RedshiftClusterListView: View {
                     Divider()
                 }
                 List(selection: $selectedClusterIDs) {
-                    if clusters.isEmpty {
-                        EmptyStateView(icon: "cylinder.split.1x2", message: "No clusters")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredClusters) { cluster in
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {

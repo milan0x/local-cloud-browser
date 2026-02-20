@@ -98,7 +98,7 @@ struct CloudWatchLogsGroupListView: View {
     // MARK: - Content
 
     private var logGroupListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: logGroups.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading log groups...", onRetry: { loadLogGroups(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: logGroups.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading log groups...", emptyIcon: "doc.text.magnifyingglass", emptyMessage: "No log groups", onRetry: { loadLogGroups(force: true) }) {
             VStack(spacing: 0) {
                 if logGroups.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter log groups")
@@ -107,10 +107,6 @@ struct CloudWatchLogsGroupListView: View {
                     Divider()
                 }
                 List(selection: $selectedLogGroupIDs) {
-                    if logGroups.isEmpty {
-                        EmptyStateView(icon: "doc.text.magnifyingglass", message: "No log groups")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredLogGroups) { logGroup in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(logGroup.logGroupName)

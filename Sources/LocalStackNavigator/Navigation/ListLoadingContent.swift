@@ -5,6 +5,9 @@ struct ListLoadingContent<Content: View>: View {
     let isEmpty: Bool
     let errorMessage: String?
     let loadingMessage: String
+    var emptyIcon: String? = nil
+    var emptyMessage: String? = nil
+    var emptySecondaryMessage: String? = nil
     let onRetry: () -> Void
     @ViewBuilder let content: () -> Content
 
@@ -25,6 +28,8 @@ struct ListLoadingContent<Content: View>: View {
                 Button("Retry") { onRetry() }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if isEmpty, let emptyIcon, let emptyMessage {
+            EmptyStateView(icon: emptyIcon, message: emptyMessage, secondaryMessage: emptySecondaryMessage)
         } else {
             content()
         }

@@ -105,7 +105,7 @@ struct DynamoDBTableListView: View {
     // MARK: - Content
 
     private var tableListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: tables.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading tables...", onRetry: { loadTables(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: tables.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading tables...", emptyIcon: "tablecells", emptyMessage: "No tables", onRetry: { loadTables(force: true) }) {
             VStack(spacing: 0) {
                 if tables.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter tables")
@@ -114,10 +114,6 @@ struct DynamoDBTableListView: View {
                     Divider()
                 }
                 List(selection: $selectedTableIDs) {
-                    if tables.isEmpty {
-                        EmptyStateView(icon: "tablecells", message: "No tables")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredTables) { table in
                     Text(table.tableName)
                         .fontWeight(.medium)

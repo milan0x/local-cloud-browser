@@ -112,7 +112,7 @@ struct SQSQueueListView: View {
     // MARK: - Content
 
     private var queueListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: queues.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading queues...", onRetry: { loadQueues(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: queues.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading queues...", emptyIcon: "tray.2", emptyMessage: "No queues", onRetry: { loadQueues(force: true) }) {
             VStack(spacing: 0) {
                 if queues.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter queues", focusTrigger: searchFocusTrigger)
@@ -121,11 +121,6 @@ struct SQSQueueListView: View {
                     Divider()
                 }
                 List(selection: $selectedQueueIDs) {
-                    if queues.isEmpty {
-                        EmptyStateView(icon: "tray.2", message: "No queues")
-                            .listRowSeparator(.hidden)
-                    }
-
                     ForEach(filteredQueues) { queue in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(queue.queueName)

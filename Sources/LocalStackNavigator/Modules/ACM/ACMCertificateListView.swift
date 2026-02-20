@@ -104,7 +104,7 @@ struct ACMCertificateListView: View {
     // MARK: - Content
 
     private var certListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: certificates.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading certificates...", onRetry: { loadCertificates(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: certificates.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading certificates...", emptyIcon: "checkmark.seal", emptyMessage: "No certificates", onRetry: { loadCertificates(force: true) }) {
             VStack(spacing: 0) {
                 if certificates.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter certificates")
@@ -113,10 +113,6 @@ struct ACMCertificateListView: View {
                     Divider()
                 }
                 List(selection: $selectedCertIDs) {
-                    if certificates.isEmpty {
-                        EmptyStateView(icon: "checkmark.seal", message: "No certificates")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredCertificates) { cert in
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {

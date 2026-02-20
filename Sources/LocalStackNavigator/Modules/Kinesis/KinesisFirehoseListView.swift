@@ -87,7 +87,7 @@ struct KinesisFirehoseListView: View {
     // MARK: - Content
 
     private var streamListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: streams.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading delivery streams...", onRetry: { loadStreams(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: streams.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading delivery streams...", emptyIcon: "flame", emptyMessage: "No delivery streams", onRetry: { loadStreams(force: true) }) {
             VStack(spacing: 0) {
                 if streams.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter delivery streams")
@@ -96,10 +96,6 @@ struct KinesisFirehoseListView: View {
                     Divider()
                 }
                 List(selection: $selectedStreamIDs) {
-                    if streams.isEmpty {
-                        EmptyStateView(icon: "flame", message: "No delivery streams")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredStreams) { stream in
                     HStack {
                         Text(stream.deliveryStreamName)

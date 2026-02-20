@@ -94,7 +94,7 @@ struct EventBridgeScheduleGroupListView: View {
     // MARK: - Content
 
     private var groupListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: groups.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading schedule groups...", onRetry: { loadGroups(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: groups.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading schedule groups...", emptyIcon: "calendar.badge.clock", emptyMessage: "No schedule groups", onRetry: { loadGroups(force: true) }) {
             VStack(spacing: 0) {
                 if groups.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter schedule groups")
@@ -103,10 +103,6 @@ struct EventBridgeScheduleGroupListView: View {
                     Divider()
                 }
                 List(selection: $selectedGroupIDs) {
-                    if groups.isEmpty {
-                        EmptyStateView(icon: "calendar.badge.clock", message: "No schedule groups")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredGroups) { group in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(group.name)

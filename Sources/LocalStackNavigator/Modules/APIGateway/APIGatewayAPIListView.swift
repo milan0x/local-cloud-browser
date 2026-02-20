@@ -110,7 +110,7 @@ struct APIGatewayAPIListView: View {
     // MARK: - Content
 
     private var apiListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: apis.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading REST APIs...", onRetry: { loadAPIs(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: apis.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading REST APIs...", emptyIcon: "network", emptyMessage: "No REST APIs", onRetry: { loadAPIs(force: true) }) {
             VStack(spacing: 0) {
                 if apis.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter APIs")
@@ -119,10 +119,6 @@ struct APIGatewayAPIListView: View {
                     Divider()
                 }
                 List(selection: $selectedAPIIDs) {
-                    if apis.isEmpty {
-                        EmptyStateView(icon: "network", message: "No REST APIs")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredAPIs) { api in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(api.name)

@@ -98,7 +98,7 @@ struct SecretsListView: View {
     // MARK: - Content
 
     private var secretListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: secrets.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading secrets...", onRetry: { loadSecrets(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: secrets.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading secrets...", emptyIcon: "key", emptyMessage: "No secrets", onRetry: { loadSecrets(force: true) }) {
             VStack(spacing: 0) {
                 if secrets.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter secrets")
@@ -107,10 +107,6 @@ struct SecretsListView: View {
                     Divider()
                 }
                 List(selection: $selectedSecretIDs) {
-                    if secrets.isEmpty {
-                        EmptyStateView(icon: "key", message: "No secrets")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredSecrets) { secret in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(secret.name)

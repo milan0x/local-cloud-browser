@@ -108,7 +108,7 @@ struct CloudFormationStackListView: View {
     // MARK: - Content
 
     private var stackListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: stacks.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading stacks...", onRetry: { loadStacks(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: stacks.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading stacks...", emptyIcon: "square.stack.3d.down.right", emptyMessage: "No stacks", onRetry: { loadStacks(force: true) }) {
             VStack(spacing: 0) {
                 if stacks.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter stacks")
@@ -117,10 +117,6 @@ struct CloudFormationStackListView: View {
                     Divider()
                 }
                 List(selection: $selectedStackIDs) {
-                    if stacks.isEmpty {
-                        EmptyStateView(icon: "square.stack.3d.down.right", message: "No stacks")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredStacks) { stack in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(stack.stackName)

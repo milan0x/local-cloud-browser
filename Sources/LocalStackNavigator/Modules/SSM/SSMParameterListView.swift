@@ -98,7 +98,7 @@ struct SSMParameterListView: View {
     // MARK: - Content
 
     private var parameterListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: parameters.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading parameters...", onRetry: { loadParameters(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: parameters.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading parameters...", emptyIcon: "list.bullet.rectangle", emptyMessage: "No parameters", onRetry: { loadParameters(force: true) }) {
             VStack(spacing: 0) {
                 if parameters.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter parameters")
@@ -107,10 +107,6 @@ struct SSMParameterListView: View {
                     Divider()
                 }
                 List(selection: $selectedParameterIDs) {
-                    if parameters.isEmpty {
-                        EmptyStateView(icon: "list.bullet.rectangle", message: "No parameters")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredParameters) { parameter in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(parameter.name)
