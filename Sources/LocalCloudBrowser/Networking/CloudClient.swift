@@ -19,7 +19,7 @@ enum CloudClientError: Error, LocalizedError {
                 "HTTP error \(statusCode)"
             }
         case .networkError(let underlying):
-            "Network error: \(underlying.localizedDescription)\n\nCheck that your Docker container is running and the LocalStack endpoint is reachable."
+            "Network error: \(underlying.localizedDescription)\n\nCheck that your endpoint is running and reachable."
         }
     }
 
@@ -47,8 +47,8 @@ final class CloudClient: ObservableObject {
 
     var baseURL: String { appState.endpoint }
 
-    /// S3 base URL using LocalStack's virtual-hosted-style routing.
-    /// Rewrites `http://localhost:4566` → `http://s3.localhost.localstack.cloud:4566`.
+    /// S3 base URL using virtual-hosted-style routing.
+    /// Rewrites `http://localhost:4566` → `http://<s3Domain>:4566`.
     var s3BaseURL: String {
         guard let components = URLComponents(string: appState.endpoint),
               let host = components.host?.lowercased() else {
@@ -57,7 +57,7 @@ final class CloudClient: ObservableObject {
         let isLocal = host == "localhost" || host == "127.0.0.1" || host == "::1"
         guard isLocal else { return appState.endpoint }
         var s3Components = components
-        s3Components.host = "s3.localhost.localstack.cloud"
+        s3Components.host = appState.s3Domain
         return s3Components.string ?? appState.endpoint
     }
 
@@ -169,8 +169,8 @@ final class CloudClient: ObservableObject {
             throw CloudClientError.readOnlyBlocked(method: "SQS:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
-        // LocalStack uses the region from the SigV4 Authorization header to scope
-        // SQS queries. We send a minimal (unsigned) credential so LocalStack knows
+        // The endpoint uses the region from the SigV4 Authorization header to scope
+        // SQS queries. We send a minimal (unsigned) credential so the endpoint knows
         // which region we're targeting. Signatures are not validated.
         let dateStr = Self.iso8601DateOnly.string(from: Date())
         let credential = "nav/\(dateStr)/\(effectiveRegion(region))/sqs/aws4_request"

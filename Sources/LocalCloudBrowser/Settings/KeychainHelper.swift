@@ -3,7 +3,6 @@ import Security
 
 enum KeychainHelper {
     private static let service = "LocalCloudBrowser"
-    private static let legacyService = "LocalStackNavigator"
 
     static func save(account: String, data: Data) -> Bool {
         let query: [String: Any] = [
@@ -28,19 +27,7 @@ enum KeychainHelper {
     }
 
     static func load(account: String) -> Data? {
-        // Try new service name first.
-        if let data = loadFromService(service, account: account) {
-            return data
-        }
-        // Migrate from legacy service name if present.
-        if let data = loadFromService(legacyService, account: account) {
-            Log.info("Migrating keychain entry for \(account) from legacy service", category: "Keychain")
-            if save(account: account, data: data) {
-                deleteFromService(legacyService, account: account)
-            }
-            return data
-        }
-        return nil
+        loadFromService(service, account: account)
     }
 
     @discardableResult
@@ -75,17 +62,6 @@ enum KeychainHelper {
         return nil
     }
 
-    @discardableResult
-    private static func deleteFromService(_ svc: String, account: String) -> Bool {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: svc,
-            kSecAttrAccount as String: account,
-        ]
-        let status = SecItemDelete(query as CFDictionary)
-        return status == errSecSuccess || status == errSecItemNotFound
-    }
-
     // MARK: - Credential helpers
 
     static let defaultAccessKeyId = "test"
@@ -102,7 +78,7 @@ enum KeychainHelper {
 
     static func saveCredentials(profileId: UUID, accessKeyId: String, secretAccessKey: String) {
         if isDefaultCredentials(accessKeyId: accessKeyId, secretAccessKey: secretAccessKey) {
-            // Default LocalStack credentials don't need Keychain protection.
+            // Default credentials don't need Keychain protection.
             // Remove any existing entry (e.g. from a previous version).
             deleteCredentials(profileId: profileId)
             return

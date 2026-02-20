@@ -392,7 +392,7 @@ struct APIGatewayAPIBrowserView: View {
                     GroupBox {
                         VStack(alignment: .leading, spacing: 4) {
                             LabeledContent("Invoke URL") {
-                                CopyableValue(text: stage.invokeUrl(apiId: api.id), monospaced: true)
+                                CopyableValue(text: stage.invokeUrl(apiId: api.id, domain: appState.apiGatewayDomain, port: endpointPort), monospaced: true)
                             }
                             LabeledContent("Path-style URL") {
                                 CopyableValue(text: stage.pathStyleInvokeUrl(apiId: api.id, endpoint: appState.endpoint), monospaced: true)
@@ -417,7 +417,7 @@ struct APIGatewayAPIBrowserView: View {
                 }
                 .contextMenu {
                     Button("Copy Stage Name") { copyToClipboard(stage.stageName) }
-                    Button("Copy Invoke URL") { copyToClipboard(stage.invokeUrl(apiId: api.id)) }
+                    Button("Copy Invoke URL") { copyToClipboard(stage.invokeUrl(apiId: api.id, domain: appState.apiGatewayDomain, port: endpointPort)) }
                     Button("Copy Path-style URL") { copyToClipboard(stage.pathStyleInvokeUrl(apiId: api.id, endpoint: appState.endpoint)) }
                     Divider()
                     Button("Delete Stage", role: .destructive) {
@@ -496,6 +496,10 @@ struct APIGatewayAPIBrowserView: View {
     }
 
     // MARK: - Helpers
+
+    private var endpointPort: Int? {
+        URLComponents(string: appState.endpoint)?.port
+    }
 
     private func methodColor(_ method: String) -> Color {
         switch method {
