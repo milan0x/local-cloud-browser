@@ -97,7 +97,7 @@ struct SESIdentityListView: View {
     // MARK: - Content
 
     private var identityListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: identities.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading identities...", onRetry: { loadIdentities(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: identities.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading identities...", emptyIcon: "envelope", emptyMessage: "No identities", onRetry: { loadIdentities(force: true) }) {
             VStack(spacing: 0) {
                 if identities.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter identities")
@@ -106,10 +106,6 @@ struct SESIdentityListView: View {
                     Divider()
                 }
                 List(selection: $selectedIdentityIDs) {
-                    if identities.isEmpty {
-                        EmptyStateView(icon: "envelope", message: "No identities")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredIdentities) { identity in
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {

@@ -102,7 +102,7 @@ struct EventBridgeBusListView: View {
     // MARK: - Content
 
     private var busListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: buses.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading event buses...", onRetry: { loadBuses(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: buses.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading event buses...", emptyIcon: "bolt.horizontal", emptyMessage: "No event buses", onRetry: { loadBuses(force: true) }) {
             VStack(spacing: 0) {
                 if buses.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter event buses")
@@ -111,10 +111,6 @@ struct EventBridgeBusListView: View {
                     Divider()
                 }
                 List(selection: $selectedBusIDs) {
-                    if buses.isEmpty {
-                        EmptyStateView(icon: "bolt.horizontal", message: "No event buses")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredBuses) { bus in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(bus.name)

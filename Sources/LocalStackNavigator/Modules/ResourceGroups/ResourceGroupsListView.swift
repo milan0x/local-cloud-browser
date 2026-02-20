@@ -92,7 +92,7 @@ struct ResourceGroupsListView: View {
     // MARK: - Content
 
     private var listContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: groups.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading resource groups...", onRetry: { loadGroups(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: groups.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading resource groups...", emptyIcon: "square.3.layers.3d", emptyMessage: "No resource groups", onRetry: { loadGroups(force: true) }) {
             VStack(spacing: 0) {
                 if groups.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter groups")
@@ -101,10 +101,6 @@ struct ResourceGroupsListView: View {
                     Divider()
                 }
                 List(selection: $selectedGroupIDs) {
-                    if groups.isEmpty {
-                        EmptyStateView(icon: "square.3.layers.3d", message: "No resource groups")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredGroups) { group in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(group.name)

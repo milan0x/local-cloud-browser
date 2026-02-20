@@ -95,7 +95,7 @@ struct StepFunctionsStateMachineListView: View {
     // MARK: - Content
 
     private var listContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: machines.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading state machines...", onRetry: { loadMachines(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: machines.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading state machines...", emptyIcon: "arrow.triangle.branch", emptyMessage: "No state machines", onRetry: { loadMachines(force: true) }) {
             VStack(spacing: 0) {
                 if machines.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter state machines")
@@ -104,10 +104,6 @@ struct StepFunctionsStateMachineListView: View {
                     Divider()
                 }
                 List(selection: $selectedIDs) {
-                    if machines.isEmpty {
-                        EmptyStateView(icon: "arrow.triangle.branch", message: "No state machines")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredMachines) { machine in
                     HStack {
                         Text(machine.name)

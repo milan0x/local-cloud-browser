@@ -98,7 +98,7 @@ struct LambdaFunctionListView: View {
     // MARK: - Content
 
     private var functionListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: functions.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading functions...", onRetry: { loadFunctions(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: functions.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading functions...", emptyIcon: "function", emptyMessage: "No functions", onRetry: { loadFunctions(force: true) }) {
             VStack(spacing: 0) {
                 if functions.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter functions")
@@ -107,10 +107,6 @@ struct LambdaFunctionListView: View {
                     Divider()
                 }
                 List(selection: $selectedFunctionIDs) {
-                    if functions.isEmpty {
-                        EmptyStateView(icon: "function", message: "No functions")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredFunctions) { function in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(function.functionName)

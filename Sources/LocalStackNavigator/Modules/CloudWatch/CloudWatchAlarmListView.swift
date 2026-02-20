@@ -86,7 +86,7 @@ struct CloudWatchAlarmListView: View {
     }
 
     private var listContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: alarms.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading alarms...", onRetry: { loadAlarms(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: alarms.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading alarms...", emptyIcon: "bell", emptyMessage: "No alarms", onRetry: { loadAlarms(force: true) }) {
             VStack(spacing: 0) {
                 if alarms.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter alarms")
@@ -95,10 +95,6 @@ struct CloudWatchAlarmListView: View {
                     Divider()
                 }
                 List(selection: $selectedAlarmIDs) {
-                    if alarms.isEmpty {
-                        EmptyStateView(icon: "bell", message: "No alarms")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredAlarms) { alarm in
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {

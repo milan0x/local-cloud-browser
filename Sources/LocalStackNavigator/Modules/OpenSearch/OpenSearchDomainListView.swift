@@ -92,7 +92,7 @@ struct OpenSearchDomainListView: View {
     // MARK: - Content
 
     private var domainListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: domains.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading domains...", onRetry: { loadDomains(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: domains.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading domains...", emptyIcon: "magnifyingglass.circle", emptyMessage: "No domains", onRetry: { loadDomains(force: true) }) {
             VStack(spacing: 0) {
                 if domains.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter domains")
@@ -101,10 +101,6 @@ struct OpenSearchDomainListView: View {
                     Divider()
                 }
                 List(selection: $selectedDomainIDs) {
-                    if domains.isEmpty {
-                        EmptyStateView(icon: "magnifyingglass.circle", message: "No domains")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredDomains) { domain in
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {

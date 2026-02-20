@@ -100,7 +100,7 @@ struct KMSKeyListView: View {
     // MARK: - Content
 
     private var keyListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: keys.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading keys...", onRetry: { loadKeys(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: keys.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading keys...", emptyIcon: "lock.shield", emptyMessage: "No keys", onRetry: { loadKeys(force: true) }) {
             VStack(spacing: 0) {
                 if keys.count > 5 {
                     SearchBarView(query: $searchText, placeholder: "Filter keys")
@@ -109,10 +109,6 @@ struct KMSKeyListView: View {
                     Divider()
                 }
                 List(selection: $selectedKeyIDs) {
-                    if keys.isEmpty {
-                        EmptyStateView(icon: "lock.shield", message: "No keys")
-                            .listRowSeparator(.hidden)
-                    }
                     ForEach(filteredKeys) { key in
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
