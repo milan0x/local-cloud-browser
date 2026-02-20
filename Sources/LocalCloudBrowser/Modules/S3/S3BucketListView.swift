@@ -173,7 +173,7 @@ struct S3BucketListView: View {
                     }
                     List(selection: $selectedBucketIDs) {
                         ForEach(filteredBuckets) { bucket in
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: 3) {
                                 Text(bucket.name)
                                     .fontWeight(.medium)
                                 if let date = bucket.creationDate {
