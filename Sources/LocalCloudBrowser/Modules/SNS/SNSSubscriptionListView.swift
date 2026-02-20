@@ -111,7 +111,7 @@ struct SNSSubscriptionListView: View {
 
             Spacer()
 
-            SearchBarView(query: $searchQuery, placeholder: "Search subscriptions", focusTrigger: searchFocusTrigger)
+            SearchBarView(query: $searchQuery, placeholder: "Filter subscriptions", focusTrigger: searchFocusTrigger)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

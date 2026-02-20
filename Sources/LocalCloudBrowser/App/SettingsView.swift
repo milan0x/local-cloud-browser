@@ -1,28 +1,6 @@
 import SwiftUI
 
-private enum SettingsTab: String, CaseIterable, Identifiable {
-    case general
-    case s3
-
-    var id: String { rawValue }
-
-    var displayName: String {
-        switch self {
-        case .general: "General"
-        case .s3: "S3"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .general: "gear"
-        case .s3: "externaldrive"
-        }
-    }
-}
-
 struct SettingsView: View {
-    @State private var selectedTab: SettingsTab = .general
     @AppStorage("showFolderDetailsOnDelete") private var showFolderDetailsOnDelete = false
     @AppStorage(AppPreferences.restoreLastSessionKey) private var restoreLastSession = true
     @AppStorage(AppPreferences.doubleClickHidesJsonHelperKey) private var doubleClickHidesJsonHelper = false
@@ -31,27 +9,18 @@ struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
 
     var body: some View {
-        HStack(spacing: 0) {
-            List(SettingsTab.allCases, selection: $selectedTab) { tab in
-                Label(tab.displayName, systemImage: tab.systemImage)
-                    .tag(tab)
-            }
-            .listStyle(.sidebar)
-            .frame(width: 150)
-
-            Divider()
-
-            Group {
-                switch selectedTab {
-                case .general:
-                    generalSettings
-                case .s3:
-                    s3Settings
+        TabView {
+            generalSettings
+                .tabItem {
+                    Label("General", systemImage: "gear")
                 }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            s3Settings
+                .tabItem {
+                    Label("S3", systemImage: "externaldrive")
+                }
         }
-        .frame(width: 720, height: 600)
+        .frame(width: 500, height: 420)
     }
 
     // MARK: - General
