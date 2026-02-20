@@ -11,7 +11,7 @@ Native macOS SwiftUI application for managing LocalStack AWS environments. Provi
 
 ## Project Structure
 ```
-Sources/LocalStackNavigator/
+Sources/LocalCloudBrowser/
 ├── App/           — Entry point and global state
 ├── Navigation/    — Sidebar, content shell, route enum
 ├── Modules/       — Service modules (protocol + per-service views)
@@ -24,9 +24,9 @@ Sources/LocalStackNavigator/
 - `App/AppState.swift` — Global ObservableObject; holds connection state, endpoint, read-only flag, selected route
 - `Navigation/Route.swift` — Enum of all navigable services
 - `Navigation/ContentView.swift` — Main NavigationSplitView shell
-- `Modules/LocalStackModule.swift` — Protocol all service modules conform to
+- `Modules/ServiceModule.swift` — Protocol all service modules conform to
 - `Safety/SafetyGuard.swift` — Validates endpoints are local
-- `Networking/LocalStackClient.swift` — Async HTTP client with read-only guard
+- `Networking/CloudClient.swift` — Async HTTP client with read-only guard
 
 ## Conventions
 - All UI state flows through `AppState` via `@EnvironmentObject`
