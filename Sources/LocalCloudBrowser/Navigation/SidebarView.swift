@@ -303,6 +303,22 @@ struct SidebarView: View {
                     }
                     .frame(maxHeight: 240)
                 }
+            } else {
+                Text("Connected")
+                    .font(.headline)
+
+                Divider()
+
+                HStack {
+                    Text("Endpoint")
+                        .font(.body)
+                    Spacer()
+                    Text(appState.endpoint)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 2)
+                .padding(.horizontal, 2)
             }
         }
         .padding(12)

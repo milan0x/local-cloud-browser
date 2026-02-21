@@ -31,7 +31,7 @@ final class AppState: ObservableObject {
     @Published var apiGatewayDomain: String = ConnectionProfile.defaultApiGatewayDomain
     @Published var selectedRoute: Route? = nil
     @Published var region: String = "us-east-1"
-    @Published var activeConnectionName: String = "default connection"
+    @Published var activeConnectionName: String = "My Connection"
     @Published var connectionVersion: Int = 0
     @Published var connectionError: ConnectionError?
     @Published var s3Clipboard: S3Clipboard?
@@ -86,7 +86,14 @@ final class AppState: ObservableObject {
     }
 
     private func performHealthCheck() async {
-        guard let url = URL(string: endpoint + "/" + healthPath) else {
+        let healthURL: String
+        if healthPath.trimmingCharacters(in: .whitespaces).isEmpty {
+            healthURL = endpoint
+        } else {
+            healthURL = endpoint.hasSuffix("/") ? endpoint + healthPath : endpoint + "/" + healthPath
+        }
+
+        guard let url = URL(string: healthURL) else {
             connectionStatus = .disconnected
             healthInfo = nil
             return
@@ -102,7 +109,7 @@ final class AppState: ObservableObject {
                 defer { session.invalidateAndCancel() }
                 do {
                     let (data, response) = try await session.data(from: url)
-                    if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+                    if let httpResponse = response as? HTTPURLResponse, !(200..<300).contains(httpResponse.statusCode) {
                         return (.disconnected, nil, .httpError(httpResponse.statusCode))
                     }
 

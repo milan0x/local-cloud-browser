@@ -1,9 +1,9 @@
 import Foundation
 
 struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
-    static let defaultHealthPath = "_localstack/health"
-    static let defaultS3Domain = "s3.localhost.localstack.cloud"
-    static let defaultApiGatewayDomain = "execute-api.localhost.localstack.cloud"
+    static let defaultHealthPath = ""
+    static let defaultS3Domain = ""
+    static let defaultApiGatewayDomain = ""
 
     var id: UUID
     var name: String
@@ -23,7 +23,7 @@ struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
 
     init(
         id: UUID = UUID(),
-        name: String = "default connection",
+        name: String = "My Connection",
         endpoint: String = "http://localhost:4566",
         region: String = "us-east-1",
         accessKeyId: String = "test",

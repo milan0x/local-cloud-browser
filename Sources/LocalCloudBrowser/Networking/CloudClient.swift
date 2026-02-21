@@ -50,7 +50,8 @@ final class CloudClient: ObservableObject {
     /// S3 base URL using virtual-hosted-style routing.
     /// Rewrites `http://localhost:4566` → `http://<s3Domain>:4566`.
     var s3BaseURL: String {
-        guard let components = URLComponents(string: appState.endpoint),
+        guard !appState.s3Domain.isEmpty,
+              let components = URLComponents(string: appState.endpoint),
               let host = components.host?.lowercased() else {
             return appState.endpoint
         }
