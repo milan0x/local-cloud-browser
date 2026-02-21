@@ -4,13 +4,16 @@ struct AWSRegionPicker: View {
     @Binding var regionCode: String
 
     var body: some View {
-        Picker(selection: $regionCode) {
+        Menu {
             ForEach(AWSRegion.allRegions, id: \.code) { region in
-                Text("\(region.code) — \(region.displayName)")
-                    .tag(region.code)
+                Button {
+                    regionCode = region.code
+                } label: {
+                    Text("\(region.code) — \(region.displayName)")
+                }
             }
         } label: {
-            EmptyView()
+            Text(regionCode)
         }
     }
 }
