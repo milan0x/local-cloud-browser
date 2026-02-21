@@ -11,20 +11,13 @@ enum ConnectionError {
     case networkError(String)
 }
 
-struct ServiceHealth: Identifiable, Equatable {
-    let id: String   // service name (e.g. "s3", "sqs")
-    let status: String // raw value (e.g. "running", "error", "disabled")
-
-    var isHealthy: Bool { status == "available" || status == "running" }
+struct HealthEntry: Identifiable, Equatable {
+    let id: String   // key name
+    let value: String // display value
 }
 
 struct HealthInfo: Equatable {
-    let version: String
-    let edition: String
-    let services: [ServiceHealth]
-
-    var unhealthyServices: [ServiceHealth] { services.filter { !$0.isHealthy } }
-    var hasIssues: Bool { !unhealthyServices.isEmpty }
+    let entries: [HealthEntry]
 }
 
 @MainActor
@@ -117,14 +110,24 @@ final class AppState: ObservableObject {
                         return (.connected, nil, nil)
                     }
 
-                    let version = json["version"] as? String ?? "unknown"
-                    let edition = json["edition"] as? String ?? "unknown"
-                    let servicesDict = json["services"] as? [String: String] ?? [:]
-                    let services = servicesDict
-                        .map { ServiceHealth(id: $0.key, status: $0.value) }
-                        .sorted { $0.id < $1.id }
+                    let entries = json
+                        .sorted { $0.key < $1.key }
+                        .compactMap { key, value -> HealthEntry? in
+                            if let stringValue = value as? String {
+                                return HealthEntry(id: key, value: stringValue)
+                            } else if let number = value as? NSNumber {
+                                return HealthEntry(id: key, value: "\(number)")
+                            } else if let dict = value as? [String: Any] {
+                                return HealthEntry(id: key, value: "\(dict.count) items")
+                            } else if let array = value as? [Any] {
+                                return HealthEntry(id: key, value: "\(array.count) items")
+                            } else if let bool = value as? Bool {
+                                return HealthEntry(id: key, value: bool ? "true" : "false")
+                            }
+                            return nil
+                        }
 
-                    return (.connected, HealthInfo(version: version, edition: edition, services: services), nil)
+                    return (.connected, HealthInfo(entries: entries), nil)
                 } catch {
                     return (.disconnected, nil, .networkError(error.localizedDescription))
                 }

@@ -193,22 +193,18 @@ struct SidebarView: View {
         }
     }
 
-    private var hasIssues: Bool {
-        appState.healthInfo?.hasIssues ?? false
-    }
-
     private var healthStatusButton: some View {
         Button {
             showHealthWarning.toggle()
         } label: {
-            Image(systemName: hasIssues ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+            Image(systemName: "checkmark.circle.fill")
                 .font(.caption2)
-                .foregroundStyle(hasIssues ? Color.orange : Color.green)
+                .foregroundStyle(Color.green)
                 .padding(4)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(hasIssues ? "Some services have issues" : "Connected to \(appState.endpoint)")
+        .help("Connected to \(appState.endpoint)")
         .popover(isPresented: $showHealthWarning, arrowEdge: .top) {
             healthPopover
         }
@@ -284,53 +280,33 @@ struct SidebarView: View {
 
                 Divider()
 
-                healthRow("edition", info.edition)
-                healthRow("version", info.version)
-
-                Divider()
-
-                ScrollView {
-                    VStack(spacing: 0) {
-                        ForEach(info.services) { service in
-                            HStack {
-                                Text(service.id)
-                                    .font(.body)
-                                Spacer()
-                                Text(service.status)
-                                    .font(.caption)
-                                    .foregroundStyle(serviceStatusColor(for: service))
+                if info.entries.isEmpty {
+                    Text("No data returned")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            ForEach(info.entries) { entry in
+                                HStack {
+                                    Text(entry.id)
+                                        .font(.body)
+                                    Spacer()
+                                    Text(entry.value)
+                                        .font(.callout)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(.vertical, 4)
+                                .padding(.horizontal, 2)
                             }
-                            .padding(.vertical, 4)
-                            .padding(.horizontal, 2)
                         }
                     }
+                    .frame(maxHeight: 240)
                 }
-                .frame(maxHeight: 240)
             }
         }
         .padding(12)
         .frame(width: 280)
-    }
-
-    private func healthRow(_ key: String, _ value: String) -> some View {
-        HStack {
-            Text(key)
-                .font(.body)
-            Spacer()
-            Text(value)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 2)
-        .padding(.horizontal, 2)
-    }
-
-    private func serviceStatusColor(for service: ServiceHealth) -> Color {
-        if service.isHealthy { return .green }
-        switch service.status {
-        case "error", "disabled": return .red
-        default: return .orange
-        }
     }
 
     private var collapsedCategories: Set<String> {
