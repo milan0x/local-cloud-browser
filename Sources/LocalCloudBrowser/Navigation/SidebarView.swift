@@ -3,6 +3,7 @@ import SwiftUI
     private struct EditorSheet: Identifiable {
         let id = UUID()
         let profile: ConnectionProfile?
+        var showAdvanced: Bool = false
     }
 
 struct SidebarView: View {
@@ -71,10 +72,19 @@ struct SidebarView: View {
                 }
             }
         }
+        .onChange(of: appState.editActiveProfileRequest != nil) {
+            if let request = appState.editActiveProfileRequest {
+                appState.editActiveProfileRequest = nil
+                if let profile = profileStore.activeProfile {
+                    editorSheet = EditorSheet(profile: profile, showAdvanced: request.showAdvanced)
+                }
+            }
+        }
         .sheet(item: $editorSheet) { sheet in
             ConnectionProfileEditorView(
                 existing: sheet.profile,
                 canDelete: sheet.profile != nil && profileStore.profiles.count > 1 && !profileStore.isDefaultProfile(sheet.profile!.id),
+                showAdvanced: sheet.showAdvanced,
                 onSave: { profile in
                     if sheet.profile != nil {
                         profileStore.update(profile)

@@ -18,6 +18,9 @@ struct ConnectionProfileEditorView: View {
     @State private var apiGatewayDomain: String
     @State private var testResult: TestResult?
     @State private var isTesting = false
+    @State private var isDetecting = false
+    @State private var detectedFields: Set<String> = []
+    @State private var notDetectedFields: [String] = []
     @State private var showDeleteConfirmation = false
     @State private var showAdvanced = false
     @FocusState private var focusedField: String?
@@ -27,7 +30,7 @@ struct ConnectionProfileEditorView: View {
         case failure(String)
     }
 
-    init(existing: ConnectionProfile? = nil, canDelete: Bool = false, onSave: @escaping (ConnectionProfile) -> Void, onDelete: (() -> Void)? = nil) {
+    init(existing: ConnectionProfile? = nil, canDelete: Bool = false, showAdvanced: Bool = false, onSave: @escaping (ConnectionProfile) -> Void, onDelete: (() -> Void)? = nil) {
         self.existing = existing
         self.canDelete = canDelete
         self.onSave = onSave
@@ -40,6 +43,7 @@ struct ConnectionProfileEditorView: View {
         _healthPath = State(initialValue: existing?.healthPath ?? "")
         _s3Domain = State(initialValue: existing?.s3Domain ?? "")
         _apiGatewayDomain = State(initialValue: existing?.apiGatewayDomain ?? "")
+        _showAdvanced = State(initialValue: showAdvanced)
     }
 
     private var isValid: Bool {
@@ -64,36 +68,42 @@ struct ConnectionProfileEditorView: View {
                     .textFieldStyle(.roundedBorder)
 
                 DisclosureGroup(isExpanded: $showAdvanced) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Health Check Path")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                        TextField("", text: $healthPath, prompt: Text("e.g. health"))
-                            .textFieldStyle(.roundedBorder)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("S3 Domain")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                        TextField("", text: $s3Domain, prompt: Text("e.g. s3.localhost"))
-                            .textFieldStyle(.roundedBorder)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("API Gateway Domain")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                        TextField("", text: $apiGatewayDomain, prompt: Text("e.g. execute-api.localhost"))
-                            .textFieldStyle(.roundedBorder)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    advancedField(
+                        label: "Health Check Path",
+                        text: $healthPath,
+                        prompt: "e.g. health",
+                        fieldKey: "healthPath"
+                    )
+                    advancedField(
+                        label: "S3 Domain",
+                        text: $s3Domain,
+                        prompt: "e.g. s3.localhost",
+                        fieldKey: "s3Domain"
+                    )
+                    advancedField(
+                        label: "API Gateway Domain",
+                        text: $apiGatewayDomain,
+                        prompt: "e.g. execute-api.localhost",
+                        fieldKey: "apiGatewayDomain"
+                    )
                 } label: {
-                    Text("Advanced")
-                        .onTapGesture { showAdvanced.toggle() }
+                    HStack(spacing: 6) {
+                        Text("Advanced")
+                        if isDetecting {
+                            ProgressView()
+                                .controlSize(.mini)
+                        }
+                    }
+                    .onTapGesture { showAdvanced.toggle() }
                 }
 
                 Section {
+                    if testResult == nil && !isTesting {
+                        Label("Testing is recommended to auto-detect settings", systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+
                     HStack {
                         Button {
                             testConnection()
@@ -111,6 +121,10 @@ struct ConnectionProfileEditorView: View {
                         if let result = testResult {
                             testResultLabel(result)
                         }
+                    }
+
+                    if !detectedFields.isEmpty || !notDetectedFields.isEmpty {
+                        detectionSummary
                     }
                 }
 
@@ -186,6 +200,56 @@ struct ConnectionProfileEditorView: View {
         }
     }
 
+    @ViewBuilder
+    private func advancedField(label: String, text: Binding<String>, prompt: String, fieldKey: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Text(label)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                if detectedFields.contains(fieldKey) {
+                    Text("Auto-detected")
+                        .font(.caption2)
+                        .foregroundStyle(.blue)
+                }
+            }
+            TextField("", text: Binding(
+                get: { text.wrappedValue },
+                set: { newValue in
+                    text.wrappedValue = newValue
+                    detectedFields.remove(fieldKey)
+                }
+            ), prompt: Text(prompt))
+                .textFieldStyle(.roundedBorder)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var detectionSummary: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(Array(detectedFields).sorted(), id: \.self) { field in
+                Label(fieldLabel(for: field), systemImage: "checkmark")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+            }
+            ForEach(notDetectedFields, id: \.self) { field in
+                Label(fieldLabel(for: field), systemImage: "minus")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func fieldLabel(for key: String) -> String {
+        switch key {
+        case "healthPath": return "Health Path"
+        case "s3Domain": return "S3 Domain"
+        case "apiGatewayDomain": return "API Gateway Domain"
+        default: return key
+        }
+    }
+
     private func testConnection() {
         let trimmedPath = healthPath.trimmingCharacters(in: .whitespaces)
         let testURL: String
@@ -201,6 +265,9 @@ struct ConnectionProfileEditorView: View {
 
         isTesting = true
         testResult = nil
+        detectedFields = []
+        notDetectedFields = []
+        showAdvanced = true
         Log.info("Testing connection to \(url.absoluteString)", category: "Connection")
 
         Task {
@@ -225,6 +292,10 @@ struct ConnectionProfileEditorView: View {
                     }
                     Log.info("Test connection OK: \(endpoint) -> \(http.statusCode)\(version)", category: "Connection")
                     testResult = .success("Connected\(version)")
+
+                    if SafetyGuard.evaluate(endpoint: endpoint) == .local {
+                        detectAdvancedSettings()
+                    }
                 } else {
                     Log.warn("Test connection failed: \(endpoint) -> HTTP \(http.statusCode)", category: "Connection")
                     testResult = .failure("HTTP \(http.statusCode)")
@@ -234,6 +305,45 @@ struct ConnectionProfileEditorView: View {
                 testResult = .failure(error.localizedDescription)
             }
             isTesting = false
+        }
+    }
+
+    private func detectAdvancedSettings() {
+        isDetecting = true
+        detectedFields = []
+        notDetectedFields = []
+
+        var probed: [String] = []
+        if healthPath.trimmingCharacters(in: .whitespaces).isEmpty { probed.append("healthPath") }
+        if s3Domain.trimmingCharacters(in: .whitespaces).isEmpty { probed.append("s3Domain") }
+        if apiGatewayDomain.trimmingCharacters(in: .whitespaces).isEmpty { probed.append("apiGatewayDomain") }
+
+        Task {
+            let result = await EndpointDetector.detect(
+                endpoint: endpoint,
+                currentHealthPath: healthPath,
+                currentS3Domain: s3Domain,
+                currentApiGatewayDomain: apiGatewayDomain
+            )
+
+            var filled: Set<String> = []
+            if let value = result.healthPath {
+                healthPath = value
+                filled.insert("healthPath")
+            }
+            if let value = result.s3Domain {
+                s3Domain = value
+                filled.insert("s3Domain")
+            }
+            if let value = result.apiGatewayDomain {
+                apiGatewayDomain = value
+                filled.insert("apiGatewayDomain")
+            }
+
+            detectedFields = filled
+            notDetectedFields = probed.filter { !filled.contains($0) }
+            showAdvanced = true
+            isDetecting = false
         }
     }
 

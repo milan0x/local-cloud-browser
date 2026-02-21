@@ -112,6 +112,11 @@ struct S3BucketListView: View {
             loader.items = []
             loadBuckets(force: true)
         }
+        .onChange(of: appState.s3Domain) {
+            if loader.errorMessage != nil {
+                loadBuckets(force: true)
+            }
+        }
         .syncSelection(selectedBucketIDs, items: buckets, activeItem: $activeBucket)
         .onChange(of: paneFocusTrigger) {
             isListFocused = true
@@ -154,7 +159,9 @@ struct S3BucketListView: View {
     // MARK: - Content
 
     private var bucketListContent: some View {
-        ListLoadingContent(isLoading: loader.isLoading, isEmpty: buckets.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading buckets...", onRetry: { loadBuckets(force: true) }) {
+        ListLoadingContent(isLoading: loader.isLoading, isEmpty: buckets.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading buckets...", onRetry: { loadBuckets(force: true) }, errorContent: { msg in
+            S3ConfigHintView(errorMessage: msg, onRetry: { loadBuckets(force: true) })
+        }) {
             if buckets.isEmpty {
                 EmptyStateView(icon: "externaldrive", message: "No buckets")
                 .contextMenu {

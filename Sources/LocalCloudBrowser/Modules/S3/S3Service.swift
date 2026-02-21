@@ -10,7 +10,7 @@ final class S3Service: BaseService {
     func createBucket(name: String, region: String? = nil) async throws {
         var body: Data?
         var contentType: String?
-        if let region, !region.isEmpty {
+        if let region, !region.isEmpty, region != "us-east-1" {
             let xml = """
                 <CreateBucketConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
                     <LocationConstraint>\(region)</LocationConstraint>
