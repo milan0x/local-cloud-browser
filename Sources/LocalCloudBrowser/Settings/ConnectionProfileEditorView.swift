@@ -37,9 +37,9 @@ struct ConnectionProfileEditorView: View {
         _region = State(initialValue: existing?.region ?? "us-east-1")
         _accessKeyId = State(initialValue: existing?.accessKeyId ?? "test")
         _secretAccessKey = State(initialValue: existing?.secretAccessKey ?? "test")
-        _healthPath = State(initialValue: Self.customOrEmpty(existing?.healthPath, default: ConnectionProfile.defaultHealthPath))
-        _s3Domain = State(initialValue: Self.customOrEmpty(existing?.s3Domain, default: ConnectionProfile.defaultS3Domain))
-        _apiGatewayDomain = State(initialValue: Self.customOrEmpty(existing?.apiGatewayDomain, default: ConnectionProfile.defaultApiGatewayDomain))
+        _healthPath = State(initialValue: existing?.healthPath ?? "")
+        _s3Domain = State(initialValue: existing?.s3Domain ?? "")
+        _apiGatewayDomain = State(initialValue: existing?.apiGatewayDomain ?? "")
     }
 
     private var isValid: Bool {
@@ -52,17 +52,42 @@ struct ConnectionProfileEditorView: View {
             Form {
                 TextField("Name", text: $name)
                     .focused($focusedField, equals: "name")
+                    .textFieldStyle(.roundedBorder)
                 TextField("Endpoint", text: $endpoint)
+                    .textFieldStyle(.roundedBorder)
                 LabeledContent("Default Region") {
                     AWSRegionPicker(regionCode: $region)
                 }
                 TextField("Access Key ID", text: $accessKeyId)
+                    .textFieldStyle(.roundedBorder)
                 SecureField("Secret Access Key", text: $secretAccessKey)
+                    .textFieldStyle(.roundedBorder)
 
                 DisclosureGroup(isExpanded: $showAdvanced) {
-                    TextField("Health Check Path", text: $healthPath, prompt: Text("e.g. health"))
-                    TextField("S3 Domain", text: $s3Domain, prompt: Text("e.g. s3.localhost"))
-                    TextField("API Gateway Domain", text: $apiGatewayDomain, prompt: Text("e.g. execute-api.localhost"))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Health Check Path")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        TextField("", text: $healthPath, prompt: Text("e.g. health"))
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("S3 Domain")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        TextField("", text: $s3Domain, prompt: Text("e.g. s3.localhost"))
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("API Gateway Domain")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        TextField("", text: $apiGatewayDomain, prompt: Text("e.g. execute-api.localhost"))
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 } label: {
                     Text("Advanced")
                         .onTapGesture { showAdvanced.toggle() }
@@ -121,9 +146,9 @@ struct ConnectionProfileEditorView: View {
                         region: region,
                         accessKeyId: accessKeyId,
                         secretAccessKey: secretAccessKey,
-                        healthPath: Self.valueOrDefault(healthPath, default: ConnectionProfile.defaultHealthPath),
-                        s3Domain: Self.valueOrDefault(s3Domain, default: ConnectionProfile.defaultS3Domain),
-                        apiGatewayDomain: Self.valueOrDefault(apiGatewayDomain, default: ConnectionProfile.defaultApiGatewayDomain)
+                        healthPath: healthPath.trimmingCharacters(in: .whitespaces),
+                        s3Domain: s3Domain.trimmingCharacters(in: .whitespaces),
+                        apiGatewayDomain: apiGatewayDomain.trimmingCharacters(in: .whitespaces)
                     )
                     onSave(profile)
                     dismiss()
@@ -162,10 +187,14 @@ struct ConnectionProfileEditorView: View {
     }
 
     private func testConnection() {
-        let path = Self.valueOrDefault(healthPath, default: ConnectionProfile.defaultHealthPath)
-        guard let url = URL(string: endpoint.hasSuffix("/")
-            ? endpoint + path
-            : endpoint + "/" + path) else {
+        let trimmedPath = healthPath.trimmingCharacters(in: .whitespaces)
+        let testURL: String
+        if trimmedPath.isEmpty {
+            testURL = endpoint
+        } else {
+            testURL = endpoint.hasSuffix("/") ? endpoint + trimmedPath : endpoint + "/" + trimmedPath
+        }
+        guard let url = URL(string: testURL) else {
             testResult = .failure("Invalid URL")
             return
         }
@@ -208,15 +237,4 @@ struct ConnectionProfileEditorView: View {
         }
     }
 
-    /// Returns empty string when the value matches the default, so the placeholder shows through.
-    private static func customOrEmpty(_ value: String?, default fallback: String) -> String {
-        guard let value else { return "" }
-        return value == fallback ? "" : value
-    }
-
-    /// Returns the default when the field is blank.
-    private static func valueOrDefault(_ value: String, default fallback: String) -> String {
-        let trimmed = value.trimmingCharacters(in: .whitespaces)
-        return trimmed.isEmpty ? fallback : trimmed
-    }
 }
