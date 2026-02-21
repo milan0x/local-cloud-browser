@@ -265,6 +265,11 @@ struct S3ObjectBrowserView: View {
             Divider()
             contentArea
         }
+        .onChange(of: appState.s3Domain) {
+            if errorMessage != nil {
+                loadObjects(force: true)
+            }
+        }
         .onChange(of: paneFocusTrigger) {
             isTableFocused = true
             let selectable = sortedRowItems.filter { $0.id != Self.parentRowID }
@@ -487,15 +492,7 @@ struct S3ObjectBrowserView: View {
             ProgressView("Loading objects...")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let errorMessage {
-            VStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(errorMessage)
-                    .foregroundStyle(.secondary)
-                Button("Retry") { loadObjects() }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            S3ConfigHintView(errorMessage: errorMessage, onRetry: { loadObjects() })
         } else if rowItems.isEmpty && !isSearchActive {
             EmptyStateView(icon: "folder", message: "Empty")
             .contextMenu {

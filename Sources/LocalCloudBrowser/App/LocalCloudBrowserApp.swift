@@ -21,6 +21,27 @@ struct LocalCloudBrowserApp: App {
 
         let state = AppState()
         let store = ConnectionProfileStore()
+        state.onSettingsDetected = { [weak store] profileId, detected in
+            guard let store else { return }
+            guard var profile = store.profiles.first(where: { $0.id == profileId }) else { return }
+            var changed = false
+            if let value = detected.healthPath, profile.healthPath.trimmingCharacters(in: .whitespaces).isEmpty {
+                profile.healthPath = value
+                changed = true
+            }
+            if let value = detected.s3Domain, profile.s3Domain.trimmingCharacters(in: .whitespaces).isEmpty {
+                profile.s3Domain = value
+                changed = true
+            }
+            if let value = detected.apiGatewayDomain, profile.apiGatewayDomain.trimmingCharacters(in: .whitespaces).isEmpty {
+                profile.apiGatewayDomain = value
+                changed = true
+            }
+            if changed {
+                store.update(profile)
+                Log.info("Persisted auto-detected settings for \"\(profile.name)\"", category: "App")
+            }
+        }
         if let active = store.activeProfile {
             state.applyProfile(active)
         } else {

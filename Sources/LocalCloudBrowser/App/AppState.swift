@@ -35,6 +35,11 @@ final class AppState: ObservableObject {
     @Published var connectionVersion: Int = 0
     @Published var connectionError: ConnectionError?
     @Published var s3Clipboard: S3Clipboard?
+    @Published var editActiveProfileRequest: EditProfileRequest?
+
+    struct EditProfileRequest {
+        var showAdvanced: Bool = false
+    }
     @Published var previewSizeLimitMB: Int = {
         let stored = UserDefaults.standard.integer(forKey: AppPreferences.previewSizeLimitMBKey)
         return stored > 0 ? stored : AppPreferences.defaultPreviewSizeLimitMB
@@ -55,8 +60,14 @@ final class AppState: ObservableObject {
     @Published var moduleListFocusTrigger = 0
 
     let autoRefresh = AutoRefreshManager()
+    /// Called when auto-detection fills in advanced settings on connect.
+    /// The closure receives the active profile ID and the detected settings so they can be persisted.
+    var onSettingsDetected: ((UUID, DetectedSettings) -> Void)?
     private var healthCheckTask: Task<Void, Never>?
+    private var detectionTask: Task<Void, Never>?
     private var consecutiveFailures = 0
+    private var activeProfileId: UUID?
+    private var hasDetectedForCurrentProfile = false
 
     var previewSizeLimitBytes: Int64 { Int64(previewSizeLimitMB) * 1024 * 1024 }
 
@@ -67,6 +78,9 @@ final class AppState: ObservableObject {
         s3Domain = profile.s3Domain
         apiGatewayDomain = profile.apiGatewayDomain
         activeConnectionName = profile.name
+        activeProfileId = profile.id
+        hasDetectedForCurrentProfile = false
+        detectionTask?.cancel()
         connectionVersion += 1
         connectionStatus = .disconnected
         consecutiveFailures = 0
@@ -160,6 +174,10 @@ final class AppState: ObservableObject {
         }
         if wasDisconnected && result.0 == .connected {
             autoRefresh.triggerNow()
+            if !hasDetectedForCurrentProfile {
+                hasDetectedForCurrentProfile = true
+                runAutoDetection()
+            }
         }
 
         if result.0 == .connected {
@@ -185,6 +203,32 @@ final class AppState: ObservableObject {
         }
         if consecutiveFailures != 0 { consecutiveFailures = 0 }
         if connectionError != nil { connectionError = nil }
+    }
+
+    private func runAutoDetection() {
+        let ep = endpoint
+        let hp = healthPath
+        let s3 = s3Domain
+        let apigw = apiGatewayDomain
+        let profileId = activeProfileId
+
+        detectionTask = Task {
+            let result = await EndpointDetector.detect(
+                endpoint: ep,
+                currentHealthPath: hp,
+                currentS3Domain: s3,
+                currentApiGatewayDomain: apigw
+            )
+            guard !Task.isCancelled, !result.isEmpty else { return }
+
+            if let value = result.healthPath { healthPath = value }
+            if let value = result.s3Domain { s3Domain = value }
+            if let value = result.apiGatewayDomain { apiGatewayDomain = value }
+
+            if let profileId {
+                onSettingsDetected?(profileId, result)
+            }
+        }
     }
 
     var isLocalEndpoint: Bool {
