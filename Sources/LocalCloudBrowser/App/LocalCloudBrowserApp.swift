@@ -71,6 +71,7 @@ struct LocalCloudBrowserApp: App {
         .defaultSize(width: 1100, height: 700)
         .commands {
             S3PasteboardCommands()
+            HelpCommands()
         }
 
         WindowGroup(id: "s3-browser", for: S3BrowserTarget.self) { $target in
