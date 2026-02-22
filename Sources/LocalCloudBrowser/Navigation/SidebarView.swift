@@ -23,8 +23,18 @@ struct SidebarView: View {
             ForEach(Route.grouped, id: \.category) { group in
                 Section(isExpanded: expandedBinding(for: group.category)) {
                     ForEach(group.routes) { route in
-                        Label(route.displayName, systemImage: route.systemImage)
-                            .tag(route)
+                        HStack {
+                            Label(route.displayName, systemImage: route.systemImage)
+                            if route.isPreview {
+                                Text("Preview")
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 1)
+                                    .background(.quaternary, in: Capsule())
+                            }
+                        }
+                        .tag(route)
                     }
                 } header: {
                     Text(group.category.displayName)
