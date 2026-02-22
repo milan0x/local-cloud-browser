@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var profileStore: ConnectionProfileStore
+    @State private var showFeedback = false
 
     var body: some View {
         NavigationSplitView {
@@ -18,6 +19,10 @@ struct ContentView: View {
             ToolbarItem(placement: .automatic) {
                 regionBadge
             }
+        }
+        .focusedSceneValue(\.showFeedback, $showFeedback)
+        .sheet(isPresented: $showFeedback) {
+            FeedbackView()
         }
         .onChange(of: appState.selectedRoute) {
             LastSessionStore.saveRoute(appState.selectedRoute)
