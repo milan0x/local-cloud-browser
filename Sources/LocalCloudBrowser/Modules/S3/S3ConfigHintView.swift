@@ -20,6 +20,13 @@ struct S3ConfigHintView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                Text("Testing the connection can auto-detect this setting.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(errorMessage)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
                 if autoRetryCount < Self.maxAutoRetries {
                     HStack(spacing: 6) {
                         ProgressView()
@@ -63,6 +70,5 @@ struct S3ConfigHintView: View {
 
     private var isS3ConfigError: Bool {
         appState.s3Domain.trimmingCharacters(in: .whitespaces).isEmpty
-            && errorMessage.contains("Failed to parse S3 XML response")
     }
 }
