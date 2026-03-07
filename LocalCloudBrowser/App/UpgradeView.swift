@@ -25,7 +25,7 @@ struct UpgradeView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: 300)
             }
-            .padding(.top, 32)
+            .padding(.top, 20)
 
             Spacer().frame(minHeight: 16, maxHeight: 24)
 
@@ -118,10 +118,10 @@ struct UpgradeView: View {
                 .foregroundStyle(.secondary)
                 .font(.callout)
             }
-            .padding(.bottom, 28)
+            .padding(.bottom, 20)
         }
         .padding(.horizontal, 36)
-        .frame(width: 400, height: 500)
+        .frame(width: 400, height: 460)
         .alert("No Previous Purchase", isPresented: $showRestoreResult) {
             Button("OK") {}
         } message: {
