@@ -27,7 +27,7 @@ struct SidebarView: View {
                         HStack {
                             Label(route.displayName, systemImage: route.systemImage)
                             if route.isPreview {
-                                Text("Preview")
+                                Text("Basic")
                                     .font(.system(size: 9, weight: .medium))
                                     .foregroundStyle(.secondary)
                                     .padding(.horizontal, 5)
