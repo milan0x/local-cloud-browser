@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var profileStore: ConnectionProfileStore
+    @EnvironmentObject private var licenseManager: LicenseManager
     @State private var showFeedback = false
 
     var body: some View {
@@ -17,15 +18,55 @@ struct ContentView: View {
         }
         .toolbar {
             ToolbarItem(placement: .automatic) {
+                licenseBadge
+            }
+            ToolbarItem(placement: .automatic) {
                 regionBadge
             }
         }
         .focusedSceneValue(\.showFeedback, $showFeedback)
+        .focusedSceneValue(\.showUpgrade, $licenseManager.showUpgradeSheet)
         .sheet(isPresented: $showFeedback) {
             FeedbackView()
         }
+        .sheet(isPresented: $licenseManager.showUpgradeSheet) {
+            UpgradeView()
+        }
         .onChange(of: appState.selectedRoute) {
             LastSessionStore.saveRoute(appState.selectedRoute)
+        }
+    }
+
+    @ViewBuilder
+    private var licenseBadge: some View {
+        switch licenseManager.state {
+        case .trial(let daysRemaining):
+            Button {
+                licenseManager.showUpgradeSheet = true
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "clock")
+                        .font(.caption2)
+                    Text("\(daysRemaining) day\(daysRemaining == 1 ? "" : "s") remaining")
+                        .font(.caption)
+                }
+                .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        case .limited:
+            Button {
+                licenseManager.showUpgradeSheet = true
+            } label: {
+                Text("Limited Mode")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.orange)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(.orange.opacity(0.15), in: Capsule())
+            }
+            .buttonStyle(.plain)
+        case .paid:
+            EmptyView()
         }
     }
 

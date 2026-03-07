@@ -7,6 +7,8 @@ struct SettingsView: View {
     @AppStorage(AppPreferences.disableJsonHelperPlaceholdersKey) private var disablePlaceholders = false
     @EnvironmentObject private var autoRefresh: AutoRefreshManager
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
+    @EnvironmentObject private var storeKitManager: StoreKitManager
 
     var body: some View {
         TabView {
@@ -18,6 +20,11 @@ struct SettingsView: View {
             s3Settings
                 .tabItem {
                     Label("S3", systemImage: "externaldrive")
+                }
+
+            licenseSettings
+                .tabItem {
+                    Label("License", systemImage: "checkmark.seal")
                 }
         }
         .frame(width: 500, height: 420)
@@ -73,6 +80,52 @@ struct SettingsView: View {
                 Text("When enabled, double-clicking the read-only editor when the JSON Helper is open will close the helper.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    // MARK: - License
+
+    private var licenseSettings: some View {
+        Form {
+            Section("Status") {
+                HStack {
+                    Text("License")
+                    Spacer()
+                    switch licenseManager.state {
+                    case .trial(let daysRemaining):
+                        Text("Trial — \(daysRemaining) day\(daysRemaining == 1 ? "" : "s") remaining")
+                            .foregroundStyle(.secondary)
+                    case .limited:
+                        Text("Limited Mode")
+                            .foregroundStyle(.orange)
+                    case .paid:
+                        Text("Pro")
+                            .foregroundStyle(.green)
+                    }
+                }
+            }
+
+            if !licenseManager.isPaid {
+                Section {
+                    Button("Purchase Pro") {
+                        licenseManager.showUpgradeSheet = true
+                    }
+                    Button("Restore Purchase") {
+                        Task {
+                            let restored = await storeKitManager.restorePurchases()
+                            if !restored {
+                                licenseManager.showUpgradeSheet = true
+                            }
+                        }
+                    }
+                }
+            } else {
+                Section {
+                    Text("Thank you for supporting Local Cloud Browser.")
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .formStyle(.grouped)

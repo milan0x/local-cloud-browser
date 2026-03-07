@@ -9,6 +9,7 @@ import SwiftUI
 struct SidebarView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var profileStore: ConnectionProfileStore
+    @EnvironmentObject private var licenseManager: LicenseManager
     @State private var showProfilePicker = false
     @State private var showHealthWarning = false
     @State private var showConnectionError = false
@@ -377,12 +378,27 @@ struct SidebarView: View {
 
     private var readOnlyToggle: some View {
         Button {
-            appState.isReadOnly.toggle()
+            if case .limited = licenseManager.state {
+                licenseManager.showUpgradeSheet = true
+            } else {
+                appState.isReadOnly.toggle()
+            }
         } label: {
-            Image(systemName: appState.isReadOnly ? "lock.fill" : "lock.open")
-                .foregroundStyle(appState.isReadOnly ? .orange : .secondary)
+            Image(systemName: isEffectivelyReadOnly ? "lock.fill" : "lock.open")
+                .foregroundStyle(isEffectivelyReadOnly ? .orange : .secondary)
         }
         .buttonStyle(.plain)
-        .help(appState.isReadOnly ? "Read-only mode (click to enable writes)" : "Write mode (click to enable read-only)")
+        .help(readOnlyHelpText)
+    }
+
+    private var isEffectivelyReadOnly: Bool {
+        appState.isReadOnly || !licenseManager.canWrite
+    }
+
+    private var readOnlyHelpText: String {
+        if case .limited = licenseManager.state {
+            return "Read-only — upgrade to Pro to unlock write access"
+        }
+        return appState.isReadOnly ? "Read-only mode (click to enable writes)" : "Write mode (click to enable read-only)"
     }
 }
