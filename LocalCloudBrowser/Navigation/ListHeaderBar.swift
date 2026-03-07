@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ListHeaderBar<Trailing: View>: View {
+    @EnvironmentObject private var licenseManager: LicenseManager
+
     let title: String
     let subtitle: String?
     let autoRefresh: AutoRefreshManager
@@ -42,7 +44,10 @@ struct ListHeaderBar<Trailing: View>: View {
                 onRefresh()
             }
             Spacer()
-            ListHeaderButton("plus", isDisabled: isReadOnly, action: onCreate)
+            ListHeaderButton("plus", action: {
+                guard licenseManager.guardWriteAction() else { return }
+                onCreate()
+            })
             AutoRefreshMenuView(interval: Binding(get: { autoRefresh.interval }, set: { autoRefresh.interval = $0 })) {
                 onRefresh()
             }

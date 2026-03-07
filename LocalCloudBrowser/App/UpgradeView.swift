@@ -25,6 +25,17 @@ struct UpgradeView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: 300)
 
+            HStack(spacing: 6) {
+                Image(systemName: "info.circle.fill")
+                    .foregroundStyle(.blue)
+                Text("You can still browse, send messages, upload files, and interact with existing resources for free.")
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .font(.caption)
+            .padding(10)
+            .frame(maxWidth: 300)
+            .background(.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+
             if let product = storeKitManager.product {
                 Text("\(product.displayPrice) — one-time purchase")
                     .font(.callout)
@@ -84,7 +95,7 @@ struct UpgradeView: View {
             Spacer()
         }
         .padding(32)
-        .frame(width: 380, height: 360)
+        .frame(width: 380, height: 420)
         .alert("No Previous Purchase", isPresented: $showRestoreResult) {
             Button("OK") {}
         } message: {

@@ -5,6 +5,7 @@ struct ContentView: View {
     @EnvironmentObject private var profileStore: ConnectionProfileStore
     @EnvironmentObject private var licenseManager: LicenseManager
     @State private var showFeedback = false
+    @State private var showWelcome = false
 
     var body: some View {
         NavigationSplitView {
@@ -32,6 +33,15 @@ struct ContentView: View {
         .sheet(isPresented: $licenseManager.showUpgradeSheet) {
             UpgradeView()
         }
+        .sheet(isPresented: $showWelcome) {
+            WelcomeView()
+        }
+        .onAppear {
+            if !licenseManager.isPaid && !UserDefaults.standard.bool(forKey: "hasShownWelcome") {
+                UserDefaults.standard.set(true, forKey: "hasShownWelcome")
+                showWelcome = true
+            }
+        }
         .onChange(of: appState.selectedRoute) {
             LastSessionStore.saveRoute(appState.selectedRoute)
         }
@@ -44,7 +54,7 @@ struct ContentView: View {
             Button {
                 licenseManager.showUpgradeSheet = true
             } label: {
-                Text("Free — Read Only")
+                Text("Free")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(.leading, 10)
