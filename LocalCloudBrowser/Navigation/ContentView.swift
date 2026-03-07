@@ -54,14 +54,28 @@ struct ContentView: View {
             Button {
                 licenseManager.showUpgradeSheet = true
             } label: {
-                Text("Free")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .padding(.leading, 10)
-                    .padding(.trailing, 16)
-                    .padding(.top, 6)
-                    .padding(.bottom, 6)
-                    .background(Color(red: 0.45, green: 0.1, blue: 0.1), in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 0))
+                HStack(spacing: 4) {
+                    Image(systemName: "clock")
+                        .font(.system(size: 8, weight: .bold))
+                    let days = licenseManager.trialDaysRemaining
+                    if days > 0 {
+                        Text("Trial — \(days) \(days == 1 ? "day" : "days") left")
+                    } else {
+                        Text("Trial Expired")
+                    }
+                }
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.leading, 10)
+                .padding(.trailing, 16)
+                .padding(.top, 6)
+                .padding(.bottom, 6)
+                .background(
+                    licenseManager.isTrialExpired
+                        ? Color(red: 0.45, green: 0.1, blue: 0.1)
+                        : Color(red: 0.15, green: 0.3, blue: 0.55),
+                    in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 0)
+                )
             }
             .buttonStyle(.plain)
         case .paid:

@@ -25,6 +25,19 @@ struct UpgradeView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: 300)
 
+            if !licenseManager.isPaid {
+                let days = licenseManager.trialDaysRemaining
+                HStack(spacing: 6) {
+                    Image(systemName: days > 0 ? "clock" : "exclamationmark.triangle.fill")
+                        .foregroundStyle(days > 0 ? .orange : .red)
+                    Text(days > 0
+                         ? "\(days) \(days == 1 ? "day" : "days") remaining in your trial"
+                         : "Your trial has expired")
+                }
+                .font(.callout)
+                .fontWeight(.medium)
+            }
+
             HStack(spacing: 6) {
                 Image(systemName: "info.circle.fill")
                     .foregroundStyle(.blue)
