@@ -16,10 +16,10 @@ struct ContentView: View {
                 welcomeView
             }
         }
+        .overlay(alignment: .topTrailing) {
+            licenseBadge
+        }
         .toolbar {
-            ToolbarItem(placement: .automatic) {
-                licenseBadge
-            }
             ToolbarItem(placement: .automatic) {
                 regionBadge
             }
@@ -44,25 +44,24 @@ struct ContentView: View {
             Button {
                 licenseManager.showUpgradeSheet = true
             } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "clock")
-                        .font(.caption2)
-                    Text("\(daysRemaining) day\(daysRemaining == 1 ? "" : "s") remaining")
-                        .font(.caption)
-                }
-                .foregroundStyle(.secondary)
+                Text("Trial — \(daysRemaining) day\(daysRemaining == 1 ? "" : "s") remaining")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.red, in: Rectangle())
             }
             .buttonStyle(.plain)
         case .limited:
             Button {
                 licenseManager.showUpgradeSheet = true
             } label: {
-                Text("Limited Mode")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.orange)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(.orange.opacity(0.15), in: Capsule())
+                Text("Limited")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.red, in: Rectangle())
             }
             .buttonStyle(.plain)
         case .paid:
