@@ -14,9 +14,6 @@ let package = Package(
         .executableTarget(
             name: "LocalCloudBrowser",
             path: "Sources/LocalCloudBrowser",
-            resources: [
-                .process("Resources/Assets.xcassets"),
-            ],
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("Quartz"),
