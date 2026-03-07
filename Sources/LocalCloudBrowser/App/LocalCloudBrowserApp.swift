@@ -57,6 +57,7 @@ struct LocalCloudBrowserApp: App {
         let storeKit = StoreKitManager()
         let license = LicenseManager(storeKit: storeKit)
         license.appState = state
+        license.refreshState()
         storeKit.onPurchaseChange = { [weak license] in
             license?.refreshState()
         }
