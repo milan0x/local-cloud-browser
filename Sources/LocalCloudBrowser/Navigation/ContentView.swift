@@ -45,12 +45,12 @@ struct ContentView: View {
                 licenseManager.showUpgradeSheet = true
             } label: {
                 Text("Trial — \(daysRemaining) day\(daysRemaining == 1 ? "" : "s") remaining")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(.leading, 10)
                     .padding(.trailing, 16)
-                    .padding(.top, 5)
-                    .padding(.bottom, 8)
+                    .padding(.top, 6)
+                    .padding(.bottom, 6)
                     .background(Color.red, in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 0))
             }
             .buttonStyle(.plain)
@@ -59,12 +59,12 @@ struct ContentView: View {
                 licenseManager.showUpgradeSheet = true
             } label: {
                 Text("Limited")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(.leading, 10)
                     .padding(.trailing, 16)
-                    .padding(.top, 5)
-                    .padding(.bottom, 8)
+                    .padding(.top, 6)
+                    .padding(.bottom, 6)
                     .background(Color.red, in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 0))
             }
             .buttonStyle(.plain)

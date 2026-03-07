@@ -376,6 +376,8 @@ struct SidebarView: View {
         collapsedCategories = current
     }
 
+    @State private var isHoveringLock = false
+
     private var readOnlyToggle: some View {
         Button {
             if case .limited = licenseManager.state {
@@ -386,8 +388,12 @@ struct SidebarView: View {
         } label: {
             Image(systemName: isEffectivelyReadOnly ? "lock.fill" : "lock.open")
                 .foregroundStyle(isEffectivelyReadOnly ? .orange : .secondary)
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
+                .background(isHoveringLock ? Color.primary.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
         }
         .buttonStyle(.plain)
+        .onHover { isHoveringLock = $0 }
         .help(readOnlyHelpText)
     }
 
