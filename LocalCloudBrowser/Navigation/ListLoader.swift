@@ -9,6 +9,8 @@ final class ListLoader<Item: Identifiable & Equatable>: ObservableObject {
     private var lastLoadTime: Date?
     private var isFetching = false
 
+    deinit {}
+
     func load(
         force: Bool = false,
         silent: Bool = false,
@@ -25,25 +27,26 @@ final class ListLoader<Item: Identifiable & Equatable>: ObservableObject {
             isLoading = true
             errorMessage = nil
         }
-        Task {
+        Task { [weak self] in
+            guard let self else { return }
             do {
                 let loaded = try await fetch()
                 let fresh = loaded.sorted(by: sort)
-                if items != fresh {
-                    items = fresh
+                if self.items != fresh {
+                    self.items = fresh
                 }
-                if errorMessage != nil { errorMessage = nil }
-                await afterLoad?(items)
+                if self.errorMessage != nil { self.errorMessage = nil }
+                await afterLoad?(self.items)
             } catch {
                 if !silent {
-                    errorMessage = error.localizedDescription
+                    self.errorMessage = error.localizedDescription
                 }
             }
             if !silent {
-                isLoading = false
+                self.isLoading = false
             }
-            lastLoadTime = Date()
-            isFetching = false
+            self.lastLoadTime = Date()
+            self.isFetching = false
         }
     }
 }
