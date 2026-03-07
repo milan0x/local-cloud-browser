@@ -39,15 +39,15 @@ struct UpgradeView: View {
             }
 
             HStack(spacing: 6) {
-                Image(systemName: "info.circle.fill")
-                    .foregroundStyle(.blue)
-                Text("You can still browse, send messages, upload files, and interact with existing resources for free.")
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                Text("Browsing, sending messages, uploading files, and interacting with existing resources is always free — even after your trial ends. Only creating new resources requires Pro.")
                     .fixedSize(horizontal: false, vertical: true)
             }
             .font(.caption)
             .padding(10)
             .frame(maxWidth: 300)
-            .background(.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+            .background(.green.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
 
             if let product = storeKitManager.product {
                 Text("\(product.displayPrice) — one-time purchase")
@@ -108,7 +108,7 @@ struct UpgradeView: View {
             Spacer()
         }
         .padding(32)
-        .frame(width: 380, height: 420)
+        .frame(width: 380, height: 440)
         .alert("No Previous Purchase", isPresented: $showRestoreResult) {
             Button("OK") {}
         } message: {
