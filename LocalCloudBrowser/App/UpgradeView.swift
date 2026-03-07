@@ -8,23 +8,28 @@ struct UpgradeView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(spacing: 20) {
-            Spacer()
+        VStack(spacing: 0) {
+            // MARK: - Header
+            VStack(spacing: 12) {
+                Image(systemName: "cloud.fill")
+                    .font(.system(size: 44))
+                    .foregroundStyle(.tint)
 
-            Image(systemName: "cloud.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.tint)
+                Text("Unlock Full Access")
+                    .font(.title2)
+                    .fontWeight(.semibold)
 
-            Text("Unlock Full Access")
-                .font(.title2)
-                .fontWeight(.semibold)
+                Text("Create, modify, and manage resources across all 28 AWS services with no restrictions.")
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: 300)
+            }
+            .padding(.top, 32)
 
-            Text("Create, modify, and manage resources across all 28 AWS services with no restrictions.")
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: 300)
+            Spacer().frame(minHeight: 16, maxHeight: 24)
 
+            // MARK: - Trial status
             if !licenseManager.isPaid {
                 let days = licenseManager.trialDaysRemaining
                 HStack(spacing: 6) {
@@ -36,32 +41,41 @@ struct UpgradeView: View {
                 }
                 .font(.callout)
                 .fontWeight(.medium)
+
+                Spacer().frame(height: 12)
             }
 
-            HStack(spacing: 6) {
+            // MARK: - Free tier info
+            HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.green)
-                Text("Browsing, sending messages, uploading files, and interacting with existing resources is always free — even after your trial ends. Only creating new resources requires Pro.")
+                    .font(.system(size: 14))
+                    .padding(.top, 1)
+                Text("Browsing, sending messages, uploading files, and interacting with existing resources is always free")
                     .fixedSize(horizontal: false, vertical: true)
             }
             .font(.caption)
-            .padding(10)
+            .padding(12)
             .frame(maxWidth: 300)
             .background(.green.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
 
-            if let product = storeKitManager.product {
-                Text("\(product.displayPrice) — one-time purchase")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+            Spacer().frame(minHeight: 16, maxHeight: 24)
+
+            // MARK: - Price
+            VStack(spacing: 4) {
+                if let product = storeKitManager.product {
+                    Text("\(product.displayPrice) — one-time purchase")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                Text("Pay once, own it forever. No subscriptions.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
 
-            Text("Pay once, own it forever. No subscriptions, no recurring charges.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
+            Spacer().frame(minHeight: 20, maxHeight: 28)
 
-            Spacer()
-
+            // MARK: - Actions
             VStack(spacing: 10) {
                 Button {
                     Task {
@@ -73,7 +87,7 @@ struct UpgradeView: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 10)
                         .background(Color.blue, in: RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)
@@ -104,11 +118,10 @@ struct UpgradeView: View {
                 .foregroundStyle(.secondary)
                 .font(.callout)
             }
-
-            Spacer()
+            .padding(.bottom, 28)
         }
-        .padding(32)
-        .frame(width: 380, height: 440)
+        .padding(.horizontal, 36)
+        .frame(width: 400, height: 500)
         .alert("No Previous Purchase", isPresented: $showRestoreResult) {
             Button("OK") {}
         } message: {
