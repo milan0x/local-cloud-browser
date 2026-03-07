@@ -94,11 +94,8 @@ struct SettingsView: View {
                     Text("License")
                     Spacer()
                     switch licenseManager.state {
-                    case .trial(let daysRemaining):
-                        Text("Trial — \(daysRemaining) day\(daysRemaining == 1 ? "" : "s") remaining")
-                            .foregroundStyle(.secondary)
-                    case .limited:
-                        Text("Limited Mode")
+                    case .free:
+                        Text("Free")
                             .foregroundStyle(.orange)
                     case .paid:
                         Text("Pro")

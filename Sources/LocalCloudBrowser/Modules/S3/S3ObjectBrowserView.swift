@@ -493,7 +493,7 @@ struct S3ObjectBrowserView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let errorMessage {
             S3ConfigHintView(errorMessage: errorMessage, onRetry: { loadObjects() })
-        } else if rowItems.isEmpty && !isSearchActive {
+        } else if rowItems.isEmpty && !isSearchActive && pathComponents.isEmpty {
             EmptyStateView(icon: "folder", message: "Empty")
             .contextMenu {
                 Button("Create Folder") {

@@ -380,7 +380,7 @@ struct SidebarView: View {
 
     private var readOnlyToggle: some View {
         Button {
-            if case .limited = licenseManager.state {
+            if case .free = licenseManager.state {
                 licenseManager.showUpgradeSheet = true
             } else {
                 appState.isReadOnly.toggle()
@@ -402,7 +402,7 @@ struct SidebarView: View {
     }
 
     private var readOnlyHelpText: String {
-        if case .limited = licenseManager.state {
+        if case .free = licenseManager.state {
             return "Read-only — upgrade to Pro to unlock write access"
         }
         return appState.isReadOnly ? "Read-only mode (click to enable writes)" : "Write mode (click to enable read-only)"
