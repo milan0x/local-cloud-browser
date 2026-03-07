@@ -28,6 +28,7 @@ extension FocusedValues {
 enum AppInfo {
     static let version = "1.0.0"
     static let contactEmail = "mlnapps@icloud.com"
+    static let privacyPolicyURL = URL(string: "https://milan0x00.github.io/LocalCloudBrowser/privacy")!
 }
 
 // MARK: - Help menu commands
@@ -47,6 +48,10 @@ struct HelpCommands: Commands {
             }
 
             Divider()
+
+            Button("Privacy Policy...") {
+                NSWorkspace.shared.open(AppInfo.privacyPolicyURL)
+            }
 
             Button("Send Feedback...") {
                 showFeedback?.wrappedValue = true

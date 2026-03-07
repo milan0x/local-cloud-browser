@@ -22,6 +22,14 @@ struct ListHeaderButton: View {
         self.action = action
     }
 
+    private var accessibilityName: String {
+        switch icon {
+        case "plus": return "Create"
+        case "trash": return "Delete"
+        default: return icon
+        }
+    }
+
     var body: some View {
         Button(action: action) {
             Image(systemName: icon)
@@ -37,5 +45,6 @@ struct ListHeaderButton: View {
         .disabled(isDisabled)
         .onHover { isHovered = $0 }
         .help(help)
+        .accessibilityLabel(accessibilityName)
     }
 }

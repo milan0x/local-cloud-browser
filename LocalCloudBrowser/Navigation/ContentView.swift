@@ -78,6 +78,7 @@ struct ContentView: View {
                 )
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(licenseManager.trialDaysRemaining > 0 ? "Trial: \(licenseManager.trialDaysRemaining) days remaining" : "Trial expired")
         case .paid:
             EmptyView()
         }
