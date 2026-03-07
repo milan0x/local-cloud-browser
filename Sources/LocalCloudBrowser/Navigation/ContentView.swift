@@ -16,7 +16,7 @@ struct ContentView: View {
                 welcomeView
             }
         }
-        .overlay(alignment: .topTrailing) {
+        .overlay(alignment: .bottomTrailing) {
             licenseBadge
         }
         .toolbar {
@@ -47,9 +47,11 @@ struct ContentView: View {
                 Text("Trial — \(daysRemaining) day\(daysRemaining == 1 ? "" : "s") remaining")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Color.red, in: Rectangle())
+                    .padding(.leading, 10)
+                    .padding(.trailing, 16)
+                    .padding(.top, 5)
+                    .padding(.bottom, 8)
+                    .background(Color.red, in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 0))
             }
             .buttonStyle(.plain)
         case .limited:
@@ -59,9 +61,11 @@ struct ContentView: View {
                 Text("Limited")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Color.red, in: Rectangle())
+                    .padding(.leading, 10)
+                    .padding(.trailing, 16)
+                    .padding(.top, 5)
+                    .padding(.bottom, 8)
+                    .background(Color.red, in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 0))
             }
             .buttonStyle(.plain)
         case .paid:
