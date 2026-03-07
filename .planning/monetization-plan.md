@@ -120,23 +120,25 @@ private var readOnlyToggle: some View {
 - If `.trial` or `.paid`: current behavior unchanged
 - On tap while limited: set `licenseManager.shouldShowUpgradeModal = true` instead of toggling
 
-### Step 6: Trial Countdown Indicator
+### Step 6: Trial / Limited Badge
 
 **File to modify:** `Sources/LocalCloudBrowser/Navigation/ContentView.swift`
 
-Add a new `ToolbarItem` next to the existing region badge (line ~19):
+Red badge overlay pinned to bottom-right corner of the content area.
+
+**Design:**
+- Red background with `UnevenRoundedRectangle` (top-left corner rounded at 6pt, other corners sharp to blend into window edge)
+- White semibold text, asymmetric padding (more on trailing/bottom to clear window corner radius)
+- Clickable — opens upgrade sheet
 
 **During trial:**
-- Show subtle text: "12 days remaining" with a small clock icon
-- Muted color (.secondary), not attention-grabbing
-- Clicking it could show a small popover explaining the trial
+- "Trial — 14 days remaining"
 
 **During limited mode:**
-- Show "Limited Mode" badge in a capsule shape (similar to the existing "Preview" badge style)
-- Tapping opens the upgrade modal/sheet
+- "Limited"
 
 **After purchase:**
-- Nothing shown — toolbar item is hidden
+- Hidden (EmptyView)
 
 ### Step 7: Upgrade Modal / Purchase Sheet (new file)
 
