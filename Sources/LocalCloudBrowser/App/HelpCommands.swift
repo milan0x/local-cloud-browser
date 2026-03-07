@@ -7,10 +7,19 @@ struct ShowFeedbackKey: FocusedValueKey {
     typealias Value = Binding<Bool>
 }
 
+struct ShowUpgradeKey: FocusedValueKey {
+    typealias Value = Binding<Bool>
+}
+
 extension FocusedValues {
     var showFeedback: Binding<Bool>? {
         get { self[ShowFeedbackKey.self] }
         set { self[ShowFeedbackKey.self] = newValue }
+    }
+
+    var showUpgrade: Binding<Bool>? {
+        get { self[ShowUpgradeKey.self] }
+        set { self[ShowUpgradeKey.self] = newValue }
     }
 }
 
@@ -25,9 +34,20 @@ enum AppInfo {
 
 struct HelpCommands: Commands {
     @FocusedValue(\.showFeedback) private var showFeedback
+    @FocusedValue(\.showUpgrade) private var showUpgrade
 
     var body: some Commands {
         CommandGroup(replacing: .help) {
+            Button("Upgrade to Pro...") {
+                showUpgrade?.wrappedValue = true
+            }
+
+            Button("Restore Purchase...") {
+                showUpgrade?.wrappedValue = true
+            }
+
+            Divider()
+
             Button("Send Feedback...") {
                 showFeedback?.wrappedValue = true
             }

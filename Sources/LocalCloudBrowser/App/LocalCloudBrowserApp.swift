@@ -6,6 +6,8 @@ struct LocalCloudBrowserApp: App {
     @StateObject private var appState: AppState
     @StateObject private var client: CloudClient
     @StateObject private var profileStore: ConnectionProfileStore
+    @StateObject private var storeKitManager: StoreKitManager
+    @StateObject private var licenseManager: LicenseManager
 
     init() {
         // Make the process a regular foreground app (dock icon, menu bar, keyboard focus).
@@ -52,9 +54,18 @@ struct LocalCloudBrowserApp: App {
         } else {
             LastSessionStore.clearSubResources()
         }
+        let storeKit = StoreKitManager()
+        let license = LicenseManager(storeKit: storeKit)
+        license.appState = state
+        storeKit.onPurchaseChange = { [weak license] in
+            license?.refreshState()
+        }
+
         _appState = StateObject(wrappedValue: state)
         _client = StateObject(wrappedValue: CloudClient(appState: state))
         _profileStore = StateObject(wrappedValue: store)
+        _storeKitManager = StateObject(wrappedValue: storeKit)
+        _licenseManager = StateObject(wrappedValue: license)
     }
 
     var body: some Scene {
@@ -64,6 +75,8 @@ struct LocalCloudBrowserApp: App {
                 .environmentObject(client)
                 .environmentObject(profileStore)
                 .environmentObject(appState.autoRefresh)
+                .environmentObject(licenseManager)
+                .environmentObject(storeKitManager)
                 .onAppear {
                     NSApplication.shared.activate(ignoringOtherApps: true)
                 }
@@ -80,6 +93,8 @@ struct LocalCloudBrowserApp: App {
                     .environmentObject(appState)
                     .environmentObject(client)
                     .environmentObject(appState.autoRefresh)
+                    .environmentObject(licenseManager)
+                    .environmentObject(storeKitManager)
             }
         }
 
@@ -87,6 +102,8 @@ struct LocalCloudBrowserApp: App {
             SettingsView()
                 .environmentObject(appState)
                 .environmentObject(appState.autoRefresh)
+                .environmentObject(licenseManager)
+                .environmentObject(storeKitManager)
         }
     }
 }
