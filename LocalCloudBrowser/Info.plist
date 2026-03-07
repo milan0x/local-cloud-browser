@@ -19,5 +19,7 @@
 			</dict>
 		</dict>
 	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Local Cloud Browser connects to locally running AWS-compatible services such as LocalStack.</string>
 </dict>
 </plist>
