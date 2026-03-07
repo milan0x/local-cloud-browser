@@ -31,6 +31,11 @@ struct UpgradeView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Text("Pay once, own it forever. No subscriptions, no recurring charges.")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+
             Spacer()
 
             VStack(spacing: 10) {
@@ -41,11 +46,15 @@ struct UpgradeView: View {
                     }
                 } label: {
                     Text("Purchase")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(Color.blue, in: RoundedRectangle(cornerRadius: 8))
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(storeKitManager.product == nil || storeKitManager.isLoading)
+                .buttonStyle(.plain)
+                .disabled(storeKitManager.isLoading)
+                .opacity(storeKitManager.isLoading ? 0.5 : 1)
 
                 Button {
                     Task {
