@@ -77,9 +77,14 @@ final class LicenseManager: ObservableObject {
         guard let startDate = UserDefaults.standard.object(forKey: trialStartDateKey) as? Date else {
             return trialDuration
         }
+        return daysRemaining(from: startDate, to: Date(), trialDuration: trialDuration)
+    }
+
+    /// Pure computation for testing. Returns days remaining given a start date, current date, and trial length.
+    nonisolated static func daysRemaining(from startDate: Date, to now: Date, trialDuration: Int = 14) -> Int {
         // Guard against clock manipulation — if "now" is before the start date, use start date
-        let now = max(Date(), startDate)
-        let elapsed = Calendar.current.dateComponents([.day], from: startDate, to: now).day ?? 0
+        let effectiveNow = max(now, startDate)
+        let elapsed = Calendar.current.dateComponents([.day], from: startDate, to: effectiveNow).day ?? 0
         return max(0, trialDuration - elapsed)
     }
 }
