@@ -40,32 +40,18 @@ struct ContentView: View {
     @ViewBuilder
     private var licenseBadge: some View {
         switch licenseManager.state {
-        case .trial(let daysRemaining):
+        case .free:
             Button {
                 licenseManager.showUpgradeSheet = true
             } label: {
-                Text("Trial — \(daysRemaining) day\(daysRemaining == 1 ? "" : "s") remaining")
+                Text("Free — Read Only")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(.leading, 10)
                     .padding(.trailing, 16)
                     .padding(.top, 6)
                     .padding(.bottom, 6)
-                    .background(Color.red, in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 0))
-            }
-            .buttonStyle(.plain)
-        case .limited:
-            Button {
-                licenseManager.showUpgradeSheet = true
-            } label: {
-                Text("Limited")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .padding(.leading, 10)
-                    .padding(.trailing, 16)
-                    .padding(.top, 6)
-                    .padding(.bottom, 6)
-                    .background(Color.red, in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 0))
+                    .background(Color(red: 0.45, green: 0.1, blue: 0.1), in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 0))
             }
             .buttonStyle(.plain)
         case .paid:
