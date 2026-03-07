@@ -10,10 +10,6 @@ struct LocalCloudBrowserApp: App {
     @StateObject private var licenseManager: LicenseManager
 
     init() {
-        // Make the process a regular foreground app (dock icon, menu bar, keyboard focus).
-        // Required because SPM executable targets don't get this automatically.
-        NSApplication.shared.setActivationPolicy(.regular)
-
         Log.info("Local Cloud Browser starting", category: "App")
         AppPreferences.cleanPreviewTempDirectory()
 
