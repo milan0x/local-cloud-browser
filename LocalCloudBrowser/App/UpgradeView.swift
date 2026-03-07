@@ -93,6 +93,7 @@ struct UpgradeView: View {
                 .buttonStyle(.plain)
                 .disabled(storeKitManager.isLoading)
                 .opacity(storeKitManager.isLoading ? 0.5 : 1)
+                .accessibilityLabel("Purchase")
 
                 Button {
                     Task {
@@ -110,6 +111,7 @@ struct UpgradeView: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(.tint)
                 .disabled(storeKitManager.isLoading)
+                .accessibilityLabel("Restore Purchase")
 
                 Button("Not Now") {
                     dismiss()

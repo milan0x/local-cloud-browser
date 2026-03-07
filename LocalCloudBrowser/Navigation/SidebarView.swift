@@ -127,6 +127,8 @@ struct SidebarView: View {
                 .fontWeight(.medium)
         }
         .foregroundStyle(.white)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Warning: non-local endpoint")
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity)
@@ -154,6 +156,7 @@ struct SidebarView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.caption2)
                 .foregroundStyle(.orange)
+                .accessibilityHidden(true)
             Text("Connection lost")
                 .font(.caption)
             Button {
@@ -226,6 +229,7 @@ struct SidebarView: View {
         }
         .buttonStyle(.plain)
         .help("Connected to \(appState.endpoint)")
+        .accessibilityLabel("Connection status: connected")
         .popover(isPresented: $showHealthWarning, arrowEdge: .top) {
             healthPopover
         }
@@ -243,6 +247,7 @@ struct SidebarView: View {
         }
         .buttonStyle(.plain)
         .help("Connection error — click for details")
+        .accessibilityLabel("Connection status: error")
         .popover(isPresented: $showConnectionError, arrowEdge: .top) {
             connectionErrorPopover
         }
@@ -395,6 +400,8 @@ struct SidebarView: View {
         .buttonStyle(.plain)
         .onHover { isHoveringLock = $0 }
         .help(readOnlyHelpText)
+        .accessibilityLabel(isEffectivelyReadOnly ? "Read-only mode" : "Write mode")
+        .accessibilityHint(readOnlyHelpText)
     }
 
     private var isEffectivelyReadOnly: Bool {

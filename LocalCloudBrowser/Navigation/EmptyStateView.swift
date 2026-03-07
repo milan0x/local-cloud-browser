@@ -20,5 +20,6 @@ struct EmptyStateView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
     }
 }
