@@ -218,29 +218,29 @@ Add a new tab: **"License"** or **"Pro"**
 
 ## Files Summary
 
-### New files (4):
+### New files created:
 | File | Purpose |
 |------|---------|
-| `App/LicenseManager.swift` | License state machine (trial/limited/paid) |
-| `App/StoreKitManager.swift` | StoreKit 2 product, purchase, restore |
-| `App/UpgradeView.swift` | Purchase modal sheet |
-| `App/TrialBadgeView.swift` | Toolbar trial countdown / limited mode badge (optional — could be inline in ContentView) |
+| `App/LicenseManager.swift` | License state machine (trial/limited/paid), trial date tracking, pure `daysRemaining()` computation |
+| `App/StoreKitManager.swift` | StoreKit 2 product loading, purchase, restore, transaction listener |
+| `App/UpgradeView.swift` | Purchase modal sheet with blue CTA, restore, and one-time purchase messaging |
+| `Tests/LicenseManagerTests.swift` | 12 tests covering LicenseState, days remaining computation, clock manipulation |
 
-### Modified files (6):
+### Modified files:
 | File | Change |
 |------|--------|
-| `App/LocalCloudBrowserApp.swift` | Create and inject LicenseManager |
-| `App/SettingsView.swift` | Add License/Pro tab |
-| `App/HelpCommands.swift` | Add "Restore Purchase" menu item |
-| `Navigation/ContentView.swift` | Add trial/limited toolbar badge |
-| `Navigation/SidebarView.swift` | Lock read-only toggle in limited mode, trigger upgrade modal |
-| `Safety/ReadOnlyInterceptor.swift` | Possibly unchanged if using Option B (force read-only via AppState) |
+| `App/LocalCloudBrowserApp.swift` | Create and inject LicenseManager + StoreKitManager |
+| `App/SettingsView.swift` | Added License tab with status, purchase, and restore |
+| `App/HelpCommands.swift` | Added "Upgrade to Pro" and "Restore Purchase" menu items, ShowUpgradeKey focused value |
+| `Navigation/ContentView.swift` | Trial/limited badge as top-right overlay (red sharp rectangle), upgrade sheet |
+| `Navigation/SidebarView.swift` | Read-only toggle locks in limited mode, triggers upgrade sheet |
 
 ### Unchanged:
 | File | Why |
 |------|-----|
+| `Safety/ReadOnlyInterceptor.swift` | Unchanged — limited mode forces `appState.isReadOnly = true` so the interceptor works as-is |
 | `Networking/CloudClient.swift` | Already checks `isReadOnly` via the interceptor — no changes needed |
-| All module views | They already respect `isReadOnly` — no per-module changes needed |
+| All 28 module views | They already respect `isReadOnly` — no per-module changes needed |
 | `Settings/ConnectionProfile.swift` | No license-related changes |
 
 ---
@@ -258,7 +258,13 @@ Add a new tab: **"License"** or **"Pro"**
 
 ---
 
-## Testing Plan
+## Testing
+
+### Unit tests (implemented — 12 tests):
+- `LicenseState` equality for trial/limited/paid
+- `daysRemaining()` computation: day 0, 1 day elapsed, half trial, last day, expired, long expired
+- Clock manipulation: date set backwards does not extend trial
+- Custom trial durations
 
 ### Manual testing scenarios:
 1. Fresh install — trial starts, 14 days shown, full access works
@@ -275,17 +281,25 @@ Add a new tab: **"License"** or **"Pro"**
 
 ---
 
-## Implementation Order
+## Implementation Status
 
-Recommended sequence for building this:
+All code steps are complete:
 
-1. **LicenseManager** — the state machine, no UI yet
-2. **StoreKitManager** — product loading, purchase, restore
-3. **Wire into app** — inject as EnvironmentObject
-4. **Lock read-only toggle** — first visible behavior change
-5. **Toolbar badge** — trial countdown and limited mode indicator
-6. **Upgrade modal** — the purchase sheet
-7. **Settings tab** — license info and restore
-8. **Help menu** — restore purchase item
-9. **Testing** — all scenarios above
-10. **App Store Connect** — IAP setup, screenshots, review notes
+- [x] LicenseManager — state machine with testable date computation
+- [x] StoreKitManager — StoreKit 2 product, purchase, restore, transaction listener
+- [x] Wire into app — injected as EnvironmentObject on all view hierarchies
+- [x] Lock read-only toggle — locked in limited mode, tapping triggers upgrade sheet
+- [x] Trial badge — top-right overlay, red sharp rectangle, clickable
+- [x] Upgrade modal — sleek sheet with blue CTA, restore, one-time purchase messaging
+- [x] Settings tab — License tab with status, purchase, restore
+- [x] Help menu — "Upgrade to Pro" and "Restore Purchase" items
+- [x] Unit tests — 12 tests for LicenseState and days remaining computation
+
+### Remaining (App Store setup):
+- [ ] Register non-consumable IAP (`com.localcloudbrowser.pro`) in App Store Connect
+- [ ] Create `.storekit` configuration file for Xcode testing
+- [ ] Re-enable product nil check in UpgradeView purchase button (currently disabled for dev)
+- [ ] App Review notes explaining the trial model
+- [ ] Privacy policy
+- [ ] App sandbox entitlements for Mac App Store distribution
+- [ ] Signing with Developer ID / Mac App Store certificate
