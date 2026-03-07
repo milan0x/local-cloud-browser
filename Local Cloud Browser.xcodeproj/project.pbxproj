@@ -98,7 +98,7 @@
 					};
 				};
 			};
-			buildConfigurationList = F184E3592F5CA3820062FD1E /* Build configuration list for PBXProject "LocalCloudBrowser" */;
+			buildConfigurationList = F184E3592F5CA3820062FD1E /* Build configuration list for PBXProject "Local Cloud Browser" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -327,7 +327,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		F184E3592F5CA3820062FD1E /* Build configuration list for PBXProject "LocalCloudBrowser" */ = {
+		F184E3592F5CA3820062FD1E /* Build configuration list for PBXProject "Local Cloud Browser" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				F184E3672F5CA3840062FD1E /* Debug */,
