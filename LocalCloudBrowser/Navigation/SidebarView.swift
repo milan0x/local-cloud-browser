@@ -47,6 +47,7 @@ struct SidebarView: View {
         }
         .focused($isSidebarFocused)
         .onKeyPress(.rightArrow) {
+            guard !isTextFieldFirstResponder() else { return .ignored }
             guard appState.selectedRoute != nil else { return .ignored }
             appState.moduleListFocusTrigger += 1
             return .handled

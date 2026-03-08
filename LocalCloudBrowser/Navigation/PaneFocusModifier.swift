@@ -1,4 +1,12 @@
+import AppKit
 import SwiftUI
+
+/// Returns `true` when the key window's first responder is a text input
+/// (NSTextView field editor, CodeTextEditor, etc.), meaning arrow keys
+/// should move the cursor instead of switching panes.
+func isTextFieldFirstResponder() -> Bool {
+    NSApp.keyWindow?.firstResponder is NSText
+}
 
 /// Adds Cmd+F search cycling between list and detail panes.
 /// Replaces duplicated `SearchTarget` enum, `cycleCmdF()`, and hidden Button in S3/SQS/SNS module views.

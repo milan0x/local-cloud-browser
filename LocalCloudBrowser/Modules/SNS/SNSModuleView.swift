@@ -37,10 +37,12 @@ struct SNSModuleView: View {
             )
             .frame(width: 280)
             .onKeyPress(.leftArrow) {
+                guard !isTextFieldFirstResponder() else { return .ignored }
                 appState.sidebarFocusTrigger += 1
                 return .handled
             }
             .onKeyPress(.rightArrow) {
+                guard !isTextFieldFirstResponder() else { return .ignored }
                 guard activeTopic != nil else { return .ignored }
                 detailPaneFocusTrigger += 1
                 return .handled
@@ -61,6 +63,7 @@ struct SNSModuleView: View {
             }
             .frame(minWidth: 400)
             .onKeyPress(.leftArrow) {
+                guard !isTextFieldFirstResponder() else { return .ignored }
                 listPaneFocusTrigger += 1
                 return .handled
             }

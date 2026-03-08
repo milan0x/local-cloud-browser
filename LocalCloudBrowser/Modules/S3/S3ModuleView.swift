@@ -42,10 +42,12 @@ struct S3ModuleView: View {
             )
             .frame(width: 280)
             .onKeyPress(.leftArrow) {
+                guard !isTextFieldFirstResponder() else { return .ignored }
                 appState.sidebarFocusTrigger += 1
                 return .handled
             }
             .onKeyPress(.rightArrow) {
+                guard !isTextFieldFirstResponder() else { return .ignored }
                 guard activeBucket != nil else { return .ignored }
                 detailPaneFocusTrigger += 1
                 return .handled
@@ -70,6 +72,7 @@ struct S3ModuleView: View {
             }
             .frame(minWidth: 400)
             .onKeyPress(.leftArrow) {
+                guard !isTextFieldFirstResponder() else { return .ignored }
                 listPaneFocusTrigger += 1
                 return .handled
             }
