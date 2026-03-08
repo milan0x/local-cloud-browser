@@ -51,7 +51,6 @@ final class LicenseManager: ObservableObject {
             appState?.isReadOnly = false
         } else {
             state = .free
-            appState?.isReadOnly = true
         }
     }
 
