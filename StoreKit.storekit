@@ -15,8 +15,8 @@
   ],
   "products" : [
     {
-      "displayPrice" : "0.99",
-      "familyShareable" : false,
+      "displayPrice" : "9.99",
+      "familyShareable" : true,
       "internalID" : "92501D14",
       "localizations" : [
         {
@@ -25,8 +25,8 @@
           "locale" : "en_US"
         }
       ],
-      "productID" : "9.99",
-      "referenceName" : "com.localcloudbrowser.pro",
+      "productID" : "com.localcloudbrowser.pro",
+      "referenceName" : "Local Cloud Browser Unlimited",
       "type" : "NonConsumable"
     }
   ],
