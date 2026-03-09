@@ -15,6 +15,10 @@ struct S3CreateBucketView: View {
         VStack(spacing: 0) {
             Form {
                 TextField("Bucket name", text: $bucketName)
+                    .onChange(of: bucketName) {
+                        let lowered = bucketName.lowercased()
+                        if lowered != bucketName { bucketName = lowered }
+                    }
                 LabeledContent("Region") {
                     AWSRegionPicker(regionCode: $region)
                 }
