@@ -105,8 +105,8 @@ struct SupportCase: Identifiable, Hashable {
             "aws support describe-cases \\",
             "  --case-id-list '\(Self.shellEscape(caseId))' \\",
             "  --include-communications \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -114,16 +114,16 @@ struct SupportCase: Identifiable, Hashable {
         [
             "aws support resolve-case \\",
             "  --case-id '\(Self.shellEscape(caseId))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
     static func listCasesCLI(endpointUrl: String, region: String) -> String {
         [
             "aws support describe-cases \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 }

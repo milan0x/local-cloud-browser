@@ -53,8 +53,8 @@ struct KinesisStreamSummary: Identifiable, Hashable {
         [
             "aws kinesis describe-stream-summary \\",
             "  --stream-name '\(Self.shellEscape(streamName))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -63,16 +63,16 @@ struct KinesisStreamSummary: Identifiable, Hashable {
             "aws kinesis delete-stream \\",
             "  --stream-name '\(Self.shellEscape(streamName))' \\",
             "  --enforce-consumer-deletion \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
     static func listStreamsCLI(endpointUrl: String, region: String) -> String {
         [
             "aws kinesis list-streams \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 }

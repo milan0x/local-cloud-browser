@@ -26,8 +26,8 @@ struct SSMParameter: Identifiable, Hashable {
             "aws ssm get-parameter \\",
             "  --name '\(Self.shellEscape(name))' \\",
             isSecureString ? "  --with-decryption \\" : nil,
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)"
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'"
         ].compactMap { $0 }.joined(separator: "\n")
     }
 
@@ -35,8 +35,8 @@ struct SSMParameter: Identifiable, Hashable {
         [
             "aws ssm describe-parameters \\",
             "  --filters 'Key=Name,Values=\(Self.shellEscape(name))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)"
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'"
         ].joined(separator: "\n")
     }
 

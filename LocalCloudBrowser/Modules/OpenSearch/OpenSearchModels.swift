@@ -86,8 +86,8 @@ struct OpenSearchDomain: Identifiable, Hashable {
         [
             "aws opensearch describe-domain \\",
             "  --domain-name '\(Self.shellEscape(domainName))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)"
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'"
         ].joined(separator: "\n")
     }
 
@@ -95,16 +95,16 @@ struct OpenSearchDomain: Identifiable, Hashable {
         [
             "aws opensearch delete-domain \\",
             "  --domain-name '\(Self.shellEscape(domainName))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)"
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'"
         ].joined(separator: "\n")
     }
 
     static func listDomainsCLI(endpointUrl: String, region: String) -> String {
         [
             "aws opensearch list-domain-names \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)"
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'"
         ].joined(separator: "\n")
     }
 }

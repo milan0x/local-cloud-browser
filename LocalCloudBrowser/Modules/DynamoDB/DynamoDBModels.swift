@@ -386,8 +386,8 @@ extension DynamoDBTable {
         [
             "aws dynamodb describe-table \\",
             "  --table-name '\(Self.shellEscape(tableName))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -395,8 +395,8 @@ extension DynamoDBTable {
         [
             "aws dynamodb scan \\",
             "  --table-name '\(Self.shellEscape(tableName))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -404,8 +404,8 @@ extension DynamoDBTable {
         [
             "aws dynamodb delete-table \\",
             "  --table-name '\(Self.shellEscape(tableName))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 }
@@ -421,8 +421,8 @@ extension DynamoDBItem {
             "aws dynamodb put-item \\",
             "  --table-name '\(Self.shellEscape(tableName))' \\",
             "  --item '\(Self.shellEscape(json))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -441,8 +441,8 @@ extension DynamoDBItem {
             "aws dynamodb get-item \\",
             "  --table-name '\(Self.shellEscape(tableName))' \\",
             "  --key '\(Self.shellEscape(json))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 }

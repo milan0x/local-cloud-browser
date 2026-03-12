@@ -161,16 +161,16 @@ struct CloudWatchMetric: Identifiable, Hashable {
         [
             "aws cloudwatch list-metrics \\",
             "  --namespace '\(Self.shellEscape(namespace))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
     static func listAllMetricsCLI(endpointUrl: String, region: String) -> String {
         [
             "aws cloudwatch list-metrics \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 }
@@ -251,16 +251,16 @@ struct CloudWatchAlarm: Identifiable, Hashable {
         [
             "aws cloudwatch describe-alarms \\",
             "  --alarm-names '\(Self.shellEscape(alarmName))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
     static func listAlarmsCLI(endpointUrl: String, region: String) -> String {
         [
             "aws cloudwatch describe-alarms \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
