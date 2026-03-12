@@ -2,6 +2,7 @@ import SwiftUI
 
 struct EC2CreateSecurityGroupView: View {
     @ObservedObject var service: EC2Service
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     var existingNames: Set<String>
     var onCreate: ((String) -> Void)? = nil
@@ -82,6 +83,7 @@ struct EC2CreateSecurityGroupView: View {
                     description: trimmedDescription,
                     vpcId: vpc.isEmpty ? nil : vpc
                 )
+                licenseManager.incrementCreateCount(for: .ec2)
                 onCreate?(trimmedName)
                 dismiss()
             } catch {

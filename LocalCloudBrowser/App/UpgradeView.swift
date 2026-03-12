@@ -19,7 +19,7 @@ struct UpgradeView: View {
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text("Create, modify, and manage resources across all 28 AWS services with no restrictions.")
+                Text("Unlimited resource creation, auto-refresh, and more across all 28 AWS services.")
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -27,17 +27,14 @@ struct UpgradeView: View {
             }
             .padding(.top, 20)
 
-            Spacer().frame(minHeight: 16, maxHeight: 24)
+            Spacer().frame(minHeight: 12, maxHeight: 16)
 
-            // MARK: - Trial status
-            if !licenseManager.isPaid {
-                let days = licenseManager.trialDaysRemaining
+            // MARK: - Context message (e.g. "You've created 3/3 SQS queues")
+            if let context = licenseManager.upgradeContext {
                 HStack(spacing: 6) {
-                    Image(systemName: days > 0 ? "clock" : "exclamationmark.triangle.fill")
-                        .foregroundStyle(days > 0 ? .orange : .red)
-                    Text(days > 0
-                         ? "\(days) \(days == 1 ? "day" : "days") remaining in your trial"
-                         : "Your trial has expired")
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text(context)
                 }
                 .font(.callout)
                 .fontWeight(.medium)
@@ -45,19 +42,16 @@ struct UpgradeView: View {
                 Spacer().frame(height: 12)
             }
 
-            // MARK: - Free tier info
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                    .font(.system(size: 14))
-                    .padding(.top, 1)
-                Text("Browsing, sending messages, uploading files, and interacting with existing resources is always free")
-                    .fixedSize(horizontal: false, vertical: true)
+            // MARK: - Feature comparison
+            VStack(alignment: .leading, spacing: 8) {
+                featureRow(icon: "checkmark.circle.fill", color: .green, text: "Browse, send messages, upload files — always free")
+                featureRow(icon: "3.circle.fill", color: .orange, text: "3 resource creates per service on Free")
+                featureRow(icon: "infinity.circle.fill", color: .blue, text: "Unlimited creates with Pro")
             }
             .font(.caption)
             .padding(12)
             .frame(maxWidth: 300)
-            .background(.green.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+            .background(Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 8))
 
             Spacer().frame(minHeight: 16, maxHeight: 24)
 
@@ -123,11 +117,25 @@ struct UpgradeView: View {
             .padding(.bottom, 20)
         }
         .padding(.horizontal, 36)
-        .frame(width: 400, height: 460)
+        .frame(width: 400, height: 480)
+        .onDisappear {
+            licenseManager.upgradeContext = nil
+        }
         .alert("No Previous Purchase", isPresented: $showRestoreResult) {
             Button("OK") {}
         } message: {
             Text("No previous purchase was found for this Apple ID.")
+        }
+    }
+
+    private func featureRow(icon: String, color: Color, text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: icon)
+                .foregroundStyle(color)
+                .font(.system(size: 14))
+                .padding(.top, 1)
+            Text(text)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

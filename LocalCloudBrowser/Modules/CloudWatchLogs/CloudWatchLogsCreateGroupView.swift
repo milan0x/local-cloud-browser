@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CloudWatchLogsCreateGroupView: View {
     @ObservedObject var service: CloudWatchLogsService
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var logGroupName = ""
     @State private var serviceError: ServiceError?
@@ -58,6 +59,7 @@ struct CloudWatchLogsCreateGroupView: View {
             do {
                 let name = logGroupName.trimmingCharacters(in: .whitespaces)
                 try await service.createLogGroup(name: name)
+                licenseManager.incrementCreateCount(for: .cloudwatchLogs)
                 onCreate?(name)
                 dismiss()
             } catch {

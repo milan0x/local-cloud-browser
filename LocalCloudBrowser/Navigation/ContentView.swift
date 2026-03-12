@@ -55,14 +55,9 @@ struct ContentView: View {
                 licenseManager.showUpgradeSheet = true
             } label: {
                 HStack(spacing: 4) {
-                    Image(systemName: "clock")
+                    Image(systemName: "arrow.up.circle.fill")
                         .font(.system(size: 8, weight: .bold))
-                    let days = licenseManager.trialDaysRemaining
-                    if days > 0 {
-                        Text("Trial — \(days) \(days == 1 ? "day" : "days") left")
-                    } else {
-                        Text("Trial Expired")
-                    }
+                    Text("Upgrade to Pro")
                 }
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.white)
@@ -71,14 +66,12 @@ struct ContentView: View {
                 .padding(.top, 6)
                 .padding(.bottom, 6)
                 .background(
-                    licenseManager.isTrialExpired
-                        ? Color(red: 0.45, green: 0.1, blue: 0.1)
-                        : Color(red: 0.15, green: 0.3, blue: 0.55),
+                    Color(red: 0.15, green: 0.3, blue: 0.55),
                     in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 0)
                 )
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(licenseManager.trialDaysRemaining > 0 ? "Trial: \(licenseManager.trialDaysRemaining) days remaining" : "Trial expired")
+            .accessibilityLabel("Free plan — tap to upgrade")
         case .paid:
             EmptyView()
         }
