@@ -80,6 +80,8 @@ struct LocalCloudBrowserApp: App {
         }
         .defaultSize(width: 1100, height: 700)
         .commands {
+            FileCommands()
+            ConnectionCommands()
             S3PasteboardCommands()
             HelpCommands()
         }
