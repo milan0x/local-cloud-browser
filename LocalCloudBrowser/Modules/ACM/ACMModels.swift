@@ -79,16 +79,16 @@ struct ACMCertificateSummary: Identifiable, Hashable {
         [
             "aws acm describe-certificate \\",
             "  --certificate-arn '\(Self.shellEscape(certificateArn))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
     static func listCertificatesCLI(endpointUrl: String, region: String) -> String {
         [
             "aws acm list-certificates \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -96,8 +96,8 @@ struct ACMCertificateSummary: Identifiable, Hashable {
         [
             "aws acm delete-certificate \\",
             "  --certificate-arn '\(Self.shellEscape(certificateArn))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 }

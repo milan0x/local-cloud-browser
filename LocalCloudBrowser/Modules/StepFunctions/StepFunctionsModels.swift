@@ -42,16 +42,16 @@ struct StateMachineSummary: Identifiable, Hashable {
         [
             "aws stepfunctions describe-state-machine \\",
             "  --state-machine-arn '\(Self.shellEscape(stateMachineArn))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
     static func listStateMachinesCLI(endpointUrl: String, region: String) -> String {
         [
             "aws stepfunctions list-state-machines \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -180,8 +180,8 @@ struct StepFunctionsExecution: Identifiable, Hashable {
         [
             "aws stepfunctions describe-execution \\",
             "  --execution-arn '\(Self.shellEscape(executionArn))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 }

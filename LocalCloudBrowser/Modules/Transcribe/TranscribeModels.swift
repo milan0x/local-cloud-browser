@@ -103,16 +103,16 @@ struct TranscriptionJob: Identifiable, Hashable {
         [
             "aws transcribe get-transcription-job \\",
             "  --transcription-job-name '\(Self.shellEscape(jobName))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
     static func listJobsCLI(endpointUrl: String, region: String) -> String {
         [
             "aws transcribe list-transcription-jobs \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -120,8 +120,8 @@ struct TranscriptionJob: Identifiable, Hashable {
         [
             "aws transcribe delete-transcription-job \\",
             "  --transcription-job-name '\(Self.shellEscape(jobName))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 

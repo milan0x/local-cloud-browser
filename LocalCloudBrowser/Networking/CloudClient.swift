@@ -309,7 +309,16 @@ final class CloudClient: ObservableObject {
 
     // MARK: - DynamoDB Streams (JSON protocol)
 
+    /// Read-only whitelist for DynamoDB Streams actions — all are inherently read-only.
+    private static let dynamodbStreamsReadActions: Set<String> = [
+        "ListStreams", "DescribeStream", "GetShardIterator", "GetRecords",
+    ]
+
     func dynamodbStreamsRequest(action: String, payload: [String: Any] = [:], region: String? = nil) async throws -> Data {
+        if appState.isReadOnly && !Self.dynamodbStreamsReadActions.contains(action) {
+            Log.warn("Blocked DynamoDB Streams \(action) — read-only mode", category: "HTTP")
+            throw CloudClientError.readOnlyBlocked(method: "DynamoDBStreams:\(action)")
+        }
         let body = try JSONSerialization.data(withJSONObject: payload)
         let dateStr = Self.iso8601DateOnly.string(from: Date())
         let credential = "nav/\(dateStr)/\(effectiveRegion(region))/dynamodb/aws4_request"
@@ -1211,7 +1220,7 @@ final class CloudClient: ObservableObject {
             throw CloudClientError.invalidURL
         }
 
-        Log.info("\(method) \(url.absoluteString)", category: "HTTP")
+        Log.info("\(method) \(path)", category: "HTTP")
 
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = method
@@ -1246,8 +1255,7 @@ final class CloudClient: ObservableObject {
         }
 
         if !(200..<300).contains(httpResponse.statusCode) {
-            let bodyPreview = String(data: data, encoding: .utf8)?.prefix(200) ?? "<binary>"
-            Log.error("\(method) \(path) -> \(httpResponse.statusCode): \(bodyPreview)", category: "HTTP")
+            Log.error("\(method) \(path) -> \(httpResponse.statusCode)", category: "HTTP")
             throw CloudClientError.httpError(statusCode: httpResponse.statusCode, data: data)
         }
 

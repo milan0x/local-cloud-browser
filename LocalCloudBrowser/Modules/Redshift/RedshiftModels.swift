@@ -60,8 +60,8 @@ struct RedshiftCluster: Identifiable, Hashable {
         [
             "aws redshift describe-clusters \\",
             "  --cluster-identifier '\(Self.shellEscape(clusterIdentifier))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)"
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'"
         ].joined(separator: "\n")
     }
 
@@ -70,16 +70,16 @@ struct RedshiftCluster: Identifiable, Hashable {
             "aws redshift delete-cluster \\",
             "  --cluster-identifier '\(Self.shellEscape(clusterIdentifier))' \\",
             "  --skip-final-cluster-snapshot \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)"
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'"
         ].joined(separator: "\n")
     }
 
     static func listClustersCLI(endpointUrl: String, region: String) -> String {
         [
             "aws redshift describe-clusters \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)"
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'"
         ].joined(separator: "\n")
     }
 }

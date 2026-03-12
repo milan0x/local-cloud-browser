@@ -73,16 +73,16 @@ struct KMSKey: Identifiable, Hashable {
         [
             "aws kms describe-key \\",
             "  --key-id '\(Self.shellEscape(keyId))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)"
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'"
         ].joined(separator: "\n")
     }
 
     static func listKeysCLI(endpointUrl: String, region: String) -> String {
         [
             "aws kms list-keys \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)"
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'"
         ].joined(separator: "\n")
     }
 }
