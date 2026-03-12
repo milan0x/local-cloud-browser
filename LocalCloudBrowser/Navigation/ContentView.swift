@@ -50,7 +50,7 @@ struct ContentView: View {
             )
         }
         .onAppear {
-            if !licenseManager.isPaid && !UserDefaults.standard.bool(forKey: "hasShownWelcome") {
+            if !UserDefaults.standard.bool(forKey: "hasShownWelcome") {
                 UserDefaults.standard.set(true, forKey: "hasShownWelcome")
                 showWelcome = true
             }
