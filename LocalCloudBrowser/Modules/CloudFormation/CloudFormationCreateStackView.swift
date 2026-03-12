@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CloudFormationCreateStackView: View {
     @ObservedObject var service: CloudFormationService
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var stackName = ""
     @State private var templateBody = ""
@@ -116,6 +117,7 @@ struct CloudFormationCreateStackView: View {
                     templateBody: templateBody,
                     parameters: cfParams
                 )
+                licenseManager.incrementCreateCount(for: .cloudFormation)
                 onCreate?(trimmedName)
                 dismiss()
             } catch {

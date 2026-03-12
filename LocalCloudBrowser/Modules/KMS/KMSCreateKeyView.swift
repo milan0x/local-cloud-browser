@@ -2,6 +2,7 @@ import SwiftUI
 
 struct KMSCreateKeyView: View {
     @ObservedObject var service: KMSService
+    @EnvironmentObject private var licenseManager: LicenseManager
     var onCreate: ((String) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var description = ""
@@ -63,6 +64,7 @@ struct KMSCreateKeyView: View {
                     keyUsage: keyUsage,
                     keySpec: keySpec
                 )
+                licenseManager.incrementCreateCount(for: .kms)
                 onCreate?(description.trimmingCharacters(in: .whitespaces))
                 dismiss()
             } catch {

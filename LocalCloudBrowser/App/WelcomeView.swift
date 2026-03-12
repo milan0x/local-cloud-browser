@@ -40,7 +40,7 @@ struct WelcomeView: View {
                     icon: "plus.circle",
                     color: .orange,
                     title: "Create Resources",
-                    subtitle: "Create new buckets, queues, topics, and more — requires Pro"
+                    subtitle: "3 free per service, unlimited with Pro"
                 )
             }
             .padding(.horizontal, 32)

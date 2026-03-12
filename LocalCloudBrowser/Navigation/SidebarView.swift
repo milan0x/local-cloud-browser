@@ -384,35 +384,22 @@ struct SidebarView: View {
 
     @State private var isHoveringLock = false
 
+    @ViewBuilder
     private var readOnlyToggle: some View {
-        Button {
-            if case .free = licenseManager.state {
-                licenseManager.showUpgradeSheet = true
-            } else {
+        if licenseManager.isPaid {
+            Button {
                 appState.isReadOnly.toggle()
+            } label: {
+                Image(systemName: appState.isReadOnly ? "lock.fill" : "lock.open")
+                    .foregroundStyle(appState.isReadOnly ? .orange : .secondary)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+                    .background(isHoveringLock ? Color.primary.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
             }
-        } label: {
-            Image(systemName: isEffectivelyReadOnly ? "lock.fill" : "lock.open")
-                .foregroundStyle(isEffectivelyReadOnly ? .orange : .secondary)
-                .frame(width: 28, height: 28)
-                .contentShape(Rectangle())
-                .background(isHoveringLock ? Color.primary.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
+            .buttonStyle(.plain)
+            .onHover { isHoveringLock = $0 }
+            .help(appState.isReadOnly ? "Read-only mode (click to enable writes)" : "Write mode (click to enable read-only)")
+            .accessibilityLabel(appState.isReadOnly ? "Read-only mode" : "Write mode")
         }
-        .buttonStyle(.plain)
-        .onHover { isHoveringLock = $0 }
-        .help(readOnlyHelpText)
-        .accessibilityLabel(isEffectivelyReadOnly ? "Read-only mode" : "Write mode")
-        .accessibilityHint(readOnlyHelpText)
-    }
-
-    private var isEffectivelyReadOnly: Bool {
-        appState.isReadOnly || !licenseManager.canWrite
-    }
-
-    private var readOnlyHelpText: String {
-        if case .free = licenseManager.state {
-            return "Read-only — upgrade to Pro to unlock write access"
-        }
-        return appState.isReadOnly ? "Read-only mode (click to enable writes)" : "Write mode (click to enable read-only)"
     }
 }
