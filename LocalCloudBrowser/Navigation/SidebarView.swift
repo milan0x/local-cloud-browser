@@ -386,20 +386,18 @@ struct SidebarView: View {
 
     @ViewBuilder
     private var readOnlyToggle: some View {
-        if licenseManager.isPaid {
-            Button {
-                appState.isReadOnly.toggle()
-            } label: {
-                Image(systemName: appState.isReadOnly ? "lock.fill" : "lock.open")
-                    .foregroundStyle(appState.isReadOnly ? .orange : .secondary)
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
-                    .background(isHoveringLock ? Color.primary.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
-            }
-            .buttonStyle(.plain)
-            .onHover { isHoveringLock = $0 }
-            .help(appState.isReadOnly ? "Read-only mode (click to enable writes)" : "Write mode (click to enable read-only)")
-            .accessibilityLabel(appState.isReadOnly ? "Read-only mode" : "Write mode")
+        Button {
+            appState.isReadOnly.toggle()
+        } label: {
+            Image(systemName: appState.isReadOnly ? "lock.fill" : "lock.open")
+                .foregroundStyle(appState.isReadOnly ? .orange : .secondary)
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
+                .background(isHoveringLock ? Color.primary.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
         }
+        .buttonStyle(.plain)
+        .onHover { isHoveringLock = $0 }
+        .help(appState.isReadOnly ? "Read-only mode (click to enable writes)" : "Write mode (click to enable read-only)")
+        .accessibilityLabel(appState.isReadOnly ? "Read-only mode" : "Write mode")
     }
 }
