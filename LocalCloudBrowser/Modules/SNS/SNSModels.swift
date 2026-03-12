@@ -27,8 +27,8 @@ struct SNSTopic: Identifiable, Hashable {
         if isFifo {
             lines.append("  --message-group-id '<group-id>' \\")
         }
-        lines.append("  --endpoint-url \(endpointUrl) \\")
-        lines.append("  --region \(region)")
+        lines.append("  --endpoint-url '\(endpointUrl)' \\")
+        lines.append("  --region '\(region)'")
         return lines.joined(separator: "\n")
     }
 
@@ -36,8 +36,8 @@ struct SNSTopic: Identifiable, Hashable {
         [
             "aws sns list-subscriptions-by-topic \\",
             "  --topic-arn \(topicArn) \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)"
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'"
         ].joined(separator: "\n")
     }
 
@@ -45,8 +45,8 @@ struct SNSTopic: Identifiable, Hashable {
         [
             "aws sns get-topic-attributes \\",
             "  --topic-arn \(topicArn) \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)"
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'"
         ].joined(separator: "\n")
     }
 }
@@ -75,8 +75,8 @@ struct SNSSubscription: Identifiable, Hashable {
         [
             "aws sns get-subscription-attributes \\",
             "  --subscription-arn \(subscriptionArn) \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)"
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'"
         ].joined(separator: "\n")
     }
 

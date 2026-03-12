@@ -2,6 +2,7 @@ import SwiftUI
 
 struct OpenSearchCreateDomainView: View {
     @ObservedObject var service: OpenSearchService
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var domainName = ""
     @State private var engineVersion = "OpenSearch_2.19"
@@ -115,6 +116,7 @@ struct OpenSearchCreateDomainView: View {
                     instanceType: instanceType,
                     instanceCount: instanceCount
                 )
+                licenseManager.incrementCreateCount(for: .opensearch)
                 onCreate?(trimmedName)
                 dismiss()
             } catch {

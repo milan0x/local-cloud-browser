@@ -59,8 +59,8 @@ struct ResolverEndpoint: Identifiable, Hashable {
         [
             "aws route53resolver get-resolver-endpoint \\",
             "  --resolver-endpoint-id '\(Self.shellEscape(id))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -68,16 +68,16 @@ struct ResolverEndpoint: Identifiable, Hashable {
         [
             "aws route53resolver delete-resolver-endpoint \\",
             "  --resolver-endpoint-id '\(Self.shellEscape(id))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
     static func listCLI(endpointUrl: String, region: String) -> String {
         [
             "aws route53resolver list-resolver-endpoints \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 }
@@ -158,8 +158,8 @@ struct ResolverRule: Identifiable, Hashable {
         [
             "aws route53resolver get-resolver-rule \\",
             "  --resolver-rule-id '\(Self.shellEscape(id))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -167,16 +167,16 @@ struct ResolverRule: Identifiable, Hashable {
         [
             "aws route53resolver delete-resolver-rule \\",
             "  --resolver-rule-id '\(Self.shellEscape(id))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
     static func listCLI(endpointUrl: String, region: String) -> String {
         [
             "aws route53resolver list-resolver-rules \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 }

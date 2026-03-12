@@ -22,16 +22,16 @@ struct SESIdentity: Identifiable, Hashable {
         [
             "aws ses delete-identity \\",
             "  --identity '\(Self.shellEscape(identity))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
     static func listIdentitiesCLI(endpointUrl: String, region: String) -> String {
         [
             "aws ses list-identities \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -41,8 +41,8 @@ struct SESIdentity: Identifiable, Hashable {
             "  --from '\(Self.shellEscape(identity))' \\",
             "  --destination 'ToAddresses=recipient@example.com' \\",
             "  --message 'Subject={Data=Test},Body={Text={Data=Hello}}' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 }

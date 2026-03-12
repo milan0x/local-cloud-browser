@@ -2,6 +2,7 @@ import SwiftUI
 
 struct KinesisCreateStreamView: View {
     @ObservedObject var service: KinesisService
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var streamName = ""
     @State private var shardCount = 1
@@ -60,6 +61,7 @@ struct KinesisCreateStreamView: View {
                     shardCount: shardCount,
                     mode: streamMode
                 )
+                licenseManager.incrementCreateCount(for: .kinesis)
                 onCreate?(streamName.trimmingCharacters(in: .whitespaces))
                 dismiss()
             } catch {

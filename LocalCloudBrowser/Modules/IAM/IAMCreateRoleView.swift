@@ -2,6 +2,7 @@ import SwiftUI
 
 struct IAMCreateRoleView: View {
     @ObservedObject var service: IAMService
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var roleName = ""
     @State private var description = ""
@@ -111,6 +112,7 @@ struct IAMCreateRoleView: View {
                     assumeRolePolicyDocument: trustPolicy,
                     description: description.isEmpty ? nil : description
                 )
+                licenseManager.incrementCreateCount(for: .iam)
                 onCreate?(trimmedName)
                 dismiss()
             } catch {

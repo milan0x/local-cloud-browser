@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CloudWatchCreateAlarmView: View {
     @ObservedObject var service: CloudWatchService
+    @EnvironmentObject private var licenseManager: LicenseManager
     let existingAlarmNames: Set<String>
     var onCreate: ((String) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
@@ -108,6 +109,7 @@ struct CloudWatchCreateAlarmView: View {
                     comparisonOperator: comparisonOperator.rawValue,
                     threshold: thresholdVal
                 )
+                licenseManager.incrementCreateCount(for: .cloudWatch)
                 onCreate?(trimmedName)
                 dismiss()
             } catch {

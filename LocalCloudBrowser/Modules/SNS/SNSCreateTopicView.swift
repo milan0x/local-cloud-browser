@@ -3,6 +3,7 @@ import SwiftUI
 struct SNSCreateTopicView: View {
     @ObservedObject var service: SNSService
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var topicName = ""
     @State private var isFifo = false
@@ -91,6 +92,7 @@ struct SNSCreateTopicView: View {
         Task {
             do {
                 _ = try await service.createTopic(name: effectiveName, isFifo: isFifo)
+                licenseManager.incrementCreateCount(for: .sns)
                 onCreate?(effectiveName)
                 dismiss()
             } catch {

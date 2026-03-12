@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RedshiftCreateClusterView: View {
     @ObservedObject var service: RedshiftService
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var clusterIdentifier = ""
     @State private var masterUsername = "admin"
@@ -109,6 +110,7 @@ struct RedshiftCreateClusterView: View {
                     dbName: dbName.trimmingCharacters(in: .whitespaces),
                     port: Int(portString) ?? 5439
                 )
+                licenseManager.incrementCreateCount(for: .redshift)
                 onCreate?(clusterIdentifier.trimmingCharacters(in: .whitespaces))
                 dismiss()
             } catch {

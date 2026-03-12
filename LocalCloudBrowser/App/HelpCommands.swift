@@ -11,6 +11,18 @@ struct ShowUpgradeKey: FocusedValueKey {
     typealias Value = Binding<Bool>
 }
 
+struct ProfileStoreKey: FocusedValueKey {
+    typealias Value = ConnectionProfileStore
+}
+
+struct AppStateKey: FocusedValueKey {
+    typealias Value = AppState
+}
+
+struct ShowNewConnectionKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
 extension FocusedValues {
     var showFeedback: Binding<Bool>? {
         get { self[ShowFeedbackKey.self] }
@@ -20,6 +32,21 @@ extension FocusedValues {
     var showUpgrade: Binding<Bool>? {
         get { self[ShowUpgradeKey.self] }
         set { self[ShowUpgradeKey.self] = newValue }
+    }
+
+    var profileStore: ConnectionProfileStore? {
+        get { self[ProfileStoreKey.self] }
+        set { self[ProfileStoreKey.self] = newValue }
+    }
+
+    var appState: AppState? {
+        get { self[AppStateKey.self] }
+        set { self[AppStateKey.self] = newValue }
+    }
+
+    var showNewConnection: (() -> Void)? {
+        get { self[ShowNewConnectionKey.self] }
+        set { self[ShowNewConnectionKey.self] = newValue }
     }
 }
 
@@ -39,7 +66,7 @@ struct HelpCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .help) {
-            Button("Upgrade to Pro...") {
+            Button("Unlock Unlimited...") {
                 showUpgrade?.wrappedValue = true
             }
 
@@ -95,5 +122,46 @@ struct HelpCommands: Commands {
         result.addAttribute(.paragraphStyle, value: style, range: NSRange(location: 0, length: result.length))
 
         return result
+    }
+}
+
+// MARK: - File menu commands
+
+struct FileCommands: Commands {
+    @FocusedValue(\.showNewConnection) private var showNewConnection
+
+    var body: some Commands {
+        CommandGroup(after: .newItem) {
+            Button("New Connection...") {
+                showNewConnection?()
+            }
+            .keyboardShortcut("n", modifiers: [.command, .shift])
+        }
+    }
+}
+
+// MARK: - Connection menu commands
+
+struct ConnectionCommands: Commands {
+    @FocusedValue(\.profileStore) private var profileStore
+    @FocusedValue(\.appState) private var appState
+
+    var body: some Commands {
+        CommandMenu("Connection") {
+            if let profileStore, let appState {
+                ForEach(profileStore.profiles) { profile in
+                    Button {
+                        profileStore.setActive(id: profile.id)
+                        appState.applyProfile(profile)
+                    } label: {
+                        if profile.id == profileStore.activeProfileId {
+                            Text("\u{2713} \(profile.name)")
+                        } else {
+                            Text("    \(profile.name)")
+                        }
+                    }
+                }
+            }
+        }
     }
 }

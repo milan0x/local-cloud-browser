@@ -13,8 +13,8 @@ struct CallerIdentity {
     static func getCallerIdentityCLI(endpointUrl: String, region: String) -> String {
         [
             "aws sts get-caller-identity \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)"
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'"
         ].joined(separator: "\n")
     }
 }

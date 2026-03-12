@@ -42,16 +42,16 @@ struct ConfigurationRecorder: Identifiable, Hashable {
         [
             "aws configservice describe-configuration-recorders \\",
             "  --configuration-recorder-names '\(Self.shellEscape(name))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
     static func listRecordersCLI(endpointUrl: String, region: String) -> String {
         [
             "aws configservice describe-configuration-recorders \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 }
@@ -125,16 +125,16 @@ struct DeliveryChannel: Identifiable, Hashable {
         [
             "aws configservice describe-delivery-channels \\",
             "  --delivery-channel-names '\(Self.shellEscape(name))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
     static func listChannelsCLI(endpointUrl: String, region: String) -> String {
         [
             "aws configservice describe-delivery-channels \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 }

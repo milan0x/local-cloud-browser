@@ -45,8 +45,8 @@ struct FirehoseDeliveryStreamSummary: Identifiable, Hashable {
         [
             "aws firehose describe-delivery-stream \\",
             "  --delivery-stream-name '\(Self.shellEscape(deliveryStreamName))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -54,16 +54,16 @@ struct FirehoseDeliveryStreamSummary: Identifiable, Hashable {
         [
             "aws firehose delete-delivery-stream \\",
             "  --delivery-stream-name '\(Self.shellEscape(deliveryStreamName))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
     static func listStreamsCLI(endpointUrl: String, region: String) -> String {
         [
             "aws firehose list-delivery-streams \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 }

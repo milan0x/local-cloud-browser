@@ -61,8 +61,8 @@ struct LambdaFunction: Identifiable, Hashable {
         [
             "aws lambda get-function \\",
             "  --function-name '\(Self.shellEscape(functionName))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -71,8 +71,8 @@ struct LambdaFunction: Identifiable, Hashable {
             "aws lambda invoke \\",
             "  --function-name '\(Self.shellEscape(functionName))' \\",
             "  --payload '{}' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region) \\",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)' \\",
             "  /dev/stdout",
         ].joined(separator: "\n")
     }
@@ -80,8 +80,8 @@ struct LambdaFunction: Identifiable, Hashable {
     static func listFunctionsCLI(endpointUrl: String, region: String) -> String {
         [
             "aws lambda list-functions \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 

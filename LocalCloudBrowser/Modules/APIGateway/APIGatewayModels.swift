@@ -36,8 +36,8 @@ struct RestApi: Identifiable, Hashable {
         [
             "aws apigateway get-rest-api \\",
             "  --rest-api-id '\(Self.shellEscape(id))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -45,16 +45,16 @@ struct RestApi: Identifiable, Hashable {
         [
             "aws apigateway get-resources \\",
             "  --rest-api-id '\(Self.shellEscape(id))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
     static func listRestApisCLI(endpointUrl: String, region: String) -> String {
         [
             "aws apigateway get-rest-apis \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 }
