@@ -57,7 +57,7 @@ struct ContentView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.system(size: 8, weight: .bold))
-                    Text("Upgrade to Pro")
+                    Text("Unlock Unlimited")
                 }
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.white)

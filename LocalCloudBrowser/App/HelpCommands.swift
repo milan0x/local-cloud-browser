@@ -39,7 +39,7 @@ struct HelpCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .help) {
-            Button("Upgrade to Pro...") {
+            Button("Unlock Unlimited...") {
                 showUpgrade?.wrappedValue = true
             }
 
