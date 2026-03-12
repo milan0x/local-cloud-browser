@@ -32,16 +32,16 @@ struct ResourceGroupSummary: Identifiable, Hashable {
         [
             "aws resource-groups get-group \\",
             "  --group-name '\(Self.shellEscape(name))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
     static func listGroupsCLI(endpointUrl: String, region: String) -> String {
         [
             "aws resource-groups list-groups \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -49,8 +49,8 @@ struct ResourceGroupSummary: Identifiable, Hashable {
         [
             "aws resource-groups delete-group \\",
             "  --group-name '\(Self.shellEscape(name))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct StepFunctionsCreateStateMachineView: View {
     @ObservedObject var service: StepFunctionsService
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var name = ""
@@ -75,6 +76,7 @@ struct StepFunctionsCreateStateMachineView: View {
                     roleArn: roleArn.trimmingCharacters(in: .whitespaces),
                     type: type
                 )
+                licenseManager.incrementCreateCount(for: .stepFunctions)
                 onCreate?(name.trimmingCharacters(in: .whitespaces))
                 dismiss()
             } catch {

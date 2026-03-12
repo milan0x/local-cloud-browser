@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TranscribeCreateJobView: View {
     @ObservedObject var service: TranscribeService
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var jobName = ""
@@ -111,6 +112,7 @@ struct TranscribeCreateJobView: View {
                         ? nil
                         : outputBucketName.trimmingCharacters(in: .whitespaces)
                 )
+                licenseManager.incrementCreateCount(for: .transcribe)
                 onCreate?(jobName.trimmingCharacters(in: .whitespaces))
                 dismiss()
             } catch {

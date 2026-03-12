@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ConfigCreateRecorderView: View {
     @ObservedObject var service: ConfigService
+    @EnvironmentObject private var licenseManager: LicenseManager
     var onCreate: ((String) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
@@ -52,6 +53,7 @@ struct ConfigCreateRecorderView: View {
                     allSupported: allSupported,
                     resourceTypes: []
                 )
+                licenseManager.incrementCreateCount(for: .config)
                 onCreate?(recorderName)
                 dismiss()
             } catch {

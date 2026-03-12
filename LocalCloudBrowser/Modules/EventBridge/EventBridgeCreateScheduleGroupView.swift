@@ -2,6 +2,7 @@ import SwiftUI
 
 struct EventBridgeCreateScheduleGroupView: View {
     @ObservedObject var service: EventBridgeSchedulerService
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var groupName = ""
     @State private var serviceError: ServiceError?
@@ -76,6 +77,7 @@ struct EventBridgeCreateScheduleGroupView: View {
         Task {
             do {
                 try await service.createScheduleGroup(name: trimmedName)
+                licenseManager.incrementCreateCount(for: .eventBridge)
                 onCreate?(trimmedName)
                 dismiss()
             } catch {

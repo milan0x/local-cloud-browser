@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ACMImportCertificateView: View {
     @ObservedObject var service: ACMService
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var certificate = ""
@@ -66,6 +67,7 @@ struct ACMImportCertificateView: View {
                     key: privateKey.trimmingCharacters(in: .whitespacesAndNewlines),
                     chain: chain.trimmingCharacters(in: .whitespacesAndNewlines)
                 )
+                licenseManager.incrementCreateCount(for: .acm)
                 onCreate?(arn)
                 dismiss()
             } catch {

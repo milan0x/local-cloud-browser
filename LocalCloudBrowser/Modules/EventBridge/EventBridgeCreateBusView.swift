@@ -2,6 +2,7 @@ import SwiftUI
 
 struct EventBridgeCreateBusView: View {
     @ObservedObject var service: EventBridgeService
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var busName = ""
     @State private var serviceError: ServiceError?
@@ -71,6 +72,7 @@ struct EventBridgeCreateBusView: View {
         Task {
             do {
                 try await service.createEventBus(name: trimmedName)
+                licenseManager.incrementCreateCount(for: .eventBridge)
                 onCreate?(trimmedName)
                 dismiss()
             } catch {

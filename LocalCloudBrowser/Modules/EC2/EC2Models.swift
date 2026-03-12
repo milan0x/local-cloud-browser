@@ -107,8 +107,8 @@ struct EC2Instance: Identifiable, Hashable {
         [
             "aws ec2 describe-instances \\",
             "  --instance-ids '\(Self.shellEscape(instanceId))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -210,8 +210,8 @@ struct EC2SecurityGroup: Identifiable, Hashable {
         [
             "aws ec2 describe-security-groups \\",
             "  --group-ids '\(Self.shellEscape(groupId))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -248,8 +248,8 @@ struct EC2KeyPair: Identifiable, Hashable {
         [
             "aws ec2 describe-key-pairs \\",
             "  --key-names '\(Self.shellEscape(keyName))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 

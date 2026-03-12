@@ -6,6 +6,7 @@ struct ContentView: View {
     @EnvironmentObject private var licenseManager: LicenseManager
     @State private var showFeedback = false
     @State private var showWelcome = false
+    @State private var showNewConnection = false
 
     var body: some View {
         NavigationSplitView {
@@ -27,6 +28,9 @@ struct ContentView: View {
         }
         .focusedSceneValue(\.showFeedback, $showFeedback)
         .focusedSceneValue(\.showUpgrade, $licenseManager.showUpgradeSheet)
+        .focusedSceneValue(\.profileStore, profileStore)
+        .focusedSceneValue(\.appState, appState)
+        .focusedSceneValue(\.showNewConnection) { showNewConnection = true }
         .sheet(isPresented: $showFeedback) {
             FeedbackView()
         }
@@ -36,8 +40,17 @@ struct ContentView: View {
         .sheet(isPresented: $showWelcome) {
             WelcomeView()
         }
+        .sheet(isPresented: $showNewConnection) {
+            ConnectionProfileEditorView(
+                existing: nil,
+                canDelete: false,
+                onSave: { profile in
+                    profileStore.add(profile)
+                }
+            )
+        }
         .onAppear {
-            if !licenseManager.isPaid && !UserDefaults.standard.bool(forKey: "hasShownWelcome") {
+            if !UserDefaults.standard.bool(forKey: "hasShownWelcome") {
                 UserDefaults.standard.set(true, forKey: "hasShownWelcome")
                 showWelcome = true
             }
@@ -55,14 +68,9 @@ struct ContentView: View {
                 licenseManager.showUpgradeSheet = true
             } label: {
                 HStack(spacing: 4) {
-                    Image(systemName: "clock")
+                    Image(systemName: "arrow.up.circle.fill")
                         .font(.system(size: 8, weight: .bold))
-                    let days = licenseManager.trialDaysRemaining
-                    if days > 0 {
-                        Text("Trial — \(days) \(days == 1 ? "day" : "days") left")
-                    } else {
-                        Text("Trial Expired")
-                    }
+                    Text("Unlock Unlimited")
                 }
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.white)
@@ -71,14 +79,12 @@ struct ContentView: View {
                 .padding(.top, 6)
                 .padding(.bottom, 6)
                 .background(
-                    licenseManager.isTrialExpired
-                        ? Color(red: 0.45, green: 0.1, blue: 0.1)
-                        : Color(red: 0.15, green: 0.3, blue: 0.55),
+                    Color(red: 0.15, green: 0.3, blue: 0.55),
                     in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 0)
                 )
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(licenseManager.trialDaysRemaining > 0 ? "Trial: \(licenseManager.trialDaysRemaining) days remaining" : "Trial expired")
+            .accessibilityLabel("Free plan — tap to upgrade")
         case .paid:
             EmptyView()
         }

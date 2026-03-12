@@ -20,8 +20,8 @@ struct EventBridgeBus: Identifiable, Hashable {
         [
             "aws events list-rules \\",
             "  --event-bus-name '\(Self.shellEscape(name))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -110,8 +110,8 @@ struct EventBridgeRule: Identifiable, Hashable {
         if let bus = eventBusName {
             parts.append("  --event-bus-name '\(Self.shellEscape(bus))' \\")
         }
-        parts.append("  --endpoint-url \(endpointUrl) \\")
-        parts.append("  --region \(region)")
+        parts.append("  --endpoint-url '\(endpointUrl)' \\")
+        parts.append("  --region '\(region)'")
         return parts.joined(separator: "\n")
     }
 

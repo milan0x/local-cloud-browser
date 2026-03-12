@@ -26,8 +26,8 @@ struct Route53HostedZone: Identifiable, Hashable {
         [
             "aws route53 list-resource-record-sets \\",
             "  --hosted-zone-id '\(Self.shellEscape(id))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -35,16 +35,16 @@ struct Route53HostedZone: Identifiable, Hashable {
         [
             "aws route53 delete-hosted-zone \\",
             "  --id '\(Self.shellEscape(id))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
     static func listZonesCLI(endpointUrl: String, region: String) -> String {
         [
             "aws route53 list-hosted-zones \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 }

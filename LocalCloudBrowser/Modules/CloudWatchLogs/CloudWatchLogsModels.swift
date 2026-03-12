@@ -24,8 +24,8 @@ struct CloudWatchLogGroup: Identifiable, Hashable {
         [
             "aws logs describe-log-groups \\",
             "  --log-group-name-prefix '\(Self.shellEscape(logGroupName))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -35,8 +35,8 @@ struct CloudWatchLogGroup: Identifiable, Hashable {
             "  --log-group-name '\(Self.shellEscape(logGroupName))' \\",
             "  --order-by LastEventTime \\",
             "  --descending \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -81,8 +81,8 @@ struct CloudWatchLogStream: Identifiable, Hashable {
             "  --log-group-name '\(Self.shellEscape(logGroupName))' \\",
             "  --log-stream-name '\(Self.shellEscape(logStreamName))' \\",
             "  --start-from-head \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 

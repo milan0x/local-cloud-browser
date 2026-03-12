@@ -46,8 +46,8 @@ struct CloudFormationStack: Identifiable, Hashable {
         [
             "aws cloudformation describe-stacks \\",
             "  --stack-name '\(Self.shellEscape(stackName))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -55,8 +55,8 @@ struct CloudFormationStack: Identifiable, Hashable {
         [
             "aws cloudformation list-stack-resources \\",
             "  --stack-name '\(Self.shellEscape(stackName))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 

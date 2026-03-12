@@ -9,40 +9,20 @@ enum LicenseState: Equatable {
 final class LicenseManager: ObservableObject {
     @Published private(set) var state: LicenseState = .free
     @Published var showUpgradeSheet = false
+    @Published var upgradeContext: String?
 
     private let storeKit: StoreKitManager
-    /// Set by the app so LicenseManager can force read-only in free mode.
     weak var appState: AppState?
 
-    private static let trialStartKey = "trialStartDate"
-    static let trialDuration: TimeInterval = 14 * 24 * 60 * 60 // 14 days
+    static let freeCreateLimit = 3
 
     var isPaid: Bool { state == .paid }
 
-    var canWrite: Bool { state == .paid }
-
-    /// Days remaining in the trial period, or 0 if expired.
-    var trialDaysRemaining: Int {
-        guard let start = UserDefaults.standard.object(forKey: Self.trialStartKey) as? Date else {
-            return 14
-        }
-        let elapsed = Date().timeIntervalSince(start)
-        let remaining = Self.trialDuration - elapsed
-        return max(0, Int(ceil(remaining / (24 * 60 * 60))))
-    }
-
-    var isTrialExpired: Bool { trialDaysRemaining <= 0 }
-
     init(storeKit: StoreKitManager) {
         self.storeKit = storeKit
-        ensureTrialStartDate()
+        // Clean up legacy trial key from older versions
+        UserDefaults.standard.removeObject(forKey: "trialStartDate")
         refreshState()
-    }
-
-    private func ensureTrialStartDate() {
-        if UserDefaults.standard.object(forKey: Self.trialStartKey) == nil {
-            UserDefaults.standard.set(Date(), forKey: Self.trialStartKey)
-        }
     }
 
     func refreshState() {
@@ -54,10 +34,31 @@ final class LicenseManager: ObservableObject {
         }
     }
 
-    /// Call this when the user attempts a write action in free mode.
-    /// Returns `true` if the action is allowed, `false` if blocked (and shows the upgrade sheet).
-    func guardWriteAction() -> Bool {
-        if canWrite { return true }
+    // MARK: - Per-Service Create Quota
+
+    func createCount(for service: Route) -> Int {
+        UserDefaults.standard.integer(forKey: "freeCreates_\(service.rawValue)")
+    }
+
+    func remainingCreates(for service: Route) -> Int {
+        max(0, Self.freeCreateLimit - createCount(for: service))
+    }
+
+    func incrementCreateCount(for service: Route) {
+        guard !isPaid else { return }
+        let key = "freeCreates_\(service.rawValue)"
+        let current = UserDefaults.standard.integer(forKey: key)
+        UserDefaults.standard.set(current + 1, forKey: key)
+    }
+
+    /// Call when the user attempts to create a resource.
+    /// Returns `true` if the action is allowed, `false` if blocked (shows upgrade sheet).
+    func guardWriteAction(for service: Route?) -> Bool {
+        if isPaid { return true }
+        guard let service else { return true }
+        if remainingCreates(for: service) > 0 { return true }
+        let used = createCount(for: service)
+        upgradeContext = "You've reached the free limit of \(Self.freeCreateLimit) \(service.displayName) creates."
         showUpgradeSheet = true
         return false
     }

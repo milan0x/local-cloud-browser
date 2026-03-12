@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ACMRequestCertificateView: View {
     @ObservedObject var service: ACMService
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var domain = ""
@@ -64,6 +65,7 @@ struct ACMRequestCertificateView: View {
                     sans: sansList,
                     keyAlgorithm: keyAlgorithm
                 )
+                licenseManager.incrementCreateCount(for: .acm)
                 onCreate?(trimmedDomain)
                 dismiss()
             } catch {

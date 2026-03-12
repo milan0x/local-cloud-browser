@@ -32,8 +32,8 @@ struct SQSQueue: Identifiable, Hashable {
         if isFifo {
             lines.append("  --message-group-id '<group-id>' \\")
         }
-        lines.append("  --endpoint-url \(endpointUrl) \\")
-        lines.append("  --region \(region)")
+        lines.append("  --endpoint-url '\(endpointUrl)' \\")
+        lines.append("  --region '\(region)'")
         return lines.joined(separator: "\n")
     }
 
@@ -42,8 +42,8 @@ struct SQSQueue: Identifiable, Hashable {
             "aws sqs receive-message \\",
             "  --queue-url \(queueUrl) \\",
             "  --max-number-of-messages 1 \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)"
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'"
         ].joined(separator: "\n")
     }
 
@@ -52,8 +52,8 @@ struct SQSQueue: Identifiable, Hashable {
             "aws sqs get-queue-attributes \\",
             "  --queue-url \(queueUrl) \\",
             "  --attribute-names All \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)"
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'"
         ].joined(separator: "\n")
     }
 }
@@ -197,8 +197,8 @@ struct SQSMessage: Identifiable, Hashable {
         if let groupId = messageGroupId {
             lines.append("  --message-group-id '\(Self.shellEscape(groupId))' \\")
         }
-        lines.append("  --endpoint-url \(endpointUrl) \\")
-        lines.append("  --region \(region)")
+        lines.append("  --endpoint-url '\(endpointUrl)' \\")
+        lines.append("  --region '\(region)'")
         return lines.joined(separator: "\n")
     }
 

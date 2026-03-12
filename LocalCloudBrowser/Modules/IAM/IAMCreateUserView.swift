@@ -2,6 +2,7 @@ import SwiftUI
 
 struct IAMCreateUserView: View {
     @ObservedObject var service: IAMService
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var userName = ""
     @State private var serviceError: ServiceError?
@@ -71,6 +72,7 @@ struct IAMCreateUserView: View {
         Task {
             do {
                 try await service.createUser(userName: trimmedName)
+                licenseManager.incrementCreateCount(for: .iam)
                 onCreate?(trimmedName)
                 dismiss()
             } catch {

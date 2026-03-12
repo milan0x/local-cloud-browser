@@ -98,7 +98,7 @@ struct SettingsView: View {
                         Text("Free")
                             .foregroundStyle(.orange)
                     case .paid:
-                        Text("Pro")
+                        Text("Unlimited")
                             .foregroundStyle(.green)
                     }
                 }
@@ -106,7 +106,7 @@ struct SettingsView: View {
 
             if !licenseManager.isPaid {
                 Section {
-                    Button("Purchase Pro") {
+                    Button("Unlock Unlimited") {
                         licenseManager.showUpgradeSheet = true
                     }
                     Button("Restore Purchase") {

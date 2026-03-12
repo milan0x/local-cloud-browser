@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SSMCreateParameterView: View {
     @ObservedObject var service: SSMService
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var parameterName = ""
     @State private var parameterDescription = ""
@@ -104,7 +105,10 @@ struct SSMCreateParameterView: View {
                     description: desc.isEmpty ? nil : desc,
                     overwrite: isEditing
                 )
-                if !isEditing { onCreate?(name) }
+                if !isEditing {
+                    licenseManager.incrementCreateCount(for: .ssm)
+                    onCreate?(name)
+                }
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

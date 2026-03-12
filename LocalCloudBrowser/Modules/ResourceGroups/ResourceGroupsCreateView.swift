@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ResourceGroupsCreateView: View {
     @ObservedObject var service: ResourceGroupsService
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var name = ""
@@ -115,6 +116,7 @@ struct ResourceGroupsCreateView: View {
                     tagFilters: filters,
                     resourceTypeFilters: typeFilters
                 )
+                licenseManager.incrementCreateCount(for: .resourceGroups)
                 onCreate?(trimmedName)
                 dismiss()
             } catch {

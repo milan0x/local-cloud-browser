@@ -19,8 +19,8 @@ struct IAMUser: Identifiable, Hashable {
         [
             "aws iam get-user \\",
             "  --user-name '\(Self.shellEscape(userName))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -82,8 +82,8 @@ struct IAMRole: Identifiable, Hashable {
         [
             "aws iam get-role \\",
             "  --role-name '\(Self.shellEscape(roleName))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
@@ -128,8 +128,8 @@ struct IAMPolicy: Identifiable, Hashable {
         [
             "aws iam get-policy \\",
             "  --policy-arn '\(Self.shellEscape(arn))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)",
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 

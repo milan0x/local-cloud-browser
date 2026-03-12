@@ -20,8 +20,8 @@ struct Secret: Identifiable, Hashable {
         [
             "aws secretsmanager get-secret-value \\",
             "  --secret-id '\(Self.shellEscape(name))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)"
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'"
         ].joined(separator: "\n")
     }
 
@@ -29,8 +29,8 @@ struct Secret: Identifiable, Hashable {
         [
             "aws secretsmanager describe-secret \\",
             "  --secret-id '\(Self.shellEscape(name))' \\",
-            "  --endpoint-url \(endpointUrl) \\",
-            "  --region \(region)"
+            "  --endpoint-url '\(endpointUrl)' \\",
+            "  --region '\(region)'"
         ].joined(separator: "\n")
     }
 

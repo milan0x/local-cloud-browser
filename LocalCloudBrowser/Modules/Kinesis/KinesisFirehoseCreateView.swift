@@ -2,6 +2,7 @@ import SwiftUI
 
 struct KinesisFirehoseCreateView: View {
     @ObservedObject var service: KinesisFirehoseService
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var streamName = ""
     @State private var s3BucketARN = ""
@@ -71,6 +72,7 @@ struct KinesisFirehoseCreateView: View {
                     bufferingSize: bufferingSize,
                     compression: compression
                 )
+                licenseManager.incrementCreateCount(for: .kinesis)
                 onCreate?(streamName.trimmingCharacters(in: .whitespaces))
                 dismiss()
             } catch {
