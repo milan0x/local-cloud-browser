@@ -14,16 +14,22 @@ struct WelcomeView: View {
                     .font(.title3)
                     .fontWeight(.semibold)
 
-                Text("Browse and manage your LocalStack services with a native macOS experience.")
+                Text("Browse and manage your cloud services with a native macOS experience.")
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: 320)
             }
             .padding(.top, 28)
 
             Spacer().frame(height: 24)
 
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("What's included for free")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 2)
+
                 featureRow(
                     icon: "eye",
                     color: .blue,
@@ -34,13 +40,13 @@ struct WelcomeView: View {
                     icon: "paperplane",
                     color: .green,
                     title: "Send & Upload",
-                    subtitle: "Push messages, upload files, and interact with existing resources"
+                    subtitle: "Push messages, upload files, and interact with your resources"
                 )
                 featureRow(
                     icon: "plus.circle",
                     color: .orange,
                     title: "Create Resources",
-                    subtitle: "3 free per service, unlimited with Pro"
+                    subtitle: "Create up to 3 resources per service"
                 )
             }
             .padding(.horizontal, 32)
@@ -61,7 +67,7 @@ struct WelcomeView: View {
             .padding(.horizontal, 32)
             .padding(.bottom, 24)
         }
-        .frame(width: 400, height: 380)
+        .frame(width: 400, height: 420)
     }
 
     private func featureRow(icon: String, color: Color, title: String, subtitle: String) -> some View {
@@ -77,6 +83,7 @@ struct WelcomeView: View {
                 Text(subtitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
