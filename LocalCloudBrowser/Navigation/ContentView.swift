@@ -6,6 +6,7 @@ struct ContentView: View {
     @EnvironmentObject private var licenseManager: LicenseManager
     @State private var showFeedback = false
     @State private var showWelcome = false
+    @State private var showNewConnection = false
 
     var body: some View {
         NavigationSplitView {
@@ -27,6 +28,9 @@ struct ContentView: View {
         }
         .focusedSceneValue(\.showFeedback, $showFeedback)
         .focusedSceneValue(\.showUpgrade, $licenseManager.showUpgradeSheet)
+        .focusedSceneValue(\.profileStore, profileStore)
+        .focusedSceneValue(\.appState, appState)
+        .focusedSceneValue(\.showNewConnection) { showNewConnection = true }
         .sheet(isPresented: $showFeedback) {
             FeedbackView()
         }
@@ -35,6 +39,15 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showWelcome) {
             WelcomeView()
+        }
+        .sheet(isPresented: $showNewConnection) {
+            ConnectionProfileEditorView(
+                existing: nil,
+                canDelete: false,
+                onSave: { profile in
+                    profileStore.add(profile)
+                }
+            )
         }
         .onAppear {
             if !licenseManager.isPaid && !UserDefaults.standard.bool(forKey: "hasShownWelcome") {
