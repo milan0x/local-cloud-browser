@@ -25,7 +25,7 @@
           "locale" : "en_US"
         }
       ],
-      "productID" : "com.localcloudbrowser.pro",
+      "productID" : "localcloudbrowser.unlimited",
       "referenceName" : "Local Cloud Browser Unlimited",
       "type" : "NonConsumable"
     }

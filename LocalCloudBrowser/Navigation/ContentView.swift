@@ -192,7 +192,7 @@ struct ContentView: View {
             Image(systemName: "cloud")
                 .font(.system(size: 64))
                 .foregroundStyle(.secondary)
-            Text("Local Cloud Browser")
+            Text("Local Cloud Browser GUI")
                 .font(.largeTitle)
                 .fontWeight(.semibold)
             Text("Select a service from the sidebar to get started.")

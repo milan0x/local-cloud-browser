@@ -2,7 +2,7 @@ import StoreKit
 
 @MainActor
 final class StoreKitManager: ObservableObject {
-    static let productID = "com.localcloudbrowser.pro"
+    static let productID = "localcloudbrowser.unlimited"
 
     @Published private(set) var product: Product?
     @Published private(set) var isPurchased = false

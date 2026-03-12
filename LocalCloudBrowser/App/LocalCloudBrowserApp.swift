@@ -66,7 +66,7 @@ struct LocalCloudBrowserApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("Local Cloud Browser") {
+        WindowGroup("Local Cloud Browser GUI") {
             ContentView()
                 .environmentObject(appState)
                 .environmentObject(client)
