@@ -46,6 +46,8 @@ struct ContentView: View {
                 canDelete: false,
                 onSave: { profile in
                     profileStore.add(profile)
+                    profileStore.setActive(id: profile.id)
+                    appState.applyProfile(profile)
                 }
             )
         }
