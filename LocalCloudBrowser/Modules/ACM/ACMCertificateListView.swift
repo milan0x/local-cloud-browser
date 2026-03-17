@@ -5,6 +5,7 @@ struct ACMCertificateListView: View {
     @ObservedObject var service: ACMService
     @ObservedObject var toolbarState: ACMToolbarState
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedCertIDs: Set<ACMCertificateSummary.ID>
     @Binding var activeCertificate: ACMCertificateSummary?
     var restoreCertArn: String?
@@ -242,6 +243,7 @@ struct ACMCertificateListView: View {
             }
             if let error { serviceError = error }
             if !deleted.isEmpty {
+                licenseManager.decrementCreateCount(for: .acm, by: deleted.count)
                 selectedCertIDs.subtract(deleted)
                 if let active = activeCertificate, deleted.contains(active.id) { activeCertificate = nil }
                 loadCertificates(force: true)

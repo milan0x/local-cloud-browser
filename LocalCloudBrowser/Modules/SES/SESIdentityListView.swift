@@ -5,6 +5,7 @@ struct SESIdentityListView: View {
     @ObservedObject var service: SESService
     @ObservedObject var toolbarState: SESToolbarState
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedIdentityIDs: Set<SESIdentity.ID>
     @Binding var activeIdentity: SESIdentity?
     var restoreIdentityName: String?
@@ -207,6 +208,7 @@ struct SESIdentityListView: View {
             }
             if let error { serviceError = error }
             if !deleted.isEmpty {
+                licenseManager.decrementCreateCount(for: .ses, by: deleted.count)
                 selectedIdentityIDs.subtract(deleted)
                 if let active = activeIdentity, deleted.contains(active.id) {
                     activeIdentity = nil

@@ -60,7 +60,7 @@ struct ConnectionProfileEditorView: View {
                 TextField("Name", text: $name)
                     .focused($focusedField, equals: "name")
                     .textFieldStyle(.roundedBorder)
-                TextField("Endpoint", text: $endpoint, prompt: Text("http://localhost:4566"))
+                TextField("Endpoint", text: $endpoint, prompt: Text("http://localhost:port"))
                     .textFieldStyle(.roundedBorder)
                 LabeledContent("Default Region") {
                     if endpointType == .minio {

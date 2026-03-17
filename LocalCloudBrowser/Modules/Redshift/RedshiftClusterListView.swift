@@ -5,6 +5,7 @@ struct RedshiftClusterListView: View {
     @ObservedObject var service: RedshiftService
     @ObservedObject var toolbarState: RedshiftToolbarState
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedClusterIDs: Set<RedshiftCluster.ID>
     @Binding var activeCluster: RedshiftCluster?
     var restoreClusterId: String?
@@ -211,6 +212,7 @@ struct RedshiftClusterListView: View {
             }
             if let error { serviceError = error }
             if !deleted.isEmpty {
+                licenseManager.decrementCreateCount(for: .redshift, by: deleted.count)
                 selectedClusterIDs.subtract(deleted)
                 if let active = activeCluster, deleted.contains(active.id) { activeCluster = nil }
                 loadClusters(force: true)

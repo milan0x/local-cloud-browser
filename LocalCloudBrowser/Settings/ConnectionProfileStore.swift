@@ -12,7 +12,7 @@ final class ConnectionProfileStore: ObservableObject {
     private(set) var defaultProfileId: UUID?
 
     func isDefaultProfile(_ id: UUID) -> Bool {
-        id == defaultProfileId
+        false
     }
 
     var activeProfile: ConnectionProfile? {
@@ -21,19 +21,9 @@ final class ConnectionProfileStore: ObservableObject {
 
     init() {
         load()
-        if profiles.isEmpty {
-            let defaultProfile = ConnectionProfile()
-            profiles = [defaultProfile]
-            activeProfileId = defaultProfile.id
-            defaultProfileId = defaultProfile.id
-            UserDefaults.standard.set(defaultProfile.id.uuidString, forKey: defaultProfileKey)
-            UserDefaults.standard.set(true, forKey: Self.migratedToKeychainKey)
-            save()
-            Log.info("Created default connection profile", category: "Profiles")
-        }
         if activeProfileId == nil {
             activeProfileId = profiles.first?.id
-            save()
+            if activeProfileId != nil { save() }
         }
         Log.info("Loaded \(profiles.count) profile(s), active: \(activeProfile?.name ?? "none")", category: "Profiles")
     }

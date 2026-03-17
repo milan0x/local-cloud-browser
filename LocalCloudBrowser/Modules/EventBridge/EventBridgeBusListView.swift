@@ -5,6 +5,7 @@ struct EventBridgeBusListView: View {
     @ObservedObject var service: EventBridgeService
     @ObservedObject var toolbarState: EventBridgeToolbarState
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedBusIDs: Set<EventBridgeBus.ID>
     @Binding var activeBus: EventBridgeBus?
     var restoreBusName: String?
@@ -211,6 +212,7 @@ struct EventBridgeBusListView: View {
             }
             if let lastError { serviceError = lastError }
             if !deletedIDs.isEmpty {
+                licenseManager.decrementCreateCount(for: .eventBridge, by: deletedIDs.count)
                 selectedBusIDs.subtract(deletedIDs)
                 if let active = activeBus, deletedIDs.contains(active.id) {
                     activeBus = nil

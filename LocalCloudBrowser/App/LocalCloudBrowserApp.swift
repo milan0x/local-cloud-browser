@@ -46,8 +46,6 @@ struct LocalCloudBrowserApp: App {
         }
         if let active = store.activeProfile {
             state.applyProfile(active)
-        } else {
-            state.startHealthCheck()
         }
         if LastSessionStore.isEnabled, let saved = LastSessionStore.load() {
             state.selectedRoute = saved.route

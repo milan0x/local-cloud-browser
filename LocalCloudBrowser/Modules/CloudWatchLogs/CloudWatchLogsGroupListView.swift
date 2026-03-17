@@ -5,6 +5,7 @@ struct CloudWatchLogsGroupListView: View {
     @ObservedObject var service: CloudWatchLogsService
     @ObservedObject var toolbarState: CloudWatchLogsToolbarState
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedLogGroupIDs: Set<CloudWatchLogGroup.ID>
     @Binding var activeLogGroup: CloudWatchLogGroup?
     var restoreLogGroupName: String?
@@ -214,6 +215,7 @@ struct CloudWatchLogsGroupListView: View {
             }
             if let error { serviceError = error }
             if !deleted.isEmpty {
+                licenseManager.decrementCreateCount(for: .cloudwatchLogs, by: deleted.count)
                 selectedLogGroupIDs.subtract(deleted)
                 if let active = activeLogGroup, deleted.contains(active.id) {
                     activeLogGroup = nil
