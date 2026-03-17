@@ -105,6 +105,8 @@ struct SidebarView: View {
                         }
                     } else {
                         profileStore.add(profile)
+                        profileStore.setActive(id: profile.id)
+                        appState.applyProfile(profile)
                     }
                 },
                 onDelete: sheet.profile.map { profile in
