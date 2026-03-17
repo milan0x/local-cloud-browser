@@ -126,6 +126,10 @@ enum Route: String, CaseIterable, Identifiable {
         }
     }
 
+    var supportedByMinIO: Bool {
+        self == .s3
+    }
+
     var systemImage: String {
         switch self {
         case .s3: "externaldrive"

@@ -1,5 +1,11 @@
 import Foundation
 
+enum EndpointType: String, Codable, Sendable {
+    case localstack
+    case minio
+    case generic
+}
+
 struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
     static let defaultHealthPath = ""
     static let defaultS3Domain = ""
@@ -14,11 +20,12 @@ struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
     var healthPath: String
     var s3Domain: String
     var apiGatewayDomain: String
+    var endpointType: EndpointType
 
     /// Only non-sensitive fields are serialized to UserDefaults.
     /// Credentials are stored separately in the Keychain.
     private enum CodingKeys: String, CodingKey {
-        case id, name, endpoint, region, healthPath, s3Domain, apiGatewayDomain
+        case id, name, endpoint, region, healthPath, s3Domain, apiGatewayDomain, endpointType
     }
 
     init(
@@ -30,7 +37,8 @@ struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
         secretAccessKey: String = "test",
         healthPath: String = ConnectionProfile.defaultHealthPath,
         s3Domain: String = ConnectionProfile.defaultS3Domain,
-        apiGatewayDomain: String = ConnectionProfile.defaultApiGatewayDomain
+        apiGatewayDomain: String = ConnectionProfile.defaultApiGatewayDomain,
+        endpointType: EndpointType = .generic
     ) {
         self.id = id
         self.name = name
@@ -41,6 +49,7 @@ struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
         self.healthPath = healthPath
         self.s3Domain = s3Domain
         self.apiGatewayDomain = apiGatewayDomain
+        self.endpointType = endpointType
     }
 
     init(from decoder: Decoder) throws {
@@ -52,6 +61,7 @@ struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
         healthPath = try container.decodeIfPresent(String.self, forKey: .healthPath) ?? ConnectionProfile.defaultHealthPath
         s3Domain = try container.decodeIfPresent(String.self, forKey: .s3Domain) ?? ConnectionProfile.defaultS3Domain
         apiGatewayDomain = try container.decodeIfPresent(String.self, forKey: .apiGatewayDomain) ?? ConnectionProfile.defaultApiGatewayDomain
+        endpointType = try container.decodeIfPresent(EndpointType.self, forKey: .endpointType) ?? .generic
         // Credentials are hydrated from Keychain after decoding.
         // Fall back to defaults so profiles without Keychain entries work.
         accessKeyId = KeychainHelper.defaultAccessKeyId

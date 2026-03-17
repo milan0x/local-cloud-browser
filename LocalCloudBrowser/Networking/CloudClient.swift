@@ -139,7 +139,8 @@ final class CloudClient: ObservableObject {
             body: body,
             contentType: contentType,
             baseURLOverride: s3BaseURL,
-            headers: headers
+            headers: headers,
+            service: "s3"
         )
         return response.data
     }
@@ -151,7 +152,8 @@ final class CloudClient: ObservableObject {
             queryParams: [:],
             body: nil,
             contentType: nil,
-            baseURLOverride: s3BaseURL
+            baseURLOverride: s3BaseURL,
+            service: "s3"
         )
         return response.headers
     }
@@ -1197,7 +1199,8 @@ final class CloudClient: ObservableObject {
         contentType: String?,
         baseURLOverride: String? = nil,
         headers: [String: String] = [:],
-        skipReadOnlyCheck: Bool = false
+        skipReadOnlyCheck: Bool = false,
+        service: String? = nil
     ) async throws -> HTTPResponse {
         let effectiveBase = baseURLOverride ?? baseURL
 
@@ -1232,6 +1235,17 @@ final class CloudClient: ObservableObject {
         }
         for (key, value) in headers {
             urlRequest.setValue(value, forHTTPHeaderField: key)
+        }
+
+        if let service, appState.needsSigning {
+            SigV4Signer.sign(
+                request: &urlRequest,
+                body: body,
+                region: appState.region,
+                service: service,
+                accessKeyId: appState.accessKeyId,
+                secretAccessKey: appState.secretAccessKey
+            )
         }
 
         let data: Data

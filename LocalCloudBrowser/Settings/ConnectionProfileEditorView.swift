@@ -16,6 +16,7 @@ struct ConnectionProfileEditorView: View {
     @State private var healthPath: String
     @State private var s3Domain: String
     @State private var apiGatewayDomain: String
+    @State private var endpointType: EndpointType
     @State private var testResult: TestResult?
     @State private var isTesting = false
     @State private var isDetecting = false
@@ -36,18 +37,20 @@ struct ConnectionProfileEditorView: View {
         self.onSave = onSave
         self.onDelete = onDelete
         _name = State(initialValue: existing?.name ?? "")
-        _endpoint = State(initialValue: existing?.endpoint ?? "http://localhost:4566")
+        _endpoint = State(initialValue: existing?.endpoint ?? "")
         _region = State(initialValue: existing?.region ?? "us-east-1")
-        _accessKeyId = State(initialValue: existing?.accessKeyId ?? "test")
-        _secretAccessKey = State(initialValue: existing?.secretAccessKey ?? "test")
+        _accessKeyId = State(initialValue: existing?.accessKeyId ?? "")
+        _secretAccessKey = State(initialValue: existing?.secretAccessKey ?? "")
         _healthPath = State(initialValue: existing?.healthPath ?? "")
         _s3Domain = State(initialValue: existing?.s3Domain ?? "")
         _apiGatewayDomain = State(initialValue: existing?.apiGatewayDomain ?? "")
+        _endpointType = State(initialValue: existing?.endpointType ?? .generic)
         _showAdvanced = State(initialValue: showAdvanced)
     }
 
     private var isValid: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
+            && !endpoint.trimmingCharacters(in: .whitespaces).isEmpty
             && URL(string: endpoint) != nil
     }
 
@@ -57,14 +60,19 @@ struct ConnectionProfileEditorView: View {
                 TextField("Name", text: $name)
                     .focused($focusedField, equals: "name")
                     .textFieldStyle(.roundedBorder)
-                TextField("Endpoint", text: $endpoint)
+                TextField("Endpoint", text: $endpoint, prompt: Text("http://localhost:4566"))
                     .textFieldStyle(.roundedBorder)
                 LabeledContent("Default Region") {
-                    AWSRegionPicker(regionCode: $region)
+                    if endpointType == .minio {
+                        Text("us-east-1")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        AWSRegionPicker(regionCode: $region)
+                    }
                 }
-                TextField("Access Key ID", text: $accessKeyId)
+                TextField("Access Key ID", text: $accessKeyId, prompt: Text("Access Key ID"))
                     .textFieldStyle(.roundedBorder)
-                SecureField("Secret Access Key", text: $secretAccessKey)
+                SecureField("Secret Access Key", text: $secretAccessKey, prompt: Text("Secret Access Key"))
                     .textFieldStyle(.roundedBorder)
 
                 DisclosureGroup(isExpanded: $showAdvanced) {
@@ -162,7 +170,8 @@ struct ConnectionProfileEditorView: View {
                         secretAccessKey: secretAccessKey,
                         healthPath: healthPath.trimmingCharacters(in: .whitespaces),
                         s3Domain: s3Domain.trimmingCharacters(in: .whitespaces),
-                        apiGatewayDomain: apiGatewayDomain.trimmingCharacters(in: .whitespaces)
+                        apiGatewayDomain: apiGatewayDomain.trimmingCharacters(in: .whitespaces),
+                        endpointType: endpointType
                     )
                     onSave(profile)
                     dismiss()
@@ -243,6 +252,7 @@ struct ConnectionProfileEditorView: View {
 
     private func fieldLabel(for key: String) -> String {
         switch key {
+        case "endpointType": return "Endpoint: \(endpointType.rawValue.capitalized)"
         case "healthPath": return "Health Path"
         case "s3Domain": return "S3 Domain"
         case "apiGatewayDomain": return "API Gateway Domain"
@@ -251,14 +261,7 @@ struct ConnectionProfileEditorView: View {
     }
 
     private func testConnection() {
-        let trimmedPath = healthPath.trimmingCharacters(in: .whitespaces)
-        let testURL: String
-        if trimmedPath.isEmpty {
-            testURL = endpoint
-        } else {
-            testURL = endpoint.hasSuffix("/") ? endpoint + trimmedPath : endpoint + "/" + trimmedPath
-        }
-        guard let url = URL(string: testURL) else {
+        guard URL(string: endpoint) != nil else {
             testResult = .failure("Invalid URL")
             return
         }
@@ -268,9 +271,76 @@ struct ConnectionProfileEditorView: View {
         detectedFields = []
         notDetectedFields = []
         showAdvanced = true
-        Log.info("Testing connection to \(url.absoluteString)", category: "Connection")
+        Log.info("Testing connection to \(endpoint)", category: "Connection")
 
         Task {
+            // Step 1: Detect endpoint type and settings first.
+            // This discovers the correct health path for MinIO / LocalStack
+            // so we don't hit the root endpoint unsigned.
+            if SafetyGuard.evaluate(endpoint: endpoint) == .local {
+                isDetecting = true
+                let result = await EndpointDetector.detect(
+                    endpoint: endpoint,
+                    currentHealthPath: healthPath,
+                    currentS3Domain: s3Domain,
+                    currentApiGatewayDomain: apiGatewayDomain
+                )
+
+                var filled: Set<String> = []
+                var probed: [String] = ["endpointType"]
+                if healthPath.trimmingCharacters(in: .whitespaces).isEmpty { probed.append("healthPath") }
+                if s3Domain.trimmingCharacters(in: .whitespaces).isEmpty { probed.append("s3Domain") }
+                if apiGatewayDomain.trimmingCharacters(in: .whitespaces).isEmpty { probed.append("apiGatewayDomain") }
+
+                if let value = result.endpointType {
+                    endpointType = value
+                    filled.insert("endpointType")
+                    // Auto-fill credentials and region based on detected type
+                    switch value {
+                    case .minio:
+                        region = "us-east-1"
+                        if accessKeyId.isEmpty { accessKeyId = "minioadmin" }
+                        if secretAccessKey.isEmpty { secretAccessKey = "minioadmin" }
+                    case .localstack:
+                        if accessKeyId.isEmpty { accessKeyId = "test" }
+                        if secretAccessKey.isEmpty { secretAccessKey = "test" }
+                    case .generic:
+                        break
+                    }
+                }
+                if let value = result.healthPath {
+                    healthPath = value
+                    filled.insert("healthPath")
+                }
+                if let value = result.s3Domain {
+                    s3Domain = value
+                    filled.insert("s3Domain")
+                }
+                if let value = result.apiGatewayDomain {
+                    apiGatewayDomain = value
+                    filled.insert("apiGatewayDomain")
+                }
+
+                detectedFields = filled
+                notDetectedFields = probed.filter { !filled.contains($0) }
+                isDetecting = false
+            }
+
+            // Step 2: Test connection using the (possibly updated) health path
+            let trimmedPath = healthPath.trimmingCharacters(in: .whitespaces)
+            let testURL: String
+            if trimmedPath.isEmpty {
+                testURL = endpoint
+            } else {
+                testURL = endpoint.hasSuffix("/") ? endpoint + trimmedPath : endpoint + "/" + trimmedPath
+            }
+
+            guard let url = URL(string: testURL) else {
+                testResult = .failure("Invalid URL")
+                isTesting = false
+                return
+            }
+
             do {
                 var request = URLRequest(url: url)
                 request.timeoutInterval = 5
@@ -284,18 +354,15 @@ struct ConnectionProfileEditorView: View {
                 }
 
                 if (200..<300).contains(http.statusCode) {
-                    // Try to extract version from health response
-                    var version = ""
+                    var suffix = ""
                     if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                        let v = json["version"] as? String {
-                        version = " (v\(v))"
+                        suffix = " (v\(v))"
+                    } else if endpointType == .minio {
+                        suffix = " (MinIO)"
                     }
-                    Log.info("Test connection OK: \(endpoint) -> \(http.statusCode)\(version)", category: "Connection")
-                    testResult = .success("Connected\(version)")
-
-                    if SafetyGuard.evaluate(endpoint: endpoint) == .local {
-                        detectAdvancedSettings()
-                    }
+                    Log.info("Test connection OK: \(endpoint) -> \(http.statusCode)\(suffix)", category: "Connection")
+                    testResult = .success("Connected\(suffix)")
                 } else {
                     Log.warn("Test connection failed: \(endpoint) -> HTTP \(http.statusCode)", category: "Connection")
                     testResult = .failure("HTTP \(http.statusCode)")
@@ -308,43 +375,5 @@ struct ConnectionProfileEditorView: View {
         }
     }
 
-    private func detectAdvancedSettings() {
-        isDetecting = true
-        detectedFields = []
-        notDetectedFields = []
-
-        var probed: [String] = []
-        if healthPath.trimmingCharacters(in: .whitespaces).isEmpty { probed.append("healthPath") }
-        if s3Domain.trimmingCharacters(in: .whitespaces).isEmpty { probed.append("s3Domain") }
-        if apiGatewayDomain.trimmingCharacters(in: .whitespaces).isEmpty { probed.append("apiGatewayDomain") }
-
-        Task {
-            let result = await EndpointDetector.detect(
-                endpoint: endpoint,
-                currentHealthPath: healthPath,
-                currentS3Domain: s3Domain,
-                currentApiGatewayDomain: apiGatewayDomain
-            )
-
-            var filled: Set<String> = []
-            if let value = result.healthPath {
-                healthPath = value
-                filled.insert("healthPath")
-            }
-            if let value = result.s3Domain {
-                s3Domain = value
-                filled.insert("s3Domain")
-            }
-            if let value = result.apiGatewayDomain {
-                apiGatewayDomain = value
-                filled.insert("apiGatewayDomain")
-            }
-
-            detectedFields = filled
-            notDetectedFields = probed.filter { !filled.contains($0) }
-            showAdvanced = true
-            isDetecting = false
-        }
-    }
 
 }
