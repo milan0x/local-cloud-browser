@@ -12,31 +12,21 @@ struct StepFunctionsStartExecutionView: View {
     @State private var showJsonHelper = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 520,
+            isValid: true,
+            isCreating: isSaving,
+            createLabel: "Start Execution",
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("Execution Name (optional)", text: $name)
                     .help("Leave empty for auto-generated name")
 
                 JSONInputSection(text: $input, isHelperShown: $showJsonHelper, config: .executionInput)
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Start Execution") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(isSaving)
-            }
-            .padding()
         }
-        .frame(width: 520)
         .frame(minHeight: showJsonHelper ? 620 : 420)
         .animation(.easeInOut(duration: 0.2), value: showJsonHelper)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private func save() {

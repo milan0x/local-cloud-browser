@@ -15,8 +15,14 @@ struct APIGatewayCreateAPIView: View {
     private static let endpointTypes = ["REGIONAL", "EDGE", "PRIVATE"]
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 420,
+            minHeight: 280,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 Section("REST API") {
                     TextField("Name", text: $name)
                     TextField("Description (optional)", text: $description)
@@ -29,8 +35,6 @@ struct APIGatewayCreateAPIView: View {
                         }
                     }
                 }
-            }
-            .formStyle(.grouped)
 
             if nameExists {
                 Text("An API named \"\(trimmedName)\" already exists.")
@@ -38,23 +42,7 @@ struct APIGatewayCreateAPIView: View {
                     .font(.caption)
                     .padding(.horizontal)
             }
-
-            Divider()
-                .padding(.top, 8)
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 420)
-        .frame(minHeight: 280)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var trimmedName: String {

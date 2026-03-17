@@ -15,8 +15,14 @@ struct ACMRequestCertificateView: View {
     private let keyAlgorithms = ["RSA_2048", "EC_prime256v1", "EC_secp384r1"]
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 420,
+            isValid: isValid,
+            isCreating: isSaving,
+            createLabel: "Request",
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("Domain Name", text: $domain)
                     .help("Primary domain (e.g., example.com or *.example.com)")
                 TextField("Subject Alternative Names", text: $sans)
@@ -26,23 +32,7 @@ struct ACMRequestCertificateView: View {
                         Text(algo).tag(algo)
                     }
                 }
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Request") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 420)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var isValid: Bool {

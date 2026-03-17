@@ -9,29 +9,17 @@ struct APIGatewayCreateDeploymentView: View {
     @State private var isSaving = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            minHeight: 180,
+            isValid: true,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 Section("Deployment") {
                     TextField("Description (optional)", text: $description)
                 }
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(isSaving)
-            }
-            .padding()
         }
-        .frame(width: 380)
-        .frame(minHeight: 180)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private func save() {

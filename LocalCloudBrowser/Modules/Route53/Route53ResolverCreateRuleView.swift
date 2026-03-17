@@ -15,8 +15,13 @@ struct Route53ResolverCreateRuleView: View {
     private let ruleTypes = ["FORWARD", "SYSTEM", "RECURSIVE"]
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 450,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("Rule Name", text: $name)
 
                 Picker("Rule Type", selection: $ruleType) {
@@ -34,23 +39,7 @@ struct Route53ResolverCreateRuleView: View {
                         Stepper("Target Port: \(targetPort)", value: $targetPort, in: 1...65535)
                     }
                 }
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 450)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var isValid: Bool {

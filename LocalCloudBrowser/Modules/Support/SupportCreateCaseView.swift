@@ -18,8 +18,14 @@ struct SupportCreateCaseView: View {
     private let severityLevels = ["low", "normal", "high", "urgent", "critical"]
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 480,
+            isValid: isValid,
+            isCreating: isSaving,
+            createLabel: "Create Case",
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 Section("Case Details") {
                     TextField("Subject", text: $subject)
                     if hasAttemptedCreate && subject.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -76,23 +82,7 @@ struct SupportCreateCaseView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create Case") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 480)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var isValid: Bool {

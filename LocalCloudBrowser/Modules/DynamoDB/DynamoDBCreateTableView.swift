@@ -31,8 +31,14 @@ struct DynamoDBCreateTableView: View {
     ]
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 420,
+            minHeight: 360,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: create
+        ) {
                 Section("Table") {
                     TextField("Table name", text: $tableName)
                 }
@@ -75,8 +81,6 @@ struct DynamoDBCreateTableView: View {
                         }
                     }
                 }
-            }
-            .formStyle(.grouped)
 
             if nameExists {
                 Text("A table named \"\(tableName.trimmingCharacters(in: .whitespaces))\" already exists.")
@@ -91,23 +95,7 @@ struct DynamoDBCreateTableView: View {
                     .font(.caption)
                     .padding(.horizontal)
             }
-
-            Divider()
-                .padding(.top, 8)
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { create() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 420)
-        .frame(minHeight: 360)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var nameExists: Bool {

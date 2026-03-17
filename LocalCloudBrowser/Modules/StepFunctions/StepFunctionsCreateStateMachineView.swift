@@ -28,8 +28,13 @@ struct StepFunctionsCreateStateMachineView: View {
     private let types = ["STANDARD", "EXPRESS"]
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 550,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("Name", text: $name)
                 TextField("Role ARN", text: $roleArn)
 
@@ -40,23 +45,8 @@ struct StepFunctionsCreateStateMachineView: View {
                 }
 
                 JSONInputSection(text: $definition, config: .stateMachineDefinition)
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 550, height: 550)
-        .serviceErrorAlert(error: $serviceError)
+        .frame(height: 550)
     }
 
     private var isValid: Bool {

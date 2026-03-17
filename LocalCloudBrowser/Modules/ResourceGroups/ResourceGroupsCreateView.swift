@@ -21,8 +21,13 @@ struct ResourceGroupsCreateView: View {
     var onCreate: ((String) -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 480,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 Section("Group") {
                     TextField("Name", text: $name)
                         .help("Unique name for the resource group")
@@ -59,23 +64,7 @@ struct ResourceGroupsCreateView: View {
                     TextField("Resource Type Filter", text: $resourceTypeFilter)
                         .help("e.g., AWS::AllSupported, AWS::S3::Bucket, AWS::Lambda::Function")
                 }
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 480)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var isValid: Bool {

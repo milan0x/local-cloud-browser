@@ -16,8 +16,13 @@ struct ConfigCreateDeliveryChannelView: View {
     private let frequencies = ["", "One_Hour", "Three_Hours", "Six_Hours", "Twelve_Hours", "TwentyFour_Hours"]
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 420,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("Channel Name", text: $name)
                 TextField("S3 Bucket Name", text: $s3BucketName)
                 TextField("S3 Key Prefix (optional)", text: $s3KeyPrefix)
@@ -28,23 +33,7 @@ struct ConfigCreateDeliveryChannelView: View {
                         Text(freq.replacingOccurrences(of: "_", with: " ")).tag(freq)
                     }
                 }
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 420)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var isValid: Bool {

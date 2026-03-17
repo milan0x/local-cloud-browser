@@ -10,28 +10,18 @@ struct KinesisPutRecordView: View {
     @State private var isSaving = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 450,
+            isValid: isValid,
+            isCreating: isSaving,
+            createLabel: "Put Record",
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("Partition Key", text: $partitionKey)
 
                 JSONInputSection(text: $recordData, config: .recordData)
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Put Record") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 450)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var isValid: Bool {

@@ -15,8 +15,14 @@ struct APIGatewayCreateStageView: View {
     private static let namePattern = try! NSRegularExpression(pattern: "^[a-zA-Z0-9_]+$")
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 420,
+            minHeight: 300,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 Section("Stage") {
                     TextField("Stage Name", text: $stageName)
                         .disableAutocorrection(true)
@@ -38,8 +44,6 @@ struct APIGatewayCreateStageView: View {
                         }
                     }
                 }
-            }
-            .formStyle(.grouped)
 
             if nameExists {
                 Text("A stage named \"\(trimmedName)\" already exists.")
@@ -52,23 +56,7 @@ struct APIGatewayCreateStageView: View {
                     .font(.caption)
                     .padding(.horizontal)
             }
-
-            Divider()
-                .padding(.top, 8)
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 420)
-        .frame(minHeight: 300)
-        .serviceErrorAlert(error: $serviceError)
         .onAppear {
             if let first = deployments.first {
                 deploymentId = first.id

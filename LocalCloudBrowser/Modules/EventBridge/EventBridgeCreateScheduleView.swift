@@ -38,8 +38,14 @@ struct EventBridgeCreateScheduleView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 520,
+            minHeight: 580,
+            isValid: isValid && !appState.isReadOnly,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 Section("Schedule") {
                     TextField("Schedule name", text: $scheduleName)
 
@@ -90,27 +96,9 @@ struct EventBridgeCreateScheduleView: View {
                         TextField("Maximum window (minutes)", text: $flexMinutes)
                     }
                 }
-            }
-            .formStyle(.grouped)
 
             validationMessages
-
-            Divider()
-                .padding(.top, 8)
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving || appState.isReadOnly)
-            }
-            .padding()
         }
-        .frame(width: 520)
-        .frame(minHeight: 580)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     // MARK: - Expression Input

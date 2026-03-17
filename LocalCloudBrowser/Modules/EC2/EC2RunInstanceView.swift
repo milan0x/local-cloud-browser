@@ -24,8 +24,14 @@ struct EC2RunInstanceView: View {
     ]
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 460,
+            isValid: isValid,
+            isCreating: isSaving,
+            createLabel: "Launch",
+            serviceError: $serviceError,
+            onCreate: launch
+        ) {
                 Section("Instance Configuration") {
                     TextField("AMI ID", text: $imageId)
                     Picker("Instance Type", selection: $instanceType) {
@@ -78,8 +84,6 @@ struct EC2RunInstanceView: View {
                         }
                     }
                 }
-            }
-            .formStyle(.grouped)
 
             if hasAttemptedCreate && imageId.trimmingCharacters(in: .whitespaces).isEmpty {
                 Text("AMI ID is required")
@@ -87,21 +91,8 @@ struct EC2RunInstanceView: View {
                     .font(.caption)
                     .padding(.horizontal)
             }
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Launch") { launch() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 460, height: 480)
-        .serviceErrorAlert(error: $serviceError)
+        .frame(height: 480)
     }
 
     private var trimmedImageId: String {

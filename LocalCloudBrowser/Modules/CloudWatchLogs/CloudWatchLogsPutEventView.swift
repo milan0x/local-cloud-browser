@@ -12,8 +12,15 @@ struct CloudWatchLogsPutEventView: View {
     @State private var isSaving = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 480,
+            minHeight: 380,
+            isValid: isValid && !appState.isReadOnly,
+            isCreating: isSaving,
+            createLabel: "Write Event",
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 LabeledContent("Log Group") {
                     Text(logGroupName)
                         .foregroundStyle(.secondary)
@@ -26,24 +33,7 @@ struct CloudWatchLogsPutEventView: View {
                 }
 
                 JSONInputSection(text: $message, config: .logMessage)
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Write Event") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving || appState.isReadOnly)
-            }
-            .padding()
         }
-        .frame(width: 480)
-        .frame(minHeight: 380)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var isValid: Bool {

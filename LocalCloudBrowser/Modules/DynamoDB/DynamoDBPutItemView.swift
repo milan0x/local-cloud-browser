@@ -95,12 +95,17 @@ struct DynamoDBPutItemView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 560,
+            minHeight: 450,
+            isValid: isValid,
+            isCreating: isSaving,
+            createLabel: isEditing ? "Update" : "Create",
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 primaryKeySection
                 attributeSections
-            }
-            .formStyle(.grouped)
 
             if let validationError {
                 Text(validationError)
@@ -108,22 +113,7 @@ struct DynamoDBPutItemView: View {
                     .font(.caption)
                     .padding(.horizontal)
             }
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button(isEditing ? "Update" : "Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 560)
-        .frame(minHeight: 450)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     // MARK: - Primary Key Section

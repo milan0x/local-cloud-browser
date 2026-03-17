@@ -13,11 +13,15 @@ struct IAMCreateUserView: View {
     private static let namePattern = try! NSRegularExpression(pattern: "^[\\w+=,.@-]+$")
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 400,
+            minHeight: 180,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("User name", text: $userName)
-            }
-            .formStyle(.grouped)
 
             if nameExists {
                 Text("A user named \"\(trimmedName)\" already exists.")
@@ -30,23 +34,7 @@ struct IAMCreateUserView: View {
                     .font(.caption)
                     .padding(.horizontal)
             }
-
-            Divider()
-                .padding(.top, 8)
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 400)
-        .frame(minHeight: 180)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var trimmedName: String {

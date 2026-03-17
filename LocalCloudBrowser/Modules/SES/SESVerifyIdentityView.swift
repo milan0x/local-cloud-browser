@@ -14,22 +14,26 @@ struct SESVerifyIdentityView: View {
     private let identityTypes = ["Email", "Domain"]
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                Picker("Type", selection: $identityType) {
-                    ForEach(identityTypes, id: \.self) { type in
-                        Text(type).tag(type)
-                    }
+        CreateFormScaffold(
+            width: 400,
+            isValid: isValid,
+            isCreating: isSaving,
+            createLabel: "Verify",
+            serviceError: $serviceError,
+            onCreate: verify
+        ) {
+            Picker("Type", selection: $identityType) {
+                ForEach(identityTypes, id: \.self) { type in
+                    Text(type).tag(type)
                 }
-                .pickerStyle(.segmented)
-
-                TextField(
-                    identityType == "Email" ? "Email address" : "Domain name",
-                    text: $identityValue,
-                    prompt: Text(identityType == "Email" ? "user@example.com" : "example.com")
-                )
             }
-            .formStyle(.grouped)
+            .pickerStyle(.segmented)
+
+            TextField(
+                identityType == "Email" ? "Email address" : "Domain name",
+                text: $identityValue,
+                prompt: Text(identityType == "Email" ? "user@example.com" : "example.com")
+            )
 
             if isDuplicate {
                 HStack {
@@ -40,23 +44,8 @@ struct SESVerifyIdentityView: View {
                         .foregroundStyle(.secondary)
                     Spacer()
                 }
-                .padding(.horizontal)
             }
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Verify") { verify() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 400)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var trimmedValue: String {

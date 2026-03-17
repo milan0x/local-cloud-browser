@@ -20,8 +20,13 @@ struct KMSCreateKeyView: View {
     ]
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 400,
+            isValid: true,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("Description (optional)", text: $description)
 
                 Picker("Key Usage", selection: $keyUsage) {
@@ -35,23 +40,7 @@ struct KMSCreateKeyView: View {
                         Text(spec).tag(spec)
                     }
                 }
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(isSaving)
-            }
-            .padding()
         }
-        .frame(width: 400)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private func save() {

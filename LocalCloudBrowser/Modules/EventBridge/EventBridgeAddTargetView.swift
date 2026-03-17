@@ -17,8 +17,14 @@ struct EventBridgeAddTargetView: View {
     @State private var showJsonHelper = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 480,
+            isValid: isValid && !appState.isReadOnly,
+            isCreating: isSaving,
+            createLabel: "Add Target",
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 LabeledContent("Rule") {
                     Text(ruleName)
                         .foregroundStyle(.secondary)
@@ -32,8 +38,6 @@ struct EventBridgeAddTargetView: View {
                 TextField("Role ARN (optional)", text: $roleArn)
 
                 JSONInputSection(text: $input, isHelperShown: $showJsonHelper, config: .targetInput)
-            }
-            .formStyle(.grouped)
 
             HStack {
                 Text("\(currentTargetCount)/5 targets used")
@@ -41,25 +45,9 @@ struct EventBridgeAddTargetView: View {
                     .foregroundStyle(.secondary)
                 Spacer()
             }
-            .padding(.horizontal)
-            .padding(.bottom, 4)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Add Target") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving || appState.isReadOnly)
-            }
-            .padding()
         }
-        .frame(width: 480)
         .frame(minHeight: showJsonHelper ? 560 : 360)
         .animation(.easeInOut(duration: 0.2), value: showJsonHelper)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var isValid: Bool {

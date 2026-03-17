@@ -14,8 +14,15 @@ struct LambdaInvokeView: View {
     private let invocationTypes = ["RequestResponse", "Event"]
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 580,
+            minHeight: 500,
+            isValid: true,
+            isCreating: isInvoking,
+            createLabel: "Invoke",
+            serviceError: $serviceError,
+            onCreate: invoke
+        ) {
                 Section("Function") {
                     LabeledContent("Name") {
                         Text(function.functionName)
@@ -42,24 +49,7 @@ struct LambdaInvokeView: View {
                 if let result {
                     responseSection(result)
                 }
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Invoke") { invoke() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(isInvoking)
-            }
-            .padding()
         }
-        .frame(width: 580)
-        .frame(minHeight: 500)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     @ViewBuilder

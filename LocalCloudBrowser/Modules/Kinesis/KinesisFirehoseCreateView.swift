@@ -18,8 +18,13 @@ struct KinesisFirehoseCreateView: View {
     var onCreate: ((String) -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 450,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("Delivery Stream Name", text: $streamName)
 
                 Section("S3 Destination") {
@@ -35,23 +40,7 @@ struct KinesisFirehoseCreateView: View {
                     Stepper("Buffering Interval: \(bufferingInterval)s", value: $bufferingInterval, in: 60...900, step: 60)
                     Stepper("Buffering Size: \(bufferingSize) MB", value: $bufferingSize, in: 1...128)
                 }
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 450)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var isValid: Bool {

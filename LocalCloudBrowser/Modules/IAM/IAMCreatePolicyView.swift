@@ -28,16 +28,20 @@ struct IAMCreatePolicyView: View {
     """
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 520,
+            minHeight: 480,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 Section("Policy") {
                     TextField("Policy name", text: $policyName)
                     TextField("Description (optional)", text: $description)
                 }
 
                 JSONInputSection(text: $policyDocument, config: .policyDocument)
-            }
-            .formStyle(.grouped)
 
             if nameExists {
                 Text("A policy named \"\(trimmedName)\" already exists.")
@@ -55,23 +59,7 @@ struct IAMCreatePolicyView: View {
                     .font(.caption)
                     .padding(.horizontal)
             }
-
-            Divider()
-                .padding(.top, 8)
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 520)
-        .frame(minHeight: 480)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var trimmedName: String {
