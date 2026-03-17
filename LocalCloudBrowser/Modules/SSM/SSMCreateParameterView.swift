@@ -35,8 +35,14 @@ struct SSMCreateParameterView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 480,
+            isValid: isValid,
+            isCreating: isSaving,
+            createLabel: isEditing ? "Update" : "Create",
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("Parameter name", text: $parameterName)
                     .disabled(isEditing)
 
@@ -50,8 +56,6 @@ struct SSMCreateParameterView: View {
                 TextField("Description (optional)", text: $parameterDescription)
 
                 JSONInputSection(text: $parameterValue, isHelperShown: $showJsonHelper, config: .parameterValue)
-            }
-            .formStyle(.grouped)
 
             if nameExists {
                 Text("A parameter named \"\(parameterName.trimmingCharacters(in: .whitespaces))\" already exists.")
@@ -59,24 +63,9 @@ struct SSMCreateParameterView: View {
                     .font(.caption)
                     .padding(.horizontal)
             }
-
-            Divider()
-                .padding(.top, 8)
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button(isEditing ? "Update" : "Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 480)
         .frame(minHeight: showJsonHelper ? 600 : 400)
         .animation(.easeInOut(duration: 0.2), value: showJsonHelper)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var nameExists: Bool {

@@ -25,8 +25,13 @@ struct EventBridgeCreateRuleView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 520,
+            isValid: isValid && !appState.isReadOnly,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("Rule name", text: $ruleName)
 
                 TextField("Description (optional)", text: $ruleDescription)
@@ -50,8 +55,6 @@ struct EventBridgeCreateRuleView: View {
                 }
 
                 Toggle("Enabled", isOn: $isEnabled)
-            }
-            .formStyle(.grouped)
 
             if nameExists {
                 Text("A rule named \"\(trimmedName)\" already exists on this bus.")
@@ -69,24 +72,9 @@ struct EventBridgeCreateRuleView: View {
                     .font(.caption)
                     .padding(.horizontal)
             }
-
-            Divider()
-                .padding(.top, 8)
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving || appState.isReadOnly)
-            }
-            .padding()
         }
-        .frame(width: 520)
         .frame(minHeight: showJsonHelper ? 600 : 400)
         .animation(.easeInOut(duration: 0.2), value: showJsonHelper)
-        .serviceErrorAlert(error: $serviceError)
         .onChange(of: ruleType) {
             if ruleType == .schedule {
                 showJsonHelper = false

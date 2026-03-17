@@ -15,13 +15,17 @@ struct EC2CreateSecurityGroupView: View {
     @State private var hasAttemptedCreate = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 400,
+            minHeight: 260,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("Group Name", text: $groupName)
                 TextField("Description", text: $groupDescription)
                 TextField("VPC ID (optional)", text: $vpcId)
-            }
-            .formStyle(.grouped)
 
             if nameExists {
                 Text("A security group named \"\(trimmedName)\" already exists.")
@@ -35,23 +39,7 @@ struct EC2CreateSecurityGroupView: View {
                     .font(.caption)
                     .padding(.horizontal)
             }
-
-            Divider()
-                .padding(.top, 8)
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 400)
-        .frame(minHeight: 260)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var trimmedName: String {

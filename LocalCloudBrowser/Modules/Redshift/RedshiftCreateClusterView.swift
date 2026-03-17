@@ -23,8 +23,13 @@ struct RedshiftCreateClusterView: View {
     var onCreate: ((String) -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 400,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("Cluster Identifier", text: $clusterIdentifier)
                     .help("A unique identifier for the cluster (lowercase, alphanumeric, hyphens)")
                 if hasAttemptedCreate && clusterIdentifier.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -68,26 +73,7 @@ struct RedshiftCreateClusterView: View {
 
                 TextField("Port", text: $portString)
                     .help("Default: 5439")
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") {
-                    hasAttemptedCreate = true
-                    save()
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 400)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var isValid: Bool {
@@ -97,6 +83,7 @@ struct RedshiftCreateClusterView: View {
     }
 
     private func save() {
+        hasAttemptedCreate = true
         isSaving = true
         serviceError = nil
         Task {

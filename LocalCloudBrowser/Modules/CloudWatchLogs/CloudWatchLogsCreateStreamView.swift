@@ -10,15 +10,19 @@ struct CloudWatchLogsCreateStreamView: View {
     var existingStreamNames: Set<String>
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 400,
+            minHeight: 180,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 LabeledContent("Log Group") {
                     Text(logGroupName)
                         .foregroundStyle(.secondary)
                 }
                 TextField("Log stream name", text: $logStreamName)
-            }
-            .formStyle(.grouped)
 
             if nameExists {
                 Text("A log stream named \"\(logStreamName.trimmingCharacters(in: .whitespaces))\" already exists.")
@@ -26,23 +30,7 @@ struct CloudWatchLogsCreateStreamView: View {
                     .font(.caption)
                     .padding(.horizontal)
             }
-
-            Divider()
-                .padding(.top, 8)
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 400)
-        .frame(minHeight: 180)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var nameExists: Bool {

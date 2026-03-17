@@ -15,8 +15,14 @@ struct CloudWatchSetAlarmStateView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 400,
+            isValid: isValid,
+            isCreating: isSaving,
+            createLabel: "Set State",
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 Section {
                     LabeledContent("Alarm") {
                         Text(alarm.alarmName)
@@ -34,23 +40,7 @@ struct CloudWatchSetAlarmStateView: View {
                     }
                     TextField("Reason", text: $reason)
                 }
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Set State") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 400)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private func save() {

@@ -13,8 +13,14 @@ struct ACMImportCertificateView: View {
     var onCreate: ((String) -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 500,
+            isValid: isValid,
+            isCreating: isSaving,
+            createLabel: "Import",
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 Section("Certificate PEM") {
                     TextEditor(text: $certificate)
                         .font(.body.monospaced())
@@ -30,23 +36,8 @@ struct ACMImportCertificateView: View {
                         .font(.body.monospaced())
                         .frame(height: 80)
                 }
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Import") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 500, height: 550)
-        .serviceErrorAlert(error: $serviceError)
+        .frame(height: 550)
     }
 
     private var isValid: Bool {

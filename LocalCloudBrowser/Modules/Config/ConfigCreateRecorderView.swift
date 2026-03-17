@@ -12,28 +12,17 @@ struct ConfigCreateRecorderView: View {
     @State private var isSaving = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 420,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("Recorder Name", text: $name)
                 TextField("Role ARN", text: $roleARN)
                 Toggle("Record all supported resources", isOn: $allSupported)
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 420)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var isValid: Bool {

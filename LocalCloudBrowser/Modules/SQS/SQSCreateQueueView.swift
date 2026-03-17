@@ -13,55 +13,41 @@ struct SQSCreateQueueView: View {
     var onCreate: ((String) -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                TextField("Queue name", text: $queueName)
+        CreateFormScaffold(
+            isValid: isValid,
+            isCreating: isCreating,
+            serviceError: $serviceError,
+            onCreate: create
+        ) {
+            TextField("Queue name", text: $queueName)
 
-                Toggle("FIFO Queue", isOn: $isFifo)
+            Toggle("FIFO Queue", isOn: $isFifo)
 
-                if isFifo {
-                    LabeledContent("Effective name") {
-                        Text(effectiveName)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Section {
-                    if isFifo {
-                        Label("FIFO queues guarantee exactly-once processing and message ordering.", systemImage: "info.circle")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Label("Standard queues offer maximum throughput with best-effort ordering.", systemImage: "info.circle")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+            if isFifo {
+                LabeledContent("Effective name") {
+                    Text(effectiveName)
+                        .foregroundStyle(.secondary)
                 }
             }
-            .formStyle(.grouped)
+
+            Section {
+                if isFifo {
+                    Label("FIFO queues guarantee exactly-once processing and message ordering.", systemImage: "info.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Label("Standard queues offer maximum throughput with best-effort ordering.", systemImage: "info.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             if nameExists {
                 Text("A queue named \"\(effectiveName)\" already exists.")
                     .foregroundStyle(.red)
                     .font(.caption)
-                    .padding(.horizontal)
             }
-
-            Divider()
-                .padding(.top, 8)
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { create() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isCreating)
-            }
-            .padding()
         }
-        .frame(width: 380)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var effectiveName: String {

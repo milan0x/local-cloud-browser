@@ -77,8 +77,15 @@ struct LambdaCreateFunctionView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 520,
+            minHeight: 550,
+            isValid: isValid,
+            isCreating: isSaving,
+            createLabel: isEditing ? "Update" : "Create",
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 Section("Function") {
                     TextField("Function name", text: $functionName)
                         .disabled(isEditing)
@@ -170,8 +177,6 @@ struct LambdaCreateFunctionView: View {
                         }
                     }
                 }
-            }
-            .formStyle(.grouped)
 
             if nameExists {
                 Text("A function named \"\(functionName.trimmingCharacters(in: .whitespaces))\" already exists.")
@@ -179,23 +184,7 @@ struct LambdaCreateFunctionView: View {
                     .font(.caption)
                     .padding(.horizontal)
             }
-
-            Divider()
-                .padding(.top, 8)
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button(isEditing ? "Update" : "Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 520)
-        .frame(minHeight: 550)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var nameExists: Bool {

@@ -11,28 +11,17 @@ struct Route53CreateZoneView: View {
     var onCreate: ((String) -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 420,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("Domain Name", text: $zoneName)
                     .help("e.g. example.com")
                 TextField("Comment (optional)", text: $comment)
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 420)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var isValid: Bool {

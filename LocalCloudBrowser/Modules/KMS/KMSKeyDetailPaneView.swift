@@ -288,30 +288,19 @@ struct KMSCreateAliasView: View {
     @State private var serviceError: ServiceError?
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                TextField("Alias Name", text: $aliasName)
-                    .help("Must start with \"alias/\"")
-                Text("Target Key: \(targetKeyId)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
+        CreateFormScaffold(
+            width: 400,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
+            TextField("Alias Name", text: $aliasName)
+                .help("Must start with \"alias/\"")
+            Text("Target Key: \(targetKeyId)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
-        .frame(width: 400)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var isValid: Bool {

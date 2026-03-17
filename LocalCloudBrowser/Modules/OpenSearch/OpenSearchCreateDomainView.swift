@@ -26,8 +26,13 @@ struct OpenSearchCreateDomainView: View {
     var onCreate: ((String) -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 400,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("Domain Name", text: $domainName)
                     .help("3-28 characters, lowercase letters, numbers, and hyphens")
                 if hasAttemptedCreate && !isDomainNameValid {
@@ -57,26 +62,7 @@ struct OpenSearchCreateDomainView: View {
                             .monospacedDigit()
                     }
                 }
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") {
-                    hasAttemptedCreate = true
-                    save()
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 400)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var trimmedName: String {
@@ -105,6 +91,7 @@ struct OpenSearchCreateDomainView: View {
     }
 
     private func save() {
+        hasAttemptedCreate = true
         guard isValid else { return }
         isSaving = true
         serviceError = nil

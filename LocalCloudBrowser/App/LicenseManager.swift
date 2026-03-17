@@ -14,7 +14,7 @@ final class LicenseManager: ObservableObject {
     private let storeKit: StoreKitManager
     weak var appState: AppState?
 
-    static let freeCreateLimit = 3
+    static let freeCreateLimit = 5
 
     var isPaid: Bool { state == .paid }
 

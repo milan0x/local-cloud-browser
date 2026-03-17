@@ -18,8 +18,14 @@ struct TranscribeCreateJobView: View {
     var onCreate: ((String) -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 480,
+            isValid: isValid,
+            isCreating: isSaving,
+            createLabel: "Start Job",
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 Section {
                     TextField("Job Name", text: $jobName)
                     if hasAttemptedCreate && jobName.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -61,23 +67,7 @@ struct TranscribeCreateJobView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Start Job") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 480)
-        .serviceErrorAlert(error: $serviceError)
         .sheet(isPresented: $showS3Browser) {
             S3FileBrowserView(client: service.client, initialUri: mediaUri) { uri in
                 mediaUri = uri

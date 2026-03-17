@@ -13,55 +13,41 @@ struct SNSCreateTopicView: View {
     var onCreate: ((String) -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                TextField("Topic name", text: $topicName)
+        CreateFormScaffold(
+            isValid: isValid,
+            isCreating: isCreating,
+            serviceError: $serviceError,
+            onCreate: create
+        ) {
+            TextField("Topic name", text: $topicName)
 
-                Toggle("FIFO Topic", isOn: $isFifo)
+            Toggle("FIFO Topic", isOn: $isFifo)
 
-                if isFifo {
-                    LabeledContent("Effective name") {
-                        Text(effectiveName)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Section {
-                    if isFifo {
-                        Label("FIFO topics guarantee strict message ordering and deduplication.", systemImage: "info.circle")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Label("Standard topics offer best-effort ordering with at-least-once delivery.", systemImage: "info.circle")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+            if isFifo {
+                LabeledContent("Effective name") {
+                    Text(effectiveName)
+                        .foregroundStyle(.secondary)
                 }
             }
-            .formStyle(.grouped)
+
+            Section {
+                if isFifo {
+                    Label("FIFO topics guarantee strict message ordering and deduplication.", systemImage: "info.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Label("Standard topics offer best-effort ordering with at-least-once delivery.", systemImage: "info.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             if nameExists {
                 Text("A topic named \"\(effectiveName)\" already exists.")
                     .foregroundStyle(.red)
                     .font(.caption)
-                    .padding(.horizontal)
             }
-
-            Divider()
-                .padding(.top, 8)
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { create() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isCreating)
-            }
-            .padding()
         }
-        .frame(width: 380)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var effectiveName: String {

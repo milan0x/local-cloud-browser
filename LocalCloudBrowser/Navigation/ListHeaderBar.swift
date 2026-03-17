@@ -45,6 +45,13 @@ struct ListHeaderBar<Trailing: View>: View {
                 onRefresh()
             }
             Spacer()
+            if !licenseManager.isPaid, let route = appState.selectedRoute {
+                let remaining = licenseManager.remainingCreates(for: route)
+                Text("\(remaining)/\(LicenseManager.freeCreateLimit)")
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(remaining > 0 ? Color.secondary : Color.red)
+                    .help("\(remaining) free creates remaining")
+            }
             ListHeaderButton("plus", action: {
                 guard licenseManager.guardWriteAction(for: appState.selectedRoute) else { return }
                 onCreate()

@@ -13,47 +13,33 @@ struct S3CreateBucketView: View {
     var onCreate: ((String) -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                TextField("Bucket name", text: $bucketName)
-                    .onChange(of: bucketName) {
-                        let lowered = bucketName.lowercased()
-                        if lowered != bucketName { bucketName = lowered }
-                    }
-                LabeledContent("Region") {
-                    AWSRegionPicker(regionCode: $region)
+        CreateFormScaffold(
+            isValid: isValid,
+            isCreating: isCreating,
+            serviceError: $serviceError,
+            onCreate: create
+        ) {
+            TextField("Bucket name", text: $bucketName)
+                .onChange(of: bucketName) {
+                    let lowered = bucketName.lowercased()
+                    if lowered != bucketName { bucketName = lowered }
                 }
-
-                Section {
-                    Label("S3 buckets are global — no region isolation.", systemImage: "info.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+            LabeledContent("Region") {
+                AWSRegionPicker(regionCode: $region)
             }
-            .formStyle(.grouped)
+
+            Section {
+                Label("S3 buckets are global — no region isolation.", systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             if nameExists {
                 Text("A bucket named \"\(bucketName.trimmingCharacters(in: .whitespaces))\" already exists.")
                     .foregroundStyle(.red)
                     .font(.caption)
-                    .padding(.horizontal)
             }
-
-            Divider()
-                .padding(.top, 8)
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { create() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isCreating)
-            }
-            .padding()
         }
-        .frame(width: 380)
-        .serviceErrorAlert(error: $serviceError)
         .onAppear { region = appState.region }
     }
 

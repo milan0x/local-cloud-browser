@@ -15,8 +15,13 @@ struct KinesisCreateStreamView: View {
     var onCreate: ((String) -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 420,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("Stream Name", text: $streamName)
 
                 Picker("Stream Mode", selection: $streamMode) {
@@ -28,23 +33,7 @@ struct KinesisCreateStreamView: View {
                 if streamMode == "PROVISIONED" {
                     Stepper("Shard Count: \(shardCount)", value: $shardCount, in: 1...100)
                 }
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 420)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var isValid: Bool {

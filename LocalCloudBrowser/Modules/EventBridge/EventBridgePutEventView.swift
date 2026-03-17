@@ -14,8 +14,14 @@ struct EventBridgePutEventView: View {
     @State private var showJsonHelper = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 520,
+            isValid: isValid && !appState.isReadOnly,
+            isCreating: isSaving,
+            createLabel: "Send Event",
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 LabeledContent("Event Bus") {
                     Text(eventBusName)
                         .foregroundStyle(.secondary)
@@ -27,25 +33,9 @@ struct EventBridgePutEventView: View {
                 TextField("Detail Type", text: $detailType, prompt: Text("OrderPlaced"))
 
                 JSONInputSection(text: $detail, isHelperShown: $showJsonHelper, config: .eventDetail)
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Send Event") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving || appState.isReadOnly)
-            }
-            .padding()
         }
-        .frame(width: 520)
         .frame(minHeight: showJsonHelper ? 620 : 420)
         .animation(.easeInOut(duration: 0.2), value: showJsonHelper)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var isValid: Bool {

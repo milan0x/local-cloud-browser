@@ -37,8 +37,13 @@ struct CloudWatchCreateAlarmView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 450,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 Section {
                     TextField("Alarm Name", text: $alarmName)
                     if nameCollision {
@@ -71,23 +76,7 @@ struct CloudWatchCreateAlarmView: View {
 
                     TextField("Threshold", text: $threshold)
                 }
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 450)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private func save() {

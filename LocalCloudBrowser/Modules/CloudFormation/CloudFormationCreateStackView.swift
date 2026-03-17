@@ -21,8 +21,14 @@ struct CloudFormationCreateStackView: View {
     private static let namePattern = try! NSRegularExpression(pattern: "^[a-zA-Z][a-zA-Z0-9-]*$")
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 520,
+            minHeight: 480,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 Section("Stack") {
                     TextField("Stack name", text: $stackName)
                 }
@@ -51,8 +57,6 @@ struct CloudFormationCreateStackView: View {
                         Label("Add Parameter", systemImage: "plus")
                     }
                 }
-            }
-            .formStyle(.grouped)
 
             if nameExists {
                 Text("A stack named \"\(trimmedName)\" already exists.")
@@ -65,23 +69,7 @@ struct CloudFormationCreateStackView: View {
                     .font(.caption)
                     .padding(.horizontal)
             }
-
-            Divider()
-                .padding(.top, 8)
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 520)
-        .frame(minHeight: 480)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var trimmedName: String {

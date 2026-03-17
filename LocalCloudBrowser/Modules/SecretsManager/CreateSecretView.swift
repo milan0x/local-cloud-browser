@@ -30,16 +30,21 @@ struct CreateSecretView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 480,
+            minHeight: 400,
+            isValid: isValid,
+            isCreating: isSaving,
+            createLabel: isEditing ? "Update" : "Create",
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("Secret name", text: $secretName)
                     .disabled(isEditing)
 
                 TextField("Description (optional)", text: $secretDescription)
 
                 JSONInputSection(text: $secretValue, config: .secretValue)
-            }
-            .formStyle(.grouped)
 
             if nameExists {
                 Text("A secret named \"\(secretName.trimmingCharacters(in: .whitespaces))\" already exists.")
@@ -47,23 +52,7 @@ struct CreateSecretView: View {
                     .font(.caption)
                     .padding(.horizontal)
             }
-
-            Divider()
-                .padding(.top, 8)
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button(isEditing ? "Update" : "Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 480)
-        .frame(minHeight: 400)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var nameExists: Bool {

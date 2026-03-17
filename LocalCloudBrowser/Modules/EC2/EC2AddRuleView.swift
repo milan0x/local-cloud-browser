@@ -32,8 +32,15 @@ struct EC2AddRuleView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 400,
+            minHeight: 300,
+            isValid: isValid,
+            isCreating: isSaving,
+            createLabel: "Add \(direction.rawValue) Rule",
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 Picker("Protocol", selection: $protocolType) {
                     ForEach(Self.protocols, id: \.0) { proto in
                         Text(proto.1).tag(proto.0)
@@ -47,8 +54,6 @@ struct EC2AddRuleView: View {
 
                 TextField(direction == .inbound ? "Source CIDR" : "Destination CIDR", text: $cidrIp)
                 TextField("Description (optional)", text: $ruleDescription)
-            }
-            .formStyle(.grouped)
 
             if hasAttemptedCreate && !isValid {
                 VStack(alignment: .leading, spacing: 4) {
@@ -65,22 +70,7 @@ struct EC2AddRuleView: View {
                 }
                 .padding(.horizontal)
             }
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Add \(direction.rawValue) Rule") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 400)
-        .frame(minHeight: 300)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var portsValid: Bool {

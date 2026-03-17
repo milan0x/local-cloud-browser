@@ -28,8 +28,14 @@ struct APIGatewayCreateMethodView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 460,
+            minHeight: 360,
+            isValid: isValid,
+            isCreating: isSaving,
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 Section("Method on \(resourcePath)") {
                     Picker("HTTP Method", selection: $httpMethod) {
                         ForEach(Self.httpMethods, id: \.self) { method in
@@ -64,8 +70,6 @@ struct APIGatewayCreateMethodView: View {
                         }
                     }
                 }
-            }
-            .formStyle(.grouped)
 
             if methodExists {
                 Text("Method \(httpMethod) already exists on this resource.")
@@ -73,22 +77,7 @@ struct APIGatewayCreateMethodView: View {
                     .font(.caption)
                     .padding(.horizontal)
             }
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Create") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 460)
-        .frame(minHeight: 360)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var methodExists: Bool {

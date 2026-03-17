@@ -22,8 +22,14 @@ struct SNSCreateSubscriptionView: View {
     ]
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 420,
+            isValid: isValid,
+            isCreating: isSubscribing,
+            createLabel: "Subscribe",
+            serviceError: $serviceError,
+            onCreate: subscribe
+        ) {
                 Picker("Protocol", selection: $selectedProtocol) {
                     ForEach(protocols, id: \.0) { proto in
                         Text(proto.1).tag(proto.0)
@@ -37,23 +43,7 @@ struct SNSCreateSubscriptionView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Subscribe") { subscribe() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSubscribing)
-            }
-            .padding()
         }
-        .frame(width: 420)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private var placeholderForProtocol: String {

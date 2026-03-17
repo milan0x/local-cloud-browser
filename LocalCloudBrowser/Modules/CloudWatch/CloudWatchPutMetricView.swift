@@ -19,8 +19,14 @@ struct CloudWatchPutMetricView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
+        CreateFormScaffold(
+            width: 450,
+            isValid: isValid,
+            isCreating: isSaving,
+            createLabel: "Put Metric",
+            serviceError: $serviceError,
+            onCreate: save
+        ) {
                 TextField("Namespace", text: $namespace)
                 TextField("Metric Name", text: $metricName)
                 TextField("Value", text: $valueText)
@@ -56,23 +62,7 @@ struct CloudWatchPutMetricView: View {
                     }
                     .buttonStyle(.borderless)
                 }
-            }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Put Metric") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!isValid || isSaving)
-            }
-            .padding()
         }
-        .frame(width: 450)
-        .serviceErrorAlert(error: $serviceError)
     }
 
     private func save() {
