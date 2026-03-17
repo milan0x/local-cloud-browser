@@ -26,6 +26,7 @@ struct ConnectionProfileEditorView: View {
     @State private var showAdvanced = false
     @State private var isScanning = false
     @State private var discoveredServices: [DiscoveredService] = []
+    @State private var activeTask: Task<Void, Never>?
     @FocusState private var focusedField: String?
 
     enum TestResult {
@@ -162,7 +163,7 @@ struct ConnectionProfileEditorView: View {
             Divider()
 
             HStack {
-                Button("Cancel") { dismiss() }
+                Button("Cancel") { activeTask?.cancel(); dismiss() }
                     .keyboardShortcut(.cancelAction)
                 Spacer()
                 Button(existing == nil ? "Add" : "Save") {
@@ -278,7 +279,8 @@ struct ConnectionProfileEditorView: View {
         showAdvanced = true
         Log.info("Testing connection to \(endpoint)", category: "Connection")
 
-        Task {
+        activeTask?.cancel()
+        activeTask = Task {
             // Step 1: Detect endpoint type and settings first.
             // This discovers the correct health path for MinIO / LocalStack
             // so we don't hit the root endpoint unsigned.
@@ -438,7 +440,8 @@ struct ConnectionProfileEditorView: View {
     private func runScan() {
         isScanning = true
         discoveredServices = []
-        Task {
+        activeTask?.cancel()
+        activeTask = Task {
             discoveredServices = await LocalServiceScanner.scan()
             isScanning = false
         }

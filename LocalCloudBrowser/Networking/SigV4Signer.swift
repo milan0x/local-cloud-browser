@@ -35,7 +35,7 @@ enum SigV4Signer {
         if let url = request.url, let host = url.host {
             let port = url.port
             let isStandardPort = port == nil || port == 80 || port == 443
-            let hostHeader = isStandardPort ? host : "\(host):\(port!)"
+            let hostHeader = isStandardPort ? host : "\(host):\(port ?? 0)"
             request.setValue(hostHeader, forHTTPHeaderField: "Host")
         }
 
