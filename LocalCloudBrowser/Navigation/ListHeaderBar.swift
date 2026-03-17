@@ -8,6 +8,7 @@ struct ListHeaderBar<Trailing: View>: View {
     let subtitle: String?
     let autoRefresh: AutoRefreshManager
     let isReadOnly: Bool
+    let itemCount: Int
     let onRefresh: () -> Void
     let onCreate: () -> Void
     let trailing: Trailing
@@ -17,6 +18,7 @@ struct ListHeaderBar<Trailing: View>: View {
         subtitle: String? = nil,
         autoRefresh: AutoRefreshManager,
         isReadOnly: Bool,
+        itemCount: Int = 0,
         onRefresh: @escaping () -> Void,
         onCreate: @escaping () -> Void,
         @ViewBuilder trailing: () -> Trailing
@@ -25,6 +27,7 @@ struct ListHeaderBar<Trailing: View>: View {
         self.subtitle = subtitle
         self.autoRefresh = autoRefresh
         self.isReadOnly = isReadOnly
+        self.itemCount = itemCount
         self.onRefresh = onRefresh
         self.onCreate = onCreate
         self.trailing = trailing()
@@ -50,7 +53,14 @@ struct ListHeaderBar<Trailing: View>: View {
                 Text("\(remaining)/\(LicenseManager.freeCreateLimit)")
                     .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundStyle(remaining > 0 ? Color.secondary : Color.red)
-                    .help("\(remaining) free creates remaining")
+                    .help(remaining > 0
+                          ? "\(remaining) free creates remaining"
+                          : "Click to sync with actual resource count")
+                    .onTapGesture {
+                        if licenseManager.syncCreateCount(for: route, actualCount: itemCount) {
+                            Log.info("Synced free slots for \(route.displayName): actual=\(itemCount)", category: "License")
+                        }
+                    }
             }
             ListHeaderButton("plus", action: {
                 guard licenseManager.guardWriteAction(for: appState.selectedRoute) else { return }
@@ -73,6 +83,7 @@ extension ListHeaderBar where Trailing == ListHeaderButton {
         subtitle: String? = nil,
         autoRefresh: AutoRefreshManager,
         isReadOnly: Bool,
+        itemCount: Int = 0,
         deleteDisabled: Bool,
         deleteHelp: String = "",
         onRefresh: @escaping () -> Void,
@@ -83,6 +94,7 @@ extension ListHeaderBar where Trailing == ListHeaderButton {
         self.subtitle = subtitle
         self.autoRefresh = autoRefresh
         self.isReadOnly = isReadOnly
+        self.itemCount = itemCount
         self.onRefresh = onRefresh
         self.onCreate = onCreate
         self.trailing = ListHeaderButton("trash", color: .red, isDisabled: deleteDisabled, help: deleteHelp, action: onDelete)

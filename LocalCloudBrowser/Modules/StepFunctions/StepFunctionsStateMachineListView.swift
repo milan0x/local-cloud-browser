@@ -85,6 +85,7 @@ struct StepFunctionsStateMachineListView: View {
             title: "State Machines",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: machines.count,
             deleteDisabled: deleteDisabled,
             deleteHelp: selectedIDs.count <= 1 ? "Delete State Machine" : "Delete \(selectedIDs.count) State Machines",
             onRefresh: { loadMachines(force: true) },

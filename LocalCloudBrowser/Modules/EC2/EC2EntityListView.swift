@@ -204,12 +204,21 @@ struct EC2EntityListView: View {
             title: "EC2",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: currentItemCount,
             deleteDisabled: deleteDisabled,
             deleteHelp: "Delete",
             onRefresh: { loadEntities(force: true) },
             onCreate: { showCreateSheet() },
             onDelete: { deleteCurrentSelection() }
         )
+    }
+
+    private var currentItemCount: Int {
+        switch entityType {
+        case .instances: return instances.count
+        case .securityGroups: return securityGroups.count
+        case .keyPairs: return keyPairs.count
+        }
     }
 
     private var deleteDisabled: Bool {

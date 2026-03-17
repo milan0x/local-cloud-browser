@@ -88,6 +88,7 @@ struct SecretsListView: View {
             title: "Secrets",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: secrets.count,
             deleteDisabled: secretDeleteDisabled,
             deleteHelp: selectedSecretIDs.count <= 1 ? "Delete Secret" : "Delete \(selectedSecretIDs.count) Secrets",
             onRefresh: { loadSecrets(force: true) },

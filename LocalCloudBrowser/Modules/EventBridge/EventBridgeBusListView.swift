@@ -89,6 +89,7 @@ struct EventBridgeBusListView: View {
             title: "Event Buses",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: buses.count,
             deleteDisabled: busDeleteDisabled,
             deleteHelp: selectedBusIDs.count <= 1 ? "Delete Event Bus" : "Delete \(selectedBusIDs.count) Event Buses",
             onRefresh: { loadBuses(force: true) },

@@ -82,6 +82,7 @@ struct ResourceGroupsListView: View {
             title: "Resource Groups",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: groups.count,
             deleteDisabled: deleteDisabled,
             deleteHelp: selectedGroupIDs.count <= 1 ? "Delete Resource Group" : "Delete \(selectedGroupIDs.count) Resource Groups",
             onRefresh: { loadGroups(force: true) },

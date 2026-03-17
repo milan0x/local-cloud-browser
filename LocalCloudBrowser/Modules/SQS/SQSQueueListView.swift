@@ -102,6 +102,7 @@ struct SQSQueueListView: View {
             title: "Queues",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: queues.count,
             deleteDisabled: queueDeleteDisabled,
             deleteHelp: selectedQueueIDs.count <= 1 ? "Delete Queue" : "Delete \(selectedQueueIDs.count) Queues",
             onRefresh: { loadQueues(force: true) },

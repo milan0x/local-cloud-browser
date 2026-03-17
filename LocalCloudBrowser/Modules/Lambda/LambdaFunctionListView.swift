@@ -88,6 +88,7 @@ struct LambdaFunctionListView: View {
             title: "Functions",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: functions.count,
             deleteDisabled: functionDeleteDisabled,
             deleteHelp: selectedFunctionIDs.count <= 1 ? "Delete Function" : "Delete \(selectedFunctionIDs.count) Functions",
             onRefresh: { loadFunctions(force: true) },

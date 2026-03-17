@@ -113,6 +113,7 @@ struct SupportCaseListView: View {
             title: "Cases",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: cases.count,
             onRefresh: { loadCases(force: true) },
             onCreate: { showCreateSheet = true }
         ) {

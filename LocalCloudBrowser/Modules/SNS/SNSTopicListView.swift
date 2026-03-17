@@ -80,6 +80,7 @@ struct SNSTopicListView: View {
             title: "Topics",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: topics.count,
             deleteDisabled: topicDeleteDisabled,
             deleteHelp: selectedTopicIDs.count <= 1 ? "Delete Topic" : "Delete \(selectedTopicIDs.count) Topics",
             onRefresh: { loadTopics(force: true) },

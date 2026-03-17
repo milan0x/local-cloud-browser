@@ -83,6 +83,7 @@ struct TranscribeJobListView: View {
             title: "Jobs",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: jobs.count,
             deleteDisabled: jobDeleteDisabled,
             deleteHelp: selectedJobIDs.count <= 1 ? "Delete Transcription Job" : "Delete \(selectedJobIDs.count) Jobs",
             onRefresh: { loadJobs(force: true) },

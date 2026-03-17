@@ -179,12 +179,21 @@ struct IAMEntityListView: View {
             title: "IAM",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: currentItemCount,
             deleteDisabled: deleteDisabled,
             deleteHelp: "Delete",
             onRefresh: { loadEntities(force: true) },
             onCreate: { showCreateSheet() },
             onDelete: { deleteCurrentSelection() }
         )
+    }
+
+    private var currentItemCount: Int {
+        switch entityType {
+        case .users: return users.count
+        case .roles: return roles.count
+        case .policies: return policies.count
+        }
     }
 
     private var deleteDisabled: Bool {

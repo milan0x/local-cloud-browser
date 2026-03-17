@@ -95,6 +95,7 @@ struct DynamoDBTableListView: View {
             title: "Tables",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: tables.count,
             deleteDisabled: tableDeleteDisabled,
             deleteHelp: selectedTableIDs.count <= 1 ? "Delete Table" : "Delete \(selectedTableIDs.count) Tables",
             onRefresh: { loadTables(force: true) },

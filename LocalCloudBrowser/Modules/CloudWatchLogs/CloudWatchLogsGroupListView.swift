@@ -88,6 +88,7 @@ struct CloudWatchLogsGroupListView: View {
             title: "Log Groups",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: logGroups.count,
             deleteDisabled: logGroupDeleteDisabled,
             deleteHelp: selectedLogGroupIDs.count <= 1 ? "Delete Log Group" : "Delete \(selectedLogGroupIDs.count) Log Groups",
             onRefresh: { loadLogGroups(force: true) },

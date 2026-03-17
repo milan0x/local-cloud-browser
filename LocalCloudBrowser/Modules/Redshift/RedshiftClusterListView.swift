@@ -82,6 +82,7 @@ struct RedshiftClusterListView: View {
             title: "Clusters",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: clusters.count,
             deleteDisabled: clusterDeleteDisabled,
             deleteHelp: selectedClusterIDs.count <= 1 ? "Delete Cluster" : "Delete \(selectedClusterIDs.count) Clusters",
             onRefresh: { loadClusters(force: true) },

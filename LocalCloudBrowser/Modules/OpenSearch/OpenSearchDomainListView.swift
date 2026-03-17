@@ -82,6 +82,7 @@ struct OpenSearchDomainListView: View {
             title: "Domains",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: domains.count,
             deleteDisabled: domainDeleteDisabled,
             deleteHelp: selectedDomainIDs.count <= 1 ? "Delete Domain" : "Delete \(selectedDomainIDs.count) Domains",
             onRefresh: { loadDomains(force: true) },
