@@ -104,17 +104,8 @@ struct ConnectionManagerView: View {
 
             // Profile info
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(profile.name)
-                        .fontWeight(isActive(profile) ? .semibold : .regular)
-                    if profile.endpointType != .generic {
-                        Text(profile.endpointType.rawValue.capitalized)
-                            .font(.caption2)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(.quaternary, in: RoundedRectangle(cornerRadius: 3))
-                    }
-                }
+                Text(profile.name)
+                    .fontWeight(isActive(profile) ? .semibold : .regular)
                 Text(profile.endpoint)
                     .font(.caption)
                     .foregroundStyle(.secondary)
