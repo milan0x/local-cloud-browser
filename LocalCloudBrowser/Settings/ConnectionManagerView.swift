@@ -18,14 +18,6 @@ struct ConnectionManagerView: View {
                 Text("Connections")
                     .font(.headline)
                 Spacer()
-                Button {
-                    isAddingNew = true
-                    editingProfile = nil
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .buttonStyle(.borderless)
-                .help("Add Connection")
             }
             .padding(.horizontal, 16)
             .padding(.top, 14)
@@ -51,6 +43,11 @@ struct ConnectionManagerView: View {
                 Button("Close") { dismiss() }
                     .keyboardShortcut(.cancelAction)
                 Spacer()
+                Button("Add Connection") {
+                    isAddingNew = true
+                    editingProfile = nil
+                }
+                .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
