@@ -100,6 +100,7 @@ struct APIGatewayAPIListView: View {
             title: "REST APIs",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: apis.count,
             deleteDisabled: apiDeleteDisabled,
             deleteHelp: selectedAPIIDs.count <= 1 ? "Delete API" : "Delete \(selectedAPIIDs.count) APIs",
             onRefresh: { loadAPIs(force: true) },

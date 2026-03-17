@@ -87,6 +87,7 @@ struct SESIdentityListView: View {
             title: "Identities",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: identities.count,
             deleteDisabled: identityDeleteDisabled,
             deleteHelp: selectedIdentityIDs.count <= 1 ? "Delete Identity" : "Delete \(selectedIdentityIDs.count) Identities",
             onRefresh: { loadIdentities(force: true) },

@@ -81,6 +81,7 @@ struct EventBridgeScheduleGroupListView: View {
             title: "Schedule Groups",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: groups.count,
             deleteDisabled: groupDeleteDisabled,
             deleteHelp: selectedGroupIDs.count <= 1 ? "Delete Schedule Group" : "Delete \(selectedGroupIDs.count) Schedule Groups",
             onRefresh: { loadGroups(force: true) },

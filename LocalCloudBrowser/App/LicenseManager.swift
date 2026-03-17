@@ -58,6 +58,22 @@ final class LicenseManager: ObservableObject {
         UserDefaults.standard.set(max(0, current - count), forKey: key)
     }
 
+    /// Syncs the create counter with the actual resource count on the endpoint.
+    /// If actual count is lower than tracked creates, adjusts down to free up slots.
+    /// Returns true if slots were recovered.
+    @discardableResult
+    func syncCreateCount(for service: Route, actualCount: Int) -> Bool {
+        guard !isPaid else { return false }
+        let tracked = createCount(for: service)
+        if actualCount < tracked {
+            let key = "freeCreates_\(service.rawValue)"
+            UserDefaults.standard.set(max(0, actualCount), forKey: key)
+            objectWillChange.send()
+            return true
+        }
+        return false
+    }
+
     /// Call when the user attempts to create a resource.
     /// Returns `true` if the action is allowed, `false` if blocked (shows upgrade sheet).
     func guardWriteAction(for service: Route?) -> Bool {

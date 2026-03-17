@@ -89,6 +89,7 @@ struct KMSKeyListView: View {
             title: "Keys",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: keys.count,
             deleteDisabled: keyDeleteDisabled,
             deleteHelp: selectedKeyIDs.count <= 1 ? "Schedule Key Deletion" : "Schedule \(selectedKeyIDs.count) Key Deletions",
             onRefresh: { loadKeys(force: true) },

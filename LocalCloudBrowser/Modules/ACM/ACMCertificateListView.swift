@@ -94,6 +94,7 @@ struct ACMCertificateListView: View {
             title: "Certificates",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: certificates.count,
             deleteDisabled: certDeleteDisabled,
             deleteHelp: selectedCertIDs.count <= 1 ? "Delete Certificate" : "Delete \(selectedCertIDs.count) Certificates",
             onRefresh: { loadCertificates(force: true) },

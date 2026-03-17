@@ -95,6 +95,7 @@ struct CloudFormationStackListView: View {
             title: "Stacks",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: stacks.count,
             deleteDisabled: stackDeleteDisabled,
             deleteHelp: selectedStackIDs.count <= 1 ? "Delete Stack" : "Delete \(selectedStackIDs.count) Stacks",
             onRefresh: { loadStacks(force: true) },

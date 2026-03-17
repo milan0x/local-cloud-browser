@@ -88,6 +88,7 @@ struct SSMParameterListView: View {
             title: "Parameters",
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: parameters.count,
             deleteDisabled: parameterDeleteDisabled,
             deleteHelp: selectedParameterIDs.count <= 1 ? "Delete Parameter" : "Delete \(selectedParameterIDs.count) Parameters",
             onRefresh: { loadParameters(force: true) },

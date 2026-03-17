@@ -150,6 +150,7 @@ struct S3BucketListView: View {
             subtitle: appState.region,
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
+            itemCount: buckets.count,
             deleteDisabled: bucketDeleteDisabled,
             deleteHelp: bucketDeleteHelp,
             onRefresh: { loadBuckets(force: true) },
