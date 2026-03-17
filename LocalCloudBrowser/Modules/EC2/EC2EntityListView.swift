@@ -5,6 +5,7 @@ struct EC2EntityListView: View {
     @ObservedObject var service: EC2Service
     @ObservedObject var toolbarState: EC2ToolbarState
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var entityType: EC2EntityType
     @Binding var selectedInstanceId: String?
     @Binding var selectedGroupId: String?
@@ -650,6 +651,7 @@ struct EC2EntityListView: View {
         Task {
             do {
                 try await service.terminateInstances(targets.map(\.instanceId))
+                licenseManager.decrementCreateCount(for: .ec2, by: targets.count)
                 selectedInstanceIDs.subtract(Set(targets.map(\.id)))
                 if let id = selectedInstanceId, targets.contains(where: { $0.instanceId == id }) {
                     selectedInstanceId = nil
@@ -673,6 +675,7 @@ struct EC2EntityListView: View {
                 }
             }
             if !deletedIDs.isEmpty {
+                licenseManager.decrementCreateCount(for: .ec2, by: deletedIDs.count)
                 selectedGroupIDs.subtract(deletedIDs)
                 if let id = selectedGroupId, deletedIDs.contains(id) {
                     selectedGroupId = nil
@@ -694,6 +697,7 @@ struct EC2EntityListView: View {
                 }
             }
             if !deletedIDs.isEmpty {
+                licenseManager.decrementCreateCount(for: .ec2, by: deletedIDs.count)
                 selectedKeyPairIDs.subtract(deletedIDs)
                 if let name = selectedKeyName, deletedIDs.contains(name) {
                     selectedKeyName = nil

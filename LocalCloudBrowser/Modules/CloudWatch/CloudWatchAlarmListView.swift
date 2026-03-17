@@ -5,6 +5,7 @@ struct CloudWatchAlarmListView: View {
     @ObservedObject var service: CloudWatchService
     @ObservedObject var toolbarState: CloudWatchToolbarState
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var activeAlarm: CloudWatchAlarm?
     var restoreAlarmName: String?
 
@@ -204,6 +205,7 @@ struct CloudWatchAlarmListView: View {
             do {
                 try await service.deleteAlarms(names: targets.map(\.alarmName))
                 let deletedIDs = Set(targets.map(\.id))
+                licenseManager.decrementCreateCount(for: .cloudWatch, by: deletedIDs.count)
                 selectedAlarmIDs.subtract(deletedIDs)
                 if let active = activeAlarm, deletedIDs.contains(active.id) {
                     activeAlarm = nil

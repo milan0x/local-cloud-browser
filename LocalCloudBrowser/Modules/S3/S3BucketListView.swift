@@ -4,6 +4,7 @@ import AppKit
 struct S3BucketListView: View {
     @ObservedObject var service: S3Service
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedBucketIDs: Set<S3Bucket.ID>
     @Binding var activeBucket: S3Bucket?
     @ObservedObject var toolbarState: S3ToolbarState
@@ -299,6 +300,7 @@ struct S3BucketListView: View {
                 }
             }
             if !deletedIDs.isEmpty {
+                licenseManager.decrementCreateCount(for: .s3, by: deletedIDs.count)
                 selectedBucketIDs.subtract(deletedIDs)
                 if let active = activeBucket, deletedIDs.contains(active.id) {
                     activeBucket = nil
@@ -329,6 +331,7 @@ struct S3BucketListView: View {
                 }
             }
             if !deletedIDs.isEmpty {
+                licenseManager.decrementCreateCount(for: .s3, by: deletedIDs.count)
                 selectedBucketIDs.subtract(deletedIDs)
                 if let active = activeBucket, deletedIDs.contains(active.id) {
                     activeBucket = nil

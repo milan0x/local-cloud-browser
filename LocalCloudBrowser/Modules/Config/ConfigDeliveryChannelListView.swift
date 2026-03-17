@@ -5,6 +5,7 @@ struct ConfigDeliveryChannelListView: View {
     @ObservedObject var service: ConfigService
     @ObservedObject var toolbarState: ConfigToolbarState
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedChannelIDs: Set<DeliveryChannel.ID>
     @Binding var activeChannel: DeliveryChannel?
     var restoreChannelName: String?
@@ -202,6 +203,7 @@ struct ConfigDeliveryChannelListView: View {
                 }
             }
             if !deletedIDs.isEmpty {
+                licenseManager.decrementCreateCount(for: .config, by: deletedIDs.count)
                 selectedChannelIDs.subtract(deletedIDs)
                 if let active = activeChannel, deletedIDs.contains(active.id) {
                     activeChannel = nil

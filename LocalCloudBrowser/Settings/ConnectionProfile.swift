@@ -30,11 +30,11 @@ struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
 
     init(
         id: UUID = UUID(),
-        name: String = "My Connection",
-        endpoint: String = "http://localhost:4566",
+        name: String = "",
+        endpoint: String = "",
         region: String = "us-east-1",
-        accessKeyId: String = "test",
-        secretAccessKey: String = "test",
+        accessKeyId: String = "",
+        secretAccessKey: String = "",
         healthPath: String = ConnectionProfile.defaultHealthPath,
         s3Domain: String = ConnectionProfile.defaultS3Domain,
         apiGatewayDomain: String = ConnectionProfile.defaultApiGatewayDomain,
@@ -63,8 +63,8 @@ struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
         apiGatewayDomain = try container.decodeIfPresent(String.self, forKey: .apiGatewayDomain) ?? ConnectionProfile.defaultApiGatewayDomain
         endpointType = try container.decodeIfPresent(EndpointType.self, forKey: .endpointType) ?? .generic
         // Credentials are hydrated from Keychain after decoding.
-        // Fall back to defaults so profiles without Keychain entries work.
-        accessKeyId = KeychainHelper.defaultAccessKeyId
-        secretAccessKey = KeychainHelper.defaultSecretAccessKey
+        // Fall back to empty so profiles without Keychain entries work.
+        accessKeyId = ""
+        secretAccessKey = ""
     }
 }

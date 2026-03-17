@@ -51,6 +51,13 @@ final class LicenseManager: ObservableObject {
         UserDefaults.standard.set(current + 1, forKey: key)
     }
 
+    func decrementCreateCount(for service: Route, by count: Int = 1) {
+        guard !isPaid else { return }
+        let key = "freeCreates_\(service.rawValue)"
+        let current = UserDefaults.standard.integer(forKey: key)
+        UserDefaults.standard.set(max(0, current - count), forKey: key)
+    }
+
     /// Call when the user attempts to create a resource.
     /// Returns `true` if the action is allowed, `false` if blocked (shows upgrade sheet).
     func guardWriteAction(for service: Route?) -> Bool {

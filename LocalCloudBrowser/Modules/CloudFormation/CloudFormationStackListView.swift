@@ -5,6 +5,7 @@ struct CloudFormationStackListView: View {
     @ObservedObject var service: CloudFormationService
     @ObservedObject var toolbarState: CloudFormationToolbarState
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedStackIDs: Set<CloudFormationStack.ID>
     @Binding var activeStack: CloudFormationStack?
     var restoreStackName: String?
@@ -222,6 +223,7 @@ struct CloudFormationStackListView: View {
             }
             if let error { serviceError = error }
             if !deleted.isEmpty {
+                licenseManager.decrementCreateCount(for: .cloudFormation, by: deleted.count)
                 selectedStackIDs.subtract(deleted)
                 if let active = activeStack, deleted.contains(active.id) { activeStack = nil }
                 loadStacks(force: true)

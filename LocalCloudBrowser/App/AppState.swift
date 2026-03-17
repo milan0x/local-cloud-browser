@@ -76,6 +76,8 @@ final class AppState: ObservableObject {
 
     var needsSigning: Bool {
         endpointType != .localstack
+            && !accessKeyId.isEmpty
+            && !secretAccessKey.isEmpty
             && !(accessKeyId == KeychainHelper.defaultAccessKeyId
                  && secretAccessKey == KeychainHelper.defaultSecretAccessKey)
     }

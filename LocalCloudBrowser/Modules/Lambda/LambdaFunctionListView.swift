@@ -5,6 +5,7 @@ struct LambdaFunctionListView: View {
     @ObservedObject var service: LambdaService
     @ObservedObject var toolbarState: LambdaToolbarState
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedFunctionIDs: Set<LambdaFunction.ID>
     @Binding var activeFunction: LambdaFunction?
     var restoreFunctionName: String?
@@ -231,6 +232,7 @@ struct LambdaFunctionListView: View {
             }
             if let error { serviceError = error }
             if !deleted.isEmpty {
+                licenseManager.decrementCreateCount(for: .lambda, by: deleted.count)
                 selectedFunctionIDs.subtract(deleted)
                 if let active = activeFunction, deleted.contains(active.id) {
                     activeFunction = nil

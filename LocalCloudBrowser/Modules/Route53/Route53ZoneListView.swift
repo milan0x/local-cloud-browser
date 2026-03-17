@@ -5,6 +5,7 @@ struct Route53ZoneListView: View {
     @ObservedObject var service: Route53Service
     @ObservedObject var toolbarState: Route53ToolbarState
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedZoneIDs: Set<Route53HostedZone.ID>
     @Binding var activeZone: Route53HostedZone?
     var restoreZoneId: String?
@@ -200,6 +201,7 @@ struct Route53ZoneListView: View {
             }
             if let error { serviceError = error }
             if !deleted.isEmpty {
+                licenseManager.decrementCreateCount(for: .route53, by: deleted.count)
                 selectedZoneIDs.subtract(deleted)
                 if let active = activeZone, deleted.contains(active.id) { activeZone = nil }
                 loadZones(force: true)
