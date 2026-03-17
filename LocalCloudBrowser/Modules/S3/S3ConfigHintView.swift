@@ -69,6 +69,9 @@ struct S3ConfigHintView: View {
     }
 
     private var isS3ConfigError: Bool {
-        appState.s3Domain.trimmingCharacters(in: .whitespaces).isEmpty
+        // S3 domain is only needed for LocalStack (virtual-hosted-style routing).
+        // MinIO and generic endpoints use path-style — no s3Domain required.
+        appState.endpointType == .localstack
+            && appState.s3Domain.trimmingCharacters(in: .whitespaces).isEmpty
     }
 }

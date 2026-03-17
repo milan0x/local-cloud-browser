@@ -4,11 +4,13 @@ struct DetectedSettings: Sendable {
     var healthPath: String?
     var s3Domain: String?
     var apiGatewayDomain: String?
+    var endpointType: EndpointType?
 
-    var isEmpty: Bool { healthPath == nil && s3Domain == nil && apiGatewayDomain == nil }
+    var isEmpty: Bool { healthPath == nil && s3Domain == nil && apiGatewayDomain == nil && endpointType == nil }
 
     var detectedFieldNames: [String] {
         var names: [String] = []
+        if endpointType != nil { names.append("endpointType") }
         if healthPath != nil { names.append("healthPath") }
         if s3Domain != nil { names.append("s3Domain") }
         if apiGatewayDomain != nil { names.append("apiGatewayDomain") }
@@ -38,37 +40,105 @@ enum EndpointDetector {
 
         Log.info("Starting auto-detection for \(endpoint)", category: "Connection")
 
-        return await withTaskGroup(of: (String, String?).self) { group in
-            if currentHealthPath.trimmingCharacters(in: .whitespaces).isEmpty {
-                group.addTask { ("healthPath", await probeHealthPath(endpoint: endpoint)) }
-            }
-            if currentS3Domain.trimmingCharacters(in: .whitespaces).isEmpty {
-                group.addTask { ("s3Domain", await probeS3Domain(endpoint: endpoint)) }
-            }
-            if currentApiGatewayDomain.trimmingCharacters(in: .whitespaces).isEmpty {
-                group.addTask { ("apiGatewayDomain", await probeApiGatewayDomain(endpoint: endpoint)) }
-            }
+        // Step 1: Identify endpoint type
+        let (detectedType, typeHealthPath) = await probeEndpointType(endpoint: endpoint)
 
-            var result = DetectedSettings()
-            for await (field, value) in group {
-                guard let value else { continue }
-                switch field {
-                case "healthPath": result.healthPath = value
-                case "s3Domain": result.s3Domain = value
-                case "apiGatewayDomain": result.apiGatewayDomain = value
-                default: break
+        var result = DetectedSettings()
+        result.endpointType = detectedType
+
+        // Step 2: Set health path from type probe if needed
+        if currentHealthPath.trimmingCharacters(in: .whitespaces).isEmpty {
+            if let typeHealthPath {
+                result.healthPath = typeHealthPath
+            }
+        }
+
+        // Step 3: Conditionally probe remaining fields based on type
+        switch detectedType {
+        case .minio:
+            // MinIO uses path-style S3, no API Gateway — skip those probes
+            break
+
+        case .localstack:
+            // Probe s3Domain and apiGatewayDomain in parallel
+            await withTaskGroup(of: (String, String?).self) { group in
+                if currentS3Domain.trimmingCharacters(in: .whitespaces).isEmpty {
+                    group.addTask { ("s3Domain", await probeS3Domain(endpoint: endpoint)) }
+                }
+                if currentApiGatewayDomain.trimmingCharacters(in: .whitespaces).isEmpty {
+                    group.addTask { ("apiGatewayDomain", await probeApiGatewayDomain(endpoint: endpoint)) }
+                }
+                for await (field, value) in group {
+                    guard let value else { continue }
+                    switch field {
+                    case "s3Domain": result.s3Domain = value
+                    case "apiGatewayDomain": result.apiGatewayDomain = value
+                    default: break
+                    }
                 }
             }
 
-            if !result.isEmpty {
-                Log.info("Auto-detected: \(result.detectedFieldNames.joined(separator: ", "))", category: "Connection")
+        case .generic:
+            // Fall back to generic health probe if type probe didn't find a health path
+            if result.healthPath == nil && currentHealthPath.trimmingCharacters(in: .whitespaces).isEmpty {
+                result.healthPath = await probeGenericHealthPath(endpoint: endpoint)
             }
-            return result
+        }
+
+        if !result.isEmpty {
+            Log.info("Auto-detected: \(result.detectedFieldNames.joined(separator: ", "))", category: "Connection")
+        }
+        return result
+    }
+
+    /// Probes for LocalStack and MinIO health endpoints concurrently.
+    /// Returns the detected type and the health path that succeeded.
+    private static func probeEndpointType(endpoint: String) async -> (EndpointType, String?) {
+        let base = endpoint.hasSuffix("/") ? endpoint : endpoint + "/"
+
+        return await withTaskGroup(of: (EndpointType, String?).self) { group in
+            // Probe LocalStack: _localstack/health returns JSON with "version" key
+            group.addTask {
+                guard let url = URL(string: base + "_localstack/health") else { return (.generic, nil) }
+                do {
+                    let (data, response) = try await session.data(for: URLRequest(url: url))
+                    if let http = response as? HTTPURLResponse,
+                       (200..<300).contains(http.statusCode),
+                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       json["version"] != nil {
+                        return (.localstack, "_localstack/health")
+                    }
+                } catch {}
+                return (.generic, nil)
+            }
+
+            // Probe MinIO: minio/health/live returns 200 with body containing "OK" (or empty body)
+            group.addTask {
+                guard let url = URL(string: base + "minio/health/live") else { return (.generic, nil) }
+                do {
+                    let (_, response) = try await session.data(for: URLRequest(url: url))
+                    if let http = response as? HTTPURLResponse,
+                       http.statusCode == 200 {
+                        return (.minio, "minio/health/live")
+                    }
+                } catch {}
+                return (.generic, nil)
+            }
+
+            // Return the first probe that identifies a specific type
+            for await (type, path) in group {
+                if type != .generic {
+                    group.cancelAll()
+                    return (type, path)
+                }
+            }
+            return (.generic, nil)
         }
     }
 
-    private static func probeHealthPath(endpoint: String) async -> String? {
-        let candidates = ["_localstack/health", "health", "_health"]
+    /// Probes generic health paths (used when neither LocalStack nor MinIO detected).
+    private static func probeGenericHealthPath(endpoint: String) async -> String? {
+        let candidates = ["health", "_health"]
         let base = endpoint.hasSuffix("/") ? endpoint : endpoint + "/"
         for candidate in candidates {
             guard let url = URL(string: base + candidate) else { continue }
@@ -78,9 +148,7 @@ enum EndpointDetector {
                     Log.info("Auto-detected health path: \(candidate)", category: "Connection")
                     return candidate
                 }
-            } catch {
-                // Probe failed, try next candidate
-            }
+            } catch {}
         }
         return nil
     }

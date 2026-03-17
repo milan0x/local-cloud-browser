@@ -29,8 +29,11 @@ final class AppState: ObservableObject {
     @Published var healthPath: String = ConnectionProfile.defaultHealthPath
     @Published var s3Domain: String = ConnectionProfile.defaultS3Domain
     @Published var apiGatewayDomain: String = ConnectionProfile.defaultApiGatewayDomain
+    @Published var endpointType: EndpointType = .generic
     @Published var selectedRoute: Route? = nil
     @Published var region: String = "us-east-1"
+    @Published var accessKeyId: String = KeychainHelper.defaultAccessKeyId
+    @Published var secretAccessKey: String = KeychainHelper.defaultSecretAccessKey
     @Published var activeConnectionName: String = "My Connection"
     @Published var connectionVersion: Int = 0
     @Published var connectionError: ConnectionError?
@@ -71,12 +74,22 @@ final class AppState: ObservableObject {
 
     var previewSizeLimitBytes: Int64 { Int64(previewSizeLimitMB) * 1024 * 1024 }
 
+    var needsSigning: Bool {
+        endpointType != .localstack
+            && !(accessKeyId == KeychainHelper.defaultAccessKeyId
+                 && secretAccessKey == KeychainHelper.defaultSecretAccessKey)
+    }
+
     func applyProfile(_ profile: ConnectionProfile) {
         endpoint = profile.endpoint
         region = profile.region
         healthPath = profile.healthPath
         s3Domain = profile.s3Domain
         apiGatewayDomain = profile.apiGatewayDomain
+        endpointType = profile.endpointType
+        accessKeyId = profile.accessKeyId
+        secretAccessKey = profile.secretAccessKey
+        if profile.endpointType == .minio { region = "us-east-1" }
         activeConnectionName = profile.name
         activeProfileId = profile.id
         hasDetectedForCurrentProfile = false
@@ -86,6 +99,7 @@ final class AppState: ObservableObject {
         consecutiveFailures = 0
         connectionError = nil
         startHealthCheck()
+        runAutoDetection()
         Log.info("Applied profile \"\(profile.name)\" — endpoint: \(profile.endpoint), region: \(profile.region)", category: "App")
     }
 
@@ -219,14 +233,29 @@ final class AppState: ObservableObject {
                 currentS3Domain: s3,
                 currentApiGatewayDomain: apigw
             )
-            guard !Task.isCancelled, !result.isEmpty else { return }
+            guard !Task.isCancelled, !result.isEmpty else {
+                Log.info("Auto-detection returned empty for \(ep)", category: "Connection")
+                return
+            }
 
+            if let value = result.endpointType {
+                endpointType = value
+                Log.info("Detected endpoint type: \(value)", category: "Connection")
+                if value == .minio { region = "us-east-1" }
+            }
             if let value = result.healthPath { healthPath = value }
             if let value = result.s3Domain { s3Domain = value }
             if let value = result.apiGatewayDomain { apiGatewayDomain = value }
 
             if let profileId {
                 onSettingsDetected?(profileId, result)
+            }
+
+            // If we discovered a health path, restart health check immediately
+            // so it uses the new path (fixes MinIO/non-LocalStack endpoints
+            // where the root endpoint requires auth).
+            if result.healthPath != nil {
+                startHealthCheck()
             }
         }
     }

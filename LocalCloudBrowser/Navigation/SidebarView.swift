@@ -10,7 +10,7 @@ struct SidebarView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var profileStore: ConnectionProfileStore
     @EnvironmentObject private var licenseManager: LicenseManager
-    @State private var showProfilePicker = false
+    @State private var showConnectionManager = false
     @State private var showHealthWarning = false
     @State private var showConnectionError = false
     @State private var editorSheet: EditorSheet?
@@ -24,18 +24,27 @@ struct SidebarView: View {
             ForEach(Route.grouped, id: \.category) { group in
                 Section(isExpanded: expandedBinding(for: group.category)) {
                     ForEach(group.routes) { route in
-                        HStack {
-                            Label(route.displayName, systemImage: route.systemImage)
-                            if route.isPreview {
-                                Text("Basic")
-                                    .font(.system(size: 9, weight: .medium))
-                                    .foregroundStyle(.secondary)
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 1)
-                                    .background(.quaternary, in: Capsule())
+                        let unsupported = appState.endpointType == .minio && !route.supportedByMinIO
+                        if unsupported {
+                            HStack {
+                                Label(route.displayName, systemImage: route.systemImage)
                             }
+                            .opacity(0.4)
+                            .allowsHitTesting(false)
+                        } else {
+                            HStack {
+                                Label(route.displayName, systemImage: route.systemImage)
+                                if route.isPreview {
+                                    Text("Basic")
+                                        .font(.system(size: 9, weight: .medium))
+                                        .foregroundStyle(.secondary)
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 1)
+                                        .background(.quaternary, in: Capsule())
+                                }
+                            }
+                            .tag(route)
                         }
-                        .tag(route)
                     }
                 } header: {
                     Text(group.category.displayName)
@@ -193,7 +202,7 @@ struct SidebarView: View {
             }
 
             Button {
-                showProfilePicker.toggle()
+                showConnectionManager = true
             } label: {
                 HStack(spacing: 4) {
                     Text(appState.activeConnectionName)
@@ -208,14 +217,8 @@ struct SidebarView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .popover(isPresented: $showProfilePicker, arrowEdge: .top) {
-                ConnectionProfilePickerView { profileToEdit in
-                    showProfilePicker = false
-                    // Small delay so the popover dismisses before the sheet appears
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        editorSheet = EditorSheet(profile: profileToEdit)
-                    }
-                }
+            .sheet(isPresented: $showConnectionManager) {
+                ConnectionManagerView()
             }
         }
     }

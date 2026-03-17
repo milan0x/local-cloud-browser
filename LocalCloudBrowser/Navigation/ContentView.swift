@@ -21,6 +21,12 @@ struct ContentView: View {
         .overlay(alignment: .bottomTrailing) {
             licenseBadge
         }
+        .task {
+            // Delay showing the free badge so StoreKit has time to verify entitlements.
+            // Prevents a flash of the badge for paid users on launch.
+            try? await Task.sleep(for: .seconds(2))
+            licenseBadgeReady = true
+        }
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 regionBadge
@@ -62,38 +68,43 @@ struct ContentView: View {
         }
     }
 
+    @State private var licenseBadgeReady = false
+
     @ViewBuilder
     private var licenseBadge: some View {
         switch licenseManager.state {
         case .free:
-            Button {
-                licenseManager.showUpgradeSheet = true
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 8, weight: .bold))
-                    Text("Unlock Unlimited")
+            if licenseBadgeReady {
+                Button {
+                    licenseManager.showUpgradeSheet = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.system(size: 8, weight: .bold))
+                        Text("Unlock Unlimited")
+                    }
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.leading, 10)
+                    .padding(.trailing, 16)
+                    .padding(.top, 6)
+                    .padding(.bottom, 6)
+                    .background(
+                        Color(red: 0.15, green: 0.3, blue: 0.55),
+                        in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 0)
+                    )
                 }
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.white)
-                .padding(.leading, 10)
-                .padding(.trailing, 16)
-                .padding(.top, 6)
-                .padding(.bottom, 6)
-                .background(
-                    Color(red: 0.15, green: 0.3, blue: 0.55),
-                    in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 0)
-                )
+                .buttonStyle(.plain)
+                .accessibilityLabel("Free plan — tap to upgrade")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Free plan — tap to upgrade")
         case .paid:
             EmptyView()
         }
     }
 
     private var isGlobalService: Bool {
-        appState.selectedRoute == .s3 || appState.selectedRoute == .iam || appState.selectedRoute == .route53 || appState.selectedRoute == .sts
+        appState.endpointType != .minio
+            && (appState.selectedRoute == .s3 || appState.selectedRoute == .iam || appState.selectedRoute == .route53 || appState.selectedRoute == .sts)
     }
 
     @ViewBuilder

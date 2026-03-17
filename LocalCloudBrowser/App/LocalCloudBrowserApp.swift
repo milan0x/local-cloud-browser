@@ -23,6 +23,10 @@ struct LocalCloudBrowserApp: App {
             guard let store else { return }
             guard var profile = store.profiles.first(where: { $0.id == profileId }) else { return }
             var changed = false
+            if let value = detected.endpointType, profile.endpointType == .generic {
+                profile.endpointType = value
+                changed = true
+            }
             if let value = detected.healthPath, profile.healthPath.trimmingCharacters(in: .whitespaces).isEmpty {
                 profile.healthPath = value
                 changed = true
