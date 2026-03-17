@@ -80,6 +80,9 @@ struct S3ObjectBrowserView: View {
     @State private var folderUploadProgress: (current: Int, total: Int)?
     @State private var folderUploadTask: Task<Void, Never>?
 
+    // Cancellable long-running task (move, delete folders, download zip, drop upload)
+    @State private var longRunningTask: Task<Void, Never>?
+
     // Copy/paste
     @State private var isPasting = false
 
@@ -264,6 +267,10 @@ struct S3ObjectBrowserView: View {
             breadcrumbBar
             Divider()
             contentArea
+        }
+        .onDisappear {
+            longRunningTask?.cancel()
+            folderUploadTask?.cancel()
         }
         .onChange(of: appState.s3Domain) {
             if errorMessage != nil {
@@ -527,7 +534,8 @@ struct S3ObjectBrowserView: View {
         guard !appState.isReadOnly else { return false }
         let validProviders = providers.filter { $0.hasItemConformingToTypeIdentifier("public.file-url") }
         guard !validProviders.isEmpty else { return false }
-        Task {
+        longRunningTask?.cancel()
+        longRunningTask = Task {
             var fileURLs: [URL] = []
             var folderURLs: [URL] = []
             for provider in validProviders {
@@ -1487,7 +1495,8 @@ struct S3ObjectBrowserView: View {
         foldersToMove = []
         moveDestination = ""
         isMovingObjects = true
-        Task {
+        longRunningTask?.cancel()
+        longRunningTask = Task {
             do {
                 // Move files
                 if !objs.isEmpty {
@@ -1502,6 +1511,7 @@ struct S3ObjectBrowserView: View {
                 }
                 // Move folders
                 for folder in folders {
+                    guard !Task.isCancelled else { break }
                     let folderName = String(folder.dropLast()).components(separatedBy: "/").last ?? folder
                     let destPrefix = destination + folderName + "/"
                     try await service.moveFolder(bucket: bucket.name, sourcePrefix: folder, destinationPrefix: destPrefix)
@@ -1511,7 +1521,7 @@ struct S3ObjectBrowserView: View {
                 if let clientError = error as? CloudClientError,
                    let parsed = clientError.serviceError {
                     serviceError = parsed
-                } else {
+                } else if !Task.isCancelled {
                     errorMessage = error.localizedDescription
                 }
             }
@@ -1616,9 +1626,11 @@ struct S3ObjectBrowserView: View {
         destinationBucketName = ""
         destinationBucketPrefix = ""
         isMovingToBucket = true
-        Task {
+        longRunningTask?.cancel()
+        longRunningTask = Task {
             do {
                 for obj in objs {
+                    guard !Task.isCancelled else { break }
                     let filename = obj.key.components(separatedBy: "/").last ?? obj.key
                     let destKey = destPrefix + filename
                     try await service.moveObjectToBucket(
@@ -1627,6 +1639,7 @@ struct S3ObjectBrowserView: View {
                     )
                 }
                 for folder in folders {
+                    guard !Task.isCancelled else { break }
                     let folderName = String(folder.dropLast()).components(separatedBy: "/").last ?? folder
                     let destFolderPrefix = destPrefix + folderName + "/"
                     try await service.moveFolderToBucket(
@@ -1639,7 +1652,7 @@ struct S3ObjectBrowserView: View {
                 if let clientError = error as? CloudClientError,
                    let parsed = clientError.serviceError {
                     serviceError = parsed
-                } else {
+                } else if !Task.isCancelled {
                     errorMessage = error.localizedDescription
                 }
             }
@@ -1975,8 +1988,10 @@ struct S3ObjectBrowserView: View {
 
         if showFolderDetailsOnDelete {
             isFetchingFolderDetails = true
-            Task {
+            longRunningTask?.cancel()
+            longRunningTask = Task {
                 for i in folderDeleteItems.indices {
+                    guard !Task.isCancelled else { break }
                     let objs = try? await service.listAllObjects(
                         bucket: bucket.name,
                         prefix: folderDeleteItems[i].prefix
@@ -1997,11 +2012,13 @@ struct S3ObjectBrowserView: View {
         folderDeleteItems = []
         standaloneObjectsToDelete = []
 
-        Task {
+        longRunningTask?.cancel()
+        longRunningTask = Task {
             do {
                 var allKeys: [String] = []
 
                 for folder in folders {
+                    guard !Task.isCancelled else { break }
                     if !folder.allKeys.isEmpty {
                         allKeys.append(contentsOf: folder.allKeys)
                     } else {
@@ -2012,7 +2029,7 @@ struct S3ObjectBrowserView: View {
 
                 allKeys.append(contentsOf: standaloneFiles.map(\.key))
 
-                if !allKeys.isEmpty {
+                if !allKeys.isEmpty && !Task.isCancelled {
                     _ = try await service.deleteObjects(bucket: bucket.name, keys: allKeys)
                 }
                 selectedRowIDs.subtract(Set(allKeys))
@@ -2022,7 +2039,7 @@ struct S3ObjectBrowserView: View {
                 if let clientError = error as? CloudClientError,
                    let parsed = clientError.serviceError {
                     serviceError = parsed
-                } else {
+                } else if !Task.isCancelled {
                     errorMessage = error.localizedDescription
                 }
             }
@@ -2193,7 +2210,8 @@ struct S3ObjectBrowserView: View {
     private func downloadFolderAsZip(prefix: String) {
         guard folderDownloadProgress == nil else { return }
         folderDownloadProgress = (current: 0, total: 0)
-        Task {
+        longRunningTask?.cancel()
+        longRunningTask = Task {
             var tempDir: URL?
             do {
                 let zipURL = try await service.downloadFolderAsZip(

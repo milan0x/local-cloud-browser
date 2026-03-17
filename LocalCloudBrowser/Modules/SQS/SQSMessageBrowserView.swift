@@ -30,6 +30,7 @@ struct SQSMessageBrowserView: View {
     @State private var armedFavoriteId: UUID?
     @State private var sendingFavoriteId: UUID?
     @State private var sentFavoriteId: UUID?
+    @State private var deleteTask: Task<Void, Never>?
 
     private var queueFavorites: [SavedSQSFavorite] {
         favoriteStore.favorites(for: queue.queueUrl)
@@ -479,14 +480,16 @@ struct SQSMessageBrowserView: View {
     }
 
     private func deleteMessages(_ targets: [SQSMessage]) {
-        Task {
+        deleteTask?.cancel()
+        deleteTask = Task {
             var deletedIDs: Set<SQSMessage.ID> = []
             for msg in targets {
+                guard !Task.isCancelled else { break }
                 do {
                     try await service.deleteMessage(queueUrl: queue.queueUrl, receiptHandle: msg.receiptHandle)
                     deletedIDs.insert(msg.id)
                 } catch {
-                    serviceError = error.asServiceError
+                    if !Task.isCancelled { serviceError = error.asServiceError }
                 }
             }
             if !deletedIDs.isEmpty {

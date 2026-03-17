@@ -22,6 +22,7 @@ struct S3BucketListView: View {
     @State private var forceDeleteBuckets: [S3Bucket] = []
     @State private var forceDeleteConfirmation = ""
     @State private var isForceDeleting = false
+    @State private var forceDeleteTask: Task<Void, Never>?
     @State private var searchText = ""
     @State private var pendingSelectName: String?
 
@@ -315,9 +316,11 @@ struct S3BucketListView: View {
 
     private func performForceDelete(_ targets: [S3Bucket]) {
         isForceDeleting = true
-        Task {
+        forceDeleteTask?.cancel()
+        forceDeleteTask = Task {
             var deletedIDs: Set<S3Bucket.ID> = []
             for bucket in targets {
+                guard !Task.isCancelled else { break }
                 do {
                     try await service.forceDeleteBucket(bucket: bucket.name)
                     deletedIDs.insert(bucket.id)
@@ -325,7 +328,7 @@ struct S3BucketListView: View {
                     if let clientError = error as? CloudClientError,
                        let parsed = clientError.serviceError {
                         serviceError = parsed
-                    } else {
+                    } else if !Task.isCancelled {
                         loader.errorMessage = error.localizedDescription
                     }
                 }
