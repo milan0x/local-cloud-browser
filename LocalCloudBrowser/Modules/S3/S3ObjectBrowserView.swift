@@ -493,31 +493,6 @@ struct S3ObjectBrowserView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let errorMessage {
             S3ConfigHintView(errorMessage: errorMessage, onRetry: { loadObjects() })
-        } else if rowItems.isEmpty && !isSearchActive && pathComponents.isEmpty {
-            EmptyStateView(icon: "folder", message: "Empty")
-            .contextMenu {
-                Button("Create Folder") {
-                    showCreateFolder = true
-                }
-                .disabled(appState.isReadOnly)
-                Button("Upload File") {
-                    uploadFile()
-                }
-                .disabled(appState.isReadOnly)
-                Button("Upload Folder") {
-                    uploadFolder()
-                }
-                .disabled(appState.isReadOnly)
-                Divider()
-                Button(pasteLabel) {
-                    requestPaste()
-                }
-                .disabled(appState.isReadOnly || appState.s3Clipboard == nil || isPasting)
-            }
-            .overlay {
-                dropTargetOverlay
-            }
-            .onDrop(of: [.fileURL], isTargeted: $isDropTargeted, perform: handleDrop)
         } else {
             VStack(spacing: 0) {
                 if isSearchActive && sortedRowItems.isEmpty {
