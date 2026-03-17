@@ -42,6 +42,7 @@ struct DynamoDBItemBrowserView: View {
     // Inline draft row
     @State private var isDraftRowActive = false
     @State private var saveDraftCounter = 0
+    @State private var deleteTask: Task<Void, Never>?
 
     enum BrowseMode: String, CaseIterable {
         case scan = "Scan"
@@ -609,15 +610,17 @@ struct DynamoDBItemBrowserView: View {
     }
 
     private func deleteItems(_ targets: [DynamoDBItem]) {
-        Task {
+        deleteTask?.cancel()
+        deleteTask = Task {
             var deletedKeys: Set<String> = []
             for item in targets {
+                guard !Task.isCancelled else { break }
                 let key = item.primaryKey(keySchema: tableDetail.keySchema)
                 do {
                     try await service.deleteItem(tableName: table.tableName, key: key)
                     deletedKeys.insert(stableItemID(item))
                 } catch {
-                    serviceError = error.asServiceError
+                    if !Task.isCancelled { serviceError = error.asServiceError }
                 }
             }
             if !deletedKeys.isEmpty {
