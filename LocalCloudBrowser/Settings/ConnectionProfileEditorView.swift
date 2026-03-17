@@ -24,6 +24,8 @@ struct ConnectionProfileEditorView: View {
     @State private var notDetectedFields: [String] = []
     @State private var showDeleteConfirmation = false
     @State private var showAdvanced = false
+    @State private var isScanning = false
+    @State private var discoveredServices: [DiscoveredService] = []
     @FocusState private var focusedField: String?
 
     enum TestResult {
@@ -57,6 +59,9 @@ struct ConnectionProfileEditorView: View {
     var body: some View {
         VStack(spacing: 0) {
             Form {
+                if existing == nil {
+                    scanSection
+                }
                 TextField("Name", text: $name)
                     .focused($focusedField, equals: "name")
                     .textFieldStyle(.roundedBorder)
@@ -375,5 +380,84 @@ struct ConnectionProfileEditorView: View {
         }
     }
 
+    // MARK: - Scan for local services
 
+    @ViewBuilder
+    private var scanSection: some View {
+        Section {
+            HStack {
+                Button {
+                    runScan()
+                } label: {
+                    HStack(spacing: 6) {
+                        if isScanning {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: "antenna.radiowaves.left.and.right")
+                        }
+                        Text(isScanning ? "Scanning..." : "Scan for Local Services")
+                    }
+                }
+                .disabled(isScanning)
+            }
+
+            ForEach(discoveredServices) { service in
+                Button {
+                    applyDiscoveredService(service)
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "server.rack")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 20)
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: 6) {
+                                Text(verbatim: "localhost:\(service.port)")
+                                    .fontWeight(.medium)
+                                Text(service.name)
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(.blue.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+                                    .foregroundStyle(.blue)
+                            }
+                        }
+                        Spacer()
+                        Image(systemName: "arrow.right.circle.fill")
+                            .foregroundStyle(.blue)
+                    }
+                    .padding(.vertical, 2)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func runScan() {
+        isScanning = true
+        discoveredServices = []
+        Task {
+            discoveredServices = await LocalServiceScanner.scan()
+            isScanning = false
+        }
+    }
+
+    private func applyDiscoveredService(_ service: DiscoveredService) {
+        if name.trimmingCharacters(in: .whitespaces).isEmpty {
+            name = service.name
+        }
+        endpoint = service.endpoint
+        endpointType = service.endpointType
+        healthPath = service.healthPath
+        accessKeyId = service.accessKeyId
+        secretAccessKey = service.secretAccessKey
+        s3Domain = service.s3Domain
+        if service.endpointType == .minio {
+            region = "us-east-1"
+        }
+        // Auto-run test connection after applying
+        testConnection()
+    }
 }
