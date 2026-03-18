@@ -15,22 +15,39 @@ final class KinesisFirehoseService: BaseService {
         let names = json["DeliveryStreamNames"] as? [String] ?? []
         let hasMore = json["HasMoreDeliveryStreams"] as? Bool ?? false
 
-        var streams: [FirehoseDeliveryStreamSummary] = []
-        // ListDeliveryStreams only returns names — describe each for summary info
-        for name in names {
-            do {
-                let detail = try await describeDeliveryStream(name: name)
-                streams.append(FirehoseDeliveryStreamSummary(
-                    deliveryStreamName: detail.deliveryStreamName,
-                    deliveryStreamARN: detail.deliveryStreamARN,
-                    deliveryStreamStatus: detail.deliveryStreamStatus,
-                    deliveryStreamType: detail.deliveryStreamType,
-                    createTimestamp: detail.createTimestamp
-                ))
-            } catch {
-                // If describe fails, add a minimal summary
-                streams.append(FirehoseDeliveryStreamSummary(deliveryStreamName: name))
+        // ListDeliveryStreams only returns names — describe each concurrently for summary info
+        let streams: [FirehoseDeliveryStreamSummary] = await withTaskGroup(of: (Int, FirehoseDeliveryStreamSummary).self) { group in
+            let maxConcurrency = 10
+            var index = 0
+            var results: [(Int, FirehoseDeliveryStreamSummary)] = []
+
+            for name in names {
+                let i = index
+                if i >= maxConcurrency {
+                    if let result = await group.next() {
+                        results.append(result)
+                    }
+                }
+                group.addTask {
+                    do {
+                        let detail = try await self.describeDeliveryStream(name: name)
+                        return (i, FirehoseDeliveryStreamSummary(
+                            deliveryStreamName: detail.deliveryStreamName,
+                            deliveryStreamARN: detail.deliveryStreamARN,
+                            deliveryStreamStatus: detail.deliveryStreamStatus,
+                            deliveryStreamType: detail.deliveryStreamType,
+                            createTimestamp: detail.createTimestamp
+                        ))
+                    } catch {
+                        return (i, FirehoseDeliveryStreamSummary(deliveryStreamName: name))
+                    }
+                }
+                index += 1
             }
+            for await result in group {
+                results.append(result)
+            }
+            return results.sorted { $0.0 < $1.0 }.map(\.1)
         }
 
         let nextToken = hasMore ? names.last : nil

@@ -45,6 +45,11 @@ struct SSMCreateParameterView: View {
         ) {
                 TextField("Parameter name", text: $parameterName)
                     .disabled(isEditing)
+                if isEditing {
+                    Text("Parameter name cannot be changed after creation")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
                 Picker("Type", selection: $parameterType) {
                     ForEach(Self.parameterTypes, id: \.self) { type in

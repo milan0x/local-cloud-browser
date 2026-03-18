@@ -181,6 +181,8 @@ struct SQSMessageBrowserView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if messages.isEmpty {
             EmptyStateView(icon: "tray", message: "No messages", secondaryMessage: "Send a message or click Receive to poll the queue.")
+        } else if !searchQuery.isEmpty && sortedMessages.isEmpty {
+            EmptyStateView(icon: "magnifyingglass", message: "No matches in \(messages.count) loaded message\(messages.count == 1 ? "" : "s")", secondaryMessage: "The queue may contain additional messages not yet received. Try clearing the search or polling for more messages.")
         } else {
             Table(sortedMessages, selection: $selectedMessageIDs, sortOrder: $sortOrder, columnCustomization: $columnCustomization) {
                 TableColumn("Message ID", value: \.messageId) { msg in

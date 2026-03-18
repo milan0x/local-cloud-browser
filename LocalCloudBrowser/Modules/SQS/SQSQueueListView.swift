@@ -236,16 +236,56 @@ struct SQSQueueListView: View {
     }
 
     private func fetchMessageCounts() async {
-        for queue in queues {
-            do {
-                let attrs = try await service.getQueueAttributes(
-                    queueUrl: queue.queueUrl,
-                    attributeNames: ["ApproximateNumberOfMessages"]
-                )
-                messageCounts[queue.queueUrl] = Int(attrs["ApproximateNumberOfMessages"] ?? "") ?? 0
-            } catch {
-                Log.warn("Failed to fetch message count for \(queue.queueName): \(error.localizedDescription)", category: "SQS")
+        let results = await withTaskGroup(of: (String, Int?).self, returning: [String: Int].self) { group in
+            var inFlight = 0
+            var queueIterator = queues.makeIterator()
+
+            // Seed initial batch (max 10 concurrent)
+            for _ in 0..<min(10, queues.count) {
+                if let queue = queueIterator.next() {
+                    inFlight += 1
+                    group.addTask { [service] in
+                        do {
+                            let attrs = try await service.getQueueAttributes(
+                                queueUrl: queue.queueUrl,
+                                attributeNames: ["ApproximateNumberOfMessages"]
+                            )
+                            let count = Int(attrs["ApproximateNumberOfMessages"] ?? "") ?? 0
+                            return (queue.queueUrl, count)
+                        } catch {
+                            Log.warn("Failed to fetch message count for \(queue.queueName): \(error.localizedDescription)", category: "SQS")
+                            return (queue.queueUrl, nil)
+                        }
+                    }
+                }
             }
+
+            var collected: [String: Int] = [:]
+            for await (url, count) in group {
+                inFlight -= 1
+                if let count { collected[url] = count }
+                if let queue = queueIterator.next() {
+                    inFlight += 1
+                    group.addTask { [service] in
+                        do {
+                            let attrs = try await service.getQueueAttributes(
+                                queueUrl: queue.queueUrl,
+                                attributeNames: ["ApproximateNumberOfMessages"]
+                            )
+                            let count = Int(attrs["ApproximateNumberOfMessages"] ?? "") ?? 0
+                            return (queue.queueUrl, count)
+                        } catch {
+                            Log.warn("Failed to fetch message count for \(queue.queueName): \(error.localizedDescription)", category: "SQS")
+                            return (queue.queueUrl, nil)
+                        }
+                    }
+                }
+            }
+            return collected
+        }
+
+        for (url, count) in results {
+            messageCounts[url] = count
         }
     }
 

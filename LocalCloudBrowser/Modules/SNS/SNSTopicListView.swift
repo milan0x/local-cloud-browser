@@ -15,6 +15,7 @@ struct SNSTopicListView: View {
     @StateObject private var loader = PaginatedListLoader<SNSTopic>()
     private var topics: [SNSTopic] { loader.items }
     @State private var subscriptionCounts: [String: Int] = [:]  // topicArn -> count
+    @State private var subscriptionCountCache: [String: Int] = [:]  // persistent cache across re-renders
     @State private var showCreateSheet = false
     @State private var pendingSelectName: String?
     @State private var topicsToDelete: [SNSTopic] = []
@@ -55,6 +56,7 @@ struct SNSTopicListView: View {
             activeTopic = nil
             loader.items = []
             subscriptionCounts = [:]
+            subscriptionCountCache = [:]
             loadTopics(force: true)
         }
         .syncSelection(selectedTopicIDs, items: topics, activeItem: $activeTopic)
@@ -254,15 +256,62 @@ struct SNSTopicListView: View {
     }
 
     private func fetchSubscriptionCounts() async {
-        for topic in topics {
-            do {
-                let attrs = try await service.getTopicAttributes(topicArn: topic.topicArn)
-                let count = Int(attrs["SubscriptionsConfirmed"] ?? "") ?? 0
-                subscriptionCounts[topic.topicArn] = count
-            } catch {
-                Log.warn("Failed to fetch subscription count for \(topic.topicName): \(error.localizedDescription)", category: "SNS")
-            }
+        // Return cached counts immediately for topics we already know about
+        let uncachedTopics = topics.filter { subscriptionCountCache[$0.topicArn] == nil }
+        if uncachedTopics.isEmpty && !topics.isEmpty {
+            subscriptionCounts = subscriptionCountCache
+            return
         }
+
+        // Fetch uncached counts concurrently (max 10 at a time)
+        let results = await withTaskGroup(of: (String, Int?).self, returning: [String: Int].self) { group in
+            var inFlight = 0
+            var topicIterator = uncachedTopics.makeIterator()
+
+            // Seed initial batch
+            for _ in 0..<min(10, uncachedTopics.count) {
+                if let topic = topicIterator.next() {
+                    inFlight += 1
+                    group.addTask { [service] in
+                        do {
+                            let attrs = try await service.getTopicAttributes(topicArn: topic.topicArn)
+                            let count = Int(attrs["SubscriptionsConfirmed"] ?? "") ?? 0
+                            return (topic.topicArn, count)
+                        } catch {
+                            Log.warn("Failed to fetch subscription count for \(topic.topicName): \(error.localizedDescription)", category: "SNS")
+                            return (topic.topicArn, nil)
+                        }
+                    }
+                }
+            }
+
+            var collected: [String: Int] = [:]
+            for await (arn, count) in group {
+                inFlight -= 1
+                if let count { collected[arn] = count }
+                // Launch next task to maintain concurrency
+                if let topic = topicIterator.next() {
+                    inFlight += 1
+                    group.addTask { [service] in
+                        do {
+                            let attrs = try await service.getTopicAttributes(topicArn: topic.topicArn)
+                            let count = Int(attrs["SubscriptionsConfirmed"] ?? "") ?? 0
+                            return (topic.topicArn, count)
+                        } catch {
+                            Log.warn("Failed to fetch subscription count for \(topic.topicName): \(error.localizedDescription)", category: "SNS")
+                            return (topic.topicArn, nil)
+                        }
+                    }
+                }
+            }
+            return collected
+        }
+
+        // Merge into cache and update visible counts
+        for (arn, count) in results {
+            subscriptionCountCache[arn] = count
+        }
+        subscriptionCounts = subscriptionCountCache
     }
 
     private func deleteTopics(_ targets: [SNSTopic]) {

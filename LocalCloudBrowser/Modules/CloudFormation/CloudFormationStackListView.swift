@@ -18,6 +18,7 @@ struct CloudFormationStackListView: View {
     @State private var serviceError: ServiceError?
     @State private var stackToShowDetail: CloudFormationStack?
     @State private var searchText = ""
+    @State private var deleteSuccessMessage: String?
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -50,6 +51,11 @@ struct CloudFormationStackListView: View {
             CloudFormationStackDetailView(service: service, stackName: stack.stackName)
         }
         .serviceErrorAlert(error: $serviceError)
+        .alert("Stack Deleted", isPresented: Binding(get: { deleteSuccessMessage != nil }, set: { if !$0 { deleteSuccessMessage = nil } })) {
+            Button("OK", role: .cancel) { deleteSuccessMessage = nil }
+        } message: {
+            if let msg = deleteSuccessMessage { Text(msg) }
+        }
         .task { loadStacks() }
         .onAutoRefresh(canRefresh: { !showCreateSheet && stacksToDelete.isEmpty && stackToShowDetail == nil && !loader.isLoading }) {
             loadStacks(force: true, silent: true)
@@ -278,6 +284,11 @@ struct CloudFormationStackListView: View {
                 licenseManager.decrementCreateCount(for: .cloudFormation, by: deleted.count)
                 selectedStackIDs.subtract(deleted)
                 if let active = activeStack, deleted.contains(active.id) { activeStack = nil }
+                if error == nil {
+                    deleteSuccessMessage = deleted.count == 1
+                        ? "Stack deletion initiated."
+                        : "\(deleted.count) stack deletions initiated."
+                }
                 loadStacks(force: true)
             }
         }

@@ -12,9 +12,9 @@ struct CloudWatchMetricListView: View {
     @State private var searchText = ""
     @State private var serviceError: ServiceError?
     @State private var showPutMetricSheet = false
+    @State private var groupedMetrics: [(namespace: String, metrics: [CloudWatchMetric])] = []
 
-    /// Metrics grouped by namespace, sorted by namespace.
-    private var groupedMetrics: [(namespace: String, metrics: [CloudWatchMetric])] {
+    private func recomputeGroupedMetrics() {
         let filtered: [CloudWatchMetric]
         if searchText.isEmpty {
             filtered = metrics
@@ -26,7 +26,7 @@ struct CloudWatchMetricListView: View {
             }
         }
         let grouped = Dictionary(grouping: filtered, by: \.namespace)
-        return grouped
+        groupedMetrics = grouped
             .sorted { $0.key.localizedStandardCompare($1.key) == .orderedAscending }
             .map { (namespace: $0.key, metrics: $0.value.sorted { $0.metricName.localizedStandardCompare($1.metricName) == .orderedAscending }) }
     }
@@ -41,6 +41,8 @@ struct CloudWatchMetricListView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadMetrics() }
+        .onChange(of: metrics) { recomputeGroupedMetrics() }
+        .onChange(of: searchText) { recomputeGroupedMetrics() }
         .onAutoRefresh(canRefresh: { !showPutMetricSheet && !loader.isLoading }) {
             loadMetrics(force: true, silent: true)
         }

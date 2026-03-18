@@ -123,7 +123,9 @@ struct CloudWatchLogsEventListView: View {
                     nextToken: token
                 )
                 if !result.events.isEmpty {
-                    events.append(contentsOf: result.events)
+                    let existingIDs = Set(events.map(\.id))
+                    let newEvents = result.events.filter { !existingIDs.contains($0.id) }
+                    events.append(contentsOf: newEvents)
                 }
                 // CloudWatch returns the same token if no more events
                 if result.nextForwardToken != token {
