@@ -3,45 +3,54 @@ import Foundation
 final class KinesisService: BaseService {
     // MARK: - Stream Operations
 
-    func listStreams(region: String? = nil) async throws -> [KinesisStreamSummary] {
-        var allStreams: [KinesisStreamSummary] = []
-        var hasMore = true
-        var exclusiveStartName: String?
+    func listStreamsPage(region: String? = nil, token: String? = nil) async throws -> ([KinesisStreamSummary], String?) {
+        var payload: [String: Any] = [:]
+        if let token {
+            payload["ExclusiveStartStreamName"] = token
+        }
+        let data = try await client.kinesisRequest(action: "ListStreams", payload: payload, region: region)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return ([], nil)
+        }
 
-        while hasMore {
-            var payload: [String: Any] = [:]
-            if let startName = exclusiveStartName {
-                payload["ExclusiveStartStreamName"] = startName
-            }
-            let data = try await client.kinesisRequest(action: "ListStreams", payload: payload, region: region)
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                break
-            }
+        var streams: [KinesisStreamSummary] = []
 
-            // AWS may return StreamSummaries (newer API) or StreamNames (older API)
-            if let summaries = json["StreamSummaries"] as? [[String: Any]] {
-                allStreams.append(contentsOf: summaries.map { KinesisStreamSummary(from: $0) })
-            } else if let names = json["StreamNames"] as? [String] {
-                // Enrich each name with DescribeStreamSummary
-                for name in names {
-                    do {
-                        let detail = try await describeStreamSummary(name: name)
-                        allStreams.append(KinesisStreamSummary(
-                            streamName: detail.streamName,
-                            streamARN: detail.streamARN,
-                            streamStatus: detail.streamStatus,
-                            streamMode: detail.streamMode,
-                            creationTimestamp: detail.creationTimestamp
-                        ))
-                    } catch {
-                        allStreams.append(KinesisStreamSummary(streamName: name))
-                    }
+        // AWS may return StreamSummaries (newer API) or StreamNames (older API)
+        if let summaries = json["StreamSummaries"] as? [[String: Any]] {
+            streams.append(contentsOf: summaries.map { KinesisStreamSummary(from: $0) })
+        } else if let names = json["StreamNames"] as? [String] {
+            // Enrich each name with DescribeStreamSummary
+            for name in names {
+                do {
+                    let detail = try await describeStreamSummary(name: name)
+                    streams.append(KinesisStreamSummary(
+                        streamName: detail.streamName,
+                        streamARN: detail.streamARN,
+                        streamStatus: detail.streamStatus,
+                        streamMode: detail.streamMode,
+                        creationTimestamp: detail.creationTimestamp
+                    ))
+                } catch {
+                    streams.append(KinesisStreamSummary(streamName: name))
                 }
             }
-
-            hasMore = json["HasMoreStreams"] as? Bool ?? false
-            exclusiveStartName = allStreams.last?.streamName
         }
+
+        let hasMore = json["HasMoreStreams"] as? Bool ?? false
+        let nextToken = hasMore ? streams.last?.streamName : nil
+        return (streams, nextToken)
+    }
+
+    func listStreams(region: String? = nil) async throws -> [KinesisStreamSummary] {
+        var allStreams: [KinesisStreamSummary] = []
+        var nextToken: String? = nil
+
+        repeat {
+            let (streams, token) = try await listStreamsPage(region: region, token: nextToken)
+            allStreams.append(contentsOf: streams)
+            nextToken = token
+            if allStreams.count >= 10_000 { break }
+        } while nextToken != nil
 
         return allStreams
     }
@@ -80,23 +89,28 @@ final class KinesisService: BaseService {
 
     // MARK: - Shard Operations
 
+    func listShardsPage(name: String, token: String? = nil) async throws -> ([KinesisShard], String?) {
+        var payload: [String: Any] = ["StreamName": name]
+        if let token {
+            payload["NextToken"] = token
+        }
+        let data = try await client.kinesisRequest(action: "ListShards", payload: payload)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return ([], nil)
+        }
+        let shards = (json["Shards"] as? [[String: Any]] ?? []).map { KinesisShard(from: $0) }
+        return (shards, json["NextToken"] as? String)
+    }
+
     func listShards(name: String) async throws -> [KinesisShard] {
         var allShards: [KinesisShard] = []
         var nextToken: String?
 
         repeat {
-            var payload: [String: Any] = ["StreamName": name]
-            if let token = nextToken {
-                payload["NextToken"] = token
-            }
-            let data = try await client.kinesisRequest(action: "ListShards", payload: payload)
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                break
-            }
-            if let shards = json["Shards"] as? [[String: Any]] {
-                allShards.append(contentsOf: shards.map { KinesisShard(from: $0) })
-            }
-            nextToken = json["NextToken"] as? String
+            let (shards, token) = try await listShardsPage(name: name, token: nextToken)
+            allShards.append(contentsOf: shards)
+            nextToken = token
+            if allShards.count >= 10_000 { break }
         } while nextToken != nil
 
         return allShards

@@ -3,23 +3,28 @@ import Foundation
 final class EventBridgeService: BaseService {
     // MARK: - Event Buses
 
+    func listEventBusesPage(region: String? = nil, token: String? = nil) async throws -> ([EventBridgeBus], String?) {
+        var payload: [String: Any] = [:]
+        if let token {
+            payload["NextToken"] = token
+        }
+        let data = try await client.eventBridgeRequest(action: "ListEventBuses", payload: payload, region: region)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return ([], nil)
+        }
+        let buses = (json["EventBuses"] as? [[String: Any]] ?? []).map { EventBridgeBus(from: $0) }
+        return (buses, json["NextToken"] as? String)
+    }
+
     func listEventBuses(region: String? = nil) async throws -> [EventBridgeBus] {
         var allBuses: [EventBridgeBus] = []
         var nextToken: String? = nil
 
         repeat {
-            var payload: [String: Any] = [:]
-            if let token = nextToken {
-                payload["NextToken"] = token
-            }
-            let data = try await client.eventBridgeRequest(action: "ListEventBuses", payload: payload, region: region)
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                break
-            }
-            if let buses = json["EventBuses"] as? [[String: Any]] {
-                allBuses.append(contentsOf: buses.map { EventBridgeBus(from: $0) })
-            }
-            nextToken = json["NextToken"] as? String
+            let (buses, token) = try await listEventBusesPage(region: region, token: nextToken)
+            allBuses.append(contentsOf: buses)
+            nextToken = token
+            if allBuses.count >= 10_000 { break }
         } while nextToken != nil
 
         return allBuses
@@ -41,23 +46,28 @@ final class EventBridgeService: BaseService {
 
     // MARK: - Rules
 
+    func listRulesPage(eventBusName: String, token: String? = nil) async throws -> ([EventBridgeRule], String?) {
+        var payload: [String: Any] = ["EventBusName": eventBusName]
+        if let token {
+            payload["NextToken"] = token
+        }
+        let data = try await client.eventBridgeRequest(action: "ListRules", payload: payload)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return ([], nil)
+        }
+        let rules = (json["Rules"] as? [[String: Any]] ?? []).map { EventBridgeRule(from: $0) }
+        return (rules, json["NextToken"] as? String)
+    }
+
     func listRules(eventBusName: String) async throws -> [EventBridgeRule] {
         var allRules: [EventBridgeRule] = []
         var nextToken: String? = nil
 
         repeat {
-            var payload: [String: Any] = ["EventBusName": eventBusName]
-            if let token = nextToken {
-                payload["NextToken"] = token
-            }
-            let data = try await client.eventBridgeRequest(action: "ListRules", payload: payload)
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                break
-            }
-            if let rules = json["Rules"] as? [[String: Any]] {
-                allRules.append(contentsOf: rules.map { EventBridgeRule(from: $0) })
-            }
-            nextToken = json["NextToken"] as? String
+            let (rules, token) = try await listRulesPage(eventBusName: eventBusName, token: nextToken)
+            allRules.append(contentsOf: rules)
+            nextToken = token
+            if allRules.count >= 10_000 { break }
         } while nextToken != nil
 
         return allRules
@@ -122,26 +132,31 @@ final class EventBridgeService: BaseService {
 
     // MARK: - Targets
 
+    func listTargetsByRulePage(ruleName: String, eventBusName: String, token: String? = nil) async throws -> ([EventBridgeTarget], String?) {
+        var payload: [String: Any] = [
+            "Rule": ruleName,
+            "EventBusName": eventBusName,
+        ]
+        if let token {
+            payload["NextToken"] = token
+        }
+        let data = try await client.eventBridgeRequest(action: "ListTargetsByRule", payload: payload)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return ([], nil)
+        }
+        let targets = (json["Targets"] as? [[String: Any]] ?? []).map { EventBridgeTarget(from: $0) }
+        return (targets, json["NextToken"] as? String)
+    }
+
     func listTargetsByRule(ruleName: String, eventBusName: String) async throws -> [EventBridgeTarget] {
         var allTargets: [EventBridgeTarget] = []
         var nextToken: String? = nil
 
         repeat {
-            var payload: [String: Any] = [
-                "Rule": ruleName,
-                "EventBusName": eventBusName,
-            ]
-            if let token = nextToken {
-                payload["NextToken"] = token
-            }
-            let data = try await client.eventBridgeRequest(action: "ListTargetsByRule", payload: payload)
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                break
-            }
-            if let targets = json["Targets"] as? [[String: Any]] {
-                allTargets.append(contentsOf: targets.map { EventBridgeTarget(from: $0) })
-            }
-            nextToken = json["NextToken"] as? String
+            let (targets, token) = try await listTargetsByRulePage(ruleName: ruleName, eventBusName: eventBusName, token: nextToken)
+            allTargets.append(contentsOf: targets)
+            nextToken = token
+            if allTargets.count >= 10_000 { break }
         } while nextToken != nil
 
         return allTargets

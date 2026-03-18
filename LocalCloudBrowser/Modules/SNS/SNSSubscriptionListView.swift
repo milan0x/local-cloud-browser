@@ -10,7 +10,7 @@ struct SNSSubscriptionListView: View {
     @EnvironmentObject private var appState: AppState
     @FocusState private var isTableFocused: Bool
 
-    @StateObject private var loader = ListLoader<SNSSubscription>()
+    @StateObject private var loader = PaginatedListLoader<SNSSubscription>()
     private var subscriptions: [SNSSubscription] { loader.items }
     @State private var selectedSubscriptionIDs: Set<SNSSubscription.ID> = []
     @State private var serviceError: ServiceError?
@@ -41,6 +41,57 @@ struct SNSSubscriptionListView: View {
             subscriptionHeader
             Divider()
             subscriptionContent
+            if loader.hasMorePages {
+                Divider()
+                HStack {
+                    Spacer()
+                    Button {
+                        loader.loadMore()
+                    } label: {
+                        if loader.isLoadingMore {
+                            ProgressView()
+                                .controlSize(.small)
+                                .padding(.trailing, 4)
+                            Text("Loading...")
+                        } else {
+                            Text("Load More")
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(loader.isLoadingMore)
+                    .font(.caption)
+                    Spacer()
+                }
+                .padding(.vertical, 6)
+            }
+
+            if sortedSubscriptions.isEmpty && !searchQuery.isEmpty && loader.hasMorePages {
+                VStack(spacing: 6) {
+                    Text("No matches in loaded items.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button("Search all items") {
+                        let query = searchQuery.lowercased()
+                        loader.searchAll { $0.endpoint.lowercased().contains(query) || $0.subscriptionArn.lowercased().contains(query) }
+                    }
+                    .font(.caption)
+                    .buttonStyle(.borderless)
+                    if loader.isSearchingAll {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                }
+                .padding(.vertical, 8)
+            }
+
+            if loader.searchAllHitCap {
+                Text("Showing results from first 10,000 items. Refine your search for better results.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+            }
+
             Divider()
             subscriptionStatusBar
         }
@@ -261,7 +312,7 @@ struct SNSSubscriptionListView: View {
 
     private func loadSubscriptions(force: Bool = false, silent: Bool = false) {
         loader.load(force: force, silent: silent,
-            fetch: { [service] in try await service.listSubscriptions(topicArn: topic.topicArn) },
+            fetch: { [service] token in try await service.listSubscriptionsPage(topicArn: topic.topicArn, token: token) },
             sort: { _, _ in false }
         )
     }

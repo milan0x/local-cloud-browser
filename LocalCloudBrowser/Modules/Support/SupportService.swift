@@ -3,25 +3,30 @@ import Foundation
 final class SupportService: BaseService {
     // MARK: - Case Operations
 
+    func describeCasesPage(includeResolved: Bool, token: String? = nil) async throws -> ([SupportCase], String?) {
+        var payload: [String: Any] = [
+            "includeResolvedCases": includeResolved,
+        ]
+        if let token {
+            payload["nextToken"] = token
+        }
+        let data = try await client.supportRequest(action: "DescribeCases", payload: payload)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return ([], nil)
+        }
+        let cases = (json["cases"] as? [[String: Any]] ?? []).map { SupportCase(from: $0) }
+        return (cases, json["nextToken"] as? String)
+    }
+
     func describeCases(includeResolved: Bool) async throws -> [SupportCase] {
         var allCases: [SupportCase] = []
         var nextToken: String?
 
         repeat {
-            var payload: [String: Any] = [
-                "includeResolvedCases": includeResolved,
-            ]
-            if let token = nextToken {
-                payload["nextToken"] = token
-            }
-            let data = try await client.supportRequest(action: "DescribeCases", payload: payload)
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                break
-            }
-            if let list = json["cases"] as? [[String: Any]] {
-                allCases.append(contentsOf: list.map { SupportCase(from: $0) })
-            }
-            nextToken = json["nextToken"] as? String
+            let (cases, token) = try await describeCasesPage(includeResolved: includeResolved, token: nextToken)
+            allCases.append(contentsOf: cases)
+            nextToken = token
+            if allCases.count >= 10_000 { break }
         } while nextToken != nil
 
         return allCases

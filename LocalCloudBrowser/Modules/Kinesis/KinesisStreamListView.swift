@@ -16,7 +16,7 @@ struct KinesisStreamListView: View {
     @State private var serviceError: ServiceError?
     @State private var searchText = ""
     @State private var pendingSelectName: String?
-    @StateObject private var loader = ListLoader<KinesisStreamSummary>()
+    @StateObject private var loader = PaginatedListLoader<KinesisStreamSummary>()
     private var streams: [KinesisStreamSummary] { loader.items }
 
     var body: some View {
@@ -151,7 +151,58 @@ struct KinesisStreamListView: View {
                     .disabled(appState.isReadOnly)
                 }
 
-                ListStatusBar(totalCount: streams.count, selectedCount: selectedStreamIDs.count, noun: "stream")
+                if loader.hasMorePages {
+                    Divider()
+                    HStack {
+                        Spacer()
+                        Button {
+                            loader.loadMore()
+                        } label: {
+                            if loader.isLoadingMore {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .padding(.trailing, 4)
+                                Text("Loading...")
+                            } else {
+                                Text("Load More")
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(loader.isLoadingMore)
+                        .font(.caption)
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                if filteredStreams.isEmpty && !searchText.isEmpty && loader.hasMorePages {
+                    VStack(spacing: 6) {
+                        Text("No matches in loaded items.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Search all items") {
+                            let query = searchText.lowercased()
+                            loader.searchAll { $0.streamName.lowercased().contains(query) }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.borderless)
+                        if loader.isSearchingAll {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                if loader.searchAllHitCap {
+                    Text("Showing results from first 10,000 items. Refine your search for better results.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                }
+
+                ListStatusBar(totalCount: streams.count, selectedCount: selectedStreamIDs.count, noun: "stream", hasMorePages: loader.hasMorePages)
             }
         }
     }
@@ -185,7 +236,7 @@ struct KinesisStreamListView: View {
 
     private func loadStreams(force: Bool = false, silent: Bool = false) {
         loader.load(force: force, silent: silent,
-            fetch: { [service] in try await service.listStreams() },
+            fetch: { [service] token in try await service.listStreamsPage(token: token) },
             sort: { $0.streamName.localizedStandardCompare($1.streamName) == .orderedAscending }
         ) { [self] items in
             if !loader.hasRestoredSession, let savedName = restoreStreamName,

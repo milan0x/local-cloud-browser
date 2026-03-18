@@ -20,6 +20,7 @@ final class EventBridgeSchedulerService: BaseService {
                 allGroups.append(contentsOf: groups.map { SchedulerScheduleGroup(from: $0) })
             }
             nextToken = json["NextToken"] as? String
+            if allGroups.count >= 10_000 { break }
         } while nextToken != nil
 
         return allGroups
@@ -58,6 +59,7 @@ final class EventBridgeSchedulerService: BaseService {
                 allSchedules.append(contentsOf: schedules.map { SchedulerSchedule(from: $0) })
             }
             nextToken = json["NextToken"] as? String
+            if allSchedules.count >= 10_000 { break }
         } while nextToken != nil
 
         return allSchedules

@@ -3,25 +3,29 @@ import Foundation
 final class SESService: BaseService {
     // MARK: - Identity Operations
 
+    func listIdentitiesPage(region: String? = nil, token: String? = nil) async throws -> ([SESIdentity], String?) {
+        var params: [String: String] = [:]
+        if let token {
+            params["NextToken"] = token
+        }
+        let data = try await client.sesRequest(action: "ListIdentities", params: params, region: region)
+        let xml = try SNSXMLParser.parse(data)
+        let identities = xml.all("member").map { SESIdentity(identity: $0) }
+        return (identities, xml.first("NextToken"))
+    }
+
     func listIdentities(region: String? = nil) async throws -> [SESIdentity] {
-        var identities: [SESIdentity] = []
+        var allIdentities: [SESIdentity] = []
         var nextToken: String? = nil
 
         repeat {
-            var params: [String: String] = [:]
-            if let token = nextToken {
-                params["NextToken"] = token
-            }
-            let data = try await client.sesRequest(action: "ListIdentities", params: params, region: region)
-            let xml = try SNSXMLParser.parse(data)
-            let members = xml.all("member")
-            for member in members {
-                identities.append(SESIdentity(identity: member))
-            }
-            nextToken = xml.first("NextToken")
+            let (identities, token) = try await listIdentitiesPage(region: region, token: nextToken)
+            allIdentities.append(contentsOf: identities)
+            nextToken = token
+            if allIdentities.count >= 10_000 { break }
         } while nextToken != nil
 
-        return identities
+        return allIdentities
     }
 
     func verifyEmailIdentity(email: String) async throws {

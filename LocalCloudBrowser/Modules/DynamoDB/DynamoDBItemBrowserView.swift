@@ -374,27 +374,35 @@ struct DynamoDBItemBrowserView: View {
                 .keyboardShortcut("s")
                 .disabled(appState.isReadOnly)
             } else {
-                Text("Items: \(items.count)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text("\(items.count)\(lastEvaluatedKey != nil ? "+" : "") items")
+                    .font(.callout)
+                    .foregroundStyle(.primary)
                 if totalScanned > items.count {
-                    Text("Scanned: \(totalScanned)")
-                        .font(.caption)
+                    Text("(\(totalScanned) scanned)")
+                        .font(.callout)
                         .foregroundStyle(.secondary)
                 }
                 if selectedItemIDs.count > 1 {
                     Text("(\(selectedItemIDs.count) selected)")
-                        .font(.caption)
+                        .font(.callout)
                         .foregroundStyle(.secondary)
                 }
-                Spacer()
                 if lastEvaluatedKey != nil {
-                    Button("Load More") {
-                        loadMoreItems()
+                    if isLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Button {
+                            loadMoreItems()
+                        } label: {
+                            Label("Load More", systemImage: "arrow.down.circle")
+                                .font(.callout)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
-                    .font(.caption)
-                    .disabled(isLoading)
                 }
+                Spacer()
             }
         }
         .padding(.horizontal, 12)

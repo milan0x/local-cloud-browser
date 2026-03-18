@@ -20,6 +20,7 @@ final class Route53ResolverService: BaseService {
                 allEndpoints.append(contentsOf: endpoints.map { ResolverEndpoint(from: $0) })
             }
             nextToken = json["NextToken"] as? String
+            if allEndpoints.count >= 10_000 { break }
         } while nextToken != nil
 
         return allEndpoints
@@ -54,6 +55,7 @@ final class Route53ResolverService: BaseService {
                 allAddresses.append(contentsOf: addresses.map { ResolverIpAddress(from: $0) })
             }
             nextToken = json["NextToken"] as? String
+            if allAddresses.count >= 10_000 { break }
         } while nextToken != nil
 
         return allAddresses
@@ -108,6 +110,7 @@ final class Route53ResolverService: BaseService {
                 allRules.append(contentsOf: rules.map { ResolverRule(from: $0) })
             }
             nextToken = json["NextToken"] as? String
+            if allRules.count >= 10_000 { break }
         } while nextToken != nil
 
         return allRules
@@ -173,6 +176,7 @@ final class Route53ResolverService: BaseService {
                 allAssociations.append(contentsOf: assocs.map { ResolverRuleAssociation(from: $0) })
             }
             nextToken = json["NextToken"] as? String
+            if allAssociations.count >= 10_000 { break }
         } while nextToken != nil
 
         return allAssociations

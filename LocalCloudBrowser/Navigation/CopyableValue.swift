@@ -50,9 +50,9 @@ struct CopyableValue: View {
                 isHovered = hovering
             }
             if hovering {
-                NSCursor.pointingHand.push()
+                NSCursor.pointingHand.set()
             } else {
-                NSCursor.pop()
+                NSCursor.arrow.set()
             }
         }
     }

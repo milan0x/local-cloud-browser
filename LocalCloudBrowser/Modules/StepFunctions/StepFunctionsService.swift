@@ -3,22 +3,31 @@ import Foundation
 final class StepFunctionsService: BaseService {
     // MARK: - State Machine Operations
 
+    func listStateMachinesPage(region: String? = nil, token: String? = nil) async throws -> ([StateMachineSummary], String?) {
+        var payload: [String: Any] = ["maxResults": 100]
+        if let token {
+            payload["nextToken"] = token
+        }
+        let data = try await client.stepFunctionsRequest(action: "ListStateMachines", payload: payload, region: region)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let machines = json["stateMachines"] as? [[String: Any]] else {
+            return ([], nil)
+        }
+        let items = machines.map { StateMachineSummary(from: $0) }
+        return (items, json["nextToken"] as? String)
+    }
+
     func listStateMachines(region: String? = nil) async throws -> [StateMachineSummary] {
         var allMachines: [StateMachineSummary] = []
         var nextToken: String?
+
         repeat {
-            var payload: [String: Any] = ["maxResults": 100]
-            if let token = nextToken {
-                payload["nextToken"] = token
-            }
-            let data = try await client.stepFunctionsRequest(action: "ListStateMachines", payload: payload, region: region)
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let machines = json["stateMachines"] as? [[String: Any]] else {
-                break
-            }
-            allMachines.append(contentsOf: machines.map { StateMachineSummary(from: $0) })
-            nextToken = json["nextToken"] as? String
+            let (machines, token) = try await listStateMachinesPage(region: region, token: nextToken)
+            allMachines.append(contentsOf: machines)
+            nextToken = token
+            if allMachines.count >= 10_000 { break }
         } while nextToken != nil
+
         return allMachines
     }
 
@@ -52,25 +61,34 @@ final class StepFunctionsService: BaseService {
 
     // MARK: - Execution Operations
 
+    func listExecutionsPage(stateMachineArn: String, token: String? = nil) async throws -> ([StepFunctionsExecution], String?) {
+        var payload: [String: Any] = [
+            "stateMachineArn": stateMachineArn,
+            "maxResults": 100,
+        ]
+        if let token {
+            payload["nextToken"] = token
+        }
+        let data = try await client.stepFunctionsRequest(action: "ListExecutions", payload: payload)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let executions = json["executions"] as? [[String: Any]] else {
+            return ([], nil)
+        }
+        let items = executions.map { StepFunctionsExecution(from: $0) }
+        return (items, json["nextToken"] as? String)
+    }
+
     func listExecutions(stateMachineArn: String) async throws -> [StepFunctionsExecution] {
         var allExecutions: [StepFunctionsExecution] = []
         var nextToken: String?
+
         repeat {
-            var payload: [String: Any] = [
-                "stateMachineArn": stateMachineArn,
-                "maxResults": 100,
-            ]
-            if let token = nextToken {
-                payload["nextToken"] = token
-            }
-            let data = try await client.stepFunctionsRequest(action: "ListExecutions", payload: payload)
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let executions = json["executions"] as? [[String: Any]] else {
-                break
-            }
-            allExecutions.append(contentsOf: executions.map { StepFunctionsExecution(from: $0) })
-            nextToken = json["nextToken"] as? String
+            let (executions, token) = try await listExecutionsPage(stateMachineArn: stateMachineArn, token: nextToken)
+            allExecutions.append(contentsOf: executions)
+            nextToken = token
+            if allExecutions.count >= 10_000 { break }
         } while nextToken != nil
+
         return allExecutions
     }
 

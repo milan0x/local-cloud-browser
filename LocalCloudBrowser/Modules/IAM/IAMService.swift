@@ -3,28 +3,27 @@ import Foundation
 final class IAMService: BaseService {
     // MARK: - Users
 
+    func listUsersPage(token: String? = nil) async throws -> ([IAMUser], String?) {
+        var params: [String: String] = [:]
+        if let token {
+            params["Marker"] = token
+        }
+        let data = try await client.iamRequest(action: "ListUsers", params: params)
+        let xml = try SNSXMLParser.parse(data)
+        let users = xml.memberDicts.map { IAMUser(from: $0) }
+        let next = xml.first("IsTruncated") == "true" ? xml.first("Marker") : nil
+        return (users, next)
+    }
+
     func listUsers() async throws -> [IAMUser] {
         var allUsers: [IAMUser] = []
         var marker: String? = nil
-
         repeat {
-            var params: [String: String] = [:]
-            if let m = marker {
-                params["Marker"] = m
-            }
-            let data = try await client.iamRequest(action: "ListUsers", params: params)
-            let xml = try SNSXMLParser.parse(data)
-
-            for member in xml.memberDicts {
-                allUsers.append(IAMUser(from: member))
-            }
-            if xml.first("IsTruncated") == "true" {
-                marker = xml.first("Marker")
-            } else {
-                marker = nil
-            }
+            let (users, token) = try await listUsersPage(token: marker)
+            allUsers.append(contentsOf: users)
+            marker = token
+            if allUsers.count >= 10_000 { break }
         } while marker != nil
-
         return allUsers
     }
 
@@ -72,6 +71,7 @@ final class IAMService: BaseService {
             } else {
                 marker = nil
             }
+            if allPolicies.count >= 10_000 { break }
         } while marker != nil
 
         return allPolicies
@@ -111,6 +111,7 @@ final class IAMService: BaseService {
             } else {
                 marker = nil
             }
+            if allGroups.count >= 10_000 { break }
         } while marker != nil
 
         return allGroups
@@ -132,28 +133,27 @@ final class IAMService: BaseService {
 
     // MARK: - Roles
 
+    func listRolesPage(token: String? = nil) async throws -> ([IAMRole], String?) {
+        var params: [String: String] = [:]
+        if let token {
+            params["Marker"] = token
+        }
+        let data = try await client.iamRequest(action: "ListRoles", params: params)
+        let xml = try SNSXMLParser.parse(data)
+        let roles = xml.memberDicts.map { IAMRole(from: $0) }
+        let next = xml.first("IsTruncated") == "true" ? xml.first("Marker") : nil
+        return (roles, next)
+    }
+
     func listRoles() async throws -> [IAMRole] {
         var allRoles: [IAMRole] = []
         var marker: String? = nil
-
         repeat {
-            var params: [String: String] = [:]
-            if let m = marker {
-                params["Marker"] = m
-            }
-            let data = try await client.iamRequest(action: "ListRoles", params: params)
-            let xml = try SNSXMLParser.parse(data)
-
-            for member in xml.memberDicts {
-                allRoles.append(IAMRole(from: member))
-            }
-            if xml.first("IsTruncated") == "true" {
-                marker = xml.first("Marker")
-            } else {
-                marker = nil
-            }
+            let (roles, token) = try await listRolesPage(token: marker)
+            allRoles.append(contentsOf: roles)
+            marker = token
+            if allRoles.count >= 10_000 { break }
         } while marker != nil
-
         return allRoles
     }
 
@@ -200,6 +200,7 @@ final class IAMService: BaseService {
             } else {
                 marker = nil
             }
+            if allPolicies.count >= 10_000 { break }
         } while marker != nil
 
         return allPolicies
@@ -221,28 +222,27 @@ final class IAMService: BaseService {
 
     // MARK: - Policies
 
+    func listPoliciesPage(scope: String = "Local", token: String? = nil) async throws -> ([IAMPolicy], String?) {
+        var params: [String: String] = ["Scope": scope]
+        if let token {
+            params["Marker"] = token
+        }
+        let data = try await client.iamRequest(action: "ListPolicies", params: params)
+        let xml = try SNSXMLParser.parse(data)
+        let policies = xml.memberDicts.map { IAMPolicy(from: $0) }
+        let next = xml.first("IsTruncated") == "true" ? xml.first("Marker") : nil
+        return (policies, next)
+    }
+
     func listPolicies(scope: String = "Local") async throws -> [IAMPolicy] {
         var allPolicies: [IAMPolicy] = []
         var marker: String? = nil
-
         repeat {
-            var params: [String: String] = ["Scope": scope]
-            if let m = marker {
-                params["Marker"] = m
-            }
-            let data = try await client.iamRequest(action: "ListPolicies", params: params)
-            let xml = try SNSXMLParser.parse(data)
-
-            for member in xml.memberDicts {
-                allPolicies.append(IAMPolicy(from: member))
-            }
-            if xml.first("IsTruncated") == "true" {
-                marker = xml.first("Marker")
-            } else {
-                marker = nil
-            }
+            let (policies, token) = try await listPoliciesPage(scope: scope, token: marker)
+            allPolicies.append(contentsOf: policies)
+            marker = token
+            if allPolicies.count >= 10_000 { break }
         } while marker != nil
-
         return allPolicies
     }
 

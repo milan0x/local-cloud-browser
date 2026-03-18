@@ -3,25 +3,28 @@ import Foundation
 final class SSMService: BaseService {
     // MARK: - Parameter Operations
 
+    func describeParametersPage(token: String? = nil, region: String? = nil) async throws -> ([SSMParameter], String?) {
+        var payload: [String: Any] = [:]
+        if let token {
+            payload["NextToken"] = token
+        }
+        let data = try await client.ssmRequest(action: "DescribeParameters", payload: payload, region: region)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return ([], nil)
+        }
+        let params = (json["Parameters"] as? [[String: Any]] ?? []).map { SSMParameter(from: $0) }
+        return (params, json["NextToken"] as? String)
+    }
+
     func describeParameters(region: String? = nil) async throws -> [SSMParameter] {
         var allParameters: [SSMParameter] = []
         var nextToken: String? = nil
-
         repeat {
-            var payload: [String: Any] = [:]
-            if let token = nextToken {
-                payload["NextToken"] = token
-            }
-            let data = try await client.ssmRequest(action: "DescribeParameters", payload: payload, region: region)
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                break
-            }
-            if let paramList = json["Parameters"] as? [[String: Any]] {
-                allParameters.append(contentsOf: paramList.map { SSMParameter(from: $0) })
-            }
-            nextToken = json["NextToken"] as? String
+            let (params, token) = try await describeParametersPage(token: nextToken, region: region)
+            allParameters.append(contentsOf: params)
+            nextToken = token
+            if allParameters.count >= 10_000 { break }
         } while nextToken != nil
-
         return allParameters
     }
 

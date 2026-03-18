@@ -13,14 +13,14 @@ struct IAMEntityListView: View {
     var restoreEntityType: IAMEntityType?
     var restoreEntityName: String?
 
-    @State private var users: [IAMUser] = []
-    @State private var roles: [IAMRole] = []
-    @State private var policies: [IAMPolicy] = []
-    @State private var hasRestoredSession = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
+    @StateObject private var userLoader = PaginatedListLoader<IAMUser>()
+    @StateObject private var roleLoader = PaginatedListLoader<IAMRole>()
+    @StateObject private var policyLoader = PaginatedListLoader<IAMPolicy>()
+    private var users: [IAMUser] { userLoader.items }
+    private var roles: [IAMRole] { roleLoader.items }
+    private var policies: [IAMPolicy] { policyLoader.items }
+    private var isLoading: Bool { userLoader.isLoading || roleLoader.isLoading || policyLoader.isLoading }
     @State private var serviceError: ServiceError?
-    @State private var lastLoadTime: Date?
     @State private var searchText = ""
 
     // Create sheets
@@ -167,9 +167,9 @@ struct IAMEntityListView: View {
         selectedUserName = nil
         selectedRoleName = nil
         selectedPolicyArn = nil
-        users = []
-        roles = []
-        policies = []
+        userLoader.items = []
+        roleLoader.items = []
+        policyLoader.items = []
     }
 
     // MARK: - Header
@@ -229,7 +229,7 @@ struct IAMEntityListView: View {
         if isLoading && users.isEmpty {
             ProgressView("Loading users...")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, users.isEmpty {
+        } else if let errorMessage = userLoader.errorMessage, users.isEmpty {
             errorView(errorMessage)
         } else if users.isEmpty {
             emptyView("No users", icon: "person")
@@ -257,7 +257,59 @@ struct IAMEntityListView: View {
                     .contextMenu { userContextMenu(user) }
                 }
                 .contextMenu { createContextMenu }
-                ListStatusBar(totalCount: users.count, selectedCount: selectedUserIDs.count, noun: "user")
+
+                if userLoader.hasMorePages {
+                    Divider()
+                    HStack {
+                        Spacer()
+                        Button {
+                            userLoader.loadMore()
+                        } label: {
+                            if userLoader.isLoadingMore {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .padding(.trailing, 4)
+                                Text("Loading...")
+                            } else {
+                                Text("Load More")
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(userLoader.isLoadingMore)
+                        .font(.caption)
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                if filteredUsers.isEmpty && !searchText.isEmpty && userLoader.hasMorePages {
+                    VStack(spacing: 6) {
+                        Text("No matches in loaded items.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Search all items") {
+                            let query = searchText.lowercased()
+                            userLoader.searchAll { $0.userName.lowercased().contains(query) }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.borderless)
+                        if userLoader.isSearchingAll {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                if userLoader.searchAllHitCap {
+                    Text("Showing results from first 10,000 items. Refine your search for better results.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                }
+
+                ListStatusBar(totalCount: users.count, selectedCount: selectedUserIDs.count, noun: "user", hasMorePages: userLoader.hasMorePages)
             }
         }
     }
@@ -298,7 +350,7 @@ struct IAMEntityListView: View {
         if isLoading && roles.isEmpty {
             ProgressView("Loading roles...")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, roles.isEmpty {
+        } else if let errorMessage = roleLoader.errorMessage, roles.isEmpty {
             errorView(errorMessage)
         } else if roles.isEmpty {
             emptyView("No roles", icon: "person.badge.key")
@@ -331,7 +383,59 @@ struct IAMEntityListView: View {
                     .contextMenu { roleContextMenu(role) }
                 }
                 .contextMenu { createContextMenu }
-                ListStatusBar(totalCount: roles.count, selectedCount: selectedRoleIDs.count, noun: "role")
+
+                if roleLoader.hasMorePages {
+                    Divider()
+                    HStack {
+                        Spacer()
+                        Button {
+                            roleLoader.loadMore()
+                        } label: {
+                            if roleLoader.isLoadingMore {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .padding(.trailing, 4)
+                                Text("Loading...")
+                            } else {
+                                Text("Load More")
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(roleLoader.isLoadingMore)
+                        .font(.caption)
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                if filteredRoles.isEmpty && !searchText.isEmpty && roleLoader.hasMorePages {
+                    VStack(spacing: 6) {
+                        Text("No matches in loaded items.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Search all items") {
+                            let query = searchText.lowercased()
+                            roleLoader.searchAll { $0.roleName.lowercased().contains(query) }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.borderless)
+                        if roleLoader.isSearchingAll {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                if roleLoader.searchAllHitCap {
+                    Text("Showing results from first 10,000 items. Refine your search for better results.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                }
+
+                ListStatusBar(totalCount: roles.count, selectedCount: selectedRoleIDs.count, noun: "role", hasMorePages: roleLoader.hasMorePages)
             }
         }
     }
@@ -372,7 +476,7 @@ struct IAMEntityListView: View {
         if isLoading && policies.isEmpty {
             ProgressView("Loading policies...")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, policies.isEmpty {
+        } else if let errorMessage = policyLoader.errorMessage, policies.isEmpty {
             errorView(errorMessage)
         } else if policies.isEmpty {
             emptyView("No policies", icon: "doc.text")
@@ -407,7 +511,59 @@ struct IAMEntityListView: View {
                     .contextMenu { policyContextMenu(policy) }
                 }
                 .contextMenu { createContextMenu }
-                ListStatusBar(totalCount: policies.count, selectedCount: selectedPolicyIDs.count, noun: "policy", pluralNoun: "policies")
+
+                if policyLoader.hasMorePages {
+                    Divider()
+                    HStack {
+                        Spacer()
+                        Button {
+                            policyLoader.loadMore()
+                        } label: {
+                            if policyLoader.isLoadingMore {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .padding(.trailing, 4)
+                                Text("Loading...")
+                            } else {
+                                Text("Load More")
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(policyLoader.isLoadingMore)
+                        .font(.caption)
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                if filteredPolicies.isEmpty && !searchText.isEmpty && policyLoader.hasMorePages {
+                    VStack(spacing: 6) {
+                        Text("No matches in loaded items.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Search all items") {
+                            let query = searchText.lowercased()
+                            policyLoader.searchAll { $0.policyName.lowercased().contains(query) }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.borderless)
+                        if policyLoader.isSearchingAll {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                if policyLoader.searchAllHitCap {
+                    Text("Showing results from first 10,000 items. Refine your search for better results.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                }
+
+                ListStatusBar(totalCount: policies.count, selectedCount: selectedPolicyIDs.count, noun: "policy", pluralNoun: "policies", hasMorePages: policyLoader.hasMorePages)
             }
         }
     }
@@ -495,84 +651,76 @@ struct IAMEntityListView: View {
     // MARK: - Data
 
     private func loadEntities(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                async let loadedUsers = service.listUsers()
-                async let loadedRoles = service.listRoles()
-                async let loadedPolicies = service.listPolicies()
+        loadUsers(force: force, silent: silent)
+        loadRoles(force: force, silent: silent)
+        loadPolicies(force: force, silent: silent)
+    }
 
-                let (u, r, p) = try await (loadedUsers, loadedRoles, loadedPolicies)
-                let freshUsers = u.sorted { $0.userName.localizedStandardCompare($1.userName) == .orderedAscending }
-                let freshRoles = r.sorted { $0.roleName.localizedStandardCompare($1.roleName) == .orderedAscending }
-                let freshPolicies = p.sorted { $0.policyName.localizedStandardCompare($1.policyName) == .orderedAscending }
+    @State private var hasRestoredSession = false
 
-                if users != freshUsers { users = freshUsers }
-                if roles != freshRoles { roles = freshRoles }
-                if policies != freshPolicies { policies = freshPolicies }
-
-                // Session restore
-                if !hasRestoredSession {
-                    if let restoreType = restoreEntityType {
-                        entityType = restoreType
-                    }
-                    if let savedName = restoreEntityName {
-                        switch entityType {
-                        case .users:
-                            if let user = users.first(where: { $0.userName == savedName }) {
-                                selectedUserIDs = [user.id]
-                                selectedUserName = user.userName
-                            }
-                        case .roles:
-                            if let role = roles.first(where: { $0.roleName == savedName }) {
-                                selectedRoleIDs = [role.id]
-                                selectedRoleName = role.roleName
-                            }
-                        case .policies:
-                            if let policy = policies.first(where: { $0.arn == savedName }) {
-                                selectedPolicyIDs = [policy.id]
-                                selectedPolicyArn = policy.arn
-                            }
-                        }
-                    }
-                    hasRestoredSession = true
-                }
-
-                if let name = pendingSelectName {
-                    switch entityType {
-                    case .users:
-                        if let user = users.first(where: { $0.userName == name }) {
-                            selectedUserIDs = [user.id]
-                            selectedUserName = user.userName
-                        }
-                    case .roles:
-                        if let role = roles.first(where: { $0.roleName == name }) {
-                            selectedRoleIDs = [role.id]
-                            selectedRoleName = role.roleName
-                        }
-                    case .policies:
-                        if let policy = policies.first(where: { $0.policyName == name }) {
-                            selectedPolicyIDs = [policy.id]
-                            selectedPolicyArn = policy.arn
-                        }
-                    }
-                    pendingSelectName = nil
-                }
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
+    private func loadUsers(force: Bool = false, silent: Bool = false) {
+        userLoader.load(force: force, silent: silent,
+            fetch: { [service] token in try await service.listUsersPage(token: token) },
+            sort: { $0.userName.localizedStandardCompare($1.userName) == .orderedAscending }
+        ) { [self] items in
+            if !hasRestoredSession {
+                if let restoreType = restoreEntityType { entityType = restoreType }
+                if let savedName = restoreEntityName, entityType == .users,
+                   let user = items.first(where: { $0.userName == savedName }) {
+                    selectedUserIDs = [user.id]
+                    selectedUserName = user.userName
                 }
             }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
+            if let name = pendingSelectName, entityType == .users,
+               let user = items.first(where: { $0.userName == name }) {
+                selectedUserIDs = [user.id]
+                selectedUserName = user.userName
+                pendingSelectName = nil
+            }
+        }
+    }
+
+    private func loadRoles(force: Bool = false, silent: Bool = false) {
+        roleLoader.load(force: force, silent: silent,
+            fetch: { [service] token in try await service.listRolesPage(token: token) },
+            sort: { $0.roleName.localizedStandardCompare($1.roleName) == .orderedAscending }
+        ) { [self] items in
+            if !hasRestoredSession {
+                if let restoreType = restoreEntityType { entityType = restoreType }
+                if let savedName = restoreEntityName, entityType == .roles,
+                   let role = items.first(where: { $0.roleName == savedName }) {
+                    selectedRoleIDs = [role.id]
+                    selectedRoleName = role.roleName
+                }
+            }
+            if let name = pendingSelectName, entityType == .roles,
+               let role = items.first(where: { $0.roleName == name }) {
+                selectedRoleIDs = [role.id]
+                selectedRoleName = role.roleName
+                pendingSelectName = nil
+            }
+        }
+    }
+
+    private func loadPolicies(force: Bool = false, silent: Bool = false) {
+        policyLoader.load(force: force, silent: silent,
+            fetch: { [service] token in try await service.listPoliciesPage(scope: "Local", token: token) },
+            sort: { $0.policyName.localizedStandardCompare($1.policyName) == .orderedAscending }
+        ) { [self] items in
+            if !hasRestoredSession {
+                if let restoreType = restoreEntityType { entityType = restoreType }
+                if let savedName = restoreEntityName, entityType == .policies,
+                   let policy = items.first(where: { $0.arn == savedName }) {
+                    selectedPolicyIDs = [policy.id]
+                    selectedPolicyArn = policy.arn
+                }
+            }
+            hasRestoredSession = true
+            if let name = pendingSelectName, entityType == .policies,
+               let policy = items.first(where: { $0.policyName == name }) {
+                selectedPolicyIDs = [policy.id]
+                selectedPolicyArn = policy.arn
+                pendingSelectName = nil
             }
         }
     }

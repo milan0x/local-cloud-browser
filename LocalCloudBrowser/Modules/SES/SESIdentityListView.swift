@@ -10,7 +10,7 @@ struct SESIdentityListView: View {
     @Binding var activeIdentity: SESIdentity?
     var restoreIdentityName: String?
 
-    @StateObject private var loader = ListLoader<SESIdentity>()
+    @StateObject private var loader = PaginatedListLoader<SESIdentity>()
     private var identities: [SESIdentity] { loader.items }
     @State private var showVerifySheet = false
     @State private var identitiesToDelete: [SESIdentity] = []
@@ -167,7 +167,58 @@ struct SESIdentityListView: View {
                     .disabled(appState.isReadOnly)
                 }
 
-                ListStatusBar(totalCount: identities.count, selectedCount: selectedIdentityIDs.count, noun: "identity", pluralNoun: "identities")
+                if loader.hasMorePages {
+                    Divider()
+                    HStack {
+                        Spacer()
+                        Button {
+                            loader.loadMore()
+                        } label: {
+                            if loader.isLoadingMore {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .padding(.trailing, 4)
+                                Text("Loading...")
+                            } else {
+                                Text("Load More")
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(loader.isLoadingMore)
+                        .font(.caption)
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                if filteredIdentities.isEmpty && !searchText.isEmpty && loader.hasMorePages {
+                    VStack(spacing: 6) {
+                        Text("No matches in loaded items.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Search all items") {
+                            let query = searchText.lowercased()
+                            loader.searchAll { $0.identity.lowercased().contains(query) }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.borderless)
+                        if loader.isSearchingAll {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                if loader.searchAllHitCap {
+                    Text("Showing results from first 10,000 items. Refine your search for better results.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                }
+
+                ListStatusBar(totalCount: identities.count, selectedCount: selectedIdentityIDs.count, noun: "identity", pluralNoun: "identities", hasMorePages: loader.hasMorePages)
             }
         }
     }
@@ -184,7 +235,7 @@ struct SESIdentityListView: View {
 
     private func loadIdentities(force: Bool = false, silent: Bool = false) {
         loader.load(force: force, silent: silent,
-            fetch: { [service] in try await service.listIdentities() },
+            fetch: { [service] token in try await service.listIdentitiesPage(token: token) },
             sort: { $0.identity.localizedStandardCompare($1.identity) == .orderedAscending }
         ) { [self] items in
             if !loader.hasRestoredSession, let savedName = restoreIdentityName,

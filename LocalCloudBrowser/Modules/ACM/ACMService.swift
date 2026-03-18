@@ -3,23 +3,28 @@ import Foundation
 final class ACMService: BaseService {
     // MARK: - Certificate Operations
 
+    func listCertificatesPage(region: String? = nil, token: String? = nil) async throws -> ([ACMCertificateSummary], String?) {
+        var payload: [String: Any] = [:]
+        if let token {
+            payload["NextToken"] = token
+        }
+        let data = try await client.acmRequest(action: "ListCertificates", payload: payload, region: region)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return ([], nil)
+        }
+        let certs = (json["CertificateSummaryList"] as? [[String: Any]] ?? []).map { ACMCertificateSummary(from: $0) }
+        return (certs, json["NextToken"] as? String)
+    }
+
     func listCertificates(region: String? = nil) async throws -> [ACMCertificateSummary] {
         var allCerts: [ACMCertificateSummary] = []
         var nextToken: String?
 
         repeat {
-            var payload: [String: Any] = [:]
-            if let token = nextToken {
-                payload["NextToken"] = token
-            }
-            let data = try await client.acmRequest(action: "ListCertificates", payload: payload, region: region)
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                break
-            }
-            if let list = json["CertificateSummaryList"] as? [[String: Any]] {
-                allCerts.append(contentsOf: list.map { ACMCertificateSummary(from: $0) })
-            }
-            nextToken = json["NextToken"] as? String
+            let (certs, token) = try await listCertificatesPage(region: region, token: nextToken)
+            allCerts.append(contentsOf: certs)
+            nextToken = token
+            if allCerts.count >= 10_000 { break }
         } while nextToken != nil
 
         return allCerts

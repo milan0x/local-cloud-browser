@@ -9,7 +9,7 @@ struct SupportCaseListView: View {
     @Binding var activeCase: SupportCase?
     var restoreCaseId: String?
 
-    @StateObject private var loader = ListLoader<SupportCase>()
+    @StateObject private var loader = PaginatedListLoader<SupportCase>()
     private var cases: [SupportCase] { loader.items }
     @State private var pendingSelectName: String?
     @State private var showCreateSheet = false
@@ -204,7 +204,58 @@ struct SupportCaseListView: View {
                         .disabled(appState.isReadOnly)
                     }
 
-                    ListStatusBar(totalCount: cases.count, selectedCount: selectedCaseIDs.count, noun: "case")
+                    if loader.hasMorePages {
+                        Divider()
+                        HStack {
+                            Spacer()
+                            Button {
+                                loader.loadMore()
+                            } label: {
+                                if loader.isLoadingMore {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                        .padding(.trailing, 4)
+                                    Text("Loading...")
+                                } else {
+                                    Text("Load More")
+                                }
+                            }
+                            .buttonStyle(.borderless)
+                            .disabled(loader.isLoadingMore)
+                            .font(.caption)
+                            Spacer()
+                        }
+                        .padding(.vertical, 6)
+                    }
+
+                    if filteredCases.isEmpty && !searchText.isEmpty && loader.hasMorePages {
+                        VStack(spacing: 6) {
+                            Text("No matches in loaded items.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Button("Search all items") {
+                                let query = searchText.lowercased()
+                                loader.searchAll { $0.subject.lowercased().contains(query) }
+                            }
+                            .font(.caption)
+                            .buttonStyle(.borderless)
+                            if loader.isSearchingAll {
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
+
+                    if loader.searchAllHitCap {
+                        Text("Showing results from first 10,000 items. Refine your search for better results.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                    }
+
+                    ListStatusBar(totalCount: cases.count, selectedCount: selectedCaseIDs.count, noun: "case", hasMorePages: loader.hasMorePages)
                 }
             }
         }
@@ -226,7 +277,7 @@ struct SupportCaseListView: View {
 
     private func loadCases(force: Bool = false, silent: Bool = false) {
         loader.load(force: force, silent: silent,
-            fetch: { [service] in try await service.describeCases(includeResolved: showResolved) },
+            fetch: { [service, showResolved] token in try await service.describeCasesPage(includeResolved: showResolved, token: token) },
             sort: {
                 let cmp = $0.subject.localizedStandardCompare($1.subject)
                 return cmp == .orderedAscending || (cmp == .orderedSame && $0.caseId < $1.caseId)

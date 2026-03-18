@@ -16,7 +16,7 @@ struct CloudWatchAlarmListView: View {
     @State private var alarmsToDelete: [CloudWatchAlarm] = []
     @State private var pendingSelectName: String?
     @State private var showSetStateSheet = false
-    @StateObject private var loader = ListLoader<CloudWatchAlarm>()
+    @StateObject private var loader = PaginatedListLoader<CloudWatchAlarm>()
     private var alarms: [CloudWatchAlarm] { loader.items }
 
     var body: some View {
@@ -154,22 +154,58 @@ struct CloudWatchAlarmListView: View {
                         .disabled(appState.isReadOnly)
                 }
 
-                if !alarms.isEmpty {
+                if loader.hasMorePages {
                     Divider()
                     HStack {
-                    Text("\(alarms.count) alarm\(alarms.count == 1 ? "" : "s")")
+                        Spacer()
+                        Button {
+                            loader.loadMore()
+                        } label: {
+                            if loader.isLoadingMore {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .padding(.trailing, 4)
+                                Text("Loading...")
+                            } else {
+                                Text("Load More")
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(loader.isLoadingMore)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if selectedAlarmIDs.count > 1 {
-                        Text("(\(selectedAlarmIDs.count) selected)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
                         Spacer()
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 6)
                 }
+
+                if filteredAlarms.isEmpty && !searchText.isEmpty && loader.hasMorePages {
+                    VStack(spacing: 6) {
+                        Text("No matches in loaded items.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Search all items") {
+                            let query = searchText.lowercased()
+                            loader.searchAll { $0.alarmName.lowercased().contains(query) }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.borderless)
+                        if loader.isSearchingAll {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                if loader.searchAllHitCap {
+                    Text("Showing results from first 10,000 items. Refine your search for better results.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                }
+
+                ListStatusBar(totalCount: alarms.count, selectedCount: selectedAlarmIDs.count, noun: "alarm", hasMorePages: loader.hasMorePages)
             }
         }
     }
@@ -182,7 +218,7 @@ struct CloudWatchAlarmListView: View {
 
     private func loadAlarms(force: Bool = false, silent: Bool = false) {
         loader.load(force: force, silent: silent,
-            fetch: { [service] in try await service.describeAlarms() },
+            fetch: { [service] token in try await service.describeAlarmsPage(token: token) },
             sort: { $0.alarmName.localizedStandardCompare($1.alarmName) == .orderedAscending }
         ) { [self] items in
             if !loader.hasRestoredSession, let savedName = restoreAlarmName,

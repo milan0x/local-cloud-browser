@@ -3,41 +3,50 @@ import Foundation
 final class KinesisFirehoseService: BaseService {
     // MARK: - Delivery Stream Operations
 
-    func listDeliveryStreams() async throws -> [FirehoseDeliveryStreamSummary] {
-        var allStreams: [FirehoseDeliveryStreamSummary] = []
-        var hasMore = true
-        var exclusiveStartName: String?
+    func listDeliveryStreamsPage(token: String? = nil) async throws -> ([FirehoseDeliveryStreamSummary], String?) {
+        var payload: [String: Any] = [:]
+        if let token {
+            payload["ExclusiveStartDeliveryStreamName"] = token
+        }
+        let data = try await client.firehoseRequest(action: "ListDeliveryStreams", payload: payload)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return ([], nil)
+        }
+        let names = json["DeliveryStreamNames"] as? [String] ?? []
+        let hasMore = json["HasMoreDeliveryStreams"] as? Bool ?? false
 
-        while hasMore {
-            var payload: [String: Any] = [:]
-            if let startName = exclusiveStartName {
-                payload["ExclusiveStartDeliveryStreamName"] = startName
-            }
-            let data = try await client.firehoseRequest(action: "ListDeliveryStreams", payload: payload)
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                break
-            }
-            let names = json["DeliveryStreamNames"] as? [String] ?? []
-            hasMore = json["HasMoreDeliveryStreams"] as? Bool ?? false
-            exclusiveStartName = names.last
-
-            // ListDeliveryStreams only returns names — describe each for summary info
-            for name in names {
-                do {
-                    let detail = try await describeDeliveryStream(name: name)
-                    allStreams.append(FirehoseDeliveryStreamSummary(
-                        deliveryStreamName: detail.deliveryStreamName,
-                        deliveryStreamARN: detail.deliveryStreamARN,
-                        deliveryStreamStatus: detail.deliveryStreamStatus,
-                        deliveryStreamType: detail.deliveryStreamType,
-                        createTimestamp: detail.createTimestamp
-                    ))
-                } catch {
-                    // If describe fails, add a minimal summary
-                    allStreams.append(FirehoseDeliveryStreamSummary(deliveryStreamName: name))
-                }
+        var streams: [FirehoseDeliveryStreamSummary] = []
+        // ListDeliveryStreams only returns names — describe each for summary info
+        for name in names {
+            do {
+                let detail = try await describeDeliveryStream(name: name)
+                streams.append(FirehoseDeliveryStreamSummary(
+                    deliveryStreamName: detail.deliveryStreamName,
+                    deliveryStreamARN: detail.deliveryStreamARN,
+                    deliveryStreamStatus: detail.deliveryStreamStatus,
+                    deliveryStreamType: detail.deliveryStreamType,
+                    createTimestamp: detail.createTimestamp
+                ))
+            } catch {
+                // If describe fails, add a minimal summary
+                streams.append(FirehoseDeliveryStreamSummary(deliveryStreamName: name))
             }
         }
+
+        let nextToken = hasMore ? names.last : nil
+        return (streams, nextToken)
+    }
+
+    func listDeliveryStreams() async throws -> [FirehoseDeliveryStreamSummary] {
+        var allStreams: [FirehoseDeliveryStreamSummary] = []
+        var nextToken: String? = nil
+
+        repeat {
+            let (streams, token) = try await listDeliveryStreamsPage(token: nextToken)
+            allStreams.append(contentsOf: streams)
+            nextToken = token
+            if allStreams.count >= 10_000 { break }
+        } while nextToken != nil
 
         return allStreams
     }

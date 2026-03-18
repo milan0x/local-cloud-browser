@@ -580,20 +580,46 @@ struct S3ObjectBrowserView: View {
     }
 
     private var statusBar: some View {
-        HStack {
+        HStack(spacing: 8) {
             HStack(spacing: 4) {
                 if isLoadingAllPages {
                     ProgressView()
                         .controlSize(.mini)
                 }
                 Text(statusBarText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.callout)
+                    .foregroundStyle(.primary)
             }
             if selectionCount > 1 {
                 Text("(\(selectionCount) selected)")
-                    .font(.caption)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
+            }
+
+            if !isSearchActive && (isTruncated || currentPage > 1) {
+                HStack(spacing: 8) {
+                    Button {
+                        loadPreviousPage()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.callout)
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(currentPage <= 1 || isLoading)
+
+                    Text("Page \(currentPage)")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+
+                    Button {
+                        loadNextPage()
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.callout)
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(!isTruncated || isLoading)
+                }
             }
 
             Spacer()
@@ -622,36 +648,6 @@ struct S3ObjectBrowserView: View {
                     .buttonStyle(.borderless)
                 }
             }
-
-            if !isSearchActive && (isTruncated || currentPage > 1) {
-                Spacer()
-
-                HStack(spacing: 12) {
-                    Button {
-                        loadPreviousPage()
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.caption)
-                    }
-                    .buttonStyle(.borderless)
-                    .disabled(currentPage <= 1 || isLoading)
-
-                    Text("Page \(currentPage)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    Button {
-                        loadNextPage()
-                    } label: {
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                    }
-                    .buttonStyle(.borderless)
-                    .disabled(!isTruncated || isLoading)
-                }
-            }
-
-            Spacer()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)

@@ -16,7 +16,7 @@ struct LambdaFunctionListView: View {
     @State private var functionToShowDetail: LambdaFunction?
     @State private var searchText = ""
     @State private var pendingSelectName: String?
-    @StateObject private var loader = ListLoader<LambdaFunction>()
+    @StateObject private var loader = PaginatedListLoader<LambdaFunction>()
     private var functions: [LambdaFunction] { loader.items }
 
     var body: some View {
@@ -188,7 +188,58 @@ struct LambdaFunctionListView: View {
                     }
                 })
 
-                ListStatusBar(totalCount: functions.count, selectedCount: selectedFunctionIDs.count, noun: "function")
+                if loader.hasMorePages {
+                    Divider()
+                    HStack {
+                        Spacer()
+                        Button {
+                            loader.loadMore()
+                        } label: {
+                            if loader.isLoadingMore {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .padding(.trailing, 4)
+                                Text("Loading...")
+                            } else {
+                                Text("Load More")
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(loader.isLoadingMore)
+                        .font(.caption)
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                if filteredFunctions.isEmpty && !searchText.isEmpty && loader.hasMorePages {
+                    VStack(spacing: 6) {
+                        Text("No matches in loaded items.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Search all items") {
+                            let query = searchText.lowercased()
+                            loader.searchAll { $0.functionName.lowercased().contains(query) }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.borderless)
+                        if loader.isSearchingAll {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                if loader.searchAllHitCap {
+                    Text("Showing results from first 10,000 items. Refine your search for better results.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                }
+
+                ListStatusBar(totalCount: functions.count, selectedCount: selectedFunctionIDs.count, noun: "function", hasMorePages: loader.hasMorePages)
             }
         }
     }
@@ -208,7 +259,7 @@ struct LambdaFunctionListView: View {
 
     private func loadFunctions(force: Bool = false, silent: Bool = false) {
         loader.load(force: force, silent: silent,
-            fetch: { [service] in try await service.listFunctions() },
+            fetch: { [service] token in try await service.listFunctionsPage(token: token) },
             sort: { $0.functionName.localizedStandardCompare($1.functionName) == .orderedAscending }
         ) { [self] items in
             if !loader.hasRestoredSession, let savedName = restoreFunctionName,

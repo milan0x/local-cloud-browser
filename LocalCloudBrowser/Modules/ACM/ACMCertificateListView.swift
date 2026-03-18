@@ -16,7 +16,7 @@ struct ACMCertificateListView: View {
     @State private var certsToDelete: [ACMCertificateSummary] = []
     @State private var serviceError: ServiceError?
     @State private var searchText = ""
-    @StateObject private var loader = ListLoader<ACMCertificateSummary>()
+    @StateObject private var loader = PaginatedListLoader<ACMCertificateSummary>()
     private var certificates: [ACMCertificateSummary] { loader.items }
 
     var body: some View {
@@ -189,7 +189,58 @@ struct ACMCertificateListView: View {
                     .disabled(appState.isReadOnly)
                 }
 
-                ListStatusBar(totalCount: certificates.count, selectedCount: selectedCertIDs.count, noun: "certificate")
+                if loader.hasMorePages {
+                    Divider()
+                    HStack {
+                        Spacer()
+                        Button {
+                            loader.loadMore()
+                        } label: {
+                            if loader.isLoadingMore {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .padding(.trailing, 4)
+                                Text("Loading...")
+                            } else {
+                                Text("Load More")
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(loader.isLoadingMore)
+                        .font(.caption)
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                if filteredCertificates.isEmpty && !searchText.isEmpty && loader.hasMorePages {
+                    VStack(spacing: 6) {
+                        Text("No matches in loaded items.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Search all items") {
+                            let query = searchText.lowercased()
+                            loader.searchAll { $0.domainName.lowercased().contains(query) }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.borderless)
+                        if loader.isSearchingAll {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                if loader.searchAllHitCap {
+                    Text("Showing results from first 10,000 items. Refine your search for better results.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                }
+
+                ListStatusBar(totalCount: certificates.count, selectedCount: selectedCertIDs.count, noun: "certificate", hasMorePages: loader.hasMorePages)
             }
         }
     }
@@ -219,7 +270,7 @@ struct ACMCertificateListView: View {
 
     private func loadCertificates(force: Bool = false, silent: Bool = false) {
         loader.load(force: force, silent: silent,
-            fetch: { [service] in try await service.listCertificates() },
+            fetch: { [service] token in try await service.listCertificatesPage(token: token) },
             sort: { $0.domainName.localizedStandardCompare($1.domainName) == .orderedAscending }
         ) { [self] items in
             if !loader.hasRestoredSession, let savedArn = restoreCertArn,

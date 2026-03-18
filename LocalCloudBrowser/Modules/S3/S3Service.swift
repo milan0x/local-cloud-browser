@@ -51,6 +51,7 @@ final class S3Service: BaseService {
             allObjects.append(contentsOf: result.objects)
             allPrefixes.append(contentsOf: result.commonPrefixes)
             token = result.isTruncated ? result.nextContinuationToken : nil
+            if allObjects.count >= 10_000 { break }
         } while token != nil
         return (objects: allObjects, prefixes: allPrefixes)
     }
@@ -65,6 +66,7 @@ final class S3Service: BaseService {
             let result = try S3ObjectListParser().parse(data: data)
             allObjects.append(contentsOf: result.objects)
             token = result.isTruncated ? result.nextContinuationToken : nil
+            if allObjects.count >= 10_000 { break }
         } while token != nil
         return allObjects
     }
