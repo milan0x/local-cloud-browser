@@ -55,7 +55,7 @@ struct EC2EntityListView: View {
             HStack(spacing: 6) {
                 Image(systemName: "info.circle")
                     .foregroundStyle(.blue)
-                Text("EC2 instances are mocked — no actual VMs are created")
+                Text("EC2 resources are simulated by LocalStack — no real VMs or infrastructure are created")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

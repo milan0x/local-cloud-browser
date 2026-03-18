@@ -17,6 +17,10 @@ struct CloudWatchLogsSearchView: View {
     @State private var isLoadingMore = false
     @State private var serviceError: ServiceError?
 
+    private var hasInvalidDateRange: Bool {
+        useTimeRange && startTime >= endTime
+    }
+
     private static let timestampFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
@@ -35,6 +39,11 @@ struct CloudWatchLogsSearchView: View {
                     if useTimeRange {
                         DatePicker("From", selection: $startTime)
                         DatePicker("To", selection: $endTime)
+                        if hasInvalidDateRange {
+                            Text("\"From\" must be earlier than \"To\"")
+                                .foregroundStyle(.red)
+                                .font(.caption)
+                        }
                     }
                 }
 
@@ -54,7 +63,7 @@ struct CloudWatchLogsSearchView: View {
                             Spacer()
                         }
                     }
-                    .disabled(isSearching)
+                    .disabled(isSearching || hasInvalidDateRange)
                 }
             }
             .formStyle(.grouped)

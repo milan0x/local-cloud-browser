@@ -24,7 +24,9 @@ struct HealthInfo: Equatable {
 final class AppState: ObservableObject {
     @Published var connectionStatus: ConnectionStatus = .disconnected
     @Published var healthInfo: HealthInfo?
-    @Published var isReadOnly: Bool = false
+    @Published var isReadOnly: Bool = UserDefaults.standard.bool(forKey: AppPreferences.isReadOnlyKey) {
+        didSet { UserDefaults.standard.set(isReadOnly, forKey: AppPreferences.isReadOnlyKey) }
+    }
     @Published var endpoint: String = "http://localhost:4566"
     @Published var healthPath: String = ConnectionProfile.defaultHealthPath
     @Published var s3Domain: String = ConnectionProfile.defaultS3Domain
@@ -66,6 +68,12 @@ final class AppState: ObservableObject {
     /// Called when auto-detection fills in advanced settings on connect.
     /// The closure receives the active profile ID and the detected settings so they can be persisted.
     var onSettingsDetected: ((UUID, DetectedSettings) -> Void)?
+    private let healthSession: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 5
+        config.timeoutIntervalForResource = 5
+        return URLSession(configuration: config)
+    }()
     private var healthCheckTask: Task<Void, Never>?
     private var detectionTask: Task<Void, Never>?
     private var consecutiveFailures = 0
@@ -137,13 +145,9 @@ final class AppState: ObservableObject {
         }
 
         // Race the request against a 5-second deadline
+        let session = healthSession
         let result: (ConnectionStatus, HealthInfo?, ConnectionError?) = await withTaskGroup(of: (ConnectionStatus, HealthInfo?, ConnectionError?).self) { group in
             group.addTask { @Sendable in
-                let config = URLSessionConfiguration.ephemeral
-                config.timeoutIntervalForRequest = 5
-                config.timeoutIntervalForResource = 5
-                let session = URLSession(configuration: config)
-                defer { session.invalidateAndCancel() }
                 do {
                     let (data, response) = try await session.data(from: url)
                     if let httpResponse = response as? HTTPURLResponse, !(200..<300).contains(httpResponse.statusCode) {

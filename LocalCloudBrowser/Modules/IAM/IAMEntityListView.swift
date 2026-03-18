@@ -650,23 +650,28 @@ struct IAMEntityListView: View {
 
     // MARK: - Data
 
+    @State private var hasRestoredSession = false
+
     private func loadEntities(force: Bool = false, silent: Bool = false) {
+        // Restore entity type once before loads start to avoid race condition
+        // where multiple loader callbacks each try to restore session state
+        if !hasRestoredSession {
+            hasRestoredSession = true
+            if let restoreType = restoreEntityType { entityType = restoreType }
+        }
         loadUsers(force: force, silent: silent)
         loadRoles(force: force, silent: silent)
         loadPolicies(force: force, silent: silent)
     }
-
-    @State private var hasRestoredSession = false
 
     private func loadUsers(force: Bool = false, silent: Bool = false) {
         userLoader.load(force: force, silent: silent,
             fetch: { [service] token in try await service.listUsersPage(token: token) },
             sort: { $0.userName.localizedStandardCompare($1.userName) == .orderedAscending }
         ) { [self] items in
-            if !hasRestoredSession {
-                if let restoreType = restoreEntityType { entityType = restoreType }
-                if let savedName = restoreEntityName, entityType == .users,
-                   let user = items.first(where: { $0.userName == savedName }) {
+            if let savedName = restoreEntityName, entityType == .users,
+               let user = items.first(where: { $0.userName == savedName }) {
+                if selectedUserIDs.isEmpty {
                     selectedUserIDs = [user.id]
                     selectedUserName = user.userName
                 }
@@ -685,10 +690,9 @@ struct IAMEntityListView: View {
             fetch: { [service] token in try await service.listRolesPage(token: token) },
             sort: { $0.roleName.localizedStandardCompare($1.roleName) == .orderedAscending }
         ) { [self] items in
-            if !hasRestoredSession {
-                if let restoreType = restoreEntityType { entityType = restoreType }
-                if let savedName = restoreEntityName, entityType == .roles,
-                   let role = items.first(where: { $0.roleName == savedName }) {
+            if let savedName = restoreEntityName, entityType == .roles,
+               let role = items.first(where: { $0.roleName == savedName }) {
+                if selectedRoleIDs.isEmpty {
                     selectedRoleIDs = [role.id]
                     selectedRoleName = role.roleName
                 }
@@ -707,15 +711,13 @@ struct IAMEntityListView: View {
             fetch: { [service] token in try await service.listPoliciesPage(scope: "Local", token: token) },
             sort: { $0.policyName.localizedStandardCompare($1.policyName) == .orderedAscending }
         ) { [self] items in
-            if !hasRestoredSession {
-                if let restoreType = restoreEntityType { entityType = restoreType }
-                if let savedName = restoreEntityName, entityType == .policies,
-                   let policy = items.first(where: { $0.arn == savedName }) {
+            if let savedName = restoreEntityName, entityType == .policies,
+               let policy = items.first(where: { $0.arn == savedName }) {
+                if selectedPolicyIDs.isEmpty {
                     selectedPolicyIDs = [policy.id]
                     selectedPolicyArn = policy.arn
                 }
             }
-            hasRestoredSession = true
             if let name = pendingSelectName, entityType == .policies,
                let policy = items.first(where: { $0.policyName == name }) {
                 selectedPolicyIDs = [policy.id]

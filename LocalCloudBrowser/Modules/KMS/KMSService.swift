@@ -10,18 +10,29 @@ final class KMSService: BaseService {
             return []
         }
         // ListKeys only returns KeyId + KeyArn — enrich with DescribeKey
-        return try await withThrowingTaskGroup(of: KMSKey?.self) { group in
+        return try await withThrowingTaskGroup(of: (Int, KMSKey?).self) { group in
+            let maxConcurrency = 10
+            var index = 0
+            var results: [(Int, KMSKey?)] = []
+
             for keyEntry in keys {
                 let keyId = keyEntry["KeyId"] as? String ?? ""
-                group.addTask {
-                    try await self.describeKey(keyId: keyId)
+                let i = index
+                if i >= maxConcurrency {
+                    if let result = try await group.next() {
+                        results.append(result)
+                    }
                 }
+                group.addTask {
+                    let key = try await self.describeKey(keyId: keyId)
+                    return (i, key)
+                }
+                index += 1
             }
-            var result: [KMSKey] = []
-            for try await key in group {
-                if let key { result.append(key) }
+            for try await result in group {
+                results.append(result)
             }
-            return result
+            return results.sorted { $0.0 < $1.0 }.compactMap(\.1)
         }
     }
 

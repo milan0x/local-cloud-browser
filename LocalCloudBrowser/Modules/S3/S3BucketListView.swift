@@ -22,6 +22,7 @@ struct S3BucketListView: View {
     @State private var forceDeleteBuckets: [S3Bucket] = []
     @State private var forceDeleteConfirmation = ""
     @State private var isForceDeleting = false
+    @State private var forceDeleteProgress = 0
     @State private var forceDeleteTask: Task<Void, Never>?
     @State private var searchText = ""
     @State private var pendingSelectName: String?
@@ -42,7 +43,9 @@ struct S3BucketListView: View {
                     if isForceDeleting {
                         ZStack {
                             Color(nsColor: .windowBackgroundColor).opacity(0.8)
-                            ProgressView("Deleting...")
+                            ProgressView(forceDeleteProgress > 0
+                                ? "Deleting... (\(forceDeleteProgress) objects removed)"
+                                : "Deleting...")
                         }
                     }
                 }
@@ -316,13 +319,16 @@ struct S3BucketListView: View {
 
     private func performForceDelete(_ targets: [S3Bucket]) {
         isForceDeleting = true
+        forceDeleteProgress = 0
         forceDeleteTask?.cancel()
         forceDeleteTask = Task {
             var deletedIDs: Set<S3Bucket.ID> = []
             for bucket in targets {
                 guard !Task.isCancelled else { break }
                 do {
-                    try await service.forceDeleteBucket(bucket: bucket.name)
+                    try await service.forceDeleteBucket(bucket: bucket.name) { count in
+                        forceDeleteProgress = count
+                    }
                     deletedIDs.insert(bucket.id)
                 } catch {
                     if let clientError = error as? CloudClientError,

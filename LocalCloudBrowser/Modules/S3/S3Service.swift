@@ -253,15 +253,15 @@ final class S3Service: BaseService {
         return zipURL
     }
 
-    func emptyBucket(bucket: String) async throws {
+    func emptyBucket(bucket: String, progress: ((Int) -> Void)? = nil) async throws {
         let objects = try await listAllObjects(bucket: bucket, prefix: "")
         if !objects.isEmpty {
-            _ = try await deleteObjects(bucket: bucket, keys: objects.map(\.key))
+            _ = try await deleteObjects(bucket: bucket, keys: objects.map(\.key), progress: progress)
         }
     }
 
-    func forceDeleteBucket(bucket: String) async throws {
-        try await emptyBucket(bucket: bucket)
+    func forceDeleteBucket(bucket: String, progress: ((Int) -> Void)? = nil) async throws {
+        try await emptyBucket(bucket: bucket, progress: progress)
         try await deleteBucket(name: bucket)
     }
 
@@ -269,11 +269,35 @@ final class S3Service: BaseService {
         _ = try await client.s3Request(method: "DELETE", path: "/\(bucket)/\(key)")
     }
 
-    func deleteObjects(bucket: String, keys: [String]) async throws -> Int {
+    func deleteObjects(bucket: String, keys: [String], progress: ((Int) -> Void)? = nil) async throws -> Int {
+        let maxConcurrency = 10
         var deleted = 0
-        for key in keys {
-            try await deleteObject(bucket: bucket, key: key)
-            deleted += 1
+
+        await withTaskGroup(of: Bool.self) { group in
+            for (index, key) in keys.enumerated() {
+                if index >= maxConcurrency {
+                    // Wait for one to finish before adding more
+                    if let success = await group.next(), success {
+                        deleted += 1
+                        progress?(deleted)
+                    }
+                }
+                group.addTask {
+                    do {
+                        try await self.deleteObject(bucket: bucket, key: key)
+                        return true
+                    } catch {
+                        return false
+                    }
+                }
+            }
+            // Collect remaining results
+            for await success in group {
+                if success {
+                    deleted += 1
+                    progress?(deleted)
+                }
+            }
         }
         return deleted
     }

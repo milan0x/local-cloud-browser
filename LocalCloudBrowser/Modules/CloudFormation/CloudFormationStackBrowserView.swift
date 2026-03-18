@@ -20,6 +20,7 @@ struct CloudFormationStackBrowserView: View {
     @State private var showDetailSheet = false
     @State private var showTemplateSheet = false
 
+
     enum BrowserTab: String, CaseIterable {
         case resources = "Resources"
         case events = "Events"

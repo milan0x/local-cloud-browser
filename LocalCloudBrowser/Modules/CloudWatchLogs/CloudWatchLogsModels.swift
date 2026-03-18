@@ -137,7 +137,11 @@ struct CloudWatchLogEvent: Identifiable, Hashable {
     }
 
     var displayMessage: String {
-        prettyPrinted ?? message
+        let text = prettyPrinted ?? message
+        if text.count > 10_000 {
+            return String(text.prefix(10_000)) + "\n... (truncated)"
+        }
+        return text
     }
 
     init(from dict: [String: Any]) {
@@ -182,7 +186,11 @@ struct CloudWatchFilteredLogEvent: Identifiable, Hashable {
     }
 
     var displayMessage: String {
-        prettyPrinted ?? message
+        let text = prettyPrinted ?? message
+        if text.count > 10_000 {
+            return String(text.prefix(10_000)) + "\n... (truncated)"
+        }
+        return text
     }
 
     init(from dict: [String: Any]) {

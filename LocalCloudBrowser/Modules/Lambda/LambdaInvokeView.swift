@@ -19,7 +19,7 @@ struct LambdaInvokeView: View {
             minHeight: 500,
             isValid: true,
             isCreating: isInvoking,
-            createLabel: "Invoke",
+            createLabel: result != nil ? "Invoke Again" : "Invoke",
             serviceError: $serviceError,
             onCreate: invoke
         ) {
