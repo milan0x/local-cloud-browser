@@ -37,15 +37,10 @@ struct CloudFormationStack: Identifiable, Hashable {
         }
     }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func describeStackCLI(endpointUrl: String, region: String) -> String {
         [
             "aws cloudformation describe-stacks \\",
-            "  --stack-name '\(Self.shellEscape(stackName))' \\",
+            "  --stack-name '\(stackName.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -54,27 +49,14 @@ struct CloudFormationStack: Identifiable, Hashable {
     func listResourcesCLI(endpointUrl: String, region: String) -> String {
         [
             "aws cloudformation list-stack-resources \\",
-            "  --stack-name '\(Self.shellEscape(stackName))' \\",
+            "  --stack-name '\(stackName.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
-    private nonisolated(unsafe) static let iso8601: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
-    }()
-
-    private nonisolated(unsafe) static let iso8601NoFraction: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime]
-        return f
-    }()
-
     static func parseDate(_ string: String?) -> Date? {
-        guard let string else { return nil }
-        return iso8601.date(from: string) ?? iso8601NoFraction.date(from: string)
+        DateFormatters.parseISO8601(string)
     }
 
     init(from dict: [String: String]) {

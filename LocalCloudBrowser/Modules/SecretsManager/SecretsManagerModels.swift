@@ -11,15 +11,10 @@ struct Secret: Identifiable, Hashable {
 
     var id: String { arn }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func getSecretValueCLI(endpointUrl: String, region: String) -> String {
         [
             "aws secretsmanager get-secret-value \\",
-            "  --secret-id '\(Self.shellEscape(name))' \\",
+            "  --secret-id '\(name.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'"
         ].joined(separator: "\n")
@@ -28,7 +23,7 @@ struct Secret: Identifiable, Hashable {
     func describeSecretCLI(endpointUrl: String, region: String) -> String {
         [
             "aws secretsmanager describe-secret \\",
-            "  --secret-id '\(Self.shellEscape(name))' \\",
+            "  --secret-id '\(name.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'"
         ].joined(separator: "\n")

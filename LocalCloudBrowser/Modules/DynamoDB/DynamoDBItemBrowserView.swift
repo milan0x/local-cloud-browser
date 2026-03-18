@@ -497,8 +497,12 @@ struct DynamoDBItemBrowserView: View {
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
             let jsonItems = items.map { $0.toJSON() }
-            guard let data = try? JSONSerialization.data(withJSONObject: jsonItems, options: [.prettyPrinted, .sortedKeys]) else { return }
-            try? data.write(to: url)
+            do {
+                let data = try JSONSerialization.data(withJSONObject: jsonItems, options: [.prettyPrinted, .sortedKeys])
+                try data.write(to: url)
+            } catch {
+                Log.error("Failed to export JSON to \(url.path): \(error.localizedDescription)", category: "DynamoDB")
+            }
         }
     }
 
@@ -519,7 +523,11 @@ struct DynamoDBItemBrowserView: View {
                 }.joined(separator: ",")
                 csv += row + "\n"
             }
-            try? csv.write(to: url, atomically: true, encoding: .utf8)
+            do {
+                try csv.write(to: url, atomically: true, encoding: .utf8)
+            } catch {
+                Log.error("Failed to export CSV to \(url.path): \(error.localizedDescription)", category: "DynamoDB")
+            }
         }
     }
 

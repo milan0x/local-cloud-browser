@@ -58,12 +58,21 @@ enum LastSessionStore {
 
     static func load() -> LastSessionState? {
         guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
-        return try? JSONDecoder().decode(LastSessionState.self, from: data)
+        do {
+            return try JSONDecoder().decode(LastSessionState.self, from: data)
+        } catch {
+            Log.warn("Failed to decode last session state: \(error.localizedDescription)", category: "Session")
+            return nil
+        }
     }
 
     static func save(_ state: LastSessionState) {
-        guard let data = try? JSONEncoder().encode(state) else { return }
-        UserDefaults.standard.set(data, forKey: key)
+        do {
+            let data = try JSONEncoder().encode(state)
+            UserDefaults.standard.set(data, forKey: key)
+        } catch {
+            Log.error("Failed to encode last session state: \(error.localizedDescription)", category: "Session")
+        }
     }
 
     static func saveRoute(_ route: Route?) {

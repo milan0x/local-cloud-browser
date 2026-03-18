@@ -15,15 +15,10 @@ struct CloudWatchLogGroup: Identifiable, Hashable {
         return formatter.string(fromByteCount: storedBytes)
     }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func describeLogGroupsCLI(endpointUrl: String, region: String) -> String {
         [
             "aws logs describe-log-groups \\",
-            "  --log-group-name-prefix '\(Self.shellEscape(logGroupName))' \\",
+            "  --log-group-name-prefix '\(logGroupName.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -32,7 +27,7 @@ struct CloudWatchLogGroup: Identifiable, Hashable {
     func describeLogStreamsCLI(endpointUrl: String, region: String) -> String {
         [
             "aws logs describe-log-streams \\",
-            "  --log-group-name '\(Self.shellEscape(logGroupName))' \\",
+            "  --log-group-name '\(logGroupName.shellEscaped())' \\",
             "  --order-by LastEventTime \\",
             "  --descending \\",
             "  --endpoint-url '\(endpointUrl)' \\",
@@ -70,16 +65,11 @@ struct CloudWatchLogStream: Identifiable, Hashable {
         return formatter.string(fromByteCount: storedBytes)
     }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func getLogEventsCLI(logGroupName: String, endpointUrl: String, region: String) -> String {
         [
             "aws logs get-log-events \\",
-            "  --log-group-name '\(Self.shellEscape(logGroupName))' \\",
-            "  --log-stream-name '\(Self.shellEscape(logStreamName))' \\",
+            "  --log-group-name '\(logGroupName.shellEscaped())' \\",
+            "  --log-stream-name '\(logStreamName.shellEscaped())' \\",
             "  --start-from-head \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",

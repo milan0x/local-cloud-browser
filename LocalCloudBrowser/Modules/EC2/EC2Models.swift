@@ -82,31 +82,14 @@ struct EC2Instance: Identifiable, Hashable {
         return instanceId
     }
 
-    private nonisolated(unsafe) static let iso8601: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
-    }()
-
-    private nonisolated(unsafe) static let iso8601NoFraction: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime]
-        return f
-    }()
-
     static func parseDate(_ string: String) -> Date? {
-        guard !string.isEmpty else { return nil }
-        return iso8601.date(from: string) ?? iso8601NoFraction.date(from: string)
-    }
-
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
+        DateFormatters.parseISO8601(string)
     }
 
     func describeInstanceCLI(endpointUrl: String, region: String) -> String {
         [
             "aws ec2 describe-instances \\",
-            "  --instance-ids '\(Self.shellEscape(instanceId))' \\",
+            "  --instance-ids '\(instanceId.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -221,14 +204,10 @@ struct EC2SecurityGroup: Identifiable, Hashable {
 
     var id: String { groupId }
 
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func describeGroupCLI(endpointUrl: String, region: String) -> String {
         [
             "aws ec2 describe-security-groups \\",
-            "  --group-ids '\(Self.shellEscape(groupId))' \\",
+            "  --group-ids '\(groupId.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -259,14 +238,10 @@ struct EC2KeyPair: Identifiable, Hashable {
 
     var id: String { keyName }
 
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func describeKeyPairCLI(endpointUrl: String, region: String) -> String {
         [
             "aws ec2 describe-key-pairs \\",
-            "  --key-names '\(Self.shellEscape(keyName))' \\",
+            "  --key-names '\(keyName.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")

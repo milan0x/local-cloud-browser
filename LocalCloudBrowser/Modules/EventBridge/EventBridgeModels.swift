@@ -11,15 +11,10 @@ struct EventBridgeBus: Identifiable, Hashable {
 
     var isDefault: Bool { name == "default" }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func listRulesCLI(endpointUrl: String, region: String) -> String {
         [
             "aws events list-rules \\",
-            "  --event-bus-name '\(Self.shellEscape(name))' \\",
+            "  --event-bus-name '\(name.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -97,18 +92,13 @@ struct EventBridgeRule: Identifiable, Hashable {
         return result
     }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func describeRuleCLI(endpointUrl: String, region: String) -> String {
         var parts = [
             "aws events describe-rule \\",
-            "  --name '\(Self.shellEscape(name))' \\",
+            "  --name '\(name.shellEscaped())' \\",
         ]
         if let bus = eventBusName {
-            parts.append("  --event-bus-name '\(Self.shellEscape(bus))' \\")
+            parts.append("  --event-bus-name '\(bus.shellEscaped())' \\")
         }
         parts.append("  --endpoint-url '\(endpointUrl)' \\")
         parts.append("  --region '\(region)'")

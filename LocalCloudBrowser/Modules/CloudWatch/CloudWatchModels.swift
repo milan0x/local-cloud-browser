@@ -153,14 +153,10 @@ struct CloudWatchMetric: Identifiable, Hashable {
         }
     }
 
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func listMetricsCLI(endpointUrl: String, region: String) -> String {
         [
             "aws cloudwatch list-metrics \\",
-            "  --namespace '\(Self.shellEscape(namespace))' \\",
+            "  --namespace '\(namespace.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -198,7 +194,7 @@ struct CloudWatchDatapoint: Identifiable, Hashable {
 
     init(from dict: [String: Any]) {
         if let ts = dict["Timestamp"] as? String {
-            timestamp = ISO8601DateFormatter().date(from: ts) ?? Date()
+            timestamp = DateFormatters.parseISO8601(ts) ?? Date()
         } else if let ts = dict["Timestamp"] as? Double {
             timestamp = Date(timeIntervalSince1970: ts)
         } else {
@@ -243,14 +239,10 @@ struct CloudWatchAlarm: Identifiable, Hashable {
         return "\(statistic) of \(metricName) \(op) \(thresholdStr) for \(evaluationPeriods) period(s)"
     }
 
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func describeAlarmCLI(endpointUrl: String, region: String) -> String {
         [
             "aws cloudwatch describe-alarms \\",
-            "  --alarm-names '\(Self.shellEscape(alarmName))' \\",
+            "  --alarm-names '\(alarmName.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -283,7 +275,7 @@ struct CloudWatchAlarm: Identifiable, Hashable {
             dimensions = []
         }
         if let ts = dict["StateUpdatedTimestamp"] as? String {
-            updatedTimestamp = ISO8601DateFormatter().date(from: ts)
+            updatedTimestamp = DateFormatters.parseISO8601(ts)
         } else if let ts = dict["StateUpdatedTimestamp"] as? Double {
             updatedTimestamp = Date(timeIntervalSince1970: ts)
         } else {

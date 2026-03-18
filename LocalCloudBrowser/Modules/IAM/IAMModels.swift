@@ -10,35 +10,17 @@ struct IAMUser: Identifiable, Hashable {
 
     var id: String { userName }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func getUserCLI(endpointUrl: String, region: String) -> String {
         [
             "aws iam get-user \\",
-            "  --user-name '\(Self.shellEscape(userName))' \\",
+            "  --user-name '\(userName.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
     }
 
-    private nonisolated(unsafe) static let iso8601: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
-    }()
-
-    private nonisolated(unsafe) static let iso8601NoFraction: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime]
-        return f
-    }()
-
     static func parseDate(_ string: String?) -> Date? {
-        guard let string else { return nil }
-        return iso8601.date(from: string) ?? iso8601NoFraction.date(from: string)
+        DateFormatters.parseISO8601(string)
     }
 
     init(from dict: [String: String]) {
@@ -74,14 +56,10 @@ struct IAMRole: Identifiable, Hashable {
         return result
     }
 
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func getRoleCLI(endpointUrl: String, region: String) -> String {
         [
             "aws iam get-role \\",
-            "  --role-name '\(Self.shellEscape(roleName))' \\",
+            "  --role-name '\(roleName.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -120,14 +98,10 @@ struct IAMPolicy: Identifiable, Hashable {
         arn.hasPrefix("arn:aws:iam::aws:policy/")
     }
 
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func getPolicyCLI(endpointUrl: String, region: String) -> String {
         [
             "aws iam get-policy \\",
-            "  --policy-arn '\(Self.shellEscape(arn))' \\",
+            "  --policy-arn '\(arn.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")

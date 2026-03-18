@@ -5,11 +5,6 @@ struct CallerIdentity {
     let arn: String
     let userId: String
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     static func getCallerIdentityCLI(endpointUrl: String, region: String) -> String {
         [
             "aws sts get-caller-identity \\",

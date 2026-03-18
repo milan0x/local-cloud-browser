@@ -378,14 +378,10 @@ struct ScanResult {
 // MARK: - CLI Helpers
 
 extension DynamoDBTable {
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func describeTableCLI(endpointUrl: String, region: String) -> String {
         [
             "aws dynamodb describe-table \\",
-            "  --table-name '\(Self.shellEscape(tableName))' \\",
+            "  --table-name '\(tableName.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -394,7 +390,7 @@ extension DynamoDBTable {
     func scanTableCLI(endpointUrl: String, region: String) -> String {
         [
             "aws dynamodb scan \\",
-            "  --table-name '\(Self.shellEscape(tableName))' \\",
+            "  --table-name '\(tableName.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -403,7 +399,7 @@ extension DynamoDBTable {
     func deleteTableCLI(endpointUrl: String, region: String) -> String {
         [
             "aws dynamodb delete-table \\",
-            "  --table-name '\(Self.shellEscape(tableName))' \\",
+            "  --table-name '\(tableName.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -411,16 +407,12 @@ extension DynamoDBTable {
 }
 
 extension DynamoDBItem {
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func putItemCLI(tableName: String, endpointUrl: String, region: String) -> String {
         let json = toDisplayJSON()
         return [
             "aws dynamodb put-item \\",
-            "  --table-name '\(Self.shellEscape(tableName))' \\",
-            "  --item '\(Self.shellEscape(json))' \\",
+            "  --table-name '\(tableName.shellEscaped())' \\",
+            "  --item '\(json.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -439,8 +431,8 @@ extension DynamoDBItem {
         }
         return [
             "aws dynamodb get-item \\",
-            "  --table-name '\(Self.shellEscape(tableName))' \\",
-            "  --key '\(Self.shellEscape(json))' \\",
+            "  --table-name '\(tableName.shellEscaped())' \\",
+            "  --key '\(json.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")

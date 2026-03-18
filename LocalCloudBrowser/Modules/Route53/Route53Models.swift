@@ -17,15 +17,10 @@ struct Route53HostedZone: Identifiable, Hashable {
         return name
     }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func listRecordSetsCLI(endpointUrl: String, region: String) -> String {
         [
             "aws route53 list-resource-record-sets \\",
-            "  --hosted-zone-id '\(Self.shellEscape(id))' \\",
+            "  --hosted-zone-id '\(id.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -34,7 +29,7 @@ struct Route53HostedZone: Identifiable, Hashable {
     func deleteZoneCLI(endpointUrl: String, region: String) -> String {
         [
             "aws route53 delete-hosted-zone \\",
-            "  --id '\(Self.shellEscape(id))' \\",
+            "  --id '\(id.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")

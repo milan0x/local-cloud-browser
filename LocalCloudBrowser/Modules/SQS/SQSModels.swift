@@ -183,19 +183,14 @@ struct SQSMessage: Identifiable, Hashable {
         }
     }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func toAWSCLI(queueUrl: String, endpointUrl: String, region: String) -> String {
         var lines = [
             "aws sqs send-message \\",
             "  --queue-url \(queueUrl) \\",
-            "  --message-body '\(Self.shellEscape(body))' \\"
+            "  --message-body '\(body.shellEscaped())' \\"
         ]
         if let groupId = messageGroupId {
-            lines.append("  --message-group-id '\(Self.shellEscape(groupId))' \\")
+            lines.append("  --message-group-id '\(groupId.shellEscaped())' \\")
         }
         lines.append("  --endpoint-url '\(endpointUrl)' \\")
         lines.append("  --region '\(region)'")

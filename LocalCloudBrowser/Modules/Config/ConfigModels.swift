@@ -34,14 +34,10 @@ struct ConfigurationRecorder: Identifiable, Hashable {
         lhs.allSupported == rhs.allSupported && lhs.resourceTypes == rhs.resourceTypes
     }
 
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func describeRecorderCLI(endpointUrl: String, region: String) -> String {
         [
             "aws configservice describe-configuration-recorders \\",
-            "  --configuration-recorder-names '\(Self.shellEscape(name))' \\",
+            "  --configuration-recorder-names '\(name.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -117,14 +113,10 @@ struct DeliveryChannel: Identifiable, Hashable {
         lhs.deliveryFrequency == rhs.deliveryFrequency
     }
 
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func describeChannelCLI(endpointUrl: String, region: String) -> String {
         [
             "aws configservice describe-delivery-channels \\",
-            "  --delivery-channel-names '\(Self.shellEscape(name))' \\",
+            "  --delivery-channel-names '\(name.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")

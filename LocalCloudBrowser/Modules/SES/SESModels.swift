@@ -13,15 +13,10 @@ struct SESIdentity: Identifiable, Hashable {
         isEmail ? "Email" : "Domain"
     }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func deleteIdentityCLI(endpointUrl: String, region: String) -> String {
         [
             "aws ses delete-identity \\",
-            "  --identity '\(Self.shellEscape(identity))' \\",
+            "  --identity '\(identity.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -38,7 +33,7 @@ struct SESIdentity: Identifiable, Hashable {
     func sendEmailCLI(endpointUrl: String, region: String) -> String {
         [
             "aws ses send-email \\",
-            "  --from '\(Self.shellEscape(identity))' \\",
+            "  --from '\(identity.shellEscaped())' \\",
             "  --destination 'ToAddresses=recipient@example.com' \\",
             "  --message 'Subject={Data=Test},Body={Text={Data=Hello}}' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
@@ -123,9 +118,7 @@ struct SESSentEmail: Identifiable {
 
         // Parse timestamp
         if let ts = dict["Timestamp"] as? String {
-            let iso = ISO8601DateFormatter()
-            iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            self.timestamp = iso.date(from: ts) ?? ISO8601DateFormatter().date(from: ts)
+            self.timestamp = DateFormatters.parseISO8601(ts)
         } else {
             self.timestamp = nil
         }

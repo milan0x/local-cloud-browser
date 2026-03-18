@@ -26,7 +26,7 @@ struct SchedulerScheduleGroup: Identifiable, Hashable {
         if let ts = dict["CreationDate"] as? Double {
             creationDate = Date(timeIntervalSince1970: ts)
         } else if let str = dict["CreationDate"] as? String {
-            creationDate = ISO8601DateFormatter().date(from: str)
+            creationDate = DateFormatters.parseISO8601(str)
         } else {
             creationDate = nil
         }
@@ -34,7 +34,7 @@ struct SchedulerScheduleGroup: Identifiable, Hashable {
         if let ts = dict["LastModificationDate"] as? Double {
             lastModificationDate = Date(timeIntervalSince1970: ts)
         } else if let str = dict["LastModificationDate"] as? String {
-            lastModificationDate = ISO8601DateFormatter().date(from: str)
+            lastModificationDate = DateFormatters.parseISO8601(str)
         } else {
             lastModificationDate = nil
         }
@@ -111,7 +111,7 @@ struct SchedulerSchedule: Identifiable, Hashable {
         if let ts = dict["CreationDate"] as? Double {
             creationDate = Date(timeIntervalSince1970: ts)
         } else if let str = dict["CreationDate"] as? String {
-            creationDate = ISO8601DateFormatter().date(from: str)
+            creationDate = DateFormatters.parseISO8601(str)
         } else {
             creationDate = nil
         }
@@ -119,7 +119,7 @@ struct SchedulerSchedule: Identifiable, Hashable {
         if let ts = dict["LastModificationDate"] as? Double {
             lastModificationDate = Date(timeIntervalSince1970: ts)
         } else if let str = dict["LastModificationDate"] as? String {
-            lastModificationDate = ISO8601DateFormatter().date(from: str)
+            lastModificationDate = DateFormatters.parseISO8601(str)
         } else {
             lastModificationDate = nil
         }
