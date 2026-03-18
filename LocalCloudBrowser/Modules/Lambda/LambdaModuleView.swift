@@ -9,6 +9,12 @@ struct LambdaModuleView: View {
     @State private var selectedFunctionIDs: Set<LambdaFunction.ID> = []
     @State private var activeFunction: LambdaFunction?
 
+    // Pane focus
+    @State private var detailSearchFocusTrigger = 0
+    @State private var listSearchFocusTrigger = 0
+    @State private var listPaneFocusTrigger = 0
+    @State private var detailPaneFocusTrigger = 0
+
     // Session restore: captured once when the view is created
     @State private var restoreFunctionName: String?
 
@@ -26,9 +32,22 @@ struct LambdaModuleView: View {
                 toolbarState: toolbarState,
                 selectedFunctionIDs: $selectedFunctionIDs,
                 activeFunction: $activeFunction,
-                restoreFunctionName: restoreFunctionName
+                restoreFunctionName: restoreFunctionName,
+                searchFocusTrigger: listSearchFocusTrigger,
+                paneFocusTrigger: listPaneFocusTrigger
             )
             .frame(width: 280)
+            .onKeyPress(.leftArrow) {
+                guard !isTextFieldFirstResponder() else { return .ignored }
+                appState.sidebarFocusTrigger += 1
+                return .handled
+            }
+            .onKeyPress(.rightArrow) {
+                guard !isTextFieldFirstResponder() else { return .ignored }
+                guard activeFunction != nil else { return .ignored }
+                detailPaneFocusTrigger += 1
+                return .handled
+            }
 
             Group {
                 if let function = activeFunction {
@@ -42,6 +61,11 @@ struct LambdaModuleView: View {
                 }
             }
             .frame(minWidth: 400)
+            .onKeyPress(.leftArrow) {
+                guard !isTextFieldFirstResponder() else { return .ignored }
+                listPaneFocusTrigger += 1
+                return .handled
+            }
         }
         .toolbar {
             LambdaToolbar(
@@ -53,6 +77,15 @@ struct LambdaModuleView: View {
         .onChange(of: activeFunction) {
             toolbarState.reset()
             LastSessionStore.saveLambdaFunction(activeFunction?.functionName)
+        }
+        .cmdFSearchCycling(
+            hasDetail: activeFunction != nil,
+            activeItemID: activeFunction?.id,
+            listSearchFocusTrigger: $listSearchFocusTrigger,
+            detailSearchFocusTrigger: $detailSearchFocusTrigger
+        )
+        .onChange(of: appState.moduleListFocusTrigger) {
+            listPaneFocusTrigger += 1
         }
         .onAppear {
             service.updateClient(client)
