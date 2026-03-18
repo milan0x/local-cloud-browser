@@ -48,7 +48,13 @@ struct ListHeaderBar<Trailing: View>: View {
                 onRefresh()
             }
             Spacer()
-            if !licenseManager.isPaid, let route = appState.selectedRoute {
+            if isReadOnly {
+                Label("Read-only", systemImage: "lock.fill")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .help("Read-only mode is active. Disable it in the toolbar to make changes.")
+            }
+            if !licenseManager.isPaid, !isReadOnly, let route = appState.selectedRoute {
                 let remaining = licenseManager.remainingCreates(for: route)
                 Text("\(remaining)/\(LicenseManager.freeCreateLimit)")
                     .font(.system(size: 10, weight: .medium, design: .rounded))
@@ -62,7 +68,7 @@ struct ListHeaderBar<Trailing: View>: View {
                         }
                     }
             }
-            ListHeaderButton("plus", action: {
+            ListHeaderButton("plus", isDisabled: isReadOnly, help: isReadOnly ? "Read-only mode is active" : "", action: {
                 guard licenseManager.guardWriteAction(for: appState.selectedRoute) else { return }
                 onCreate()
             })

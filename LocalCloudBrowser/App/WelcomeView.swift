@@ -46,7 +46,7 @@ struct WelcomeView: View {
                     icon: "plus.circle",
                     color: .orange,
                     title: "Create Resources",
-                    subtitle: "Create up to 3 resources per service"
+                    subtitle: "Create up to 5 resources per service"
                 )
             }
             .padding(.horizontal, 32)
