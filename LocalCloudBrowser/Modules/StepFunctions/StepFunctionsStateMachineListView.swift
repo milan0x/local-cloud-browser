@@ -139,7 +139,7 @@ struct StepFunctionsStateMachineListView: View {
                         Divider()
                         if selectedIDs.count > 1 && selectedIDs.contains(machine.id) {
                             let selected = machines.filter { selectedIDs.contains($0.id) }
-                            Button("Delete (\(selected.count) State Machines)", role: .destructive) {
+                            Button("Delete \(selected.count) State Machines", role: .destructive) {
                                 machinesToDelete = selected
                             }
                             .disabled(appState.isReadOnly)

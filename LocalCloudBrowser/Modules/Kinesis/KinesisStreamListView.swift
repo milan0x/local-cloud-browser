@@ -19,8 +19,14 @@ struct KinesisStreamListView: View {
     @StateObject private var loader = PaginatedListLoader<KinesisStreamSummary>()
     private var streams: [KinesisStreamSummary] { loader.items }
 
+    private var deleteDisabled: Bool {
+        appState.isReadOnly || selectedStreamIDs.isEmpty
+    }
+
     var body: some View {
         VStack(spacing: 0) {
+            streamListHeader
+            Divider()
             streamListContent
         }
         .sheet(isPresented: $showCreateSheet) {
@@ -71,6 +77,22 @@ struct KinesisStreamListView: View {
                 break
             }
         }
+    }
+
+    // MARK: - Header
+
+    private var streamListHeader: some View {
+        ListHeaderBar(
+            title: "Streams",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            itemCount: streams.count,
+            deleteDisabled: deleteDisabled,
+            deleteHelp: selectedStreamIDs.count <= 1 ? "Delete Stream" : "Delete \(selectedStreamIDs.count) Streams",
+            onRefresh: { loadStreams(force: true) },
+            onCreate: { showCreateSheet = true },
+            onDelete: { streamsToDelete = streams.filter { selectedStreamIDs.contains($0.id) } }
+        )
     }
 
     private var filteredStreams: [KinesisStreamSummary] {
@@ -126,7 +148,7 @@ struct KinesisStreamListView: View {
                         Divider()
                         if selectedStreamIDs.count > 1 && selectedStreamIDs.contains(stream.id) {
                             let selected = streams.filter { selectedStreamIDs.contains($0.id) }
-                            Button("Delete (\(selected.count) Streams)", role: .destructive) {
+                            Button("Delete \(selected.count) Streams", role: .destructive) {
                                 streamsToDelete = selected
                             }
                             .disabled(appState.isReadOnly)

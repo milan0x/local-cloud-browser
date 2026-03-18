@@ -147,7 +147,7 @@ struct TranscribeJobListView: View {
                         Divider()
                         if selectedJobIDs.count > 1 && selectedJobIDs.contains(job.id) {
                             let selected = jobs.filter { selectedJobIDs.contains($0.id) }
-                            Button("Delete (\(selected.count) Jobs)", role: .destructive) {
+                            Button("Delete \(selected.count) Jobs", role: .destructive) {
                                 jobsToDelete = selected
                             }
                             .disabled(appState.isReadOnly)
