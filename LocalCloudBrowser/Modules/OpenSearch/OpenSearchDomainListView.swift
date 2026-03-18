@@ -143,7 +143,7 @@ struct OpenSearchDomainListView: View {
                         Divider()
                         if selectedDomainIDs.count > 1 && selectedDomainIDs.contains(domain.id) {
                             let selected = domains.filter { selectedDomainIDs.contains($0.id) }
-                            Button("Delete (\(selected.count) Domains)", role: .destructive) {
+                            Button("Delete \(selected.count) Domains", role: .destructive) {
                                 domainsToDelete = selected
                             }
                             .disabled(appState.isReadOnly)

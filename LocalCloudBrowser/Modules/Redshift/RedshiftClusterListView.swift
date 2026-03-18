@@ -140,7 +140,7 @@ struct RedshiftClusterListView: View {
                         Divider()
                         if selectedClusterIDs.count > 1 && selectedClusterIDs.contains(cluster.id) {
                             let selected = clusters.filter { selectedClusterIDs.contains($0.id) }
-                            Button("Delete (\(selected.count) Clusters)", role: .destructive) {
+                            Button("Delete \(selected.count) Clusters", role: .destructive) {
                                 clustersToDelete = selected
                             }
                             .disabled(appState.isReadOnly)

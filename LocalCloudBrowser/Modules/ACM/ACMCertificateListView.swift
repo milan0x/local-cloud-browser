@@ -160,7 +160,7 @@ struct ACMCertificateListView: View {
                         Divider()
                         if selectedCertIDs.count > 1 && selectedCertIDs.contains(cert.id) {
                             let selected = certificates.filter { selectedCertIDs.contains($0.id) }
-                            Button("Delete (\(selected.count) Certificates)", role: .destructive) {
+                            Button("Delete \(selected.count) Certificates", role: .destructive) {
                                 certsToDelete = selected
                             }
                             .disabled(appState.isReadOnly)

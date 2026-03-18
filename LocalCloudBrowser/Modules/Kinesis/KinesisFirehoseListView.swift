@@ -21,6 +21,8 @@ struct KinesisFirehoseListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            streamListHeader
+            Divider()
             streamListContent
         }
         .sheet(isPresented: $showCreateSheet) {
@@ -77,6 +79,22 @@ struct KinesisFirehoseListView: View {
         appState.isReadOnly || selectedStreamIDs.isEmpty
     }
 
+    // MARK: - Header
+
+    private var streamListHeader: some View {
+        ListHeaderBar(
+            title: "Delivery Streams",
+            autoRefresh: appState.autoRefresh,
+            isReadOnly: appState.isReadOnly,
+            itemCount: streams.count,
+            deleteDisabled: deleteDisabled,
+            deleteHelp: selectedStreamIDs.count <= 1 ? "Delete Delivery Stream" : "Delete \(selectedStreamIDs.count) Delivery Streams",
+            onRefresh: { loadStreams(force: true) },
+            onCreate: { showCreateSheet = true },
+            onDelete: { streamsToDelete = streams.filter { selectedStreamIDs.contains($0.id) } }
+        )
+    }
+
     private var filteredStreams: [FirehoseDeliveryStreamSummary] {
         guard !searchText.isEmpty else { return streams }
         let query = searchText.lowercased()
@@ -130,7 +148,7 @@ struct KinesisFirehoseListView: View {
                         Divider()
                         if selectedStreamIDs.count > 1 && selectedStreamIDs.contains(stream.id) {
                             let selected = streams.filter { selectedStreamIDs.contains($0.id) }
-                            Button("Delete (\(selected.count) Streams)", role: .destructive) {
+                            Button("Delete \(selected.count) Streams", role: .destructive) {
                                 streamsToDelete = selected
                             }
                             .disabled(appState.isReadOnly)

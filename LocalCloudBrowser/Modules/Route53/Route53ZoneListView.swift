@@ -138,7 +138,7 @@ struct Route53ZoneListView: View {
                             Divider()
                             if selectedZoneIDs.count > 1 && selectedZoneIDs.contains(zone.id) {
                                 let selected = zones.filter { selectedZoneIDs.contains($0.id) }
-                                Button("Delete (\(selected.count) Zones)", role: .destructive) {
+                                Button("Delete \(selected.count) Zones", role: .destructive) {
                                     zonesToDelete = selected
                                 }
                                 .disabled(appState.isReadOnly)

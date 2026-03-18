@@ -141,7 +141,7 @@ struct ResourceGroupsListView: View {
                         Divider()
                         if selectedGroupIDs.count > 1 && selectedGroupIDs.contains(group.id) {
                             let selected = groups.filter { selectedGroupIDs.contains($0.id) }
-                            Button("Delete (\(selected.count) Groups)", role: .destructive) {
+                            Button("Delete \(selected.count) Groups", role: .destructive) {
                                 groupsToDelete = selected
                             }
                             .disabled(appState.isReadOnly)

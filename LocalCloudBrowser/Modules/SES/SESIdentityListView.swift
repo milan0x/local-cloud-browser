@@ -142,7 +142,7 @@ struct SESIdentityListView: View {
                         Divider()
                         if selectedIdentityIDs.count > 1 && selectedIdentityIDs.contains(identity.id) {
                             let selected = identities.filter { selectedIdentityIDs.contains($0.id) }
-                            Button("Delete (\(selected.count) Identities)", role: .destructive) {
+                            Button("Delete \(selected.count) Identities", role: .destructive) {
                                 identitiesToDelete = selected
                             }
                             .disabled(appState.isReadOnly)
