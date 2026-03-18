@@ -21,6 +21,22 @@ final class EditableTextField: NSTextField {
     var isKeyColumn: Bool = false
     var isInlineEditable: Bool = true
     var isDraftCell: Bool = false
+    var normalAttributedString: NSAttributedString?
+
+    /// Recolor text for selection state
+    func updateForSelection(_ isSelected: Bool) {
+        guard !isEditable, let normal = normalAttributedString else { return }
+        if isSelected {
+            // Replace all foreground colors with white
+            let white = NSMutableAttributedString(attributedString: normal)
+            white.enumerateAttribute(.foregroundColor, in: NSRange(location: 0, length: white.length)) { _, range, _ in
+                white.addAttribute(.foregroundColor, value: NSColor.white, range: range)
+            }
+            super.attributedStringValue = white
+        } else {
+            super.attributedStringValue = normal
+        }
+    }
 
     override func mouseDown(with event: NSEvent) {
         // Draft cells: single click activates editing
@@ -56,6 +72,19 @@ final class EditableTextField: NSTextField {
         drawsBackground = false
         backgroundColor = .clear
         window?.makeFirstResponder(superview?.superview) // return focus to table
+    }
+}
+
+// MARK: - SelectionAwareCellView
+
+/// Cell view that updates text color when row is selected/deselected.
+private final class SelectionAwareCellView: NSTableCellView {
+    override var backgroundStyle: NSView.BackgroundStyle {
+        didSet {
+            if let tf = textField as? EditableTextField {
+                tf.updateForSelection(backgroundStyle == .emphasized)
+            }
+        }
     }
 }
 
@@ -112,10 +141,10 @@ struct DynamoDBItemGrid: NSViewRepresentable {
         tableView.allowsMultipleSelection = true
         tableView.columnAutoresizingStyle = .noColumnAutoresizing
         tableView.style = .plain
-        tableView.rowHeight = 30
-        tableView.intercellSpacing = NSSize(width: 12, height: 0)
+        tableView.rowHeight = 32
+        tableView.intercellSpacing = NSSize(width: 12, height: 2)
         tableView.gridStyleMask = [.solidHorizontalGridLineMask, .solidVerticalGridLineMask]
-        tableView.gridColor = .separatorColor
+        tableView.gridColor = .separatorColor.withAlphaComponent(0.4)
         tableView.headerView = NSTableHeaderView()
         tableView.allowsColumnReordering = true
         tableView.allowsColumnResizing = true
@@ -333,10 +362,10 @@ struct DynamoDBItemGrid: NSViewRepresentable {
             guard isDraftRow || row < parent.items.count else { return nil }
 
             let cellID = NSUserInterfaceItemIdentifier("DynamoDBCell")
-            let cellView: NSTableCellView
+            let cellView: SelectionAwareCellView
             let textField: EditableTextField
 
-            if let reused = tableView.makeView(withIdentifier: cellID, owner: nil) as? NSTableCellView,
+            if let reused = tableView.makeView(withIdentifier: cellID, owner: nil) as? SelectionAwareCellView,
                let existingTF = reused.textField as? EditableTextField {
                 cellView = reused
                 textField = existingTF
@@ -351,7 +380,7 @@ struct DynamoDBItemGrid: NSViewRepresentable {
                 tf.cell?.truncatesLastVisibleLine = true
                 tf.translatesAutoresizingMaskIntoConstraints = false
 
-                let cv = NSTableCellView()
+                let cv = SelectionAwareCellView()
                 cv.identifier = cellID
                 cv.textField = tf
                 cv.addSubview(tf)
@@ -381,14 +410,17 @@ struct DynamoDBItemGrid: NSViewRepresentable {
                 textField.placeholderString = columnName
 
                 if let draftVal = draftValues[columnName], !draftVal.isEmpty {
-                    textField.attributedStringValue = NSAttributedString(
+                    let attrStr = NSAttributedString(
                         string: draftVal,
                         attributes: [
                             .foregroundColor: NSColor.labelColor,
                             .font: NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular),
                         ]
                     )
+                    textField.normalAttributedString = attrStr
+                    textField.attributedStringValue = attrStr
                 } else {
+                    textField.normalAttributedString = nil
                     textField.stringValue = ""
                 }
                 textField.toolTip = nil
@@ -405,18 +437,22 @@ struct DynamoDBItemGrid: NSViewRepresentable {
 
                 if let value {
                     textField.isInlineEditable = value.isInlineEditable && !isKey
-                    textField.attributedStringValue = attributedString(for: value)
+                    let attrStr = attributedString(for: value, isKey: isKey)
+                    textField.normalAttributedString = attrStr
+                    textField.attributedStringValue = attrStr
                     textField.toolTip = value.displayString
                     textField.isEnabled = !isReadOnly
                 } else {
                     textField.isInlineEditable = false
-                    textField.attributedStringValue = NSAttributedString(
-                        string: "--",
+                    let attrStr = NSAttributedString(
+                        string: "\u{2014}",
                         attributes: [
-                            .foregroundColor: NSColor.tertiaryLabelColor,
-                            .font: NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular),
+                            .foregroundColor: NSColor.quaternaryLabelColor,
+                            .font: NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .light),
                         ]
                     )
+                    textField.normalAttributedString = attrStr
+                    textField.attributedStringValue = attrStr
                     textField.toolTip = nil
                     textField.isEnabled = false
                 }
@@ -434,11 +470,11 @@ struct DynamoDBItemGrid: NSViewRepresentable {
 
         // MARK: Cell Display
 
-        private func attributedString(for value: AttributeValue) -> NSAttributedString {
+        private func attributedString(for value: AttributeValue, isKey: Bool = false) -> NSAttributedString {
             let result = NSMutableAttributedString()
             let fontSize = NSFont.systemFontSize
-            let monoFont = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-            let badgeFont = NSFont.monospacedSystemFont(ofSize: fontSize - 1, weight: .semibold)
+            let monoFont = NSFont.monospacedSystemFont(ofSize: fontSize, weight: isKey ? .medium : .regular)
+            let badgeFont = NSFont.monospacedSystemFont(ofSize: fontSize - 2, weight: .semibold)
 
             let badgeColor: NSColor
             switch value {
@@ -455,7 +491,7 @@ struct DynamoDBItemGrid: NSViewRepresentable {
             let badge = NSAttributedString(
                 string: value.typeBadge + " ",
                 attributes: [
-                    .foregroundColor: badgeColor,
+                    .foregroundColor: badgeColor.withAlphaComponent(0.8),
                     .font: badgeFont,
                 ]
             )
