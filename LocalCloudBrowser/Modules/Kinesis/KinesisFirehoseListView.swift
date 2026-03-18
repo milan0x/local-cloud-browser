@@ -277,6 +277,7 @@ struct KinesisFirehoseListView: View {
 
     private func deleteStreams(_ targets: [FirehoseDeliveryStreamSummary]) {
         Task {
+            selectedStreamIDs.subtract(Set(targets.map(\.id)))
             let (deleted, error) = await batchDelete(targets) {
                 try await service.deleteDeliveryStream(name: $0.deliveryStreamName)
             }

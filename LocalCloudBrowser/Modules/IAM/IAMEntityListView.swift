@@ -729,6 +729,7 @@ struct IAMEntityListView: View {
 
     private func deleteUsers(_ targets: [IAMUser]) {
         Task {
+            selectedUserIDs.subtract(Set(targets.map(\.id)))
             var deletedIDs: Set<IAMUser.ID> = []
             for user in targets {
                 do {
@@ -751,6 +752,7 @@ struct IAMEntityListView: View {
 
     private func deleteRoles(_ targets: [IAMRole]) {
         Task {
+            selectedRoleIDs.subtract(Set(targets.map(\.id)))
             var deletedIDs: Set<IAMRole.ID> = []
             for role in targets {
                 do {
@@ -773,6 +775,7 @@ struct IAMEntityListView: View {
 
     private func deletePolicies(_ targets: [IAMPolicy]) {
         Task {
+            selectedPolicyIDs.subtract(Set(targets.map(\.id)))
             var deletedIDs: Set<IAMPolicy.ID> = []
             for policy in targets {
                 do {

@@ -219,6 +219,7 @@ struct TranscribeJobListView: View {
 
     private func deleteJobs(_ targets: [TranscriptionJob]) {
         Task {
+            selectedJobIDs.subtract(Set(targets.map(\.id)))
             let (deleted, error) = await batchDelete(targets) {
                 try await service.deleteTranscriptionJob(name: $0.jobName)
             }

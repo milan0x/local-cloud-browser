@@ -200,6 +200,7 @@ struct ConfigRecorderListView: View {
 
     private func deleteRecorders(_ targets: [ConfigurationRecorder]) {
         Task {
+            selectedRecorderIDs.subtract(Set(targets.map(\.id)))
             var deletedIDs: Set<ConfigurationRecorder.ID> = []
             for recorder in targets {
                 do {

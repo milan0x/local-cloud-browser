@@ -674,6 +674,7 @@ struct EC2EntityListView: View {
 
     private func deleteSecurityGroups(_ targets: [EC2SecurityGroup]) {
         Task {
+            selectedGroupIDs.subtract(Set(targets.map(\.id)))
             var deletedIDs: Set<EC2SecurityGroup.ID> = []
             for sg in targets {
                 do {
@@ -696,6 +697,7 @@ struct EC2EntityListView: View {
 
     private func deleteKeyPairs(_ targets: [EC2KeyPair]) {
         Task {
+            selectedKeyPairIDs.subtract(Set(targets.map(\.id)))
             var deletedIDs: Set<EC2KeyPair.ID> = []
             for kp in targets {
                 do {

@@ -255,6 +255,7 @@ struct SESIdentityListView: View {
 
     private func deleteIdentities(_ targets: [SESIdentity]) {
         Task {
+            selectedIdentityIDs.subtract(Set(targets.map(\.id)))
             let (deleted, error) = await batchDelete(targets) {
                 try await service.deleteIdentity(identity: $0.identity)
             }

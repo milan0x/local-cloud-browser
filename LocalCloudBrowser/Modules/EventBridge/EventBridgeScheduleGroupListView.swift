@@ -184,6 +184,7 @@ struct EventBridgeScheduleGroupListView: View {
     private func deleteGroups(_ targets: [SchedulerScheduleGroup]) {
         let nonDefault = targets.filter { !$0.isDefault }
         Task {
+            selectedGroupIDs.subtract(Set(targets.map(\.id)))
             let (deletedIDs, lastError) = await batchDelete(nonDefault) { group in
                 try await service.deleteScheduleGroup(name: group.name)
             }

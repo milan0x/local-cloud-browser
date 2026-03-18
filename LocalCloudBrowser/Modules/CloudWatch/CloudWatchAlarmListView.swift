@@ -238,6 +238,7 @@ struct CloudWatchAlarmListView: View {
 
     private func deleteAlarms(_ targets: [CloudWatchAlarm]) {
         Task {
+            selectedAlarmIDs.subtract(Set(targets.map(\.id)))
             do {
                 try await service.deleteAlarms(names: targets.map(\.alarmName))
                 let deletedIDs = Set(targets.map(\.id))

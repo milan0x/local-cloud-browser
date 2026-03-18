@@ -223,6 +223,7 @@ struct APIGatewayAPIListView: View {
 
     private func deleteAPIs(_ targets: [RestApi]) {
         Task {
+            selectedAPIIDs.subtract(Set(targets.map(\.id)))
             var deletedIDs: Set<RestApi.ID> = []
             for api in targets {
                 do {

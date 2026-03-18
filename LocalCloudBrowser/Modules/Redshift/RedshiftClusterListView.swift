@@ -208,6 +208,7 @@ struct RedshiftClusterListView: View {
 
     private func deleteClusters(_ targets: [RedshiftCluster]) {
         Task {
+            selectedClusterIDs.subtract(Set(targets.map(\.id)))
             let (deleted, error) = await batchDelete(targets) {
                 try await service.deleteCluster(id: $0.clusterIdentifier)
             }

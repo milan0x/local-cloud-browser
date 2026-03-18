@@ -246,6 +246,7 @@ struct ResourceGroupsListView: View {
 
     private func deleteGroups(_ targets: [ResourceGroupSummary]) {
         Task {
+            selectedGroupIDs.subtract(Set(targets.map(\.id)))
             let (deleted, error) = await batchDelete(targets) {
                 try await service.deleteGroup(name: $0.name)
             }

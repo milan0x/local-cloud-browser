@@ -210,6 +210,7 @@ struct OpenSearchDomainListView: View {
 
     private func deleteDomains(_ targets: [OpenSearchDomain]) {
         Task {
+            selectedDomainIDs.subtract(Set(targets.map(\.id)))
             let (deleted, error) = await batchDelete(targets) {
                 try await service.deleteDomain(name: $0.domainName)
             }
