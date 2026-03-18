@@ -20,12 +20,6 @@ final class S3BucketListParser: NSObject, XMLParserDelegate {
     private var currentDate = ""
     private var inBucket = false
 
-    nonisolated(unsafe) private static let dateFormatter: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
-    }()
-
     func parse(data: Data) throws -> [S3Bucket] {
         let parser = XMLParser(data: data)
         parser.delegate = self
@@ -61,7 +55,7 @@ final class S3BucketListParser: NSObject, XMLParserDelegate {
     func parser(_ parser: XMLParser, didEndElement elementName: String,
                 namespaceURI: String?, qualifiedName: String?) {
         if elementName == "Bucket" {
-            let date = Self.dateFormatter.date(from: currentDate)
+            let date = DateFormatters.parseISO8601(currentDate)
             buckets.append(S3Bucket(name: currentName.trimmingCharacters(in: .whitespacesAndNewlines),
                                     creationDate: date))
             inBucket = false
@@ -98,12 +92,6 @@ final class S3ObjectListParser: NSObject, XMLParserDelegate {
     private var objLastModified: Date?
     private var objEtag = ""
     private var objStorageClass = ""
-
-    nonisolated(unsafe) private static let dateFormatter: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
-    }()
 
     func parse(data: Data) throws -> S3ObjectListResult {
         let parser = XMLParser(data: data)
@@ -150,7 +138,7 @@ final class S3ObjectListParser: NSObject, XMLParserDelegate {
             switch elementName {
             case "Key": objKey = text
             case "Size": objSize = Int64(text) ?? 0
-            case "LastModified": objLastModified = Self.dateFormatter.date(from: text)
+            case "LastModified": objLastModified = DateFormatters.parseISO8601(text)
             case "ETag": objEtag = text
             case "StorageClass": objStorageClass = text
             case "Contents":

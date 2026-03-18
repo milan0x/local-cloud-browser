@@ -52,15 +52,10 @@ struct LambdaFunction: Identifiable, Hashable {
         }
     }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func getFunctionCLI(endpointUrl: String, region: String) -> String {
         [
             "aws lambda get-function \\",
-            "  --function-name '\(Self.shellEscape(functionName))' \\",
+            "  --function-name '\(functionName.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -69,7 +64,7 @@ struct LambdaFunction: Identifiable, Hashable {
     func invokeCLI(endpointUrl: String, region: String) -> String {
         [
             "aws lambda invoke \\",
-            "  --function-name '\(Self.shellEscape(functionName))' \\",
+            "  --function-name '\(functionName.shellEscaped())' \\",
             "  --payload '{}' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)' \\",

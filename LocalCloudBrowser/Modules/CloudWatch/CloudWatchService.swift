@@ -45,8 +45,8 @@ final class CloudWatchService: BaseService {
         var payload: [String: Any] = [
             "Namespace": metric.namespace,
             "MetricName": metric.metricName,
-            "StartTime": ISO8601DateFormatter().string(from: startTime),
-            "EndTime": ISO8601DateFormatter().string(from: endTime),
+            "StartTime": DateFormatters.iso8601.string(from: startTime),
+            "EndTime": DateFormatters.iso8601.string(from: endTime),
             "Period": period,
             "Statistics": statistics.map(\.rawValue),
         ]

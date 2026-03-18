@@ -16,15 +16,10 @@ struct SSMParameter: Identifiable, Hashable {
 
     var isSecureString: Bool { type == "SecureString" }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func getParameterCLI(endpointUrl: String, region: String) -> String {
         [
             "aws ssm get-parameter \\",
-            "  --name '\(Self.shellEscape(name))' \\",
+            "  --name '\(name.shellEscaped())' \\",
             isSecureString ? "  --with-decryption \\" : nil,
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'"
@@ -34,7 +29,7 @@ struct SSMParameter: Identifiable, Hashable {
     func describeParametersCLI(endpointUrl: String, region: String) -> String {
         [
             "aws ssm describe-parameters \\",
-            "  --filters 'Key=Name,Values=\(Self.shellEscape(name))' \\",
+            "  --filters 'Key=Name,Values=\(name.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'"
         ].joined(separator: "\n")

@@ -96,14 +96,10 @@ struct SupportCase: Identifiable, Hashable {
 
     // MARK: - CLI Helpers
 
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func describeCaseCLI(endpointUrl: String, region: String) -> String {
         [
             "aws support describe-cases \\",
-            "  --case-id-list '\(Self.shellEscape(caseId))' \\",
+            "  --case-id-list '\(caseId.shellEscaped())' \\",
             "  --include-communications \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
@@ -113,7 +109,7 @@ struct SupportCase: Identifiable, Hashable {
     func resolveCaseCLI(endpointUrl: String, region: String) -> String {
         [
             "aws support resolve-case \\",
-            "  --case-id '\(Self.shellEscape(caseId))' \\",
+            "  --case-id '\(caseId.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")

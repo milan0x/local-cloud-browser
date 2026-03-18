@@ -95,14 +95,10 @@ struct TranscriptionJob: Identifiable, Hashable {
 
     // MARK: - CLI Helpers
 
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func getJobCLI(endpointUrl: String, region: String) -> String {
         [
             "aws transcribe get-transcription-job \\",
-            "  --transcription-job-name '\(Self.shellEscape(jobName))' \\",
+            "  --transcription-job-name '\(jobName.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -119,7 +115,7 @@ struct TranscriptionJob: Identifiable, Hashable {
     func deleteJobCLI(endpointUrl: String, region: String) -> String {
         [
             "aws transcribe delete-transcription-job \\",
-            "  --transcription-job-name '\(Self.shellEscape(jobName))' \\",
+            "  --transcription-job-name '\(jobName.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")

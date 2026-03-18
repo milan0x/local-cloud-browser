@@ -318,7 +318,10 @@ struct JSONInputSection: View {
             return false
         }
         let trimmedLine = firstLine.trimmingCharacters(in: .whitespaces)
-        return trimmedLine.contains(":") && trimmedLine.firstIndex(of: ":")! != trimmedLine.startIndex
+        if let colonIndex = trimmedLine.firstIndex(of: ":") {
+            return colonIndex != trimmedLine.startIndex
+        }
+        return false
     }
 
     private struct ValidationResult {

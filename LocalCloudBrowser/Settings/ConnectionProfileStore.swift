@@ -110,7 +110,10 @@ final class ConnectionProfileStore: ObservableObject {
             var accessKeyId: String?
             var secretAccessKey: String?
         }
-        guard let legacy = try? JSONDecoder().decode([LegacyProfile].self, from: data) else { return }
+        guard let legacy = (try? JSONDecoder().decode([LegacyProfile].self, from: data)) else {
+            Log.warn("Failed to decode legacy profiles during migration", category: "Profiles")
+            return
+        }
         var migrated = 0
         for profile in legacy {
             let keyId = profile.accessKeyId ?? KeychainHelper.defaultAccessKeyId
@@ -120,9 +123,12 @@ final class ConnectionProfileStore: ObservableObject {
             migrated += 1
         }
         // Re-save profiles without credentials (new CodingKeys will strip them).
-        if let decoded = try? JSONDecoder().decode([ConnectionProfile].self, from: data),
-           let clean = try? JSONEncoder().encode(decoded) {
+        do {
+            let decoded = try JSONDecoder().decode([ConnectionProfile].self, from: data)
+            let clean = try JSONEncoder().encode(decoded)
             UserDefaults.standard.set(clean, forKey: profilesKey)
+        } catch {
+            Log.warn("Failed to re-encode profiles after migration: \(error.localizedDescription)", category: "Profiles")
         }
         UserDefaults.standard.set(true, forKey: Self.migratedToKeychainKey)
         Log.info("Migrated \(migrated) profile credential(s) to Keychain", category: "Profiles")

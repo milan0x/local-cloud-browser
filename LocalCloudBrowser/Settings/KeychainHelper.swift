@@ -92,11 +92,14 @@ enum KeychainHelper {
     }
 
     static func loadCredentials(profileId: UUID) -> (accessKeyId: String, secretAccessKey: String)? {
-        guard let data = load(account: profileId.uuidString),
-              let creds = try? JSONDecoder().decode(StoredCredentials.self, from: data) else {
+        guard let data = load(account: profileId.uuidString) else { return nil }
+        do {
+            let creds = try JSONDecoder().decode(StoredCredentials.self, from: data)
+            return (creds.accessKeyId, creds.secretAccessKey)
+        } catch {
+            Log.error("Failed to decode credentials for profile \(profileId): \(error.localizedDescription)", category: "Keychain")
             return nil
         }
-        return (creds.accessKeyId, creds.secretAccessKey)
     }
 
     static func deleteCredentials(profileId: UUID) {

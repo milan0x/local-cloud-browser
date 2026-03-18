@@ -70,15 +70,10 @@ struct ACMCertificateSummary: Identifiable, Hashable {
         }
     }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func describeCertificateCLI(endpointUrl: String, region: String) -> String {
         [
             "aws acm describe-certificate \\",
-            "  --certificate-arn '\(Self.shellEscape(certificateArn))' \\",
+            "  --certificate-arn '\(certificateArn.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -95,7 +90,7 @@ struct ACMCertificateSummary: Identifiable, Hashable {
     func deleteCertificateCLI(endpointUrl: String, region: String) -> String {
         [
             "aws acm delete-certificate \\",
-            "  --certificate-arn '\(Self.shellEscape(certificateArn))' \\",
+            "  --certificate-arn '\(certificateArn.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")

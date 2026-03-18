@@ -23,15 +23,10 @@ struct ResourceGroupSummary: Identifiable, Hashable {
         description = group["Description"] as? String ?? dict["Description"] as? String ?? ""
     }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func getGroupCLI(endpointUrl: String, region: String) -> String {
         [
             "aws resource-groups get-group \\",
-            "  --group-name '\(Self.shellEscape(name))' \\",
+            "  --group-name '\(name.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -48,7 +43,7 @@ struct ResourceGroupSummary: Identifiable, Hashable {
     func deleteGroupCLI(endpointUrl: String, region: String) -> String {
         [
             "aws resource-groups delete-group \\",
-            "  --group-name '\(Self.shellEscape(name))' \\",
+            "  --group-name '\(name.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")

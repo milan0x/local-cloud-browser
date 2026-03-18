@@ -28,14 +28,10 @@ struct RestApi: Identifiable, Hashable {
         endpointConfigurationTypes.first ?? "REGIONAL"
     }
 
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func getRestApiCLI(endpointUrl: String, region: String) -> String {
         [
             "aws apigateway get-rest-api \\",
-            "  --rest-api-id '\(Self.shellEscape(id))' \\",
+            "  --rest-api-id '\(id.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -44,7 +40,7 @@ struct RestApi: Identifiable, Hashable {
     func getResourcesCLI(endpointUrl: String, region: String) -> String {
         [
             "aws apigateway get-resources \\",
-            "  --rest-api-id '\(Self.shellEscape(id))' \\",
+            "  --rest-api-id '\(id.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")

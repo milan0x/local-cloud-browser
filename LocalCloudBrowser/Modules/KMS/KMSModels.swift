@@ -64,15 +64,10 @@ struct KMSKey: Identifiable, Hashable {
         }
     }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func describeKeyCLI(endpointUrl: String, region: String) -> String {
         [
             "aws kms describe-key \\",
-            "  --key-id '\(Self.shellEscape(keyId))' \\",
+            "  --key-id '\(keyId.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'"
         ].joined(separator: "\n")

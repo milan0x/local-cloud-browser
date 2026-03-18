@@ -31,17 +31,13 @@ struct StateMachineSummary: Identifiable, Hashable {
         name = dict["name"] as? String ?? ""
         stateMachineArn = dict["stateMachineArn"] as? String ?? ""
         type = dict["type"] as? String ?? "STANDARD"
-        creationDate = Self.parseDate(dict["creationDate"])
-    }
-
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
+        creationDate = DateFormatters.parseDateValue(dict["creationDate"])
     }
 
     func describeStateMachineCLI(endpointUrl: String, region: String) -> String {
         [
             "aws stepfunctions describe-state-machine \\",
-            "  --state-machine-arn '\(Self.shellEscape(stateMachineArn))' \\",
+            "  --state-machine-arn '\(stateMachineArn.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -53,20 +49,6 @@ struct StateMachineSummary: Identifiable, Hashable {
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
-    }
-
-    fileprivate static func parseDate(_ value: Any?) -> Date? {
-        if let ts = value as? Double {
-            return Date(timeIntervalSince1970: ts)
-        }
-        if let str = value as? String {
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = formatter.date(from: str) { return date }
-            formatter.formatOptions = [.withInternetDateTime]
-            return formatter.date(from: str)
-        }
-        return nil
     }
 }
 
@@ -88,7 +70,7 @@ struct StateMachineDetail: Identifiable, Hashable {
         roleArn = dict["roleArn"] as? String ?? ""
         type = dict["type"] as? String ?? "STANDARD"
         status = dict["status"] as? String ?? "ACTIVE"
-        creationDate = StateMachineSummary.parseDate(dict["creationDate"])
+        creationDate = DateFormatters.parseDateValue(dict["creationDate"])
     }
 
     var prettyDefinition: String {
@@ -154,32 +136,14 @@ struct StepFunctionsExecution: Identifiable, Hashable {
         name = dict["name"] as? String ?? ""
         stateMachineArn = dict["stateMachineArn"] as? String ?? ""
         status = dict["status"] as? String ?? "RUNNING"
-        startDate = Self.parseDate(dict["startDate"])
-        stopDate = Self.parseDate(dict["stopDate"])
-    }
-
-    fileprivate static func parseDate(_ value: Any?) -> Date? {
-        if let ts = value as? Double {
-            return Date(timeIntervalSince1970: ts)
-        }
-        if let str = value as? String {
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = formatter.date(from: str) { return date }
-            formatter.formatOptions = [.withInternetDateTime]
-            return formatter.date(from: str)
-        }
-        return nil
-    }
-
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
+        startDate = DateFormatters.parseDateValue(dict["startDate"])
+        stopDate = DateFormatters.parseDateValue(dict["stopDate"])
     }
 
     func describeExecutionCLI(endpointUrl: String, region: String) -> String {
         [
             "aws stepfunctions describe-execution \\",
-            "  --execution-arn '\(Self.shellEscape(executionArn))' \\",
+            "  --execution-arn '\(executionArn.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -203,8 +167,8 @@ struct StepFunctionsExecutionDetail: Identifiable, Hashable {
         name = dict["name"] as? String ?? ""
         stateMachineArn = dict["stateMachineArn"] as? String ?? ""
         status = dict["status"] as? String ?? "RUNNING"
-        startDate = StepFunctionsExecution.parseDate(dict["startDate"])
-        stopDate = StepFunctionsExecution.parseDate(dict["stopDate"])
+        startDate = DateFormatters.parseDateValue(dict["startDate"])
+        stopDate = DateFormatters.parseDateValue(dict["stopDate"])
         input = dict["input"] as? String ?? ""
         output = dict["output"] as? String ?? ""
     }
@@ -253,17 +217,8 @@ struct StepFunctionsHistoryEvent: Identifiable, Hashable {
         id = dict["id"] as? Int ?? 0
         type = dict["type"] as? String ?? ""
         previousEventId = dict["previousEventId"] as? Int ?? 0
-        if let ts = dict["timestamp"] as? Double {
-            timestamp = Date(timeIntervalSince1970: ts)
-        } else if let str = dict["timestamp"] as? String {
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = formatter.date(from: str) {
-                timestamp = date
-            } else {
-                formatter.formatOptions = [.withInternetDateTime]
-                timestamp = formatter.date(from: str)
-            }
+        if let date = DateFormatters.parseDateValue(dict["timestamp"]) {
+            timestamp = date
         } else {
             timestamp = nil
         }

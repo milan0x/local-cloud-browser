@@ -50,15 +50,10 @@ struct ResolverEndpoint: Identifiable, Hashable {
         modificationTime = dict["ModificationTime"] as? String ?? ""
     }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func describeCLI(endpointUrl: String, region: String) -> String {
         [
             "aws route53resolver get-resolver-endpoint \\",
-            "  --resolver-endpoint-id '\(Self.shellEscape(id))' \\",
+            "  --resolver-endpoint-id '\(id.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -67,7 +62,7 @@ struct ResolverEndpoint: Identifiable, Hashable {
     func deleteCLI(endpointUrl: String, region: String) -> String {
         [
             "aws route53resolver delete-resolver-endpoint \\",
-            "  --resolver-endpoint-id '\(Self.shellEscape(id))' \\",
+            "  --resolver-endpoint-id '\(id.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -149,15 +144,10 @@ struct ResolverRule: Identifiable, Hashable {
         }
     }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func describeCLI(endpointUrl: String, region: String) -> String {
         [
             "aws route53resolver get-resolver-rule \\",
-            "  --resolver-rule-id '\(Self.shellEscape(id))' \\",
+            "  --resolver-rule-id '\(id.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -166,7 +156,7 @@ struct ResolverRule: Identifiable, Hashable {
     func deleteCLI(endpointUrl: String, region: String) -> String {
         [
             "aws route53resolver delete-resolver-rule \\",
-            "  --resolver-rule-id '\(Self.shellEscape(id))' \\",
+            "  --resolver-rule-id '\(id.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")

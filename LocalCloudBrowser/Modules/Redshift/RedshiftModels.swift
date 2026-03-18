@@ -51,15 +51,10 @@ struct RedshiftCluster: Identifiable, Hashable {
         self.clusterVersion = clusterVersion
     }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func describeClustersCLI(endpointUrl: String, region: String) -> String {
         [
             "aws redshift describe-clusters \\",
-            "  --cluster-identifier '\(Self.shellEscape(clusterIdentifier))' \\",
+            "  --cluster-identifier '\(clusterIdentifier.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'"
         ].joined(separator: "\n")
@@ -68,7 +63,7 @@ struct RedshiftCluster: Identifiable, Hashable {
     func deleteClusterCLI(endpointUrl: String, region: String) -> String {
         [
             "aws redshift delete-cluster \\",
-            "  --cluster-identifier '\(Self.shellEscape(clusterIdentifier))' \\",
+            "  --cluster-identifier '\(clusterIdentifier.shellEscaped())' \\",
             "  --skip-final-cluster-snapshot \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'"

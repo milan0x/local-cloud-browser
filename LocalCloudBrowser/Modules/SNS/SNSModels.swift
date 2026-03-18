@@ -13,11 +13,6 @@ struct SNSTopic: Identifiable, Hashable {
         topicName.hasSuffix(".fifo")
     }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func publishCLI(endpointUrl: String, region: String) -> String {
         var lines = [
             "aws sns publish \\",

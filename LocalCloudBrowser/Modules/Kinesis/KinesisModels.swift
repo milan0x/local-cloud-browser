@@ -44,15 +44,10 @@ struct KinesisStreamSummary: Identifiable, Hashable {
         }
     }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func describeStreamCLI(endpointUrl: String, region: String) -> String {
         [
             "aws kinesis describe-stream-summary \\",
-            "  --stream-name '\(Self.shellEscape(streamName))' \\",
+            "  --stream-name '\(streamName.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -61,7 +56,7 @@ struct KinesisStreamSummary: Identifiable, Hashable {
     func deleteStreamCLI(endpointUrl: String, region: String) -> String {
         [
             "aws kinesis delete-stream \\",
-            "  --stream-name '\(Self.shellEscape(streamName))' \\",
+            "  --stream-name '\(streamName.shellEscaped())' \\",
             "  --enforce-consumer-deletion \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",

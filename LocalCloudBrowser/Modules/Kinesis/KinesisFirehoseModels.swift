@@ -36,15 +36,10 @@ struct FirehoseDeliveryStreamSummary: Identifiable, Hashable {
         self.createTimestamp = createTimestamp
     }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func describeStreamCLI(endpointUrl: String, region: String) -> String {
         [
             "aws firehose describe-delivery-stream \\",
-            "  --delivery-stream-name '\(Self.shellEscape(deliveryStreamName))' \\",
+            "  --delivery-stream-name '\(deliveryStreamName.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")
@@ -53,7 +48,7 @@ struct FirehoseDeliveryStreamSummary: Identifiable, Hashable {
     func deleteStreamCLI(endpointUrl: String, region: String) -> String {
         [
             "aws firehose delete-delivery-stream \\",
-            "  --delivery-stream-name '\(Self.shellEscape(deliveryStreamName))' \\",
+            "  --delivery-stream-name '\(deliveryStreamName.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'",
         ].joined(separator: "\n")

@@ -77,15 +77,10 @@ struct OpenSearchDomain: Identifiable, Hashable {
         self.volumeSize = ebsOptions["VolumeSize"] as? Int ?? 0
     }
 
-    /// Shell-escape a string for use inside single quotes: replace `'` with `'\''`
-    private static func shellEscape(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "'\\''")
-    }
-
     func describeDomainCLI(endpointUrl: String, region: String) -> String {
         [
             "aws opensearch describe-domain \\",
-            "  --domain-name '\(Self.shellEscape(domainName))' \\",
+            "  --domain-name '\(domainName.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'"
         ].joined(separator: "\n")
@@ -94,7 +89,7 @@ struct OpenSearchDomain: Identifiable, Hashable {
     func deleteDomainCLI(endpointUrl: String, region: String) -> String {
         [
             "aws opensearch delete-domain \\",
-            "  --domain-name '\(Self.shellEscape(domainName))' \\",
+            "  --domain-name '\(domainName.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'"
         ].joined(separator: "\n")
