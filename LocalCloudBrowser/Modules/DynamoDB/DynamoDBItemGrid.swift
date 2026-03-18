@@ -79,6 +79,11 @@ struct DynamoDBItemGrid: NSViewRepresentable {
     let isReadOnly: Bool
     @Binding var selectedItemIDs: Set<String>
 
+    // Sorting
+    var sortColumn: String?
+    var sortAscending: Bool = true
+    var onSort: (String) -> Void = { _ in }
+
     // Inline draft row
     var isDraftRowActive: Bool = false
     var saveDraftCounter: Int = 0
@@ -122,6 +127,7 @@ struct DynamoDBItemGrid: NSViewRepresentable {
 
         context.coordinator.tableView = tableView
         context.coordinator.syncColumns(tableView: tableView, columns: columns)
+        context.coordinator.syncSortIndicator()
 
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
@@ -206,6 +212,9 @@ struct DynamoDBItemGrid: NSViewRepresentable {
 
         // Sync read-only
         coordinator.isReadOnly = isReadOnly
+
+        // Sync sort indicator
+        coordinator.syncSortIndicator()
     }
 
     private func focusDraftPKCell(tableView: EditableTableView, draftRow: Int) {
@@ -251,6 +260,31 @@ struct DynamoDBItemGrid: NSViewRepresentable {
             self.parent = parent
             self.cachedItems = parent.items
             self.isReadOnly = parent.isReadOnly
+        }
+
+        // MARK: Sort Support
+
+        func syncSortIndicator() {
+            guard let tableView else { return }
+            // Clear all indicators
+            for col in tableView.tableColumns {
+                tableView.setIndicatorImage(nil, in: col)
+            }
+            // Set current sort indicator
+            if let sortCol = parent.sortColumn {
+                let id = NSUserInterfaceItemIdentifier(sortCol)
+                if let col = tableView.tableColumns.first(where: { $0.identifier == id }) {
+                    let img = parent.sortAscending
+                        ? NSImage(systemSymbolName: "chevron.up", accessibilityDescription: "Ascending")
+                        : NSImage(systemSymbolName: "chevron.down", accessibilityDescription: "Descending")
+                    tableView.setIndicatorImage(img, in: col)
+                }
+            }
+        }
+
+        @objc func tableView(_ tableView: NSTableView, didClick tableColumn: NSTableColumn) {
+            parent.onSort(tableColumn.identifier.rawValue)
+            // Indicator will update on next updateNSView cycle
         }
 
         // MARK: Column Management

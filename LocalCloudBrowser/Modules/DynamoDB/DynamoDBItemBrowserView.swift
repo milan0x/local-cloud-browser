@@ -44,6 +44,13 @@ struct DynamoDBItemBrowserView: View {
     @State private var saveDraftCounter = 0
     @State private var deleteTask: Task<Void, Never>?
 
+    // Scan limit
+    @State private var scanLimit = 50
+
+    // Column sorting
+    @State private var sortColumn: String?
+    @State private var sortAscending = true
+
     enum BrowseMode: String, CaseIterable {
         case scan = "Scan"
         case query = "Query"
@@ -90,6 +97,25 @@ struct DynamoDBItemBrowserView: View {
 
     private var activeSortKeyName: String? {
         activeKeySchema.first { $0.keyType == "RANGE" }?.attributeName
+    }
+
+    /// Items sorted by current column sort, if any
+    private var sortedItems: [DynamoDBItem] {
+        guard let col = sortColumn else { return items }
+        return items.sorted { a, b in
+            let aVal = a.attributes[col]?.displayString ?? ""
+            let bVal = b.attributes[col]?.displayString ?? ""
+            // Try numeric comparison first
+            if let aNum = Double(aVal), let bNum = Double(bVal) {
+                return sortAscending ? aNum < bNum : aNum > bNum
+            }
+            return sortAscending ? aVal.localizedCompare(bVal) == .orderedAscending : aVal.localizedCompare(bVal) == .orderedDescending
+        }
+    }
+
+    /// Validate that a value is a valid number string
+    private func isValidNumber(_ value: String) -> Bool {
+        Double(value) != nil || Decimal(string: value) != nil
     }
 
     /// Stable item ID using the table's primary key (always, even when querying by index)
@@ -205,6 +231,25 @@ struct DynamoDBItemBrowserView: View {
                 .help("Table Attributes")
 
                 Button("Execute") {
+                    if browseMode == .query {
+                        // Validate number keys before executing
+                        let pkType = tableDetail.attributeType(for: activePartitionKeyName)
+                        if pkType == "N" && !isValidNumber(queryPartitionValue) {
+                            serviceError = ServiceError(code: "ValidationError", message: "Partition key '\(activePartitionKeyName)' expects a number value.")
+                            return
+                        }
+                        if let skName = activeSortKeyName, !querySortValue.isEmpty {
+                            let skType = tableDetail.attributeType(for: skName)
+                            if skType == "N" && !isValidNumber(querySortValue) {
+                                serviceError = ServiceError(code: "ValidationError", message: "Sort key '\(skName)' expects a number value.")
+                                return
+                            }
+                            if querySortOperator == .between && !querySortValue2.isEmpty && skType == "N" && !isValidNumber(querySortValue2) {
+                                serviceError = ServiceError(code: "ValidationError", message: "Sort key '\(skName)' BETWEEN value 2 expects a number.")
+                                return
+                            }
+                        }
+                    }
                     executeCurrentOperation(force: true)
                 }
                 .disabled(browseMode == .query && queryPartitionValue.isEmpty)
@@ -220,6 +265,18 @@ struct DynamoDBItemBrowserView: View {
                     .foregroundStyle(.secondary)
                 TextField("Filter expression (optional)", text: $filterExpression)
                     .font(.caption)
+
+                Text("Limit:")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("", selection: $scanLimit) {
+                    Text("25").tag(25)
+                    Text("50").tag(50)
+                    Text("100").tag(100)
+                    Text("500").tag(500)
+                }
+                .labelsHidden()
+                .frame(width: 65)
             }
         }
         .padding(.horizontal, 12)
@@ -308,10 +365,20 @@ struct DynamoDBItemBrowserView: View {
         } else {
             DynamoDBItemGrid(
                 columns: gridColumns,
-                items: items,
+                items: sortedItems,
                 tableDetail: tableDetail,
                 isReadOnly: appState.isReadOnly,
                 selectedItemIDs: $selectedItemIDs,
+                sortColumn: sortColumn,
+                sortAscending: sortAscending,
+                onSort: { column in
+                    if sortColumn == column {
+                        sortAscending.toggle()
+                    } else {
+                        sortColumn = column
+                        sortAscending = true
+                    }
+                },
                 isDraftRowActive: isDraftRowActive,
                 saveDraftCounter: saveDraftCounter,
                 onSaveDraft: handleSaveDraft,
@@ -403,10 +470,64 @@ struct DynamoDBItemBrowserView: View {
                     }
                 }
                 Spacer()
+
+                if !items.isEmpty {
+                    Menu {
+                        Button("Export as JSON") { exportAsJSON() }
+                        Button("Export as CSV") { exportAsCSV() }
+                    } label: {
+                        Label("Export", systemImage: "square.and.arrow.up")
+                            .font(.callout)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .frame(width: 80)
+                }
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
+    }
+
+    // MARK: - Export
+
+    private func exportAsJSON() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "\(table.tableName).json"
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            let jsonItems = items.map { $0.toJSON() }
+            guard let data = try? JSONSerialization.data(withJSONObject: jsonItems, options: [.prettyPrinted, .sortedKeys]) else { return }
+            try? data.write(to: url)
+        }
+    }
+
+    private func exportAsCSV() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.commaSeparatedText]
+        panel.nameFieldStringValue = "\(table.tableName).csv"
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            // Collect all column names
+            let allColumns = gridColumns.map(\.name)
+            // Header
+            var csv = allColumns.map { csvEscape($0) }.joined(separator: ",") + "\n"
+            // Rows
+            for item in items {
+                let row = allColumns.map { col in
+                    csvEscape(item.attributes[col]?.displayString ?? "")
+                }.joined(separator: ",")
+                csv += row + "\n"
+            }
+            try? csv.write(to: url, atomically: true, encoding: .utf8)
+        }
+    }
+
+    private func csvEscape(_ value: String) -> String {
+        if value.contains(",") || value.contains("\"") || value.contains("\n") {
+            return "\"" + value.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+        }
+        return value
     }
 
     // MARK: - Inline Draft
@@ -420,26 +541,45 @@ struct DynamoDBItemBrowserView: View {
             serviceError = ServiceError(code: "ValidationError", message: "Partition key (\(pkName)) is required.")
             return
         }
+        let pkType = tableDetail.attributeType(for: pkName) ?? "S"
+        if pkType == "N" && !isValidNumber(pkValue) {
+            serviceError = ServiceError(code: "ValidationError", message: "Partition key (\(pkName)) expects a number value.")
+            return
+        }
         if let skName, (values[skName] ?? "").isEmpty {
             serviceError = ServiceError(code: "ValidationError", message: "Sort key (\(skName)) is required.")
             return
         }
+        if let skName, let skValue = values[skName], !skValue.isEmpty {
+            let skType = tableDetail.attributeType(for: skName) ?? "S"
+            if skType == "N" && !isValidNumber(skValue) {
+                serviceError = ServiceError(code: "ValidationError", message: "Sort key (\(skName)) expects a number value.")
+                return
+            }
+        }
 
         // Build item
         var item: [String: AttributeValue] = [:]
-
-        let pkType = tableDetail.attributeType(for: pkName) ?? "S"
         item[pkName] = pkType == "N" ? .number(pkValue) : .string(pkValue)
 
         if let skName, let skValue = values[skName], !skValue.isEmpty {
-            let skType = tableDetail.attributeType(for: skName) ?? "S"
-            item[skName] = skType == "N" ? .number(skValue) : .string(skValue)
+            let skTypeVal = tableDetail.attributeType(for: skName) ?? "S"
+            item[skName] = skTypeVal == "N" ? .number(skValue) : .string(skValue)
         }
 
         for (key, value) in values {
             if key == pkName || key == skName { continue }
             if value.isEmpty { continue }
-            item[key] = .string(value)
+            // Infer type from existing items or schema
+            let inferredType = inferAttributeType(for: key)
+            switch inferredType {
+            case "N":
+                item[key] = .number(value)
+            case "BOOL" where value.lowercased() == "true" || value.lowercased() == "false":
+                item[key] = .bool(value.lowercased() == "true")
+            default:
+                item[key] = .string(value)
+            }
         }
 
         Task {
@@ -514,6 +654,7 @@ struct DynamoDBItemBrowserView: View {
             do {
                 let result = try await service.scan(
                     tableName: table.tableName,
+                    limit: scanLimit,
                     exclusiveStartKey: startKey,
                     filterExpression: filterExpression.isEmpty ? nil : filterExpression
                 )
@@ -588,6 +729,7 @@ struct DynamoDBItemBrowserView: View {
                     expressionAttributeValues: exprValues,
                     expressionAttributeNames: exprNames,
                     indexName: selectedIndexName,
+                    limit: scanLimit,
                     exclusiveStartKey: startKey,
                     filterExpression: filterExpression.isEmpty ? nil : filterExpression
                 )
@@ -645,6 +787,26 @@ struct DynamoDBItemBrowserView: View {
 
     private func copyItemAsJSON(_ item: DynamoDBItem) {
         copyToClipboard(item.toDisplayJSON())
+    }
+
+    /// Infer the DynamoDB type for a non-key attribute by checking existing items
+    private func inferAttributeType(for key: String) -> String {
+        // Check attribute definitions first (for key attributes)
+        if let defType = tableDetail.attributeType(for: key) {
+            return defType
+        }
+        // Look at existing items to infer type
+        for item in items {
+            if let value = item.attributes[key] {
+                switch value {
+                case .number: return "N"
+                case .bool: return "BOOL"
+                case .string: return "S"
+                default: return "S"
+                }
+            }
+        }
+        return "S"
     }
 }
 
