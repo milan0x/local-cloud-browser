@@ -5,7 +5,7 @@ enum KinesisTab: String, CaseIterable {
     case firehose = "Firehose"
 }
 
-struct FirehoseDeliveryStreamSummary: Identifiable, Hashable {
+struct FirehoseDeliveryStreamSummary: Identifiable, Hashable, Sendable {
     let deliveryStreamName: String
     let deliveryStreamARN: String
     let deliveryStreamStatus: String

@@ -244,17 +244,19 @@ struct SQSQueueListView: View {
             for _ in 0..<min(10, queues.count) {
                 if let queue = queueIterator.next() {
                     inFlight += 1
+                    let url = queue.queueUrl
+                    let name = queue.queueName
                     group.addTask { [service] in
                         do {
                             let attrs = try await service.getQueueAttributes(
-                                queueUrl: queue.queueUrl,
+                                queueUrl: url,
                                 attributeNames: ["ApproximateNumberOfMessages"]
                             )
                             let count = Int(attrs["ApproximateNumberOfMessages"] ?? "") ?? 0
-                            return (queue.queueUrl, count)
+                            return (url, count)
                         } catch {
-                            Log.warn("Failed to fetch message count for \(queue.queueName): \(error.localizedDescription)", category: "SQS")
-                            return (queue.queueUrl, nil)
+                            Log.warn("Failed to fetch message count for \(name): \(error.localizedDescription)", category: "SQS")
+                            return (url, nil)
                         }
                     }
                 }
@@ -266,17 +268,19 @@ struct SQSQueueListView: View {
                 if let count { collected[url] = count }
                 if let queue = queueIterator.next() {
                     inFlight += 1
+                    let nextUrl = queue.queueUrl
+                    let nextName = queue.queueName
                     group.addTask { [service] in
                         do {
                             let attrs = try await service.getQueueAttributes(
-                                queueUrl: queue.queueUrl,
+                                queueUrl: nextUrl,
                                 attributeNames: ["ApproximateNumberOfMessages"]
                             )
                             let count = Int(attrs["ApproximateNumberOfMessages"] ?? "") ?? 0
-                            return (queue.queueUrl, count)
+                            return (nextUrl, count)
                         } catch {
-                            Log.warn("Failed to fetch message count for \(queue.queueName): \(error.localizedDescription)", category: "SQS")
-                            return (queue.queueUrl, nil)
+                            Log.warn("Failed to fetch message count for \(nextName): \(error.localizedDescription)", category: "SQS")
+                            return (nextUrl, nil)
                         }
                     }
                 }
@@ -291,6 +295,7 @@ struct SQSQueueListView: View {
 
     private func deleteQueues(_ targets: [SQSQueue]) {
         Task {
+            selectedQueueIDs.subtract(Set(targets.map(\.id)))
             let (deleted, error) = await batchDelete(targets) {
                 try await service.deleteQueue(queueUrl: $0.queueUrl)
             }

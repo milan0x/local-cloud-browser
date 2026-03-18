@@ -272,14 +272,16 @@ struct SNSTopicListView: View {
             for _ in 0..<min(10, uncachedTopics.count) {
                 if let topic = topicIterator.next() {
                     inFlight += 1
+                    let arn = topic.topicArn
+                    let name = topic.topicName
                     group.addTask { [service] in
                         do {
-                            let attrs = try await service.getTopicAttributes(topicArn: topic.topicArn)
+                            let attrs = try await service.getTopicAttributes(topicArn: arn)
                             let count = Int(attrs["SubscriptionsConfirmed"] ?? "") ?? 0
-                            return (topic.topicArn, count)
+                            return (arn, count)
                         } catch {
-                            Log.warn("Failed to fetch subscription count for \(topic.topicName): \(error.localizedDescription)", category: "SNS")
-                            return (topic.topicArn, nil)
+                            Log.warn("Failed to fetch subscription count for \(name): \(error.localizedDescription)", category: "SNS")
+                            return (arn, nil)
                         }
                     }
                 }
@@ -292,14 +294,16 @@ struct SNSTopicListView: View {
                 // Launch next task to maintain concurrency
                 if let topic = topicIterator.next() {
                     inFlight += 1
+                    let nextArn = topic.topicArn
+                    let nextName = topic.topicName
                     group.addTask { [service] in
                         do {
-                            let attrs = try await service.getTopicAttributes(topicArn: topic.topicArn)
+                            let attrs = try await service.getTopicAttributes(topicArn: nextArn)
                             let count = Int(attrs["SubscriptionsConfirmed"] ?? "") ?? 0
-                            return (topic.topicArn, count)
+                            return (nextArn, count)
                         } catch {
-                            Log.warn("Failed to fetch subscription count for \(topic.topicName): \(error.localizedDescription)", category: "SNS")
-                            return (topic.topicArn, nil)
+                            Log.warn("Failed to fetch subscription count for \(nextName): \(error.localizedDescription)", category: "SNS")
+                            return (nextArn, nil)
                         }
                     }
                 }
@@ -316,6 +320,7 @@ struct SNSTopicListView: View {
 
     private func deleteTopics(_ targets: [SNSTopic]) {
         Task {
+            selectedTopicIDs.subtract(Set(targets.map(\.id)))
             let (deleted, error) = await batchDelete(targets) {
                 try await service.deleteTopic(topicArn: $0.topicArn)
             }
