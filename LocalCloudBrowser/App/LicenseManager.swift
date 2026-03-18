@@ -80,7 +80,6 @@ final class LicenseManager: ObservableObject {
         if isPaid { return true }
         guard let service else { return true }
         if remainingCreates(for: service) > 0 { return true }
-        let used = createCount(for: service)
         upgradeContext = "You've reached the free limit of \(Self.freeCreateLimit) \(service.displayName) creates."
         showUpgradeSheet = true
         return false
