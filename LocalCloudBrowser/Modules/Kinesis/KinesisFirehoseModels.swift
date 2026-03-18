@@ -14,7 +14,7 @@ struct FirehoseDeliveryStreamSummary: Identifiable, Hashable, Sendable {
 
     var id: String { deliveryStreamName }
 
-    init(from dict: [String: Any]) {
+    nonisolated init(from dict: [String: Any]) {
         deliveryStreamName = dict["DeliveryStreamName"] as? String ?? ""
         deliveryStreamARN = dict["DeliveryStreamARN"] as? String ?? ""
         deliveryStreamStatus = dict["DeliveryStreamStatus"] as? String ?? "ACTIVE"
@@ -26,7 +26,7 @@ struct FirehoseDeliveryStreamSummary: Identifiable, Hashable, Sendable {
         }
     }
 
-    init(deliveryStreamName: String = "", deliveryStreamARN: String = "",
+    nonisolated init(deliveryStreamName: String = "", deliveryStreamARN: String = "",
          deliveryStreamStatus: String = "ACTIVE", deliveryStreamType: String = "DirectPut",
          createTimestamp: Date? = nil) {
         self.deliveryStreamName = deliveryStreamName
