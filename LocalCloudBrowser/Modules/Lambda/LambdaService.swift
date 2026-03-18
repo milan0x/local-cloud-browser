@@ -3,30 +3,33 @@ import Foundation
 final class LambdaService: BaseService {
     // MARK: - Function Operations
 
+    func listFunctionsPage(token: String? = nil, region: String? = nil) async throws -> ([LambdaFunction], String?) {
+        var path = "/functions"
+        if let token {
+            path += "?Marker=\(token)"
+        }
+        let response = try await client.lambdaRequest(
+            action: "ListFunctions",
+            method: "GET",
+            path: path,
+            region: region
+        )
+        guard let json = try JSONSerialization.jsonObject(with: response.data) as? [String: Any] else {
+            return ([], nil)
+        }
+        let functions = (json["Functions"] as? [[String: Any]] ?? []).map { LambdaFunction(from: $0) }
+        return (functions, json["NextMarker"] as? String)
+    }
+
     func listFunctions(region: String? = nil) async throws -> [LambdaFunction] {
         var allFunctions: [LambdaFunction] = []
         var marker: String? = nil
-
         repeat {
-            var path = "/functions"
-            if let marker {
-                path += "?Marker=\(marker)"
-            }
-            let response = try await client.lambdaRequest(
-                action: "ListFunctions",
-                method: "GET",
-                path: path,
-                region: region
-            )
-            guard let json = try JSONSerialization.jsonObject(with: response.data) as? [String: Any] else {
-                break
-            }
-            if let functions = json["Functions"] as? [[String: Any]] {
-                allFunctions.append(contentsOf: functions.map { LambdaFunction(from: $0) })
-            }
-            marker = json["NextMarker"] as? String
+            let (functions, token) = try await listFunctionsPage(token: marker, region: region)
+            allFunctions.append(contentsOf: functions)
+            marker = token
+            if allFunctions.count >= 10_000 { break }
         } while marker != nil
-
         return allFunctions
     }
 

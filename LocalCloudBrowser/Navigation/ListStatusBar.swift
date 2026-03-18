@@ -5,23 +5,24 @@ struct ListStatusBar: View {
     let selectedCount: Int
     let noun: String
     var pluralNoun: String?
+    var hasMorePages: Bool = false
 
     var body: some View {
         if totalCount > 0 {
             Divider()
-            HStack {
-                Text("\(totalCount) \(totalCount == 1 ? noun : (pluralNoun ?? noun + "s"))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                Text("\(totalCount)\(hasMorePages ? "+" : "") \(totalCount == 1 && !hasMorePages ? noun : (pluralNoun ?? noun + "s"))")
+                    .font(.callout)
+                    .foregroundStyle(.primary)
                 if selectedCount > 1 {
                     Text("(\(selectedCount) selected)")
-                        .font(.caption)
+                        .font(.callout)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 4)
+            .padding(.vertical, 6)
         }
     }
 }

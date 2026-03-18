@@ -3,10 +3,7 @@ import Foundation
 final class CloudFormationService: BaseService {
     // MARK: - Stacks
 
-    func listStacks(region: String? = nil) async throws -> [CloudFormationStack] {
-        var allStacks: [CloudFormationStack] = []
-        var nextToken: String? = nil
-
+    func listStacksPage(region: String? = nil, token: String? = nil) async throws -> ([CloudFormationStack], String?) {
         // Exclude DELETE_COMPLETE stacks by default
         let statusFilters = [
             "CREATE_IN_PROGRESS", "CREATE_FAILED", "CREATE_COMPLETE",
@@ -19,21 +16,29 @@ final class CloudFormationService: BaseService {
             "REVIEW_IN_PROGRESS",
         ]
 
-        repeat {
-            var params: [String: String] = [:]
-            for (i, status) in statusFilters.enumerated() {
-                params["StackStatusFilter.member.\(i + 1)"] = status
-            }
-            if let token = nextToken {
-                params["NextToken"] = token
-            }
-            let data = try await client.cloudFormationRequest(action: "ListStacks", params: params, region: region)
-            let xml = try SNSXMLParser.parse(data)
+        var params: [String: String] = [:]
+        for (i, status) in statusFilters.enumerated() {
+            params["StackStatusFilter.member.\(i + 1)"] = status
+        }
+        if let token {
+            params["NextToken"] = token
+        }
+        let data = try await client.cloudFormationRequest(action: "ListStacks", params: params, region: region)
+        let xml = try SNSXMLParser.parse(data)
 
-            for member in xml.memberDicts {
-                allStacks.append(CloudFormationStack(from: member))
-            }
-            nextToken = xml.first("NextToken")
+        let stacks = xml.memberDicts.map { CloudFormationStack(from: $0) }
+        return (stacks, xml.first("NextToken"))
+    }
+
+    func listStacks(region: String? = nil) async throws -> [CloudFormationStack] {
+        var allStacks: [CloudFormationStack] = []
+        var nextToken: String? = nil
+
+        repeat {
+            let (stacks, token) = try await listStacksPage(region: region, token: nextToken)
+            allStacks.append(contentsOf: stacks)
+            nextToken = token
+            if allStacks.count >= 10_000 { break }
         } while nextToken != nil
 
         return allStacks
@@ -83,22 +88,27 @@ final class CloudFormationService: BaseService {
 
     // MARK: - Resources
 
+    func listStackResourcesPage(name: String, token: String? = nil) async throws -> ([CloudFormationResource], String?) {
+        var params: [String: String] = ["StackName": name]
+        if let token {
+            params["NextToken"] = token
+        }
+        let data = try await client.cloudFormationRequest(action: "ListStackResources", params: params)
+        let xml = try SNSXMLParser.parse(data)
+
+        let resources = xml.memberDicts.map { CloudFormationResource(from: $0) }
+        return (resources, xml.first("NextToken"))
+    }
+
     func listStackResources(name: String) async throws -> [CloudFormationResource] {
         var allResources: [CloudFormationResource] = []
         var nextToken: String? = nil
 
         repeat {
-            var params: [String: String] = ["StackName": name]
-            if let token = nextToken {
-                params["NextToken"] = token
-            }
-            let data = try await client.cloudFormationRequest(action: "ListStackResources", params: params)
-            let xml = try SNSXMLParser.parse(data)
-
-            for member in xml.memberDicts {
-                allResources.append(CloudFormationResource(from: member))
-            }
-            nextToken = xml.first("NextToken")
+            let (resources, token) = try await listStackResourcesPage(name: name, token: nextToken)
+            allResources.append(contentsOf: resources)
+            nextToken = token
+            if allResources.count >= 10_000 { break }
         } while nextToken != nil
 
         return allResources
@@ -106,22 +116,27 @@ final class CloudFormationService: BaseService {
 
     // MARK: - Events
 
+    func describeStackEventsPage(name: String, token: String? = nil) async throws -> ([CloudFormationEvent], String?) {
+        var params: [String: String] = ["StackName": name]
+        if let token {
+            params["NextToken"] = token
+        }
+        let data = try await client.cloudFormationRequest(action: "DescribeStackEvents", params: params)
+        let xml = try SNSXMLParser.parse(data)
+
+        let events = xml.memberDicts.map { CloudFormationEvent(from: $0) }
+        return (events, xml.first("NextToken"))
+    }
+
     func describeStackEvents(name: String) async throws -> [CloudFormationEvent] {
         var allEvents: [CloudFormationEvent] = []
         var nextToken: String? = nil
 
         repeat {
-            var params: [String: String] = ["StackName": name]
-            if let token = nextToken {
-                params["NextToken"] = token
-            }
-            let data = try await client.cloudFormationRequest(action: "DescribeStackEvents", params: params)
-            let xml = try SNSXMLParser.parse(data)
-
-            for member in xml.memberDicts {
-                allEvents.append(CloudFormationEvent(from: member))
-            }
-            nextToken = xml.first("NextToken")
+            let (events, token) = try await describeStackEventsPage(name: name, token: nextToken)
+            allEvents.append(contentsOf: events)
+            nextToken = token
+            if allEvents.count >= 10_000 { break }
         } while nextToken != nil
 
         return allEvents

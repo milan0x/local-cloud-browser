@@ -17,7 +17,7 @@ struct DynamoDBTableListView: View {
     @State private var tableToShowAttributes: DynamoDBTable?
     @State private var searchText = ""
     @State private var pendingSelectName: String?
-    @StateObject private var loader = ListLoader<DynamoDBTable>()
+    @StateObject private var loader = PaginatedListLoader<DynamoDBTable>()
     private var tables: [DynamoDBTable] { loader.items }
 
     var body: some View {
@@ -177,7 +177,58 @@ struct DynamoDBTableListView: View {
                     }
                 })
 
-                ListStatusBar(totalCount: tables.count, selectedCount: selectedTableIDs.count, noun: "table")
+                if loader.hasMorePages {
+                    Divider()
+                    HStack {
+                        Spacer()
+                        Button {
+                            loader.loadMore()
+                        } label: {
+                            if loader.isLoadingMore {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .padding(.trailing, 4)
+                                Text("Loading...")
+                            } else {
+                                Text("Load More")
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(loader.isLoadingMore)
+                        .font(.caption)
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                if filteredTables.isEmpty && !searchText.isEmpty && loader.hasMorePages {
+                    VStack(spacing: 6) {
+                        Text("No matches in loaded items.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Search all items") {
+                            let query = searchText.lowercased()
+                            loader.searchAll { $0.tableName.lowercased().contains(query) }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.borderless)
+                        if loader.isSearchingAll {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                if loader.searchAllHitCap {
+                    Text("Showing results from first 10,000 items. Refine your search for better results.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                }
+
+                ListStatusBar(totalCount: tables.count, selectedCount: selectedTableIDs.count, noun: "table", hasMorePages: loader.hasMorePages)
             }
         }
     }
@@ -186,7 +237,7 @@ struct DynamoDBTableListView: View {
 
     private func loadTables(force: Bool = false, silent: Bool = false) {
         loader.load(force: force, silent: silent,
-            fetch: { [service] in try await service.listTables() },
+            fetch: { [service] token in try await service.listTablesPage(token: token) },
             sort: { $0.tableName.localizedStandardCompare($1.tableName) == .orderedAscending }
         ) { [self] items in
             if !loader.hasRestoredSession, let savedName = restoreTableName,

@@ -3,21 +3,28 @@ import Foundation
 final class Route53Service: BaseService {
     // MARK: - Hosted Zone Operations
 
+    func listHostedZonesPage(token: String? = nil) async throws -> ([Route53HostedZone], String?) {
+        var path = "/hostedzone"
+        if let token {
+            path += "?marker=\(token)"
+        }
+        let data = try await client.route53Request(method: "GET", path: path)
+        let parser = Route53HostedZoneListParser()
+        let result = try parser.parse(data: data)
+        let next = result.isTruncated ? result.nextMarker : nil
+        return (result.zones, next)
+    }
+
     func listHostedZones() async throws -> [Route53HostedZone] {
         var allZones: [Route53HostedZone] = []
-        var nextMarker: String?
+        var nextToken: String? = nil
 
         repeat {
-            var path = "/hostedzone"
-            if let marker = nextMarker {
-                path += "?marker=\(marker)"
-            }
-            let data = try await client.route53Request(method: "GET", path: path)
-            let parser = Route53HostedZoneListParser()
-            let result = try parser.parse(data: data)
-            allZones.append(contentsOf: result.zones)
-            nextMarker = result.isTruncated ? result.nextMarker : nil
-        } while nextMarker != nil
+            let (zones, token) = try await listHostedZonesPage(token: nextToken)
+            allZones.append(contentsOf: zones)
+            nextToken = token
+            if allZones.count >= 10_000 { break }
+        } while nextToken != nil
 
         return allZones
     }
@@ -45,34 +52,38 @@ final class Route53Service: BaseService {
 
     // MARK: - Record Set Operations
 
+    func listResourceRecordSetsPage(zoneId: String, nextRecordName: String? = nil, nextRecordType: String? = nil) async throws -> ([Route53RecordSet], String?, String?) {
+        var path = "/hostedzone/\(zoneId)/rrset"
+        var queryParts: [String] = []
+        if let name = nextRecordName {
+            queryParts.append("name=\(name)")
+        }
+        if let type = nextRecordType {
+            queryParts.append("type=\(type)")
+        }
+        if !queryParts.isEmpty {
+            path += "?" + queryParts.joined(separator: "&")
+        }
+        let data = try await client.route53Request(method: "GET", path: path)
+        let parser = Route53RecordSetListParser()
+        let result = try parser.parse(data: data)
+        if result.isTruncated {
+            return (result.recordSets, result.nextRecordName, result.nextRecordType)
+        }
+        return (result.recordSets, nil, nil)
+    }
+
     func listResourceRecordSets(zoneId: String) async throws -> [Route53RecordSet] {
         var allRecords: [Route53RecordSet] = []
         var nextName: String?
         var nextType: String?
 
         repeat {
-            var path = "/hostedzone/\(zoneId)/rrset"
-            var queryParts: [String] = []
-            if let name = nextName {
-                queryParts.append("name=\(name)")
-            }
-            if let type = nextType {
-                queryParts.append("type=\(type)")
-            }
-            if !queryParts.isEmpty {
-                path += "?" + queryParts.joined(separator: "&")
-            }
-            let data = try await client.route53Request(method: "GET", path: path)
-            let parser = Route53RecordSetListParser()
-            let result = try parser.parse(data: data)
-            allRecords.append(contentsOf: result.recordSets)
-            if result.isTruncated {
-                nextName = result.nextRecordName
-                nextType = result.nextRecordType
-            } else {
-                nextName = nil
-                nextType = nil
-            }
+            let (records, name, type) = try await listResourceRecordSetsPage(zoneId: zoneId, nextRecordName: nextName, nextRecordType: nextType)
+            allRecords.append(contentsOf: records)
+            nextName = name
+            nextType = type
+            if allRecords.count >= 10_000 { break }
         } while nextName != nil
 
         return allRecords

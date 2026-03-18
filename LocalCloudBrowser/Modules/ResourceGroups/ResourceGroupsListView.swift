@@ -10,7 +10,7 @@ struct ResourceGroupsListView: View {
     @Binding var activeGroup: ResourceGroupSummary?
     var restoreGroupName: String?
 
-    @StateObject private var loader = ListLoader<ResourceGroupSummary>()
+    @StateObject private var loader = PaginatedListLoader<ResourceGroupSummary>()
     private var groups: [ResourceGroupSummary] { loader.items }
     @State private var showCreateSheet = false
     @State private var groupsToDelete: [ResourceGroupSummary] = []
@@ -166,7 +166,58 @@ struct ResourceGroupsListView: View {
                     .disabled(appState.isReadOnly)
                 }
 
-                ListStatusBar(totalCount: groups.count, selectedCount: selectedGroupIDs.count, noun: "group")
+                if loader.hasMorePages {
+                    Divider()
+                    HStack {
+                        Spacer()
+                        Button {
+                            loader.loadMore()
+                        } label: {
+                            if loader.isLoadingMore {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .padding(.trailing, 4)
+                                Text("Loading...")
+                            } else {
+                                Text("Load More")
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(loader.isLoadingMore)
+                        .font(.caption)
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                if filteredGroups.isEmpty && !searchText.isEmpty && loader.hasMorePages {
+                    VStack(spacing: 6) {
+                        Text("No matches in loaded items.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Search all items") {
+                            let query = searchText.lowercased()
+                            loader.searchAll { $0.name.lowercased().contains(query) }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.borderless)
+                        if loader.isSearchingAll {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                if loader.searchAllHitCap {
+                    Text("Showing results from first 10,000 items. Refine your search for better results.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                }
+
+                ListStatusBar(totalCount: groups.count, selectedCount: selectedGroupIDs.count, noun: "group", hasMorePages: loader.hasMorePages)
             }
         }
     }
@@ -175,7 +226,7 @@ struct ResourceGroupsListView: View {
 
     private func loadGroups(force: Bool = false, silent: Bool = false) {
         loader.load(force: force, silent: silent,
-            fetch: { [service] in try await service.listGroups() },
+            fetch: { [service] token in try await service.listGroupsPage(token: token) },
             sort: { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         ) { [self] items in
             if !loader.hasRestoredSession, let savedName = restoreGroupName,

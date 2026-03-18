@@ -3,32 +3,40 @@ import Foundation
 final class ResourceGroupsService: BaseService {
     // MARK: - Read Operations
 
+    func listGroupsPage(region: String? = nil, token: String? = nil) async throws -> ([ResourceGroupSummary], String?) {
+        var payload: [String: Any] = [:]
+        if let token {
+            payload["NextToken"] = token
+        }
+        let body = payload.isEmpty ? nil : try JSONSerialization.data(withJSONObject: payload)
+        let data = try await client.resourceGroupsRequest(
+            action: "ListGroups",
+            method: "POST",
+            path: "/groups-list",
+            body: body,
+            region: region
+        )
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return ([], nil)
+        }
+        var groups: [ResourceGroupSummary] = []
+        if let identifiers = json["GroupIdentifiers"] as? [[String: Any]] {
+            groups.append(contentsOf: identifiers.map { ResourceGroupSummary(from: $0) })
+        } else if let groupList = json["Groups"] as? [[String: Any]] {
+            groups.append(contentsOf: groupList.map { ResourceGroupSummary(from: $0) })
+        }
+        return (groups, json["NextToken"] as? String)
+    }
+
     func listGroups(region: String? = nil) async throws -> [ResourceGroupSummary] {
         var allGroups: [ResourceGroupSummary] = []
         var nextToken: String?
 
         repeat {
-            var payload: [String: Any] = [:]
-            if let token = nextToken {
-                payload["NextToken"] = token
-            }
-            let body = payload.isEmpty ? nil : try JSONSerialization.data(withJSONObject: payload)
-            let data = try await client.resourceGroupsRequest(
-                action: "ListGroups",
-                method: "POST",
-                path: "/groups-list",
-                body: body,
-                region: region
-            )
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                break
-            }
-            if let identifiers = json["GroupIdentifiers"] as? [[String: Any]] {
-                allGroups.append(contentsOf: identifiers.map { ResourceGroupSummary(from: $0) })
-            } else if let groups = json["Groups"] as? [[String: Any]] {
-                allGroups.append(contentsOf: groups.map { ResourceGroupSummary(from: $0) })
-            }
-            nextToken = json["NextToken"] as? String
+            let (groups, token) = try await listGroupsPage(region: region, token: nextToken)
+            allGroups.append(contentsOf: groups)
+            nextToken = token
+            if allGroups.count >= 10_000 { break }
         } while nextToken != nil
 
         return allGroups
@@ -66,31 +74,39 @@ final class ResourceGroupsService: BaseService {
         return ResourceGroupQuery(from: resourceQuery)
     }
 
+    func listGroupResourcesPage(name: String, token: String? = nil) async throws -> ([GroupResource], String?) {
+        var payload: [String: Any] = ["GroupName": name]
+        if let token {
+            payload["NextToken"] = token
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let data = try await client.resourceGroupsRequest(
+            action: "ListGroupResources",
+            method: "POST",
+            path: "/list-group-resources",
+            body: body
+        )
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return ([], nil)
+        }
+        var resources: [GroupResource] = []
+        if let identifiers = json["ResourceIdentifiers"] as? [[String: Any]] {
+            resources.append(contentsOf: identifiers.map { GroupResource(from: $0) })
+        } else if let resList = json["Resources"] as? [[String: Any]] {
+            resources.append(contentsOf: resList.map { GroupResource(from: $0) })
+        }
+        return (resources, json["NextToken"] as? String)
+    }
+
     func listGroupResources(name: String) async throws -> [GroupResource] {
         var allResources: [GroupResource] = []
         var nextToken: String?
 
         repeat {
-            var payload: [String: Any] = ["GroupName": name]
-            if let token = nextToken {
-                payload["NextToken"] = token
-            }
-            let body = try JSONSerialization.data(withJSONObject: payload)
-            let data = try await client.resourceGroupsRequest(
-                action: "ListGroupResources",
-                method: "POST",
-                path: "/list-group-resources",
-                body: body
-            )
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                break
-            }
-            if let resources = json["ResourceIdentifiers"] as? [[String: Any]] {
-                allResources.append(contentsOf: resources.map { GroupResource(from: $0) })
-            } else if let resources = json["Resources"] as? [[String: Any]] {
-                allResources.append(contentsOf: resources.map { GroupResource(from: $0) })
-            }
-            nextToken = json["NextToken"] as? String
+            let (resources, token) = try await listGroupResourcesPage(name: name, token: nextToken)
+            allResources.append(contentsOf: resources)
+            nextToken = token
+            if allResources.count >= 10_000 { break }
         } while nextToken != nil
 
         return allResources

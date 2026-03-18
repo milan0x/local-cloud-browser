@@ -3,26 +3,33 @@ import Foundation
 final class CloudWatchService: BaseService {
     // MARK: - Metrics
 
+    func listMetricsPage(namespace: String? = nil, region: String? = nil, token: String? = nil) async throws -> ([CloudWatchMetric], String?) {
+        var payload: [String: Any] = [:]
+        if let namespace {
+            payload["Namespace"] = namespace
+        }
+        if let token {
+            payload["NextToken"] = token
+        }
+
+        let data = try await client.cloudWatchRequest(action: "ListMetrics", payload: payload, region: region)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return ([], nil)
+        }
+
+        let metrics = (json["Metrics"] as? [[String: Any]] ?? []).map { CloudWatchMetric(from: $0) }
+        return (metrics, json["NextToken"] as? String)
+    }
+
     func listMetrics(namespace: String? = nil, region: String? = nil) async throws -> [CloudWatchMetric] {
         var allMetrics: [CloudWatchMetric] = []
         var nextToken: String? = nil
 
         repeat {
-            var payload: [String: Any] = [:]
-            if let namespace {
-                payload["Namespace"] = namespace
-            }
-            if let nextToken {
-                payload["NextToken"] = nextToken
-            }
-
-            let data = try await client.cloudWatchRequest(action: "ListMetrics", payload: payload, region: region)
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { break }
-
-            if let metrics = json["Metrics"] as? [[String: Any]] {
-                allMetrics.append(contentsOf: metrics.map { CloudWatchMetric(from: $0) })
-            }
-            nextToken = json["NextToken"] as? String
+            let (metrics, token) = try await listMetricsPage(namespace: namespace, region: region, token: nextToken)
+            allMetrics.append(contentsOf: metrics)
+            nextToken = token
+            if allMetrics.count >= 10_000 { break }
         } while nextToken != nil
 
         return allMetrics
@@ -81,23 +88,30 @@ final class CloudWatchService: BaseService {
 
     // MARK: - Alarms
 
+    func describeAlarmsPage(region: String? = nil, token: String? = nil) async throws -> ([CloudWatchAlarm], String?) {
+        var payload: [String: Any] = [:]
+        if let token {
+            payload["NextToken"] = token
+        }
+
+        let data = try await client.cloudWatchRequest(action: "DescribeAlarms", payload: payload, region: region)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return ([], nil)
+        }
+
+        let alarms = (json["MetricAlarms"] as? [[String: Any]] ?? []).map { CloudWatchAlarm(from: $0) }
+        return (alarms, json["NextToken"] as? String)
+    }
+
     func describeAlarms(region: String? = nil) async throws -> [CloudWatchAlarm] {
         var allAlarms: [CloudWatchAlarm] = []
         var nextToken: String? = nil
 
         repeat {
-            var payload: [String: Any] = [:]
-            if let nextToken {
-                payload["NextToken"] = nextToken
-            }
-
-            let data = try await client.cloudWatchRequest(action: "DescribeAlarms", payload: payload, region: region)
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { break }
-
-            if let alarms = json["MetricAlarms"] as? [[String: Any]] {
-                allAlarms.append(contentsOf: alarms.map { CloudWatchAlarm(from: $0) })
-            }
-            nextToken = json["NextToken"] as? String
+            let (alarms, token) = try await describeAlarmsPage(region: region, token: nextToken)
+            allAlarms.append(contentsOf: alarms)
+            nextToken = token
+            if allAlarms.count >= 10_000 { break }
         } while nextToken != nil
 
         return allAlarms

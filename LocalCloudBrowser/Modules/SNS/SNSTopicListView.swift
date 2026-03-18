@@ -12,7 +12,7 @@ struct SNSTopicListView: View {
     var paneFocusTrigger: Int = 0
 
     @FocusState private var isListFocused: Bool
-    @StateObject private var loader = ListLoader<SNSTopic>()
+    @StateObject private var loader = PaginatedListLoader<SNSTopic>()
     private var topics: [SNSTopic] { loader.items }
     @State private var subscriptionCounts: [String: Int] = [:]  // topicArn -> count
     @State private var showCreateSheet = false
@@ -175,6 +175,57 @@ struct SNSTopicListView: View {
                     topicToShowAttributes = topic
                 }
             })
+
+                if loader.hasMorePages {
+                    Divider()
+                    HStack {
+                        Spacer()
+                        Button {
+                            loader.loadMore()
+                        } label: {
+                            if loader.isLoadingMore {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .padding(.trailing, 4)
+                                Text("Loading...")
+                            } else {
+                                Text("Load More")
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(loader.isLoadingMore)
+                        .font(.caption)
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                if filteredTopics.isEmpty && !searchText.isEmpty && loader.hasMorePages {
+                    VStack(spacing: 6) {
+                        Text("No matches in loaded items.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Search all items") {
+                            let query = searchText.lowercased()
+                            loader.searchAll { $0.topicName.lowercased().contains(query) }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.borderless)
+                        if loader.isSearchingAll {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                if loader.searchAllHitCap {
+                    Text("Showing results from first 10,000 items. Refine your search for better results.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                }
             }
         }
     }
@@ -183,7 +234,7 @@ struct SNSTopicListView: View {
 
     private func loadTopics(force: Bool = false, silent: Bool = false) {
         loader.load(force: force, silent: silent,
-            fetch: { [service] in try await service.listTopics() },
+            fetch: { [service] token in try await service.listTopicsPage(token: token) },
             sort: { $0.topicName.localizedStandardCompare($1.topicName) == .orderedAscending }
         ) { [self] items in
             if !loader.hasRestoredSession, let savedArn = restoreTopicArn,

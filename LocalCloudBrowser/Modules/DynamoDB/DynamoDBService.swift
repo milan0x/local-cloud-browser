@@ -3,13 +3,32 @@ import Foundation
 final class DynamoDBService: BaseService {
     // MARK: - Table Operations
 
-    func listTables(region: String? = nil) async throws -> [DynamoDBTable] {
-        let data = try await client.dynamodbRequest(action: "ListTables", region: region)
+    func listTablesPage(region: String? = nil, token: String? = nil) async throws -> ([DynamoDBTable], String?) {
+        var payload: [String: Any] = [:]
+        if let token {
+            payload["ExclusiveStartTableName"] = token
+        }
+        let data = try await client.dynamodbRequest(action: "ListTables", payload: payload, region: region)
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let tableNames = json["TableNames"] as? [String] else {
-            return []
+            return ([], nil)
         }
-        return tableNames.map { DynamoDBTable(tableName: $0) }
+        let tables = tableNames.map { DynamoDBTable(tableName: $0) }
+        return (tables, json["LastEvaluatedTableName"] as? String)
+    }
+
+    func listTables(region: String? = nil) async throws -> [DynamoDBTable] {
+        var allTables: [DynamoDBTable] = []
+        var nextToken: String? = nil
+
+        repeat {
+            let (tables, token) = try await listTablesPage(region: region, token: nextToken)
+            allTables.append(contentsOf: tables)
+            nextToken = token
+            if allTables.count >= 10_000 { break }
+        } while nextToken != nil
+
+        return allTables
     }
 
     func describeTable(tableName: String) async throws -> DynamoDBTableDetail {

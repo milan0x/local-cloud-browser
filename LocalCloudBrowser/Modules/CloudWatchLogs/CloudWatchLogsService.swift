@@ -14,53 +14,59 @@ struct FilteredLogEventsResult {
 final class CloudWatchLogsService: BaseService {
     // MARK: - Log Groups
 
+    func describeLogGroupsPage(token: String? = nil, region: String? = nil) async throws -> ([CloudWatchLogGroup], String?) {
+        var payload: [String: Any] = [:]
+        if let token {
+            payload["nextToken"] = token
+        }
+        let data = try await client.cloudWatchLogsRequest(action: "DescribeLogGroups", payload: payload, region: region)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return ([], nil)
+        }
+        let groups = (json["logGroups"] as? [[String: Any]] ?? []).map { CloudWatchLogGroup(from: $0) }
+        return (groups, json["nextToken"] as? String)
+    }
+
     func describeLogGroups(region: String? = nil) async throws -> [CloudWatchLogGroup] {
         var allGroups: [CloudWatchLogGroup] = []
         var nextToken: String? = nil
-
         repeat {
-            var payload: [String: Any] = [:]
-            if let token = nextToken {
-                payload["nextToken"] = token
-            }
-            let data = try await client.cloudWatchLogsRequest(action: "DescribeLogGroups", payload: payload, region: region)
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                break
-            }
-            if let groups = json["logGroups"] as? [[String: Any]] {
-                allGroups.append(contentsOf: groups.map { CloudWatchLogGroup(from: $0) })
-            }
-            nextToken = json["nextToken"] as? String
+            let (groups, token) = try await describeLogGroupsPage(token: nextToken, region: region)
+            allGroups.append(contentsOf: groups)
+            nextToken = token
+            if allGroups.count >= 10_000 { break }
         } while nextToken != nil
-
         return allGroups
     }
 
     // MARK: - Log Streams
 
+    func describeLogStreamsPage(logGroupName: String, token: String? = nil) async throws -> ([CloudWatchLogStream], String?) {
+        var payload: [String: Any] = [
+            "logGroupName": logGroupName,
+            "orderBy": "LastEventTime",
+            "descending": true,
+        ]
+        if let token {
+            payload["nextToken"] = token
+        }
+        let data = try await client.cloudWatchLogsRequest(action: "DescribeLogStreams", payload: payload)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return ([], nil)
+        }
+        let streams = (json["logStreams"] as? [[String: Any]] ?? []).map { CloudWatchLogStream(from: $0) }
+        return (streams, json["nextToken"] as? String)
+    }
+
     func describeLogStreams(logGroupName: String) async throws -> [CloudWatchLogStream] {
         var allStreams: [CloudWatchLogStream] = []
         var nextToken: String? = nil
-
         repeat {
-            var payload: [String: Any] = [
-                "logGroupName": logGroupName,
-                "orderBy": "LastEventTime",
-                "descending": true,
-            ]
-            if let token = nextToken {
-                payload["nextToken"] = token
-            }
-            let data = try await client.cloudWatchLogsRequest(action: "DescribeLogStreams", payload: payload)
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                break
-            }
-            if let streams = json["logStreams"] as? [[String: Any]] {
-                allStreams.append(contentsOf: streams.map { CloudWatchLogStream(from: $0) })
-            }
-            nextToken = json["nextToken"] as? String
+            let (streams, token) = try await describeLogStreamsPage(logGroupName: logGroupName, token: nextToken)
+            allStreams.append(contentsOf: streams)
+            nextToken = token
+            if allStreams.count >= 10_000 { break }
         } while nextToken != nil
-
         return allStreams
     }
 

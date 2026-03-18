@@ -147,7 +147,6 @@ struct S3BucketListView: View {
     private var bucketListHeader: some View {
         ListHeaderBar(
             title: "Buckets",
-            subtitle: appState.region,
             autoRefresh: appState.autoRefresh,
             isReadOnly: appState.isReadOnly,
             itemCount: buckets.count,

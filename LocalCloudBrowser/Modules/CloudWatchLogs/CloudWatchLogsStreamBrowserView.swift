@@ -7,10 +7,8 @@ struct CloudWatchLogsStreamBrowserView: View {
     @ObservedObject var toolbarState: CloudWatchLogsToolbarState
     @EnvironmentObject private var appState: AppState
 
-    @State private var streams: [CloudWatchLogStream] = []
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var lastLoadTime: Date?
+    @StateObject private var loader = PaginatedListLoader<CloudWatchLogStream>()
+    private var streams: [CloudWatchLogStream] { loader.items }
     @State private var serviceError: ServiceError?
     @State private var searchText = ""
 
@@ -77,7 +75,7 @@ struct CloudWatchLogsStreamBrowserView: View {
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadStreams() }
-        .onAutoRefresh(canRefresh: { activeStream == nil && !showCreateStreamSheet && streamsToDelete.isEmpty && !isLoading }) {
+        .onAutoRefresh(canRefresh: { activeStream == nil && !showCreateStreamSheet && streamsToDelete.isEmpty && !loader.isLoading }) {
             loadStreams(force: true, silent: true)
         }
         .onChange(of: toolbarState.pendingAction) {
@@ -123,10 +121,10 @@ struct CloudWatchLogsStreamBrowserView: View {
 
         Divider()
 
-        if isLoading && streams.isEmpty {
+        if loader.isLoading && streams.isEmpty {
             ProgressView("Loading streams...")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let errorMessage, streams.isEmpty {
+        } else if let errorMessage = loader.errorMessage, streams.isEmpty {
             VStack(spacing: 8) {
                 Image(systemName: "exclamationmark.triangle")
                     .font(.title)
@@ -210,16 +208,58 @@ struct CloudWatchLogsStreamBrowserView: View {
                     .disabled(appState.isReadOnly)
                 }
 
-                // Status bar
-                Divider()
-                HStack {
-                    Text("\(streams.count) stream\(streams.count == 1 ? "" : "s")")
+                if loader.hasMorePages {
+                    Divider()
+                    HStack {
+                        Spacer()
+                        Button {
+                            loader.loadMore()
+                        } label: {
+                            if loader.isLoadingMore {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .padding(.trailing, 4)
+                                Text("Loading...")
+                            } else {
+                                Text("Load More")
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(loader.isLoadingMore)
+                        .font(.caption)
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                if filteredStreams.isEmpty && !searchText.isEmpty && loader.hasMorePages {
+                    VStack(spacing: 6) {
+                        Text("No matches in loaded items.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Search all items") {
+                            let query = searchText.lowercased()
+                            loader.searchAll { $0.logStreamName.lowercased().contains(query) }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.borderless)
+                        if loader.isSearchingAll {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                if loader.searchAllHitCap {
+                    Text("Showing results from first 10,000 items. Refine your search for better results.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Spacer()
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+
+                ListStatusBar(totalCount: streams.count, selectedCount: 0, noun: "stream", hasMorePages: loader.hasMorePages)
             }
         }
     }
@@ -281,30 +321,10 @@ struct CloudWatchLogsStreamBrowserView: View {
     // MARK: - Data
 
     private func loadStreams(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
-        if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
-            return
-        }
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        Task {
-            do {
-                let loaded = try await service.describeLogStreams(logGroupName: logGroup.logGroupName)
-                if streams != loaded {
-                    streams = loaded
-                }
-            } catch {
-                if !silent {
-                    errorMessage = error.localizedDescription
-                }
-            }
-            if !silent {
-                isLoading = false
-                lastLoadTime = Date()
-            }
-        }
+        loader.load(force: force, silent: silent,
+            fetch: { [service, logGroup] token in try await service.describeLogStreamsPage(logGroupName: logGroup.logGroupName, token: token) },
+            sort: { ($0.lastEventTimestamp ?? .distantPast) > ($1.lastEventTimestamp ?? .distantPast) }
+        )
     }
 
     private func deleteStreams(_ targets: [CloudWatchLogStream]) {

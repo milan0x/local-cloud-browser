@@ -3,25 +3,27 @@ import Foundation
 final class SNSService: BaseService {
     // MARK: - Topic Operations
 
+    func listTopicsPage(token: String? = nil, region: String? = nil) async throws -> ([SNSTopic], String?) {
+        var params: [String: String] = [:]
+        if let token {
+            params["NextToken"] = token
+        }
+        let data = try await client.snsRequest(action: "ListTopics", params: params, region: region)
+        let xml = try SNSXMLParser.parse(data)
+        let topics = xml.all("TopicArn").map { SNSTopic(topicArn: $0) }
+        return (topics, xml.first("NextToken"))
+    }
+
     func listTopics(region: String? = nil) async throws -> [SNSTopic] {
-        var topics: [SNSTopic] = []
+        var allTopics: [SNSTopic] = []
         var nextToken: String? = nil
-
         repeat {
-            var params: [String: String] = [:]
-            if let token = nextToken {
-                params["NextToken"] = token
-            }
-            let data = try await client.snsRequest(action: "ListTopics", params: params, region: region)
-            let xml = try SNSXMLParser.parse(data)
-            let arns = xml.all("TopicArn")
-            for arn in arns {
-                topics.append(SNSTopic(topicArn: arn))
-            }
-            nextToken = xml.first("NextToken")
+            let (topics, token) = try await listTopicsPage(token: nextToken, region: region)
+            allTopics.append(contentsOf: topics)
+            nextToken = token
+            if allTopics.count >= 10_000 { break }
         } while nextToken != nil
-
-        return topics
+        return allTopics
     }
 
     func createTopic(name: String, isFifo: Bool) async throws -> String {
@@ -52,36 +54,42 @@ final class SNSService: BaseService {
 
     // MARK: - Subscription Operations
 
+    func listSubscriptionsPage(topicArn: String, token: String? = nil) async throws -> ([SNSSubscription], String?) {
+        var params: [String: String] = ["TopicArn": topicArn]
+        if let token {
+            params["NextToken"] = token
+        }
+        let data = try await client.snsRequest(action: "ListSubscriptionsByTopic", params: params)
+        let xml = try SNSXMLParser.parse(data)
+        var subs: [SNSSubscription] = []
+        for member in xml.memberDicts {
+            guard let subArn = member["SubscriptionArn"],
+                  let topicArn = member["TopicArn"],
+                  let proto = member["Protocol"],
+                  let endpoint = member["Endpoint"] else {
+                continue
+            }
+            subs.append(SNSSubscription(
+                subscriptionArn: subArn,
+                topicArn: topicArn,
+                protocol_: proto,
+                endpoint: endpoint,
+                owner: member["Owner"] ?? ""
+            ))
+        }
+        return (subs, xml.first("NextToken"))
+    }
+
     func listSubscriptions(topicArn: String) async throws -> [SNSSubscription] {
-        var subscriptions: [SNSSubscription] = []
+        var allSubs: [SNSSubscription] = []
         var nextToken: String? = nil
-
         repeat {
-            var params: [String: String] = ["TopicArn": topicArn]
-            if let token = nextToken {
-                params["NextToken"] = token
-            }
-            let data = try await client.snsRequest(action: "ListSubscriptionsByTopic", params: params)
-            let xml = try SNSXMLParser.parse(data)
-            for member in xml.memberDicts {
-                guard let subArn = member["SubscriptionArn"],
-                      let topicArn = member["TopicArn"],
-                      let proto = member["Protocol"],
-                      let endpoint = member["Endpoint"] else {
-                    continue
-                }
-                subscriptions.append(SNSSubscription(
-                    subscriptionArn: subArn,
-                    topicArn: topicArn,
-                    protocol_: proto,
-                    endpoint: endpoint,
-                    owner: member["Owner"] ?? ""
-                ))
-            }
-            nextToken = xml.first("NextToken")
+            let (subs, token) = try await listSubscriptionsPage(topicArn: topicArn, token: nextToken)
+            allSubs.append(contentsOf: subs)
+            nextToken = token
+            if allSubs.count >= 10_000 { break }
         } while nextToken != nil
-
-        return subscriptions
+        return allSubs
     }
 
     func subscribe(topicArn: String, protocol_: String, endpoint: String) async throws -> String {
