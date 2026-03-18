@@ -88,7 +88,7 @@ struct IAMDetailBrowserView: View {
                     .font(.title3)
                     .fontWeight(.semibold)
                     .lineLimit(1)
-                Text(entityType.rawValue.dropLast()) // "User", "Role", "Polic" -> need fix
+                Text(entityTypeLabel)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

@@ -156,6 +156,63 @@ struct EC2ModelTests {
         #expect(rule.portRangeDisplay == "All")
     }
 
+    // MARK: - EC2SecurityGroup Multi-CIDR
+
+    @Test("Security group parses multiple CIDRs per rule")
+    func multiCIDRRules() throws {
+        let xml = """
+            <securityGroup>
+                <groupId>sg-multi</groupId>
+                <groupName>multi-cidr</groupName>
+                <groupDescription>Test</groupDescription>
+                <ipPermissions>
+                    <item>
+                        <ipProtocol>tcp</ipProtocol>
+                        <fromPort>443</fromPort>
+                        <toPort>443</toPort>
+                        <ipRanges>
+                            <item><cidrIp>10.0.0.0/8</cidrIp><description>Private</description></item>
+                            <item><cidrIp>192.168.0.0/16</cidrIp><description>Local</description></item>
+                            <item><cidrIp>172.16.0.0/12</cidrIp></item>
+                        </ipRanges>
+                    </item>
+                </ipPermissions>
+            </securityGroup>
+            """
+        let node = try EC2XMLParser.parse(Data(xml.utf8))
+        let sg = EC2SecurityGroup(from: node)
+        #expect(sg.inboundRules.count == 3)
+        #expect(sg.inboundRules[0].cidrIp == "10.0.0.0/8")
+        #expect(sg.inboundRules[1].cidrIp == "192.168.0.0/16")
+        #expect(sg.inboundRules[2].cidrIp == "172.16.0.0/12")
+    }
+
+    @Test("Security group handles single CIDR correctly")
+    func singleCIDRRule() throws {
+        let xml = """
+            <securityGroup>
+                <groupId>sg-single</groupId>
+                <groupName>single-cidr</groupName>
+                <groupDescription>Test</groupDescription>
+                <ipPermissions>
+                    <item>
+                        <ipProtocol>tcp</ipProtocol>
+                        <fromPort>80</fromPort>
+                        <toPort>80</toPort>
+                        <ipRanges>
+                            <item><cidrIp>0.0.0.0/0</cidrIp></item>
+                        </ipRanges>
+                    </item>
+                </ipPermissions>
+            </securityGroup>
+            """
+        let node = try EC2XMLParser.parse(Data(xml.utf8))
+        let sg = EC2SecurityGroup(from: node)
+        #expect(sg.inboundRules.count == 1)
+        #expect(sg.inboundRules[0].cidrIp == "0.0.0.0/0")
+        #expect(sg.inboundRules[0].fromPort == 80)
+    }
+
     // MARK: - EC2XMLParser / EC2XMLNode
 
     @Test("Parses XML into tree structure")

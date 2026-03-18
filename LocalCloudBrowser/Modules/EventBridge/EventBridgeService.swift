@@ -1,5 +1,10 @@
 import Foundation
 
+private struct EventBridgeError: LocalizedError {
+    let message: String
+    var errorDescription: String? { message }
+}
+
 final class EventBridgeService: BaseService {
     // MARK: - Event Buses
 
@@ -163,7 +168,7 @@ final class EventBridgeService: BaseService {
     }
 
     func putTargets(ruleName: String, eventBusName: String, targets: [[String: Any]]) async throws {
-        _ = try await client.eventBridgeRequest(
+        let data = try await client.eventBridgeRequest(
             action: "PutTargets",
             payload: [
                 "Rule": ruleName,
@@ -171,10 +176,11 @@ final class EventBridgeService: BaseService {
                 "Targets": targets,
             ]
         )
+        try checkFailedEntryCount(data: data, action: "PutTargets")
     }
 
     func removeTargets(ruleName: String, eventBusName: String, ids: [String]) async throws {
-        _ = try await client.eventBridgeRequest(
+        let data = try await client.eventBridgeRequest(
             action: "RemoveTargets",
             payload: [
                 "Rule": ruleName,
@@ -182,6 +188,17 @@ final class EventBridgeService: BaseService {
                 "Ids": ids,
             ]
         )
+        try checkFailedEntryCount(data: data, action: "RemoveTargets")
+    }
+
+    private func checkFailedEntryCount(data: Data, action: String) throws {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let failedCount = json["FailedEntryCount"] as? Int,
+              failedCount > 0 else { return }
+        let entries = json["FailedEntries"] as? [[String: Any]] ?? []
+        let messages = entries.compactMap { $0["ErrorMessage"] as? String }
+        let detail = messages.isEmpty ? "\(failedCount) entries failed" : messages.joined(separator: "; ")
+        throw EventBridgeError(message: "\(action) partial failure: \(detail)")
     }
 
     // MARK: - Put Events

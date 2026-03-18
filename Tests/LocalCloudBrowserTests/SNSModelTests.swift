@@ -60,6 +60,12 @@ struct SNSModelTests {
         #expect(confirmed.isPending == false)
     }
 
+    @Test("isPending detects PendingConfirmation in ARN-style subscription ARN")
+    func isPendingARN() {
+        let pending = SNSSubscription(subscriptionArn: "arn:aws:sns:us-east-1:000:topic:PendingConfirmation", topicArn: "arn:topic", protocol_: "email", endpoint: "a@b.com", owner: "000")
+        #expect(pending.isPending == true)
+    }
+
     @Test("truncatedArn shortens long ARNs")
     func truncatedArn() {
         let sub = SNSSubscription(subscriptionArn: "arn:aws:sns:us-east-1:000000000000:my-topic:abc123-def456-ghi789", topicArn: "", protocol_: "", endpoint: "", owner: "")

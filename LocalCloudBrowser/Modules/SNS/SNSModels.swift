@@ -61,7 +61,7 @@ struct SNSSubscription: Identifiable, Hashable {
     var id: String { subscriptionArn }
 
     var isPending: Bool {
-        subscriptionArn == "PendingConfirmation"
+        subscriptionArn.contains("PendingConfirmation")
     }
 
     var truncatedArn: String {

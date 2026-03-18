@@ -256,12 +256,17 @@ struct LambdaCreateFunctionView: View {
                         environment: env
                     )
                 } else {
+                    guard let zipData else {
+                        serviceError = ServiceError(code: "ValidationError", message: "No ZIP file selected.")
+                        isSaving = false
+                        return
+                    }
                     try await service.createFunction(
                         name: name,
                         runtime: runtime,
                         handler: handler.trimmingCharacters(in: .whitespaces),
                         role: role.trimmingCharacters(in: .whitespaces),
-                        zipData: zipData!,
+                        zipData: zipData,
                         description: desc.isEmpty ? nil : desc,
                         timeout: timeout,
                         memorySize: memorySize,
