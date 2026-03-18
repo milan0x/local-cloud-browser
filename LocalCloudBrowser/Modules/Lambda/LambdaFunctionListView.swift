@@ -9,6 +9,8 @@ struct LambdaFunctionListView: View {
     @Binding var selectedFunctionIDs: Set<LambdaFunction.ID>
     @Binding var activeFunction: LambdaFunction?
     var restoreFunctionName: String?
+    var searchFocusTrigger: Int = 0
+    var paneFocusTrigger: Int = 0
 
     @State private var showCreateSheet = false
     @State private var functionsToDelete: [LambdaFunction] = []
@@ -16,6 +18,7 @@ struct LambdaFunctionListView: View {
     @State private var functionToShowDetail: LambdaFunction?
     @State private var searchText = ""
     @State private var pendingSelectName: String?
+    @FocusState private var isListFocused: Bool
     @StateObject private var loader = PaginatedListLoader<LambdaFunction>()
     private var functions: [LambdaFunction] { loader.items }
 
@@ -54,6 +57,9 @@ struct LambdaFunctionListView: View {
             loadFunctions(force: true)
         }
         .syncSelection(selectedFunctionIDs, items: functions, activeItem: $activeFunction)
+        .onChange(of: paneFocusTrigger) {
+            isListFocused = true
+        }
         .onChange(of: toolbarState.pendingAction) {
             guard let action = toolbarState.pendingAction else { return }
             switch action {
@@ -103,7 +109,7 @@ struct LambdaFunctionListView: View {
         ListLoadingContent(isLoading: loader.isLoading, isEmpty: functions.isEmpty, errorMessage: loader.errorMessage, loadingMessage: "Loading functions...", emptyIcon: "function", emptyMessage: "No functions", onRetry: { loadFunctions(force: true) }) {
             VStack(spacing: 0) {
                 if functions.count > 5 {
-                    SearchBarView(query: $searchText, placeholder: "Filter functions")
+                    SearchBarView(query: $searchText, placeholder: "Filter functions", focusTrigger: searchFocusTrigger)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                     Divider()
@@ -187,6 +193,7 @@ struct LambdaFunctionListView: View {
                         functionToShowDetail = function
                     }
                 })
+                .focused($isListFocused)
 
                 if loader.hasMorePages {
                     Divider()
