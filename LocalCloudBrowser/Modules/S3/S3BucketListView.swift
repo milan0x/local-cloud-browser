@@ -69,43 +69,24 @@ struct S3BucketListView: View {
             }
         } onDelete: { deleteBuckets($0) }
         .serviceErrorAlert(error: $serviceError)
-        .alert(
-            forceDeleteBuckets.count == 1
-                ? "Bucket Not Empty"
-                : "Buckets Not Empty",
-            isPresented: Binding(
-                get: { !forceDeleteBuckets.isEmpty },
-                set: { if !$0 { forceDeleteBuckets = []; forceDeleteConfirmation = "" } }
-            )
-        ) {
-            TextField("Type delete to confirm", text: $forceDeleteConfirmation)
-            Button("Force Delete", role: .destructive) {
-                let trimmed = forceDeleteConfirmation.trimmingCharacters(in: .whitespaces).lowercased()
-                if trimmed == "delete" {
+        .sheet(isPresented: Binding(
+            get: { !forceDeleteBuckets.isEmpty },
+            set: { if !$0 { forceDeleteBuckets = []; forceDeleteConfirmation = "" } }
+        )) {
+            ForceDeleteSheet(
+                buckets: forceDeleteBuckets,
+                confirmation: $forceDeleteConfirmation,
+                onConfirm: {
                     let targets = forceDeleteBuckets
                     forceDeleteBuckets = []
                     forceDeleteConfirmation = ""
                     performForceDelete(targets)
-                } else {
-                    let targets = forceDeleteBuckets
+                },
+                onCancel: {
                     forceDeleteBuckets = []
                     forceDeleteConfirmation = ""
-                    DispatchQueue.main.async {
-                        forceDeleteBuckets = targets
-                    }
                 }
-            }
-            Button("Cancel", role: .cancel) {
-                forceDeleteBuckets = []
-                forceDeleteConfirmation = ""
-            }
-        } message: {
-            if forceDeleteBuckets.count == 1, let bucket = forceDeleteBuckets.first {
-                Text("\"\(bucket.name)\" contains objects. Type \"delete\" to permanently remove all objects and delete the bucket.")
-            } else {
-                let names = forceDeleteBuckets.map(\.name).joined(separator: ", ")
-                Text("\(names) contain objects. Type \"delete\" to permanently remove all objects and delete the buckets.")
-            }
+            )
         }
         .task { loadBuckets() }
         .onAutoRefresh(canRefresh: { !showCreateSheet && bucketsToDelete.isEmpty && forceDeleteBuckets.isEmpty && !isForceDeleting && !loader.isLoading }) {
@@ -284,6 +265,7 @@ struct S3BucketListView: View {
 
     private func deleteBuckets(_ targets: [S3Bucket]) {
         Task {
+            selectedBucketIDs.subtract(Set(targets.map(\.id)))
             var deletedIDs: Set<S3Bucket.ID> = []
             var nonEmptyBuckets: [S3Bucket] = []
 
@@ -364,6 +346,78 @@ struct S3BucketListView: View {
             isForceDeleting = false
             loadBuckets(force: true)
         }
+    }
+}
+
+// MARK: - Force Delete Sheet
+
+private struct ForceDeleteSheet: View {
+    let buckets: [S3Bucket]
+    @Binding var confirmation: String
+    let onConfirm: () -> Void
+    let onCancel: () -> Void
+
+    private var isValid: Bool {
+        confirmation.trimmingCharacters(in: .whitespaces).lowercased() == "delete"
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            VStack(spacing: 8) {
+                Image(systemName: "trash.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(.red)
+                Text(buckets.count == 1 ? "Bucket Not Empty" : "\(buckets.count) Buckets Not Empty")
+                    .font(.headline)
+            }
+            .padding(.top, 20)
+            .padding(.bottom, 12)
+
+            Divider()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    if buckets.count == 1, let bucket = buckets.first {
+                        Text("\"\(bucket.name)\" contains objects. All objects will be permanently removed.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("These buckets contain objects. All objects will be permanently removed:")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(buckets) { bucket in
+                                Label(bucket.name, systemImage: "externaldrive")
+                                    .font(.callout.monospaced())
+                                    .lineLimit(1)
+                            }
+                        }
+                        .padding(.leading, 4)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+            }
+            .frame(maxHeight: 200)
+
+            Divider()
+
+            VStack(spacing: 12) {
+                TextField("Type \"delete\" to confirm", text: $confirmation)
+                    .textFieldStyle(.roundedBorder)
+
+                HStack {
+                    Button("Cancel") { onCancel() }
+                        .keyboardShortcut(.cancelAction)
+                    Spacer()
+                    Button("Force Delete", role: .destructive) { onConfirm() }
+                        .disabled(!isValid)
+                        .keyboardShortcut(.defaultAction)
+                }
+            }
+            .padding(16)
+        }
+        .frame(width: 380)
     }
 }
 

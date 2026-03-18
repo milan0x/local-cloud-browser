@@ -340,29 +340,14 @@ struct S3ObjectBrowserView: View {
         .sheet(isPresented: $showBrowsePicker) {
             browsePickerSheet
         }
-        .alert(
-            objectsToDelete.count == 1
-                ? "Delete Object"
-                : "Delete \(objectsToDelete.count) Objects",
-            isPresented: Binding(
-                get: { !objectsToDelete.isEmpty },
-                set: { if !$0 { objectsToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteObjects(objectsToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                objectsToDelete = []
-            }
-        } message: {
-            if objectsToDelete.count == 1, let obj = objectsToDelete.first {
+        .deleteConfirmation(items: $objectsToDelete, noun: "Object") { items in
+            if items.count == 1, let obj = items.first {
                 Text("Are you sure you want to delete \"\(obj.displayName)\"?")
             } else {
-                let names = objectsToDelete.map(\.displayName).joined(separator: "\n")
+                let names = items.map(\.displayName).joined(separator: "\n")
                 Text("Are you sure you want to delete these items?\n\n\(names)")
             }
-        }
+        } onDelete: { deleteObjects($0) }
         .alert(
             folderDeleteItems.count + standaloneObjectsToDelete.count == 1
                 ? "Delete Folder"
@@ -2058,6 +2043,7 @@ struct S3ObjectBrowserView: View {
         guard !objs.isEmpty else { return }
         isDeletingObjects = true
         Task {
+            selectedRowIDs.subtract(Set(objs.map(\.key)))
             do {
                 let keys = objs.map(\.key)
                 _ = try await service.deleteObjects(bucket: bucket.name, keys: keys)
