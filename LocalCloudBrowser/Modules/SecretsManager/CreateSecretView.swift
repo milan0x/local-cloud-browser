@@ -74,9 +74,9 @@ struct CreateSecretView: View {
             do {
                 let name = secretName.trimmingCharacters(in: .whitespaces)
                 let desc = secretDescription.trimmingCharacters(in: .whitespaces)
-                if isEditing {
+                if isEditing, let secret = editingSecret {
                     try await service.updateSecret(
-                        secretId: editingSecret!.arn,
+                        secretId: secret.arn,
                         secretString: secretValue,
                         description: desc.isEmpty ? nil : desc
                     )

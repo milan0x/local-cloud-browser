@@ -104,7 +104,12 @@ struct SidebarView: View {
         .sheet(item: $editorSheet) { sheet in
             ConnectionProfileEditorView(
                 existing: sheet.profile,
-                canDelete: sheet.profile != nil && profileStore.profiles.count > 1 && !profileStore.isDefaultProfile(sheet.profile!.id),
+                canDelete: {
+                    if let profile = sheet.profile {
+                        return profileStore.profiles.count > 1 && !profileStore.isDefaultProfile(profile.id)
+                    }
+                    return false
+                }(),
                 showAdvanced: sheet.showAdvanced,
                 onSave: { profile in
                     if sheet.profile != nil {
