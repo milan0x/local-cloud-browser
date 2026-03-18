@@ -278,6 +278,7 @@ struct KinesisStreamListView: View {
 
     private func deleteStreams(_ targets: [KinesisStreamSummary]) {
         Task {
+            selectedStreamIDs.subtract(Set(targets.map(\.id)))
             let (deleted, error) = await batchDelete(targets) {
                 try await service.deleteStream(name: $0.streamName)
             }

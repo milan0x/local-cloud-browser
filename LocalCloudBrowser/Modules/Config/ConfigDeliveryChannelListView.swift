@@ -193,6 +193,7 @@ struct ConfigDeliveryChannelListView: View {
 
     private func deleteChannels(_ targets: [DeliveryChannel]) {
         Task {
+            selectedChannelIDs.subtract(Set(targets.map(\.id)))
             var deletedIDs: Set<DeliveryChannel.ID> = []
             for channel in targets {
                 do {

@@ -286,6 +286,7 @@ struct LambdaFunctionListView: View {
 
     private func deleteFunctions(_ targets: [LambdaFunction]) {
         Task {
+            selectedFunctionIDs.subtract(Set(targets.map(\.id)))
             let (deleted, error) = await batchDelete(targets) {
                 try await service.deleteFunction(name: $0.functionName)
             }

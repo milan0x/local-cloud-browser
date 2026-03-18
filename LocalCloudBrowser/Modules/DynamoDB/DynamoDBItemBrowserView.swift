@@ -784,6 +784,7 @@ struct DynamoDBItemBrowserView: View {
     private func deleteItems(_ targets: [DynamoDBItem]) {
         deleteTask?.cancel()
         deleteTask = Task {
+            selectedItemIDs.subtract(Set(targets.map { stableItemID($0) }))
             var deletedKeys: Set<String> = []
             for item in targets {
                 guard !Task.isCancelled else { break }

@@ -484,6 +484,7 @@ struct SQSMessageBrowserView: View {
     private func deleteMessages(_ targets: [SQSMessage]) {
         deleteTask?.cancel()
         deleteTask = Task {
+            selectedMessageIDs.subtract(Set(targets.map(\.id)))
             var deletedIDs: Set<SQSMessage.ID> = []
             for msg in targets {
                 guard !Task.isCancelled else { break }

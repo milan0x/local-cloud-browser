@@ -225,6 +225,7 @@ struct KMSKeyListView: View {
 
     private func deleteKeys(_ targets: [KMSKey]) {
         Task {
+            selectedKeyIDs.subtract(Set(targets.map(\.id)))
             let (deletedIDs, lastError) = await batchDelete(targets) { key in
                 try await service.scheduleKeyDeletion(keyId: key.keyId)
             }

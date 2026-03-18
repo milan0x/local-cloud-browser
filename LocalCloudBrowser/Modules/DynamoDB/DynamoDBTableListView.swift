@@ -257,6 +257,7 @@ struct DynamoDBTableListView: View {
 
     private func deleteTables(_ targets: [DynamoDBTable]) {
         Task {
+            selectedTableIDs.subtract(Set(targets.map(\.id)))
             let (deleted, error) = await batchDelete(targets) {
                 try await service.deleteTable(tableName: $0.tableName)
             }

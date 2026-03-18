@@ -290,6 +290,7 @@ struct ACMCertificateListView: View {
 
     private func deleteCertificates(_ targets: [ACMCertificateSummary]) {
         Task {
+            selectedCertIDs.subtract(Set(targets.map(\.id)))
             let (deleted, error) = await batchDelete(targets) {
                 try await service.deleteCertificate(arn: $0.certificateArn)
             }

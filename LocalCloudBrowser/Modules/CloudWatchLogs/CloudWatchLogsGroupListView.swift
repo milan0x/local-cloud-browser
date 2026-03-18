@@ -262,6 +262,7 @@ struct CloudWatchLogsGroupListView: View {
 
     private func deleteLogGroups(_ targets: [CloudWatchLogGroup]) {
         Task {
+            selectedLogGroupIDs.subtract(Set(targets.map(\.id)))
             let (deleted, error) = await batchDelete(targets) {
                 try await service.deleteLogGroup(name: $0.logGroupName)
             }

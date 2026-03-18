@@ -271,6 +271,7 @@ struct SSMParameterListView: View {
 
     private func deleteParameters(_ targets: [SSMParameter]) {
         Task {
+            selectedParameterIDs.subtract(Set(targets.map(\.id)))
             let (deleted, error) = await batchDelete(targets) {
                 try await service.deleteParameter(name: $0.name)
             }

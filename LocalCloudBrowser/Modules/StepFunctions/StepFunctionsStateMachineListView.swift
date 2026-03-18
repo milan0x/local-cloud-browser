@@ -256,6 +256,7 @@ struct StepFunctionsStateMachineListView: View {
 
     private func deleteMachines(_ targets: [StateMachineSummary]) {
         Task {
+            selectedIDs.subtract(Set(targets.map(\.id)))
             let (deleted, error) = await batchDelete(targets) {
                 try await service.deleteStateMachine(arn: $0.stateMachineArn)
             }

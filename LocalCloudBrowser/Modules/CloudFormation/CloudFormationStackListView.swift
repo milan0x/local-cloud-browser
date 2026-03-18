@@ -276,6 +276,7 @@ struct CloudFormationStackListView: View {
 
     private func deleteStacks(_ targets: [CloudFormationStack]) {
         Task {
+            selectedStackIDs.subtract(Set(targets.map(\.id)))
             let (deleted, error) = await batchDelete(targets) {
                 try await service.deleteStack(name: $0.stackName)
             }

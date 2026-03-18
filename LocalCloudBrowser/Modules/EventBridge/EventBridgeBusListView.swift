@@ -259,6 +259,7 @@ struct EventBridgeBusListView: View {
     private func deleteBuses(_ targets: [EventBridgeBus]) {
         let nonDefault = targets.filter { !$0.isDefault }
         Task {
+            selectedBusIDs.subtract(Set(targets.map(\.id)))
             let (deletedIDs, lastError) = await batchDelete(nonDefault) { bus in
                 try await service.deleteEventBus(name: bus.name)
             }

@@ -329,6 +329,7 @@ struct Route53ResolverListView: View {
 
     private func deleteEndpoints(_ targets: [ResolverEndpoint]) {
         Task {
+            selectedEndpointIDs.subtract(Set(targets.map(\.id)))
             let (deletedIDs, lastError) = await batchDelete(targets) { ep in
                 try await service.deleteResolverEndpoint(id: ep.id)
             }

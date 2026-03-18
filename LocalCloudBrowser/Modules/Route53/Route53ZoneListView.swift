@@ -196,6 +196,7 @@ struct Route53ZoneListView: View {
 
     private func deleteZones(_ targets: [Route53HostedZone]) {
         Task {
+            selectedZoneIDs.subtract(Set(targets.map(\.id)))
             let (deleted, error) = await batchDelete(targets) {
                 try await service.deleteHostedZone(id: $0.id)
             }

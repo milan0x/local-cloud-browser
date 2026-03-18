@@ -207,6 +207,7 @@ struct SecretsListView: View {
 
     private func deleteSecrets(_ targets: [Secret]) {
         Task {
+            selectedSecretIDs.subtract(Set(targets.map(\.id)))
             let (deleted, error) = await batchDelete(targets) {
                 try await service.deleteSecret(secretId: $0.arn)
             }
