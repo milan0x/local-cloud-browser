@@ -286,23 +286,38 @@ struct S3BucketListView: View {
         Task {
             var deletedIDs: Set<S3Bucket.ID> = []
             var nonEmptyBuckets: [S3Bucket] = []
-            for bucket in targets {
-                do {
-                    try await service.deleteBucket(name: bucket.name)
-                    deletedIDs.insert(bucket.id)
-                } catch {
-                    if let clientError = error as? CloudClientError,
-                       let parsed = clientError.serviceError {
-                        if parsed.code == "BucketNotEmpty" {
-                            nonEmptyBuckets.append(bucket)
-                        } else {
-                            serviceError = parsed
+
+            // Delete concurrently so the UI doesn't stall waiting for sequential round-trips
+            await withTaskGroup(of: (S3Bucket, Result<Void, Error>).self) { group in
+                for bucket in targets {
+                    group.addTask { [service] in
+                        do {
+                            try await service.deleteBucket(name: bucket.name)
+                            return (bucket, .success(()))
+                        } catch {
+                            return (bucket, .failure(error))
                         }
-                    } else {
-                        loader.errorMessage = error.localizedDescription
+                    }
+                }
+                for await (bucket, result) in group {
+                    switch result {
+                    case .success:
+                        deletedIDs.insert(bucket.id)
+                    case .failure(let error):
+                        if let clientError = error as? CloudClientError,
+                           let parsed = clientError.serviceError {
+                            if parsed.code == "BucketNotEmpty" {
+                                nonEmptyBuckets.append(bucket)
+                            } else {
+                                serviceError = parsed
+                            }
+                        } else {
+                            loader.errorMessage = error.localizedDescription
+                        }
                     }
                 }
             }
+
             if !deletedIDs.isEmpty {
                 licenseManager.decrementCreateCount(for: .s3, by: deletedIDs.count)
                 selectedBucketIDs.subtract(deletedIDs)
