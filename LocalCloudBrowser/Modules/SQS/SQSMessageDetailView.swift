@@ -139,7 +139,7 @@ struct SQSMessageDetailView: View {
                 result.append("\n")
                 result.append(String(repeating: tab, count: indent))
             case "}", "]":
-                indent -= 1
+                indent = max(0, indent - 1)
                 result.append("\n")
                 result.append(String(repeating: tab, count: indent))
                 result.append(char)

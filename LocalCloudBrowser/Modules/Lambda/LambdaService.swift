@@ -6,7 +6,8 @@ final class LambdaService: BaseService {
     func listFunctionsPage(token: String? = nil, region: String? = nil) async throws -> ([LambdaFunction], String?) {
         var path = "/functions"
         if let token {
-            path += "?Marker=\(token)"
+            let encoded = token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token
+            path += "?Marker=\(encoded)"
         }
         let response = try await client.lambdaRequest(
             action: "ListFunctions",

@@ -40,7 +40,7 @@ struct SSMParameterListView: View {
             }
         } onDelete: { deleteParameters($0) }
         .sheet(item: $parameterToShowDetail) { parameter in
-            SSMParameterDetailView(service: service, parameter: parameter)
+            SSMParameterDetailView(service: service, parameter: parameter, existingParameterNames: Set(loader.items.map(\.name)))
         }
         .serviceErrorAlert(error: $serviceError)
         .task { loadParameters() }

@@ -116,7 +116,8 @@ struct CloudWatchLogEvent: Identifiable, Hashable {
 
     var id: String {
         let ts = timestamp.map { String(Int($0.timeIntervalSince1970 * 1000)) } ?? "none"
-        return "\(ts)-\(message.hashValue)"
+        let prefix = String(message.prefix(64))
+        return "\(ts)-\(prefix)"
     }
 
     var isJSON: Bool {

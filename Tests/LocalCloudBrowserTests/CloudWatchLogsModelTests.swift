@@ -73,6 +73,30 @@ struct CloudWatchLogsModelTests {
         #expect(event.prettyPrinted != nil)
     }
 
+    // MARK: - CloudWatchLogEvent.id stability
+
+    @Test("Event ID is deterministic across instances")
+    func eventIDStable() {
+        let dict: [String: Any] = ["message": "test log line", "timestamp": 1700000000000.0]
+        let event1 = CloudWatchLogEvent(from: dict)
+        let event2 = CloudWatchLogEvent(from: dict)
+        #expect(event1.id == event2.id)
+    }
+
+    @Test("Different events have different IDs")
+    func eventIDUnique() {
+        let event1 = CloudWatchLogEvent(from: ["message": "line A", "timestamp": 1700000000000.0])
+        let event2 = CloudWatchLogEvent(from: ["message": "line B", "timestamp": 1700000001000.0])
+        #expect(event1.id != event2.id)
+    }
+
+    @Test("Events with same message but different timestamps have different IDs")
+    func eventIDTimestamp() {
+        let event1 = CloudWatchLogEvent(from: ["message": "same message", "timestamp": 1700000000000.0])
+        let event2 = CloudWatchLogEvent(from: ["message": "same message", "timestamp": 1700000001000.0])
+        #expect(event1.id != event2.id)
+    }
+
     // MARK: - CloudWatchLogGroup.init
 
     @Test("LogGroup parses from dict")

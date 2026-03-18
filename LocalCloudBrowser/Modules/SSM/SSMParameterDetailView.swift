@@ -3,6 +3,7 @@ import SwiftUI
 struct SSMParameterDetailView: View {
     @ObservedObject var service: SSMService
     let parameter: SSMParameter
+    var existingParameterNames: Set<String> = []
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appState: AppState
 
@@ -56,7 +57,7 @@ struct SSMParameterDetailView: View {
         .sheet(isPresented: $showEditSheet) {
             SSMCreateParameterView(
                 service: service,
-                existingParameterNames: [],
+                existingParameterNames: existingParameterNames,
                 editingParameter: parameter,
                 editingValue: parameterValue?.value ?? ""
             )

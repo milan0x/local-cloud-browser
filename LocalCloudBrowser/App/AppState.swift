@@ -120,7 +120,14 @@ final class AppState: ObservableObject {
         if healthPath.trimmingCharacters(in: .whitespaces).isEmpty {
             healthURL = endpoint
         } else {
-            healthURL = endpoint.hasSuffix("/") ? endpoint + healthPath : endpoint + "/" + healthPath
+            if var components = URLComponents(string: endpoint) {
+                components.path = components.path.hasSuffix("/")
+                    ? components.path + healthPath
+                    : components.path + "/" + healthPath
+                healthURL = components.string ?? endpoint + "/" + healthPath
+            } else {
+                healthURL = endpoint + "/" + healthPath
+            }
         }
 
         guard let url = URL(string: healthURL) else {

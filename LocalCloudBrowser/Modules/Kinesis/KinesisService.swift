@@ -142,9 +142,7 @@ final class KinesisService: BaseService {
         }
         let records = (json["Records"] as? [[String: Any]] ?? []).map { KinesisRecord(from: $0) }
         let nextIterator = json["NextShardIterator"] as? String
-        // Only return nextIterator if there are records or the shard is still open
-        let effectiveNext = records.isEmpty ? nil : nextIterator
-        return (records, effectiveNext)
+        return (records, nextIterator)
     }
 
     // MARK: - Put Record

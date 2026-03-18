@@ -215,7 +215,7 @@ struct CloudWatchMetricChartView: View {
                     startTime: startTime,
                     endTime: endTime,
                     period: timeRange.suggestedPeriod,
-                    statistics: CloudWatchStatistic.allCases
+                    statistics: [statistic]
                 )
                 datapoints = loaded
             } catch {

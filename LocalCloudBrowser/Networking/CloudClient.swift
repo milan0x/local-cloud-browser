@@ -807,12 +807,18 @@ final class CloudClient: ObservableObject {
 
     // MARK: - Route 53 (REST API with XML)
 
+    private static let route53ReadMethods: Set<String> = ["GET", "HEAD"]
+
     func route53Request(
         method: String,
         path: String,
         body: Data? = nil,
         region: String? = nil
     ) async throws -> Data {
+        if appState.isReadOnly && !Self.route53ReadMethods.contains(method.uppercased()) {
+            Log.warn("Blocked Route53 \(method) \(path) — read-only mode", category: "HTTP")
+            throw CloudClientError.readOnlyBlocked(method: "Route53:\(method)")
+        }
         let dateStr = Self.iso8601DateOnly.string(from: Date())
         let credential = "nav/\(dateStr)/\(effectiveRegion(region))/route53/aws4_request"
         let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"

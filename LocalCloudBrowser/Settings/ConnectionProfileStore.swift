@@ -12,7 +12,7 @@ final class ConnectionProfileStore: ObservableObject {
     private(set) var defaultProfileId: UUID?
 
     func isDefaultProfile(_ id: UUID) -> Bool {
-        false
+        id == defaultProfileId
     }
 
     var activeProfile: ConnectionProfile? {

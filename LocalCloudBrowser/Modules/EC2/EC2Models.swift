@@ -183,6 +183,25 @@ struct EC2SecurityGroupRule: Identifiable, Hashable {
         description = desc.isEmpty ? nil : desc
     }
 
+    /// Parse all CIDRs from an ipPermissions item, returning one rule per CIDR.
+    static func allRules(from node: EC2XMLNode) -> [EC2SecurityGroupRule] {
+        let proto = node["ipProtocol"]
+        let from = node["fromPort"]
+        let fromPort = from.isEmpty ? nil : Int(from)
+        let to = node["toPort"]
+        let toPort = to.isEmpty ? nil : Int(to)
+
+        let ranges = node.child("ipRanges")?.all("item") ?? []
+        if ranges.isEmpty {
+            return [EC2SecurityGroupRule(ipProtocol: proto, fromPort: fromPort, toPort: toPort, cidrIp: "", description: nil)]
+        }
+        return ranges.map { rangeNode in
+            let cidr = rangeNode["cidrIp"]
+            let desc = rangeNode["description"]
+            return EC2SecurityGroupRule(ipProtocol: proto, fromPort: fromPort, toPort: toPort, cidrIp: cidr, description: desc.isEmpty ? nil : desc)
+        }
+    }
+
     init(ipProtocol: String, fromPort: Int?, toPort: Int?, cidrIp: String, description: String?) {
         self.ipProtocol = ipProtocol
         self.fromPort = fromPort
@@ -222,11 +241,11 @@ struct EC2SecurityGroup: Identifiable, Hashable {
         let vpc = node["vpcId"]
         vpcId = vpc.isEmpty ? nil : vpc
 
-        inboundRules = (node.child("ipPermissions")?.all("item") ?? []).map {
-            EC2SecurityGroupRule(from: $0)
+        inboundRules = (node.child("ipPermissions")?.all("item") ?? []).flatMap {
+            EC2SecurityGroupRule.allRules(from: $0)
         }
-        outboundRules = (node.child("ipPermissionsEgress")?.all("item") ?? []).map {
-            EC2SecurityGroupRule(from: $0)
+        outboundRules = (node.child("ipPermissionsEgress")?.all("item") ?? []).flatMap {
+            EC2SecurityGroupRule.allRules(from: $0)
         }
     }
 }
