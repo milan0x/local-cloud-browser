@@ -41,29 +41,14 @@ struct EventBridgeScheduleBrowserView: View {
             )
             .onDisappear { loadSchedules(force: true) }
         }
-        .alert(
-            schedulesToDelete.count == 1
-                ? "Delete Schedule"
-                : "Delete \(schedulesToDelete.count) Schedules",
-            isPresented: Binding(
-                get: { !schedulesToDelete.isEmpty },
-                set: { if !$0 { schedulesToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteSchedules(schedulesToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                schedulesToDelete = []
-            }
-        } message: {
-            if schedulesToDelete.count == 1, let schedule = schedulesToDelete.first {
+        .deleteConfirmation(items: $schedulesToDelete, noun: "Schedule") { items in
+            if items.count == 1, let schedule = items.first {
                 Text("Are you sure you want to delete \"\(schedule.name)\"?")
             } else {
-                let names = schedulesToDelete.map(\.name).joined(separator: "\n")
+                let names = items.map(\.name).joined(separator: "\n")
                 Text("Are you sure you want to delete these schedules?\n\n\(names)\n\nThis cannot be undone.")
             }
-        }
+        } onDelete: { deleteSchedules($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadSchedules() }
         .onAutoRefresh(canRefresh: { activeSchedule == nil && !showCreateScheduleSheet && schedulesToDelete.isEmpty && !isLoading }) {

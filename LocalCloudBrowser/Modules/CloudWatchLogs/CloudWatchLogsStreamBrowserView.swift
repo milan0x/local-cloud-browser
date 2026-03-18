@@ -50,29 +50,14 @@ struct CloudWatchLogsStreamBrowserView: View {
             )
             .onDisappear { loadStreams(force: true) }
         }
-        .alert(
-            streamsToDelete.count == 1
-                ? "Delete Log Stream"
-                : "Delete \(streamsToDelete.count) Log Streams",
-            isPresented: Binding(
-                get: { !streamsToDelete.isEmpty },
-                set: { if !$0 { streamsToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteStreams(streamsToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                streamsToDelete = []
-            }
-        } message: {
-            if streamsToDelete.count == 1, let stream = streamsToDelete.first {
+        .deleteConfirmation(items: $streamsToDelete, noun: "Log Stream") { items in
+            if items.count == 1, let stream = items.first {
                 Text("Are you sure you want to delete \"\(stream.logStreamName)\"?\n\nAll events in this stream will be permanently deleted.")
             } else {
-                let names = streamsToDelete.map(\.logStreamName).joined(separator: "\n")
+                let names = items.map(\.logStreamName).joined(separator: "\n")
                 Text("Are you sure you want to delete these log streams?\n\n\(names)\n\nThis cannot be undone.")
             }
-        }
+        } onDelete: { deleteStreams($0) }
         .serviceErrorAlert(error: $serviceError)
         .task { loadStreams() }
         .onAutoRefresh(canRefresh: { activeStream == nil && !showCreateStreamSheet && streamsToDelete.isEmpty && !loader.isLoading }) {

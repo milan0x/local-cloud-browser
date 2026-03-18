@@ -10,20 +10,84 @@ private struct DeleteConfirmationModifier<Item: Identifiable, M: View>: ViewModi
     let onDelete: ([Item]) -> Void
 
     func body(content: Content) -> some View {
-        content.alert(
-            title(items.count),
-            isPresented: Binding(
-                get: { !items.isEmpty },
-                set: { if !$0 { items = [] } }
-            )
-        ) {
-            Button(actionLabel, role: .destructive) { onDelete(items) }
-            Button("Cancel", role: .cancel) { items = [] }
-        } message: {
-            if !items.isEmpty {
-                message(items)
+        content
+            .alert(
+                items.count == 1 ? title(1) : "",
+                isPresented: Binding(
+                    get: { items.count == 1 },
+                    set: { if !$0 { items = [] } }
+                )
+            ) {
+                Button(actionLabel, role: .destructive) { onDelete(items) }
+                Button("Cancel", role: .cancel) { items = [] }
+            } message: {
+                if items.count == 1 {
+                    message(items)
+                }
             }
+            .sheet(isPresented: Binding(
+                get: { items.count > 1 },
+                set: { if !$0 { items = [] } }
+            )) {
+                DeleteConfirmationSheet(
+                    title: title(items.count),
+                    actionLabel: actionLabel,
+                    onDelete: { onDelete(items) },
+                    onCancel: { items = [] }
+                ) {
+                    message(items)
+                }
+            }
+    }
+}
+
+// MARK: - Delete Confirmation Sheet
+
+private struct DeleteConfirmationSheet<M: View>: View {
+    let title: String
+    let actionLabel: String
+    let onDelete: () -> Void
+    let onCancel: () -> Void
+    @ViewBuilder let message: () -> M
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            VStack(spacing: 8) {
+                Image(systemName: "trash")
+                    .font(.system(size: 28))
+                    .foregroundStyle(.red)
+                Text(title)
+                    .font(.headline)
+            }
+            .padding(.top, 20)
+            .padding(.bottom, 12)
+
+            Divider()
+
+            // Scrollable message area
+            ScrollView {
+                message()
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+            }
+            .frame(maxHeight: 200)
+
+            Divider()
+
+            // Buttons
+            HStack {
+                Button("Cancel") { onCancel() }
+                    .keyboardShortcut(.cancelAction)
+                Spacer()
+                Button(actionLabel, role: .destructive) { onDelete() }
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(16)
         }
+        .frame(width: 360)
     }
 }
 

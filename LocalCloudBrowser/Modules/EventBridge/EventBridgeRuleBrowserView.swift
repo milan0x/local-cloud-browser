@@ -60,29 +60,14 @@ struct EventBridgeRuleBrowserView: View {
                 .onDisappear { loadTargets(ruleName: rule.name) }
             }
         }
-        .alert(
-            rulesToDelete.count == 1
-                ? "Delete Rule"
-                : "Delete \(rulesToDelete.count) Rules",
-            isPresented: Binding(
-                get: { !rulesToDelete.isEmpty },
-                set: { if !$0 { rulesToDelete = [] } }
-            )
-        ) {
-            Button("Delete", role: .destructive) {
-                deleteRules(rulesToDelete)
-            }
-            Button("Cancel", role: .cancel) {
-                rulesToDelete = []
-            }
-        } message: {
-            if rulesToDelete.count == 1, let rule = rulesToDelete.first {
+        .deleteConfirmation(items: $rulesToDelete, noun: "Rule") { items in
+            if items.count == 1, let rule = items.first {
                 Text("Are you sure you want to delete \"\(rule.name)\"?\n\nAll targets on this rule will be removed first.")
             } else {
-                let names = rulesToDelete.map(\.name).joined(separator: "\n")
+                let names = items.map(\.name).joined(separator: "\n")
                 Text("Are you sure you want to delete these rules?\n\n\(names)\n\nThis cannot be undone.")
             }
-        }
+        } onDelete: { deleteRules($0) }
         .alert(
             "Remove Target",
             isPresented: Binding(
