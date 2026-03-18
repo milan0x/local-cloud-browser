@@ -209,7 +209,7 @@ struct SNSTopicListView: View {
                             .foregroundStyle(.secondary)
                         Button("Search all items") {
                             let query = searchText.lowercased()
-                            loader.searchAll { $0.topicName.lowercased().contains(query) }
+                            loader.searchAll { $0.topicArn.components(separatedBy: ":").last?.lowercased().contains(query) == true }
                         }
                         .font(.caption)
                         .buttonStyle(.borderless)
