@@ -137,12 +137,8 @@ struct APIGatewayAPIListView: View {
                     .selectionForeground()
                     .tag(api.id)
                     .contextMenu {
-                        Button("View Details") {
-                            apiToShowDetail = api
-                        }
-                        Divider()
-                        Button("Copy ID") { copyToClipboard(api.id) }
                         Button("Copy Name") { copyToClipboard(api.name) }
+                        Button("Copy ID") { copyToClipboard(api.id) }
                         Menu("Copy as AWS CLI") {
                             Button("Get REST API") {
                                 copyToClipboard(api.getRestApiCLI(endpointUrl: appState.endpoint, region: appState.region))
@@ -153,6 +149,10 @@ struct APIGatewayAPIListView: View {
                             Button("List REST APIs") {
                                 copyToClipboard(RestApi.listRestApisCLI(endpointUrl: appState.endpoint, region: appState.region))
                             }
+                        }
+                        Divider()
+                        Button("View Details") {
+                            apiToShowDetail = api
                         }
                         Divider()
                         Button("Create REST API") {

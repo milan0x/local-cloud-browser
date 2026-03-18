@@ -265,6 +265,7 @@ struct DynamoDBItemBrowserView: View {
                     .foregroundStyle(.secondary)
                 TextField("Filter expression (optional)", text: $filterExpression)
                     .font(.caption)
+                    .help("DynamoDB FilterExpression syntax, e.g. contains(#name, :val)")
 
                 Text("Limit:")
                     .font(.caption)
@@ -388,6 +389,11 @@ struct DynamoDBItemBrowserView: View {
                 onDeleteItems: { itemsToDelete = $0 },
                 onEditComplex: { editingItem = $0 },
                 onCopyJSON: { copyItemAsJSON($0) },
+                onCopyItemKey: { item in
+                    let key = item.primaryKey(keySchema: tableDetail.keySchema)
+                    let parts = key.sorted(by: { $0.key < $1.key }).map { "\($0.key)=\($0.value.displayString)" }
+                    copyToClipboard(parts.joined(separator: ", "))
+                },
                 onCopyGetItemCLI: { item in
                     copyToClipboard(item.getItemCLI(
                         tableName: table.tableName,
@@ -453,6 +459,14 @@ struct DynamoDBItemBrowserView: View {
                     Text("(\(selectedItemIDs.count) selected)")
                         .font(.callout)
                         .foregroundStyle(.secondary)
+                }
+                if !items.isEmpty && selectedItemIDs.isEmpty && !isDraftRowActive {
+                    Image(systemName: "cursorarrow.click.2")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    Text("Double-click to edit")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
                 if lastEvaluatedKey != nil {
                     if isLoading {

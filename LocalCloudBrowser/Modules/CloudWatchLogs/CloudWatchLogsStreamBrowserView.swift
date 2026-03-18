@@ -105,19 +105,17 @@ struct CloudWatchLogsStreamBrowserView: View {
     private var streamListMode: some View {
         // Header
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(logGroup.logGroupName)
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .lineLimit(1)
-            }
+            Text(logGroup.logGroupName)
+                .font(.headline)
+                .lineLimit(1)
             Spacer()
             ListHeaderButton("plus", isDisabled: appState.isReadOnly, help: "Create Log Stream") {
                 showCreateStreamSheet = true
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .frame(minHeight: 32)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
 
         Divider()
 

@@ -117,7 +117,7 @@ struct DynamoDBTableListView: View {
                 }
                 List(selection: $selectedTableIDs) {
                     ForEach(filteredTables) { table in
-                    Text(table.tableName)
+                    Label(table.tableName, systemImage: "tablecells")
                         .fontWeight(.medium)
                         .lineLimit(1)
                         .padding(.vertical, 3)
