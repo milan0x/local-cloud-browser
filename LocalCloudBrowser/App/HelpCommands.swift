@@ -109,13 +109,15 @@ struct HelpCommands: Commands {
             ]
         ))
 
-        result.append(NSAttributedString(
-            string: AppInfo.contactEmail,
-            attributes: [
-                .font: font,
-                .link: URL(string: "mailto:\(AppInfo.contactEmail)")!,
-            ]
-        ))
+        if let mailURL = URL(string: "mailto:\(AppInfo.contactEmail)") {
+            result.append(NSAttributedString(
+                string: AppInfo.contactEmail,
+                attributes: [
+                    .font: font,
+                    .link: mailURL,
+                ]
+            ))
+        }
 
         let style = NSMutableParagraphStyle()
         style.alignment = .center

@@ -125,6 +125,7 @@ struct DynamoDBItemGrid: NSViewRepresentable {
     var onDeleteItems: ([DynamoDBItem]) -> Void = { _ in }
     var onEditComplex: (DynamoDBItem) -> Void = { _ in }
     var onCopyJSON: (DynamoDBItem) -> Void = { _ in }
+    var onCopyItemKey: (DynamoDBItem) -> Void = { _ in }
     var onCopyGetItemCLI: (DynamoDBItem) -> Void = { _ in }
     var onCopyPutItemCLI: (DynamoDBItem) -> Void = { _ in }
     var onPutItem: () -> Void = {}
@@ -428,6 +429,7 @@ struct DynamoDBItemGrid: NSViewRepresentable {
                 // Normal item row
                 textField.isDraftCell = false
                 textField.placeholderString = nil
+                guard row < parent.items.count else { return nil }
                 let item = parent.items[row]
                 let value = item.attributes[columnName]
 
@@ -772,6 +774,11 @@ struct DynamoDBItemGrid: NSViewRepresentable {
                 copyJSON.representedObject = item
                 menu.addItem(copyJSON)
 
+                let copyKey = NSMenuItem(title: "Copy Item Key", action: #selector(menuCopyItemKey(_:)), keyEquivalent: "")
+                copyKey.target = self
+                copyKey.representedObject = item
+                menu.addItem(copyKey)
+
                 let cliMenu = NSMenu()
                 let getItem = NSMenuItem(title: "Get Item", action: #selector(menuCopyGetItemCLI(_:)), keyEquivalent: "")
                 getItem.target = self
@@ -820,6 +827,11 @@ struct DynamoDBItemGrid: NSViewRepresentable {
         @objc private func menuCopyJSON(_ sender: NSMenuItem) {
             guard let item = sender.representedObject as? DynamoDBItem else { return }
             parent.onCopyJSON(item)
+        }
+
+        @objc private func menuCopyItemKey(_ sender: NSMenuItem) {
+            guard let item = sender.representedObject as? DynamoDBItem else { return }
+            parent.onCopyItemKey(item)
         }
 
         @objc private func menuCopyGetItemCLI(_ sender: NSMenuItem) {
