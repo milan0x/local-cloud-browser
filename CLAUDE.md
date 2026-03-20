@@ -68,3 +68,26 @@ Tests cover **pure logic only** — code that takes input and returns output wit
 - `ObservableObject` classes that depend on `AppState` or UI lifecycle
 - Anything requiring a running app, window server, or user interaction
 - `NSViewRepresentable` wrappers (`CodeTextEditor`, `PaneClickDetector`, etc.)
+
+## Design Context
+
+### Users
+Individual developers and small DevOps/platform teams who manage local AWS-compatible services (LocalStack, MinIO) during development. They use the app as a daily companion while building and debugging — it needs to stay out of the way and just work.
+
+### Brand Personality
+**Professional, clear, reliable.** Quiet confidence, zero theatrics. Clarity of information, predictable behavior, and consistency above all. Friendly without being playful, capable without being showy.
+
+### Aesthetic Direction
+- **Visual tone**: Native macOS, utilitarian, polished but restrained
+- **References**: Proxyman, TablePlus, Xcode, Instruments
+- **Anti-references**: Electron apps, AWS Console density, generic SaaS dashboards
+- **Theme**: System appearance (light + dark via semantic SwiftUI colors)
+- **Typography**: System fonts only (SF Pro, SF Mono)
+- **Iconography**: SF Symbols exclusively
+
+### Design Principles
+1. **Clarity over cleverness**: Communicate, don't decorate. No fancy UI/UX tricks.
+2. **Native and invisible**: Follow macOS HIG faithfully. Feel like it ships with the OS.
+3. **Safety by default**: Read-only on, endpoint validation, confirmation for destructive actions.
+4. **Consistency across modules**: All service modules feel identical via shared components.
+5. **Information density, not overload**: Progressive disclosure to layer information.
