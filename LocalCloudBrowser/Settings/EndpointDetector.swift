@@ -93,7 +93,7 @@ enum EndpointDetector {
 
     /// Probes for LocalStack and MinIO health endpoints concurrently.
     /// Returns the detected type and the health path that succeeded.
-    private static func probeEndpointType(endpoint: String) async -> (EndpointType, String?) {
+    static func probeEndpointType(endpoint: String) async -> (EndpointType, String?) {
         let base = endpoint.hasSuffix("/") ? endpoint : endpoint + "/"
 
         return await withTaskGroup(of: (EndpointType, String?).self) { group in

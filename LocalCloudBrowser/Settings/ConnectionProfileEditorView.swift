@@ -27,6 +27,7 @@ struct ConnectionProfileEditorView: View {
     @State private var isScanning = false
     @State private var discoveredServices: [DiscoveredService] = []
     @State private var activeTask: Task<Void, Never>?
+    @State private var endpointProbeTask: Task<Void, Never>?
     @FocusState private var focusedField: String?
 
     enum TestResult {
@@ -163,7 +164,7 @@ struct ConnectionProfileEditorView: View {
             Divider()
 
             HStack {
-                Button("Cancel") { activeTask?.cancel(); dismiss() }
+                Button("Cancel") { activeTask?.cancel(); endpointProbeTask?.cancel(); dismiss() }
                     .keyboardShortcut(.cancelAction)
                 Spacer()
                 Button(existing == nil ? "Add" : "Save") {
@@ -188,6 +189,31 @@ struct ConnectionProfileEditorView: View {
             .padding()
         }
         .frame(width: 400, height: existing != nil ? 500 : 440)
+        .onChange(of: endpoint) {
+            endpointProbeTask?.cancel()
+            guard URL(string: endpoint) != nil else { return }
+            endpointProbeTask = Task {
+                try? await Task.sleep(for: .milliseconds(600))
+                guard !Task.isCancelled else { return }
+                let (type, _) = await EndpointDetector.probeEndpointType(endpoint: endpoint)
+                guard !Task.isCancelled else { return }
+                if type != .generic {
+                    endpointType = type
+                    if type == .minio {
+                        region = "us-east-1"
+                        if accessKeyId.isEmpty { accessKeyId = "minioadmin" }
+                        if secretAccessKey.isEmpty { secretAccessKey = "minioadmin" }
+                    } else if type == .localstack {
+                        if accessKeyId.isEmpty { accessKeyId = "test" }
+                        if secretAccessKey.isEmpty { secretAccessKey = "test" }
+                    }
+                } else if endpointType != .generic {
+                    // Endpoint changed to something that's no longer the previous type
+                    endpointType = .generic
+                }
+            }
+        }
+        .onDisappear { endpointProbeTask?.cancel() }
         .alert("Delete Connection?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
@@ -398,7 +424,7 @@ struct ConnectionProfileEditorView: View {
                         } else {
                             Image(systemName: "antenna.radiowaves.left.and.right")
                         }
-                        Text(isScanning ? "Scanning..." : "Scan for Local Services")
+                        Text(isScanning ? "Scanning..." : "Scan for Known Local Services")
                     }
                 }
                 .disabled(isScanning)
