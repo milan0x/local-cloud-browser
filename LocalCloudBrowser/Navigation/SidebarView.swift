@@ -19,13 +19,20 @@ struct SidebarView: View {
     @AppStorage("collapsedSidebarCategories") private var collapsedCategoriesRaw = ""
     @FocusState private var isSidebarFocused: Bool
 
+    private var hasConnection: Bool {
+        !profileStore.profiles.isEmpty
+    }
+
     var body: some View {
-        List(selection: $appState.selectedRoute) {
+        List(selection: hasConnection ? $appState.selectedRoute : .constant(nil)) {
+            if !hasConnection {
+                addConnectionPrompt
+            }
             ForEach(Route.grouped, id: \.category) { group in
                 Section(isExpanded: expandedBinding(for: group.category)) {
                     ForEach(group.routes) { route in
                         let unsupported = appState.endpointType == .minio && !route.supportedByMinIO
-                        if unsupported {
+                        if unsupported || !hasConnection {
                             HStack {
                                 Label(route.displayName, systemImage: route.systemImage)
                             }
@@ -106,7 +113,7 @@ struct SidebarView: View {
                 existing: sheet.profile,
                 canDelete: {
                     if let profile = sheet.profile {
-                        return profileStore.profiles.count > 1 && !profileStore.isDefaultProfile(profile.id)
+                        return profileStore.profiles.count > 1
                     }
                     return false
                 }(),
@@ -134,6 +141,24 @@ struct SidebarView: View {
                 }
             )
         }
+    }
+
+    private var addConnectionPrompt: some View {
+        Button {
+            editorSheet = EditorSheet(profile: nil)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Color.accentColor)
+                Text("Add Connection")
+                    .fontWeight(.medium)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var nonLocalWarning: some View {
@@ -196,21 +221,27 @@ struct SidebarView: View {
 
     private var connectionIndicator: some View {
         HStack(spacing: 6) {
-            if appState.connectionStatus == .connected {
-                healthStatusButton
-            } else if appState.connectionError != nil {
-                connectionErrorButton
-            } else {
-                Image(systemName: "questionmark.circle.fill")
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(Color.orange, Color.gray.opacity(0.4))
+            if hasConnection {
+                if appState.connectionStatus == .connected {
+                    healthStatusButton
+                } else if appState.connectionError != nil {
+                    connectionErrorButton
+                } else {
+                    Image(systemName: "questionmark.circle.fill")
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(Color.orange, Color.gray.opacity(0.4))
+                }
             }
 
             Button {
-                showConnectionManager = true
+                if hasConnection {
+                    showConnectionManager = true
+                } else {
+                    editorSheet = EditorSheet(profile: nil)
+                }
             } label: {
                 HStack(spacing: 4) {
-                    Text(appState.activeConnectionName)
+                    Text(hasConnection ? appState.activeConnectionName : "No Connection")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                     Image(systemName: "chevron.up.chevron.down")

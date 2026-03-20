@@ -214,8 +214,22 @@ struct ContentView: View {
             Text("Local Cloud Browser GUI")
                 .font(.largeTitle)
                 .fontWeight(.semibold)
-            Text("Select a service from the sidebar to get started.")
-                .foregroundStyle(.secondary)
+            if profileStore.profiles.isEmpty {
+                Text("Add a connection to get started.")
+                    .foregroundStyle(.secondary)
+                Button {
+                    showNewConnection = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "plus.circle.fill")
+                        Text("Add Connection")
+                    }
+                }
+                .controlSize(.large)
+            } else {
+                Text("Select a service from the sidebar to get started.")
+                    .foregroundStyle(.secondary)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
