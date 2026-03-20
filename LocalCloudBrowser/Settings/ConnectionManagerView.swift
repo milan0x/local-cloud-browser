@@ -43,7 +43,7 @@ struct ConnectionManagerView: View {
                 Button("Close") { dismiss() }
                     .keyboardShortcut(.cancelAction)
                 Spacer()
-                Button("Add Connection") {
+                Button("Add New Connection") {
                     isAddingNew = true
                     editingProfile = nil
                 }
