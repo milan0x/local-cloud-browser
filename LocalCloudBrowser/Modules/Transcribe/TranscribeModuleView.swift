@@ -28,7 +28,7 @@ struct TranscribeModuleView: View {
                 activeJob: $activeJob,
                 restoreJobName: restoreJobName
             )
-            .frame(width: 280)
+            .frame(minWidth: 200, idealWidth: 280, maxWidth: 450)
 
             Group {
                 if let job = activeJob {

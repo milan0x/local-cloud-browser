@@ -35,7 +35,7 @@ struct SNSModuleView: View {
                 searchFocusTrigger: listSearchFocusTrigger,
                 paneFocusTrigger: listPaneFocusTrigger
             )
-            .frame(width: 280)
+            .frame(minWidth: 200, idealWidth: 280, maxWidth: 450)
             .onKeyPress(.leftArrow) {
                 guard !isTextFieldFirstResponder() else { return .ignored }
                 appState.sidebarFocusTrigger += 1
