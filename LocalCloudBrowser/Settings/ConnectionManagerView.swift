@@ -74,7 +74,7 @@ struct ConnectionManagerView: View {
         .sheet(item: $editingProfile) { profile in
             ConnectionProfileEditorView(
                 existing: profile,
-                canDelete: profileStore.profiles.count > 1 && !profileStore.isDefaultProfile(profile.id),
+                canDelete: true,
                 onSave: { updated in
                     profileStore.update(updated)
                     if updated.id == profileStore.activeProfileId {
@@ -83,7 +83,11 @@ struct ConnectionManagerView: View {
                 },
                 onDelete: {
                     profileStore.delete(id: profile.id)
-                    if profileStore.activeProfileId == nil, let first = profileStore.profiles.first {
+                    if profileStore.profiles.isEmpty {
+                        appState.selectedRoute = nil
+                        appState.activeConnectionName = "No Connection"
+                        appState.connectionStatus = .disconnected
+                    } else if profileStore.activeProfileId == nil, let first = profileStore.profiles.first {
                         profileStore.setActive(id: first.id)
                         appState.applyProfile(first)
                     }
@@ -148,12 +152,16 @@ struct ConnectionManagerView: View {
     }
 
     private func canDelete(_ profile: ConnectionProfile) -> Bool {
-        profileStore.profiles.count > 1 && !profileStore.isDefaultProfile(profile.id)
+        true
     }
 
     private func deleteProfile(_ profile: ConnectionProfile) {
         profileStore.delete(id: profile.id)
-        if profileStore.activeProfileId == nil, let first = profileStore.profiles.first {
+        if profileStore.profiles.isEmpty {
+            appState.selectedRoute = nil
+            appState.activeConnectionName = "No Connection"
+            appState.connectionStatus = .disconnected
+        } else if profileStore.activeProfileId == nil, let first = profileStore.profiles.first {
             profileStore.setActive(id: first.id)
             appState.applyProfile(first)
         }
