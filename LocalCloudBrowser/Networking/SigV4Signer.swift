@@ -1,5 +1,6 @@
 import Foundation
 import CommonCrypto
+import CryptoKit
 
 enum SigV4Signer {
     static func sign(
@@ -9,10 +10,17 @@ enum SigV4Signer {
         service: String,
         accessKeyId: String,
         secretAccessKey: String,
+        sessionToken: String? = nil,
+        unsignedPayload: Bool = false,
         date: Date = Date()
     ) {
-        let bodyData = body ?? Data()
-        let payloadHash = hexEncode(sha256(bodyData))
+        let payloadHash: String
+        if unsignedPayload {
+            payloadHash = "UNSIGNED-PAYLOAD"
+        } else {
+            let bodyData = body ?? Data()
+            payloadHash = hexEncode(sha256(bodyData))
+        }
 
         // Timestamps
         let dateFormatter = DateFormatter()
@@ -30,6 +38,12 @@ enum SigV4Signer {
         // Set required headers
         request.setValue(amzDate, forHTTPHeaderField: "x-amz-date")
         request.setValue(payloadHash, forHTTPHeaderField: "x-amz-content-sha256")
+
+        // Session token must be set before canonical request computation
+        // so it's included in signed headers.
+        if let sessionToken, !sessionToken.isEmpty {
+            request.setValue(sessionToken, forHTTPHeaderField: "x-amz-security-token")
+        }
 
         // Host header (include port if non-standard)
         if let url = request.url, let host = url.host {
@@ -145,6 +159,12 @@ enum SigV4Signer {
         let kService = hmacSHA256(key: kRegion, data: Data(service.utf8))
         let kSigning = hmacSHA256(key: kService, data: Data("aws4_request".utf8))
         return kSigning
+    }
+
+    /// Computes base64-encoded MD5 hash for Content-MD5 header.
+    static func md5Base64(_ data: Data) -> String {
+        let digest = Insecure.MD5.hash(data: data)
+        return Data(digest).base64EncodedString()
     }
 
     static func canonicalQueryString(from url: URL) -> String {

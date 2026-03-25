@@ -13,6 +13,7 @@ struct ConnectionProfileEditorView: View {
     @State private var region: String
     @State private var accessKeyId: String
     @State private var secretAccessKey: String
+    @State private var sessionToken: String
     @State private var healthPath: String
     @State private var s3Domain: String
     @State private var apiGatewayDomain: String
@@ -45,6 +46,7 @@ struct ConnectionProfileEditorView: View {
         _region = State(initialValue: existing?.region ?? "us-east-1")
         _accessKeyId = State(initialValue: existing?.accessKeyId ?? "")
         _secretAccessKey = State(initialValue: existing?.secretAccessKey ?? "")
+        _sessionToken = State(initialValue: existing?.sessionToken ?? "")
         _healthPath = State(initialValue: existing?.healthPath ?? "")
         _s3Domain = State(initialValue: existing?.s3Domain ?? "")
         _apiGatewayDomain = State(initialValue: existing?.apiGatewayDomain ?? "")
@@ -77,9 +79,11 @@ struct ConnectionProfileEditorView: View {
                         AWSRegionPicker(regionCode: $region)
                     }
                 }
-                TextField("Access Key ID", text: $accessKeyId, prompt: Text("Access Key ID"))
+                TextField("Access Key", text: $accessKeyId, prompt: Text("Access Key ID"))
                     .textFieldStyle(.roundedBorder)
-                SecureField("Secret Access Key", text: $secretAccessKey, prompt: Text("Secret Access Key"))
+                SecureField("Secret Key", text: $secretAccessKey, prompt: Text("Secret Access Key"))
+                    .textFieldStyle(.roundedBorder)
+                SecureField("Session Token", text: $sessionToken, prompt: Text("Optional"))
                     .textFieldStyle(.roundedBorder)
 
                 DisclosureGroup(isExpanded: $showAdvanced) {
@@ -175,6 +179,7 @@ struct ConnectionProfileEditorView: View {
                         region: region,
                         accessKeyId: accessKeyId,
                         secretAccessKey: secretAccessKey,
+                        sessionToken: sessionToken,
                         healthPath: healthPath.trimmingCharacters(in: .whitespaces),
                         s3Domain: s3Domain.trimmingCharacters(in: .whitespaces),
                         apiGatewayDomain: apiGatewayDomain.trimmingCharacters(in: .whitespaces),
@@ -188,7 +193,7 @@ struct ConnectionProfileEditorView: View {
             }
             .padding()
         }
-        .frame(width: 400, height: existing != nil ? 500 : 440)
+        .frame(width: 400, height: existing != nil ? 540 : 480)
         .onChange(of: endpoint) {
             endpointProbeTask?.cancel()
             guard URL(string: endpoint) != nil else { return }

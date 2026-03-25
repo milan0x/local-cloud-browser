@@ -28,6 +28,8 @@ struct ServiceError: Identifiable {
             return "One or more parameter values are invalid. Check your input and try again."
         case "AccessDenied":
             return "Access denied. Check your endpoint configuration."
+        case "ExpiredToken", "ExpiredTokenException", "TokenRefreshRequired":
+            return "Your session token has expired. Update your credentials in the connection settings."
         default:
             return message
         }

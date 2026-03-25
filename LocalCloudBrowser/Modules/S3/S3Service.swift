@@ -1,6 +1,12 @@
 import Foundation
+import CryptoKit
 
 final class S3Service: BaseService {
+
+    /// Default part size for multipart uploads: 10 MB
+    private static let defaultPartSize = 10 * 1024 * 1024
+    /// Files larger than this threshold use multipart upload: 20 MB
+    private static let multipartThreshold: Int64 = 20 * 1024 * 1024
 
     func listBuckets() async throws -> [S3Bucket] {
         let data = try await client.s3Request(method: "GET", path: "/")
@@ -75,6 +81,29 @@ final class S3Service: BaseService {
         try await client.s3Request(method: "GET", path: "/\(bucket)/\(key)")
     }
 
+    /// Downloads an object directly to a file using streaming (no full in-memory buffering).
+    /// Uses URLSession.download with a signed request for production S3 compatibility.
+    func downloadObjectToFile(bucket: String, key: String, destination: URL) async throws {
+        let request = try client.buildSignedS3Request(method: "GET", path: "/\(bucket)/\(key)")
+        let (tempURL, response) = try await URLSession.shared.download(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw CloudClientError.invalidURL
+        }
+
+        if !(200..<300).contains(httpResponse.statusCode) {
+            let errorData = (try? Data(contentsOf: tempURL)) ?? Data()
+            throw CloudClientError.httpError(statusCode: httpResponse.statusCode, data: errorData)
+        }
+
+        // Move from URLSession temp location to destination
+        let fm = FileManager.default
+        if fm.fileExists(atPath: destination.path) {
+            try fm.removeItem(at: destination)
+        }
+        try fm.moveItem(at: tempURL, to: destination)
+    }
+
     func putObject(bucket: String, key: String, data: Data, contentType: String) async throws {
         _ = try await client.s3Request(
             method: "PUT",
@@ -82,6 +111,180 @@ final class S3Service: BaseService {
             body: data,
             contentType: contentType
         )
+    }
+
+    // MARK: - Multipart Upload
+
+    /// Initiates a multipart upload and returns the upload ID.
+    func createMultipartUpload(bucket: String, key: String, contentType: String) async throws -> String {
+        let data = try await client.s3Request(
+            method: "POST",
+            path: "/\(bucket)/\(key)",
+            queryParams: ["uploads": ""],
+            contentType: contentType
+        )
+        return try S3InitiateMultipartUploadParser().parse(data: data)
+    }
+
+    /// Uploads a single part and returns its ETag.
+    func uploadPart(bucket: String, key: String, uploadId: String, partNumber: Int, data: Data, useUnsignedPayload: Bool = false) async throws -> String {
+        var headers: [String: String] = [:]
+        // Content-MD5 for transfer integrity on non-local endpoints
+        if useUnsignedPayload {
+            headers["Content-MD5"] = SigV4Signer.md5Base64(data)
+        }
+        let response = try await client.s3RequestWithHeaders(
+            method: "PUT",
+            path: "/\(bucket)/\(key)",
+            queryParams: ["partNumber": "\(partNumber)", "uploadId": uploadId],
+            body: data,
+            contentType: "application/octet-stream",
+            headers: headers,
+            unsignedPayload: useUnsignedPayload
+        )
+        guard let etag = response.headers["etag"] else {
+            throw S3XMLParserError.parseFailed("Missing ETag in uploadPart response")
+        }
+        return etag
+    }
+
+    /// Completes a multipart upload by sending the list of parts.
+    func completeMultipartUpload(bucket: String, key: String, uploadId: String, parts: [(partNumber: Int, etag: String)]) async throws {
+        var xml = "<CompleteMultipartUpload>"
+        for part in parts {
+            xml += "<Part><PartNumber>\(part.partNumber)</PartNumber><ETag>\(part.etag)</ETag></Part>"
+        }
+        xml += "</CompleteMultipartUpload>"
+        _ = try await client.s3Request(
+            method: "POST",
+            path: "/\(bucket)/\(key)",
+            queryParams: ["uploadId": uploadId],
+            body: Data(xml.utf8),
+            contentType: "application/xml"
+        )
+    }
+
+    /// Aborts a multipart upload, cleaning up uploaded parts on the server.
+    func abortMultipartUpload(bucket: String, key: String, uploadId: String) async throws {
+        _ = try await client.s3Request(
+            method: "DELETE",
+            path: "/\(bucket)/\(key)",
+            queryParams: ["uploadId": uploadId]
+        )
+    }
+
+    /// Maximum number of concurrent part uploads (bounds memory to maxConcurrentParts × partSize).
+    private static let maxConcurrentParts = 4
+
+    /// Uploads a file using multipart upload with FileHandle-based chunking
+    /// and concurrent part uploads. Reads are sequential (FileHandle is not Sendable),
+    /// but up to `maxConcurrentParts` network uploads run in parallel.
+    /// Peak memory: ~maxConcurrentParts × partSize (40 MB with defaults).
+    func putObjectMultipart(
+        bucket: String,
+        key: String,
+        fileURL: URL,
+        contentType: String,
+        partSize: Int = S3Service.defaultPartSize,
+        progress: ((Int64, Int64) -> Void)? = nil
+    ) async throws {
+        let fileHandle = try FileHandle(forReadingFrom: fileURL)
+        defer { try? fileHandle.close() }
+
+        let fileSize = try Int64(fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0)
+        let uploadId = try await createMultipartUpload(bucket: bucket, key: key, contentType: contentType)
+        let useUnsigned = !client.isLocalEndpoint
+
+        do {
+            var completedParts: [(partNumber: Int, etag: String)] = []
+            var nextPartNumber = 1
+            var bytesUploaded: Int64 = 0
+
+            try await withThrowingTaskGroup(of: (Int, String, Int).self) { group in
+                // Seed initial concurrent uploads
+                for _ in 0..<Self.maxConcurrentParts {
+                    guard let chunk = try fileHandle.read(upToCount: partSize), !chunk.isEmpty else { break }
+                    let pn = nextPartNumber
+                    let chunkSize = chunk.count
+                    nextPartNumber += 1
+                    group.addTask {
+                        let etag = try await self.uploadPart(
+                            bucket: bucket, key: key, uploadId: uploadId,
+                            partNumber: pn, data: chunk, useUnsignedPayload: useUnsigned
+                        )
+                        return (pn, etag, chunkSize)
+                    }
+                }
+
+                // As each upload completes, read next chunk and launch new upload
+                for try await (pn, etag, chunkSize) in group {
+                    try Task.checkCancellation()
+                    completedParts.append((partNumber: pn, etag: etag))
+                    bytesUploaded += Int64(chunkSize)
+                    progress?(bytesUploaded, fileSize)
+
+                    // Read and launch next part if available
+                    if let chunk = try fileHandle.read(upToCount: partSize), !chunk.isEmpty {
+                        let nextPN = nextPartNumber
+                        let nextSize = chunk.count
+                        nextPartNumber += 1
+                        group.addTask {
+                            let etag = try await self.uploadPart(
+                                bucket: bucket, key: key, uploadId: uploadId,
+                                partNumber: nextPN, data: chunk, useUnsignedPayload: useUnsigned
+                            )
+                            return (nextPN, etag, nextSize)
+                        }
+                    }
+                }
+            }
+
+            // Parts may complete out of order — sort before finalizing
+            completedParts.sort { $0.partNumber < $1.partNumber }
+            try await completeMultipartUpload(bucket: bucket, key: key, uploadId: uploadId, parts: completedParts)
+        } catch {
+            try? await abortMultipartUpload(bucket: bucket, key: key, uploadId: uploadId)
+            throw error
+        }
+    }
+
+    /// Routes upload to single PUT or multipart based on file size.
+    /// - Small files (< 20 MB): single PUT with in-memory Data
+    /// - Large files (>= 20 MB): multipart upload with FileHandle chunking (memory-safe)
+    /// Content-MD5 and UNSIGNED-PAYLOAD are applied only for non-local endpoints.
+    func uploadObject(
+        bucket: String,
+        key: String,
+        fileURL: URL,
+        contentType: String,
+        progress: ((Int64, Int64) -> Void)? = nil
+    ) async throws {
+        let fileSize = try Int64(fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0)
+
+        if fileSize < Self.multipartThreshold {
+            // Single PUT — small files are safe to buffer in memory
+            let data = try Data(contentsOf: fileURL)
+            var headers: [String: String] = [:]
+            if !client.isLocalEndpoint {
+                headers["Content-MD5"] = SigV4Signer.md5Base64(data)
+            }
+            _ = try await client.s3Request(
+                method: "PUT",
+                path: "/\(bucket)/\(key)",
+                body: data,
+                contentType: contentType,
+                headers: headers
+            )
+        } else {
+            // Multipart upload — FileHandle chunking keeps memory at ~partSize
+            try await putObjectMultipart(
+                bucket: bucket,
+                key: key,
+                fileURL: fileURL,
+                contentType: contentType,
+                progress: progress
+            )
+        }
     }
 
     func createFolder(bucket: String, prefix: String, name: String) async throws {
@@ -233,8 +436,7 @@ final class S3Service: BaseService {
             if !FileManager.default.fileExists(atPath: parentDir.path) {
                 try FileManager.default.createDirectory(at: parentDir, withIntermediateDirectories: true)
             }
-            let data = try await getObject(bucket: bucket, key: obj.key)
-            try data.write(to: fileURL)
+            try await downloadObjectToFile(bucket: bucket, key: obj.key, destination: fileURL)
             progress(index + 1, files.count)
         }
 

@@ -34,9 +34,32 @@ struct SafetyGuardTests {
         #expect(SafetyGuard.evaluate(endpoint: "http://aws.amazon.com:4566") == .cautionNonLocal)
     }
 
-    @Test("IP address that is not loopback is non-local")
-    func remoteIP() {
-        #expect(SafetyGuard.evaluate(endpoint: "http://192.168.1.100:4566") == .cautionNonLocal)
+    @Test("Private IP 192.168.x.x is local")
+    func privateIP192() {
+        #expect(SafetyGuard.evaluate(endpoint: "http://192.168.1.100:4566") == .local)
+    }
+
+    @Test("Private IP 10.x.x.x is local")
+    func privateIP10() {
+        #expect(SafetyGuard.evaluate(endpoint: "http://10.0.0.5:9000") == .local)
+    }
+
+    @Test("Private IP 172.16-31.x.x is local")
+    func privateIP172() {
+        #expect(SafetyGuard.evaluate(endpoint: "http://172.16.0.1:4566") == .local)
+        #expect(SafetyGuard.evaluate(endpoint: "http://172.31.255.255:4566") == .local)
+        #expect(SafetyGuard.evaluate(endpoint: "http://172.15.0.1:4566") == .cautionNonLocal)
+        #expect(SafetyGuard.evaluate(endpoint: "http://172.32.0.1:4566") == .cautionNonLocal)
+    }
+
+    @Test("Link-local 169.254.x.x is local")
+    func linkLocal() {
+        #expect(SafetyGuard.evaluate(endpoint: "http://169.254.1.1:4566") == .local)
+    }
+
+    @Test("Public IP is non-local")
+    func publicIP() {
+        #expect(SafetyGuard.evaluate(endpoint: "http://8.8.8.8:4566") == .cautionNonLocal)
     }
 
     @Test("Unparseable endpoint is non-local")

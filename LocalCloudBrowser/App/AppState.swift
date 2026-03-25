@@ -36,6 +36,7 @@ final class AppState: ObservableObject {
     @Published var region: String = "us-east-1"
     @Published var accessKeyId: String = KeychainHelper.defaultAccessKeyId
     @Published var secretAccessKey: String = KeychainHelper.defaultSecretAccessKey
+    @Published var sessionToken: String = ""
     @Published var activeConnectionName: String = "My Connection"
     @Published var connectionVersion: Int = 0
     @Published var connectionError: ConnectionError?
@@ -99,6 +100,7 @@ final class AppState: ObservableObject {
         endpointType = profile.endpointType
         accessKeyId = profile.accessKeyId
         secretAccessKey = profile.secretAccessKey
+        sessionToken = profile.sessionToken
         if profile.endpointType == .minio { region = "us-east-1" }
         activeConnectionName = profile.name
         activeProfileId = profile.id
@@ -274,13 +276,6 @@ final class AppState: ObservableObject {
     }
 
     var isLocalEndpoint: Bool {
-        guard let url = URL(string: endpoint),
-              let host = url.host?.lowercased() else {
-            return false
-        }
-        return host == "localhost"
-            || host == "127.0.0.1"
-            || host == "::1"
-            || host.hasSuffix(".local")
+        SafetyGuard.evaluate(endpoint: endpoint) == .local
     }
 }
