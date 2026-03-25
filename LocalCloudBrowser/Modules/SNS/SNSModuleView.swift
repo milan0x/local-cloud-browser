@@ -26,7 +26,7 @@ struct SNSModuleView: View {
     }
 
     var body: some View {
-        ResizableSplitView(storageKey: "SNSPaneWidth") {
+        HSplitView {
             SNSTopicListView(
                 service: service,
                 selectedTopicIDs: $selectedTopicIDs,
@@ -35,6 +35,7 @@ struct SNSModuleView: View {
                 searchFocusTrigger: listSearchFocusTrigger,
                 paneFocusTrigger: listPaneFocusTrigger
             )
+            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
             .onKeyPress(.leftArrow) {
                 guard !isTextFieldFirstResponder() else { return .ignored }
                 appState.sidebarFocusTrigger += 1
@@ -46,7 +47,7 @@ struct SNSModuleView: View {
                 detailPaneFocusTrigger += 1
                 return .handled
             }
-        } trailing: {
+
             Group {
                 if let topic = activeTopic {
                     SNSSubscriptionListView(
@@ -60,6 +61,7 @@ struct SNSModuleView: View {
                     EmptyDetailView(icon: "bell", message: "Select a topic")
                 }
             }
+            .frame(minWidth: 400)
             .onKeyPress(.leftArrow) {
                 guard !isTextFieldFirstResponder() else { return .ignored }
                 listPaneFocusTrigger += 1

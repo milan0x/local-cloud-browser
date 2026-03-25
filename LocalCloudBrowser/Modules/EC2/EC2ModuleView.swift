@@ -34,7 +34,7 @@ struct EC2ModuleView: View {
     }
 
     var body: some View {
-        ResizableSplitView(storageKey: "EC2PaneWidth", defaultWidth: 340) {
+        HSplitView {
             EC2EntityListView(
                 service: service,
                 toolbarState: toolbarState,
@@ -45,7 +45,8 @@ struct EC2ModuleView: View {
                 restoreEntityType: restoreEntityType,
                 restoreEntityName: restoreEntityName
             )
-        } trailing: {
+            .frame(width: 340)
+
             Group {
                 if let instanceId = selectedInstanceId, entityType == .instances {
                     EC2InstanceDetailView(service: service, instanceId: instanceId)
@@ -57,6 +58,7 @@ struct EC2ModuleView: View {
                     EmptyDetailView(icon: "server.rack", message: "Select a resource")
                 }
             }
+            .frame(minWidth: 400)
         }
         .toolbar {
             EC2Toolbar(

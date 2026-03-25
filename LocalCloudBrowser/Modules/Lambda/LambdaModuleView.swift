@@ -26,7 +26,7 @@ struct LambdaModuleView: View {
     }
 
     var body: some View {
-        ResizableSplitView(storageKey: "LambdaPaneWidth") {
+        HSplitView {
             LambdaFunctionListView(
                 service: service,
                 toolbarState: toolbarState,
@@ -36,6 +36,7 @@ struct LambdaModuleView: View {
                 searchFocusTrigger: listSearchFocusTrigger,
                 paneFocusTrigger: listPaneFocusTrigger
             )
+            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
             .onKeyPress(.leftArrow) {
                 guard !isTextFieldFirstResponder() else { return .ignored }
                 appState.sidebarFocusTrigger += 1
@@ -47,7 +48,7 @@ struct LambdaModuleView: View {
                 detailPaneFocusTrigger += 1
                 return .handled
             }
-        } trailing: {
+
             Group {
                 if let function = activeFunction {
                     LambdaFunctionDetailPaneView(
@@ -59,6 +60,7 @@ struct LambdaModuleView: View {
                     EmptyDetailView(icon: "function", message: "Select a function")
                 }
             }
+            .frame(minWidth: 400)
             .onKeyPress(.leftArrow) {
                 guard !isTextFieldFirstResponder() else { return .ignored }
                 listPaneFocusTrigger += 1

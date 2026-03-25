@@ -20,7 +20,7 @@ struct ACMModuleView: View {
     }
 
     var body: some View {
-        ResizableSplitView(storageKey: "ACMPaneWidth") {
+        HSplitView {
             ACMCertificateListView(
                 service: service,
                 toolbarState: toolbarState,
@@ -28,7 +28,8 @@ struct ACMModuleView: View {
                 activeCertificate: $activeCertificate,
                 restoreCertArn: restoreCertArn
             )
-        } trailing: {
+            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+
             Group {
                 if let cert = activeCertificate {
                     ACMCertificateDetailPaneView(
@@ -39,6 +40,7 @@ struct ACMModuleView: View {
                     EmptyDetailView(icon: "checkmark.seal", message: "Select a certificate")
                 }
             }
+            .frame(minWidth: 400)
         }
         .toolbar {
             ACMToolbar(

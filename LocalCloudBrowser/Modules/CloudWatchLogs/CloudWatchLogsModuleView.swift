@@ -20,7 +20,7 @@ struct CloudWatchLogsModuleView: View {
     }
 
     var body: some View {
-        ResizableSplitView(storageKey: "CloudWatchLogsPaneWidth") {
+        HSplitView {
             CloudWatchLogsGroupListView(
                 service: service,
                 toolbarState: toolbarState,
@@ -28,7 +28,8 @@ struct CloudWatchLogsModuleView: View {
                 activeLogGroup: $activeLogGroup,
                 restoreLogGroupName: restoreLogGroupName
             )
-        } trailing: {
+            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+
             Group {
                 if let logGroup = activeLogGroup {
                     CloudWatchLogsStreamBrowserView(
@@ -40,6 +41,7 @@ struct CloudWatchLogsModuleView: View {
                     EmptyDetailView(icon: "doc.text.magnifyingglass", message: "Select a log group")
                 }
             }
+            .frame(minWidth: 400)
         }
         .toolbar {
             CloudWatchLogsToolbar(

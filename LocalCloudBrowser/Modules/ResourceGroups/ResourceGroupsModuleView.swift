@@ -20,7 +20,7 @@ struct ResourceGroupsModuleView: View {
     }
 
     var body: some View {
-        ResizableSplitView(storageKey: "ResourceGroupsPaneWidth") {
+        HSplitView {
             ResourceGroupsListView(
                 service: service,
                 toolbarState: toolbarState,
@@ -28,7 +28,8 @@ struct ResourceGroupsModuleView: View {
                 activeGroup: $activeGroup,
                 restoreGroupName: restoreGroupName
             )
-        } trailing: {
+            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+
             Group {
                 if let group = activeGroup {
                     ResourceGroupsDetailPaneView(
@@ -39,6 +40,7 @@ struct ResourceGroupsModuleView: View {
                     EmptyDetailView(icon: "square.3.layers.3d", message: "Select a group")
                 }
             }
+            .frame(minWidth: 400)
         }
         .toolbar {
             ResourceGroupsToolbar(

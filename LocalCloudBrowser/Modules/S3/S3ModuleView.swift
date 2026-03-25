@@ -30,7 +30,7 @@ struct S3ModuleView: View {
     }
 
     var body: some View {
-        ResizableSplitView(storageKey: "S3PaneWidth") {
+        HSplitView {
             S3BucketListView(
                 service: service,
                 selectedBucketIDs: $selectedBucketIDs,
@@ -40,6 +40,7 @@ struct S3ModuleView: View {
                 searchFocusTrigger: listSearchFocusTrigger,
                 paneFocusTrigger: listPaneFocusTrigger
             )
+            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
             .onKeyPress(.leftArrow) {
                 guard !isTextFieldFirstResponder() else { return .ignored }
                 appState.sidebarFocusTrigger += 1
@@ -51,7 +52,8 @@ struct S3ModuleView: View {
                 detailPaneFocusTrigger += 1
                 return .handled
             }
-        } trailing: {
+
+            // Primary pane
             Group {
                 if let bucket = activeBucket {
                     S3ObjectBrowserView(
@@ -68,6 +70,7 @@ struct S3ModuleView: View {
                     EmptyDetailView(icon: "externaldrive", message: "Select a bucket")
                 }
             }
+            .frame(minWidth: 400)
             .onKeyPress(.leftArrow) {
                 guard !isTextFieldFirstResponder() else { return .ignored }
                 listPaneFocusTrigger += 1

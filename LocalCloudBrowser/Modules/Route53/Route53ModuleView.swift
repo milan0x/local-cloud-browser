@@ -35,9 +35,10 @@ struct Route53ModuleView: View {
     }
 
     var body: some View {
-        ResizableSplitView(storageKey: "Route53PaneWidth") {
+        HSplitView {
             leftPane
-        } trailing: {
+                .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+
             Group {
                 if tab == .zones {
                     if let zone = activeZone {
@@ -60,6 +61,7 @@ struct Route53ModuleView: View {
                     }
                 }
             }
+            .frame(minWidth: 400)
         }
         .toolbar {
             Route53Toolbar(

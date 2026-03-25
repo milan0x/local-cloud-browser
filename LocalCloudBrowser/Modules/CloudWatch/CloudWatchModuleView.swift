@@ -25,9 +25,10 @@ struct CloudWatchModuleView: View {
     }
 
     var body: some View {
-        ResizableSplitView(storageKey: "CloudWatchPaneWidth") {
+        HSplitView {
             leftPane
-        } trailing: {
+                .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+
             Group {
                 if tab == .metrics, let metric = activeMetric {
                     CloudWatchMetricChartView(
@@ -40,6 +41,7 @@ struct CloudWatchModuleView: View {
                     EmptyDetailView(icon: "chart.xyaxis.line", message: tab == .metrics ? "Select a metric" : "Select an alarm")
                 }
             }
+            .frame(minWidth: 400)
         }
         .toolbar {
             CloudWatchToolbar(

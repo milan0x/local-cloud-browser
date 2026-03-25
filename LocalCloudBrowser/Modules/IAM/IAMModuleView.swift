@@ -34,7 +34,7 @@ struct IAMModuleView: View {
     }
 
     var body: some View {
-        ResizableSplitView(storageKey: "IAMPaneWidth") {
+        HSplitView {
             IAMEntityListView(
                 service: service,
                 toolbarState: toolbarState,
@@ -45,7 +45,8 @@ struct IAMModuleView: View {
                 restoreEntityType: restoreEntityType,
                 restoreEntityName: restoreEntityName
             )
-        } trailing: {
+            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+
             Group {
                 if let userName = selectedUserName, entityType == .users {
                     IAMDetailBrowserView(
@@ -69,6 +70,7 @@ struct IAMModuleView: View {
                     EmptyDetailView(icon: "person.2", message: "Select an entity")
                 }
             }
+            .frame(minWidth: 400)
         }
         .toolbar {
             IAMToolbar(

@@ -20,7 +20,7 @@ struct CloudFormationModuleView: View {
     }
 
     var body: some View {
-        ResizableSplitView(storageKey: "CloudFormationPaneWidth") {
+        HSplitView {
             CloudFormationStackListView(
                 service: service,
                 toolbarState: toolbarState,
@@ -28,7 +28,8 @@ struct CloudFormationModuleView: View {
                 activeStack: $activeStack,
                 restoreStackName: restoreStackName
             )
-        } trailing: {
+            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+
             Group {
                 if let stack = activeStack {
                     CloudFormationStackBrowserView(
@@ -40,6 +41,7 @@ struct CloudFormationModuleView: View {
                     EmptyDetailView(icon: "square.stack.3d.down.right", message: "Select a stack")
                 }
             }
+            .frame(minWidth: 400)
         }
         .toolbar {
             CloudFormationToolbar(

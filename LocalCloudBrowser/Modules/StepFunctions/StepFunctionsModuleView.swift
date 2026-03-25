@@ -27,7 +27,7 @@ struct StepFunctionsModuleView: View {
     }
 
     var body: some View {
-        ResizableSplitView(storageKey: "StepFunctionsPaneWidth") {
+        HSplitView {
             StepFunctionsStateMachineListView(
                 service: service,
                 toolbarState: toolbarState,
@@ -35,7 +35,8 @@ struct StepFunctionsModuleView: View {
                 activeMachine: $activeMachine,
                 restoreName: restoreName
             )
-        } trailing: {
+            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+
             Group {
                 if let machine = activeMachine {
                     detailPane(for: machine)
@@ -43,6 +44,7 @@ struct StepFunctionsModuleView: View {
                     EmptyDetailView(icon: "arrow.triangle.branch", message: "Select a state machine")
                 }
             }
+            .frame(minWidth: 400)
         }
         .toolbar {
             StepFunctionsToolbar(
