@@ -4,8 +4,6 @@
 <dict>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
-	<key>LSApplicationCategoryType</key>
-	<string>public.app-category.developer-tools</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
@@ -21,7 +19,5 @@
 			</dict>
 		</dict>
 	</dict>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Local Cloud Browser connects to locally running AWS-compatible services such as LocalStack.</string>
 </dict>
 </plist>

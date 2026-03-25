@@ -6,7 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		F13C9F082F6B2A85001BA663 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F13C9F072F6B2A85001BA663 /* StoreKit.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		F13C9F072F6B2A85001BA663 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		F184E35E2F5CA3820062FD1E /* Local Cloud Browser GUI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Local Cloud Browser GUI.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F184FD512F5D75E70062FD1E /* StoreKit.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = StoreKit.storekit; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -37,17 +42,27 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F13C9F082F6B2A85001BA663 /* StoreKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		F13C9F062F6B2A85001BA663 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				F13C9F072F6B2A85001BA663 /* StoreKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		F184E3552F5CA3820062FD1E = {
 			isa = PBXGroup;
 			children = (
 				F184FD512F5D75E70062FD1E /* StoreKit.storekit */,
 				F184E3602F5CA3820062FD1E /* LocalCloudBrowser */,
+				F13C9F062F6B2A85001BA663 /* Frameworks */,
 				F184E35F2F5CA3820062FD1E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -268,7 +283,7 @@
 				CODE_SIGN_ENTITLEMENTS = LocalCloudBrowser/LocalCloudBrowser.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_TEAM = MQXW376WC6;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -279,6 +294,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Local Cloud Browser GUI";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 Milan Karakaya. All rights reserved.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Local Cloud Browser connects to locally running AWS-compatible services such as LocalStack.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -303,7 +319,7 @@
 				CODE_SIGN_ENTITLEMENTS = LocalCloudBrowser/LocalCloudBrowser.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_TEAM = MQXW376WC6;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -314,6 +330,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Local Cloud Browser GUI";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 Milan Karakaya. All rights reserved.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Local Cloud Browser connects to locally running AWS-compatible services such as LocalStack.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
