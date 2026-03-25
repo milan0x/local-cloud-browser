@@ -28,7 +28,7 @@ struct SupportModuleView: View {
                 activeCase: $activeCase,
                 restoreCaseId: restoreCaseId
             )
-            .frame(minWidth: 200, idealWidth: 280, maxWidth: 450)
+            .frame(width: 280)
 
             Group {
                 if let supportCase = activeCase {
