@@ -35,7 +35,7 @@ struct StepFunctionsModuleView: View {
                 activeMachine: $activeMachine,
                 restoreName: restoreName
             )
-            .frame(minWidth: 200, idealWidth: 280, maxWidth: 450)
+            .frame(width: 280)
 
             Group {
                 if let machine = activeMachine {

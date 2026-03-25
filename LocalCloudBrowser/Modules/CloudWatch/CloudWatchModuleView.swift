@@ -27,7 +27,7 @@ struct CloudWatchModuleView: View {
     var body: some View {
         HSplitView {
             leftPane
-                .frame(minWidth: 200, idealWidth: 280, maxWidth: 450)
+                .frame(width: 280)
 
             Group {
                 if tab == .metrics, let metric = activeMetric {

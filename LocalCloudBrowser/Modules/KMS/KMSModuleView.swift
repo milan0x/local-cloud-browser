@@ -28,7 +28,7 @@ struct KMSModuleView: View {
                 activeKey: $activeKey,
                 restoreKeyId: restoreKeyId
             )
-            .frame(minWidth: 200, idealWidth: 280, maxWidth: 450)
+            .frame(width: 280)
 
             Group {
                 if let key = activeKey {
