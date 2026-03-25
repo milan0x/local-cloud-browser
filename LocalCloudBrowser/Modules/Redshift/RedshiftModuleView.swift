@@ -20,7 +20,7 @@ struct RedshiftModuleView: View {
     }
 
     var body: some View {
-        HSplitView {
+        ResizableSplitView(storageKey: "RedshiftPaneWidth") {
             RedshiftClusterListView(
                 service: service,
                 toolbarState: toolbarState,
@@ -28,8 +28,7 @@ struct RedshiftModuleView: View {
                 activeCluster: $activeCluster,
                 restoreClusterId: restoreClusterId
             )
-            .frame(width: 280)
-
+        } trailing: {
             Group {
                 if let cluster = activeCluster {
                     RedshiftClusterDetailPaneView(
@@ -41,7 +40,6 @@ struct RedshiftModuleView: View {
                     EmptyDetailView(icon: "cylinder.split.1x2", message: "Select a cluster")
                 }
             }
-            .frame(minWidth: 400)
         }
         .toolbar {
             RedshiftToolbar(

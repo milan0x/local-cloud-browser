@@ -165,16 +165,16 @@ struct SidebarView: View {
         HStack(spacing: 6) {
             Image(systemName: "exclamationmark.triangle.fill")
             Text("Non-local endpoint")
-                .font(.caption)
+                .font(.callout)
                 .fontWeight(.medium)
         }
         .foregroundStyle(.white)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Warning: non-local endpoint")
         .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
-        .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 6))
+        .background(Color.orange.opacity(0.7), in: RoundedRectangle(cornerRadius: 6))
         .padding(.horizontal, 8)
         .padding(.bottom, 4)
     }

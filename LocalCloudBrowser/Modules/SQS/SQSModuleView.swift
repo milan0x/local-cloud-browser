@@ -27,7 +27,7 @@ struct SQSModuleView: View {
     }
 
     var body: some View {
-        HSplitView {
+        ResizableSplitView(storageKey: "SQSPaneWidth") {
             SQSQueueListView(
                 service: service,
                 selectedQueueIDs: $selectedQueueIDs,
@@ -36,7 +36,6 @@ struct SQSModuleView: View {
                 searchFocusTrigger: listSearchFocusTrigger,
                 paneFocusTrigger: listPaneFocusTrigger
             )
-            .frame(width: 280)
             .onKeyPress(.leftArrow) {
                 guard !isTextFieldFirstResponder() else { return .ignored }
                 appState.sidebarFocusTrigger += 1
@@ -48,7 +47,7 @@ struct SQSModuleView: View {
                 detailPaneFocusTrigger += 1
                 return .handled
             }
-
+        } trailing: {
             Group {
                 if let queue = activeQueue {
                     SQSMessageBrowserView(
@@ -63,7 +62,6 @@ struct SQSModuleView: View {
                     EmptyDetailView(icon: "tray.2", message: "Select a queue")
                 }
             }
-            .frame(minWidth: 400)
             .onKeyPress(.leftArrow) {
                 guard !isTextFieldFirstResponder() else { return .ignored }
                 listPaneFocusTrigger += 1

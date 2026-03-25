@@ -20,7 +20,7 @@ struct SSMModuleView: View {
     }
 
     var body: some View {
-        HSplitView {
+        ResizableSplitView(storageKey: "SSMPaneWidth") {
             SSMParameterListView(
                 service: service,
                 toolbarState: toolbarState,
@@ -28,8 +28,7 @@ struct SSMModuleView: View {
                 activeParameter: $activeParameter,
                 restoreParameterName: restoreParameterName
             )
-            .frame(width: 280)
-
+        } trailing: {
             Group {
                 if let parameter = activeParameter {
                     SSMParameterValuePaneView(
@@ -41,7 +40,6 @@ struct SSMModuleView: View {
                     EmptyDetailView(icon: "list.bullet.rectangle", message: "Select a parameter")
                 }
             }
-            .frame(minWidth: 400)
         }
         .toolbar {
             SSMToolbar(

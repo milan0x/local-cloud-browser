@@ -20,7 +20,7 @@ struct SESModuleView: View {
     }
 
     var body: some View {
-        HSplitView {
+        ResizableSplitView(storageKey: "SESPaneWidth") {
             SESIdentityListView(
                 service: service,
                 toolbarState: toolbarState,
@@ -28,14 +28,12 @@ struct SESModuleView: View {
                 activeIdentity: $activeIdentity,
                 restoreIdentityName: restoreIdentityName
             )
-            .frame(width: 280)
-
+        } trailing: {
             SESSentEmailBrowserView(
                 service: service,
                 toolbarState: toolbarState,
                 selectedIdentity: activeIdentity
             )
-            .frame(minWidth: 400)
         }
         .toolbar {
             SESToolbar(

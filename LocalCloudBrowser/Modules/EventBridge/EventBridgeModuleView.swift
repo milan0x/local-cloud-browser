@@ -37,10 +37,9 @@ struct EventBridgeModuleView: View {
     }
 
     var body: some View {
-        HSplitView {
+        ResizableSplitView(storageKey: "EventBridgePaneWidth") {
             leftPane
-                .frame(width: 280)
-
+        } trailing: {
             Group {
                 if tab == .events {
                     if let bus = activeBus {
@@ -65,7 +64,6 @@ struct EventBridgeModuleView: View {
                     }
                 }
             }
-            .frame(minWidth: 400)
         }
         .toolbar {
             EventBridgeToolbar(
