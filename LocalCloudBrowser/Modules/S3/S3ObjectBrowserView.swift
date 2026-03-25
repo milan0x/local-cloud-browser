@@ -36,6 +36,7 @@ struct S3ObjectBrowserView: View {
     @State private var isDropTargeted = false
     @State private var selectedRowIDs: Set<RowItem.ID> = []
     @State private var serviceError: ServiceError?
+    @State private var retryAction: (() -> Void)?
     @State private var showCreateFolder = false
     @State private var newFolderName = ""
     @State private var objectsToMove: [S3Object] = []
@@ -143,7 +144,7 @@ struct S3ObjectBrowserView: View {
 
     var body: some View {
         mainContent
-            .serviceErrorAlert(error: $serviceError)
+            .serviceErrorAlert(error: $serviceError, retryAction: $retryAction)
             .focusedSceneValue(\.s3CopyAction, s3CopyAction)
             .focusedSceneValue(\.s3PasteAction, s3PasteAction)
             .focusedSceneValue(\.s3DeleteAction, s3DeleteAction)
@@ -1801,18 +1802,18 @@ struct S3ObjectBrowserView: View {
     }
 
     private func downloadObject(key: String) {
+        let filename = key.components(separatedBy: "/").last ?? key
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = filename
+        panel.canCreateDirectories = true
+        let response = panel.runModal()
+        guard response == .OK, let url = panel.url else { return }
+
         Task {
             do {
-                let data = try await service.getObject(bucket: bucket.name, key: key)
-                let filename = key.components(separatedBy: "/").last ?? key
-                let panel = NSSavePanel()
-                panel.nameFieldStringValue = filename
-                panel.canCreateDirectories = true
-                let response = panel.runModal()
-                if response == .OK, let url = panel.url {
-                    try data.write(to: url)
-                }
+                try await service.downloadObjectToFile(bucket: bucket.name, key: key, destination: url)
             } catch {
+                retryAction = { [self] in downloadObject(key: key) }
                 if let clientError = error as? CloudClientError,
                    let parsed = clientError.serviceError {
                     serviceError = parsed
@@ -1832,14 +1833,14 @@ struct S3ObjectBrowserView: View {
 
         Task {
             do {
-                let data = try Data(contentsOf: url)
                 let filename = url.lastPathComponent
                 let key = currentPrefix + filename
                 let contentType = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
                     ?? "application/octet-stream"
-                try await service.putObject(bucket: bucket.name, key: key, data: data, contentType: contentType)
+                try await service.uploadObject(bucket: bucket.name, key: key, fileURL: url, contentType: contentType)
                 loadObjects(force: true)
             } catch {
+                retryAction = { [self] in uploadFile() }
                 if let clientError = error as? CloudClientError,
                    let parsed = clientError.serviceError {
                     serviceError = parsed
@@ -1893,10 +1894,9 @@ struct S3ObjectBrowserView: View {
             for (index, file) in filesToUpload.enumerated() {
                 if Task.isCancelled { break }
                 do {
-                    let data = try Data(contentsOf: file.localURL)
                     let contentType = UTType(filenameExtension: file.localURL.pathExtension)?.preferredMIMEType
                         ?? "application/octet-stream"
-                    try await service.putObject(bucket: bucket.name, key: file.s3Key, data: data, contentType: contentType)
+                    try await service.uploadObject(bucket: bucket.name, key: file.s3Key, fileURL: file.localURL, contentType: contentType)
                 } catch {
                     failedCount += 1
                     if let clientError = error as? CloudClientError,
@@ -1925,14 +1925,14 @@ struct S3ObjectBrowserView: View {
     private func uploadFiles(from urls: [URL]) async {
         do {
             for url in urls {
-                let data = try Data(contentsOf: url)
                 let key = currentPrefix + url.lastPathComponent
                 let contentType = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
                     ?? "application/octet-stream"
-                try await service.putObject(bucket: bucket.name, key: key, data: data, contentType: contentType)
+                try await service.uploadObject(bucket: bucket.name, key: key, fileURL: url, contentType: contentType)
             }
             loadObjects(force: true)
         } catch {
+            retryAction = { [self] in Task { await uploadFiles(from: urls) } }
             if let clientError = error as? CloudClientError,
                let parsed = clientError.serviceError {
                 serviceError = parsed
@@ -1971,15 +1971,20 @@ struct S3ObjectBrowserView: View {
             isFetchingFolderDetails = true
             longRunningTask?.cancel()
             longRunningTask = Task {
-                for i in folderDeleteItems.indices {
-                    guard !Task.isCancelled else { break }
-                    let objs = try? await service.listAllObjects(
-                        bucket: bucket.name,
-                        prefix: folderDeleteItems[i].prefix
-                    )
-                    folderDeleteItems[i].objectCount = objs?.count ?? 0
-                    folderDeleteItems[i].totalSize = objs?.reduce(0) { $0 + $1.size } ?? 0
-                    folderDeleteItems[i].allKeys = objs?.map(\.key) ?? []
+                do {
+                    for i in folderDeleteItems.indices {
+                        guard !Task.isCancelled else { break }
+                        let objs = try await service.listAllObjects(
+                            bucket: bucket.name,
+                            prefix: folderDeleteItems[i].prefix
+                        )
+                        folderDeleteItems[i].objectCount = objs.count
+                        folderDeleteItems[i].totalSize = objs.reduce(0) { $0 + $1.size }
+                        folderDeleteItems[i].allKeys = objs.map(\.key)
+                    }
+                } catch {
+                    folderDeleteItems = []
+                    serviceError = error.asServiceError
                 }
                 isFetchingFolderDetails = false
             }

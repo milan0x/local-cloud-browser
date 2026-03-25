@@ -30,7 +30,7 @@ final class ConnectionProfileStore: ObservableObject {
 
     func add(_ profile: ConnectionProfile) {
         profiles.append(profile)
-        KeychainHelper.saveCredentials(profileId: profile.id, accessKeyId: profile.accessKeyId, secretAccessKey: profile.secretAccessKey)
+        KeychainHelper.saveCredentials(profileId: profile.id, accessKeyId: profile.accessKeyId, secretAccessKey: profile.secretAccessKey, sessionToken: profile.sessionToken)
         save()
         Log.info("Added profile \"\(profile.name)\" (\(profile.endpoint))", category: "Profiles")
     }
@@ -41,7 +41,7 @@ final class ConnectionProfileStore: ObservableObject {
             return
         }
         profiles[index] = profile
-        KeychainHelper.saveCredentials(profileId: profile.id, accessKeyId: profile.accessKeyId, secretAccessKey: profile.secretAccessKey)
+        KeychainHelper.saveCredentials(profileId: profile.id, accessKeyId: profile.accessKeyId, secretAccessKey: profile.secretAccessKey, sessionToken: profile.sessionToken)
         save()
         Log.info("Updated profile \"\(profile.name)\"", category: "Profiles")
     }
@@ -89,6 +89,7 @@ final class ConnectionProfileStore: ObservableObject {
             if let creds = KeychainHelper.loadCredentials(profileId: profiles[i].id) {
                 profiles[i].accessKeyId = creds.accessKeyId
                 profiles[i].secretAccessKey = creds.secretAccessKey
+                profiles[i].sessionToken = creds.sessionToken
             }
         }
 

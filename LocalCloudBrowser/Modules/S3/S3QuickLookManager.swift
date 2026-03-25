@@ -44,9 +44,9 @@ final class S3QuickLookManager: ObservableObject {
             // Ensure temp directory exists
             try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
-            // Stream download to disk via URLSession
-            let url = try buildS3URL(client: client, bucket: bucket, key: key)
-            let (downloadedURL, response) = try await URLSession.shared.download(from: url)
+            // Stream download to disk via signed URLSession request
+            let request = try client.buildSignedS3Request(method: "GET", path: "/\(bucket)/\(key)")
+            let (downloadedURL, response) = try await URLSession.shared.download(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse,
                   (200..<300).contains(httpResponse.statusCode) else {
@@ -81,16 +81,6 @@ final class S3QuickLookManager: ObservableObject {
     }
 
     // MARK: - Private
-
-    private func buildS3URL(client: CloudClient, bucket: String, key: String) throws -> URL {
-        let base = client.s3BaseURL
-        let encodedKey = key.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? key
-        let urlString = "\(base)/\(bucket)/\(encodedKey)"
-        guard let url = URL(string: urlString) else {
-            throw PreviewError.invalidURL
-        }
-        return url
-    }
 
     private func showQuickLook() {
         guard previewFileURL != nil else { return }

@@ -70,20 +70,21 @@ enum KeychainHelper {
     private struct StoredCredentials: Codable {
         let accessKeyId: String
         let secretAccessKey: String
+        let sessionToken: String?
     }
 
     static func isDefaultCredentials(accessKeyId: String, secretAccessKey: String) -> Bool {
         accessKeyId == defaultAccessKeyId && secretAccessKey == defaultSecretAccessKey
     }
 
-    static func saveCredentials(profileId: UUID, accessKeyId: String, secretAccessKey: String) {
-        if isDefaultCredentials(accessKeyId: accessKeyId, secretAccessKey: secretAccessKey) {
+    static func saveCredentials(profileId: UUID, accessKeyId: String, secretAccessKey: String, sessionToken: String = "") {
+        if isDefaultCredentials(accessKeyId: accessKeyId, secretAccessKey: secretAccessKey) && sessionToken.isEmpty {
             // Default credentials don't need Keychain protection.
             // Remove any existing entry (e.g. from a previous version).
             deleteCredentials(profileId: profileId)
             return
         }
-        let creds = StoredCredentials(accessKeyId: accessKeyId, secretAccessKey: secretAccessKey)
+        let creds = StoredCredentials(accessKeyId: accessKeyId, secretAccessKey: secretAccessKey, sessionToken: sessionToken.isEmpty ? nil : sessionToken)
         guard let data = try? JSONEncoder().encode(creds) else {
             Log.error("Failed to encode credentials for profile \(profileId)", category: "Keychain")
             return
@@ -91,11 +92,11 @@ enum KeychainHelper {
         _ = save(account: profileId.uuidString, data: data)
     }
 
-    static func loadCredentials(profileId: UUID) -> (accessKeyId: String, secretAccessKey: String)? {
+    static func loadCredentials(profileId: UUID) -> (accessKeyId: String, secretAccessKey: String, sessionToken: String)? {
         guard let data = load(account: profileId.uuidString) else { return nil }
         do {
             let creds = try JSONDecoder().decode(StoredCredentials.self, from: data)
-            return (creds.accessKeyId, creds.secretAccessKey)
+            return (creds.accessKeyId, creds.secretAccessKey, creds.sessionToken ?? "")
         } catch {
             Log.error("Failed to decode credentials for profile \(profileId): \(error.localizedDescription)", category: "Keychain")
             return nil

@@ -17,6 +17,7 @@ struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
     var region: String
     var accessKeyId: String
     var secretAccessKey: String
+    var sessionToken: String
     var healthPath: String
     var s3Domain: String
     var apiGatewayDomain: String
@@ -35,6 +36,7 @@ struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
         region: String = "us-east-1",
         accessKeyId: String = "",
         secretAccessKey: String = "",
+        sessionToken: String = "",
         healthPath: String = ConnectionProfile.defaultHealthPath,
         s3Domain: String = ConnectionProfile.defaultS3Domain,
         apiGatewayDomain: String = ConnectionProfile.defaultApiGatewayDomain,
@@ -46,6 +48,7 @@ struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
         self.region = region
         self.accessKeyId = accessKeyId
         self.secretAccessKey = secretAccessKey
+        self.sessionToken = sessionToken
         self.healthPath = healthPath
         self.s3Domain = s3Domain
         self.apiGatewayDomain = apiGatewayDomain
@@ -66,5 +69,6 @@ struct ConnectionProfile: Codable, Identifiable, Hashable, Sendable {
         // Fall back to empty so profiles without Keychain entries work.
         accessKeyId = ""
         secretAccessKey = ""
+        sessionToken = ""
     }
 }

@@ -64,6 +64,45 @@ final class S3BucketListParser: NSObject, XMLParserDelegate {
     }
 }
 
+// MARK: - Initiate Multipart Upload Parser
+
+final class S3InitiateMultipartUploadParser: NSObject, XMLParserDelegate {
+    private var currentElement = ""
+    private var currentText = ""
+    private var uploadId = ""
+
+    func parse(data: Data) throws -> String {
+        let parser = XMLParser(data: data)
+        parser.delegate = self
+        guard parser.parse() else {
+            throw S3XMLParserError.parseFailed(parser.parserError?.localizedDescription ?? "unknown")
+        }
+        guard !uploadId.isEmpty else {
+            throw S3XMLParserError.parseFailed("Missing UploadId in response")
+        }
+        return uploadId
+    }
+
+    func parser(_ parser: XMLParser, didStartElement elementName: String,
+                namespaceURI: String?, qualifiedName: String?,
+                attributes: [String: String] = [:]) {
+        currentElement = elementName
+        currentText = ""
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        currentText += string
+    }
+
+    func parser(_ parser: XMLParser, didEndElement elementName: String,
+                namespaceURI: String?, qualifiedName: String?) {
+        if elementName == "UploadId" {
+            uploadId = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        currentElement = ""
+    }
+}
+
 // MARK: - Object List Parser
 
 struct S3ObjectListResult {

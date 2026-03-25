@@ -47,6 +47,8 @@ final class CloudClient: ObservableObject {
 
     var baseURL: String { appState.endpoint }
 
+    var isLocalEndpoint: Bool { appState.isLocalEndpoint }
+
     /// S3 base URL using virtual-hosted-style routing.
     /// Rewrites `http://localhost:4566` → `http://<s3Domain>:4566`.
     var s3BaseURL: String {
@@ -55,8 +57,7 @@ final class CloudClient: ObservableObject {
               let host = components.host?.lowercased() else {
             return appState.endpoint
         }
-        let isLocal = host == "localhost" || host == "127.0.0.1" || host == "::1"
-        guard isLocal else { return appState.endpoint }
+        guard isLocalEndpoint else { return appState.endpoint }
         var s3Components = components
         s3Components.host = appState.s3Domain
         return s3Components.string ?? appState.endpoint
@@ -122,7 +123,47 @@ final class CloudClient: ObservableObject {
         )
     }
 
-    // MARK: - S3 (virtual-hosted-style routing)
+    // MARK: - S3 URL routing
+
+    enum S3URLStyle {
+        case pathStyle(baseURL: String)
+        case virtualHosted(region: String)
+    }
+
+    var s3URLStyle: S3URLStyle {
+        if isLocalEndpoint {
+            return .pathStyle(baseURL: s3BaseURL)
+        }
+        if let host = URLComponents(string: appState.endpoint)?.host?.lowercased(),
+           host.contains("amazonaws.com") {
+            return .virtualHosted(region: appState.region)
+        }
+        return .pathStyle(baseURL: appState.endpoint)
+    }
+
+    /// Resolves the S3 base URL and object path for a given request path.
+    /// For virtual-hosted-style, extracts the bucket from the path and moves it to the hostname.
+    /// - Parameter path: Always in format `/bucket/key` or `/` for listBuckets
+    /// - Returns: (baseURL, objectPath) tuple for use with executeRequest
+    private func resolveS3URL(path: String) -> (baseURL: String, objectPath: String) {
+        switch s3URLStyle {
+        case .pathStyle(let baseURL):
+            return (baseURL, path)
+        case .virtualHosted(let region):
+            // Split "/bucket/key/path" into bucket and the rest
+            let trimmed = path.hasPrefix("/") ? String(path.dropFirst()) : path
+            let components = trimmed.split(separator: "/", maxSplits: 1)
+
+            if components.isEmpty {
+                // Root path — listBuckets: https://s3.region.amazonaws.com/
+                return ("https://s3.\(region).amazonaws.com", "/")
+            }
+
+            let bucket = String(components[0])
+            let objectPath = components.count > 1 ? "/\(components[1])" : "/"
+            return ("https://\(bucket).s3.\(region).amazonaws.com", objectPath)
+        }
+    }
 
     func s3Request(
         method: String,
@@ -130,29 +171,56 @@ final class CloudClient: ObservableObject {
         queryParams: [String: String] = [:],
         body: Data? = nil,
         contentType: String? = nil,
-        headers: [String: String] = [:]
+        headers: [String: String] = [:],
+        unsignedPayload: Bool = false
     ) async throws -> Data {
+        let (baseURL, objectPath) = resolveS3URL(path: path)
         let response = try await executeRequest(
             method: method,
-            path: path,
+            path: objectPath,
             queryParams: queryParams,
             body: body,
             contentType: contentType,
-            baseURLOverride: s3BaseURL,
+            baseURLOverride: baseURL,
             headers: headers,
-            service: "s3"
+            service: "s3",
+            unsignedPayload: unsignedPayload
         )
         return response.data
     }
 
+    func s3RequestWithHeaders(
+        method: String,
+        path: String,
+        queryParams: [String: String] = [:],
+        body: Data? = nil,
+        contentType: String? = nil,
+        headers: [String: String] = [:],
+        unsignedPayload: Bool = false
+    ) async throws -> HTTPResponse {
+        let (baseURL, objectPath) = resolveS3URL(path: path)
+        return try await executeRequest(
+            method: method,
+            path: objectPath,
+            queryParams: queryParams,
+            body: body,
+            contentType: contentType,
+            baseURLOverride: baseURL,
+            headers: headers,
+            service: "s3",
+            unsignedPayload: unsignedPayload
+        )
+    }
+
     func s3Head(path: String) async throws -> [String: String] {
+        let (baseURL, objectPath) = resolveS3URL(path: path)
         let response = try await executeRequest(
             method: "HEAD",
-            path: path,
+            path: objectPath,
             queryParams: [:],
             body: nil,
             contentType: nil,
-            baseURLOverride: s3BaseURL,
+            baseURLOverride: baseURL,
             service: "s3"
         )
         return response.headers
@@ -1197,7 +1265,30 @@ final class CloudClient: ObservableObject {
         return f
     }()
 
-    private func executeRequest(
+    // MARK: - Request building
+
+    /// Builds a signed URLRequest without executing it.
+    /// Used by streaming download paths that need SigV4 signatures but use URLSession.download.
+    func buildSignedS3Request(
+        method: String,
+        path: String,
+        queryParams: [String: String] = [:]
+    ) throws -> URLRequest {
+        let (baseURL, objectPath) = resolveS3URL(path: path)
+        return try buildURLRequest(
+            method: method,
+            path: objectPath,
+            queryParams: queryParams,
+            body: nil,
+            contentType: nil,
+            baseURLOverride: baseURL,
+            headers: [:],
+            service: "s3",
+            unsignedPayload: false
+        )
+    }
+
+    private func buildURLRequest(
         method: String,
         path: String,
         queryParams: [String: String],
@@ -1205,15 +1296,10 @@ final class CloudClient: ObservableObject {
         contentType: String?,
         baseURLOverride: String? = nil,
         headers: [String: String] = [:],
-        skipReadOnlyCheck: Bool = false,
-        service: String? = nil
-    ) async throws -> HTTPResponse {
+        service: String? = nil,
+        unsignedPayload: Bool = false
+    ) throws -> URLRequest {
         let effectiveBase = baseURLOverride ?? baseURL
-
-        guard skipReadOnlyCheck || ReadOnlyInterceptor.allowsRequest(method: method, isReadOnly: appState.isReadOnly) else {
-            Log.warn("Blocked \(method) \(path) — read-only mode", category: "HTTP")
-            throw CloudClientError.readOnlyBlocked(method: method)
-        }
 
         guard var components = URLComponents(string: effectiveBase + path) else {
             Log.error("Invalid URL: \(effectiveBase + path)", category: "HTTP")
@@ -1228,8 +1314,6 @@ final class CloudClient: ObservableObject {
             Log.error("Invalid URL components: \(components)", category: "HTTP")
             throw CloudClientError.invalidURL
         }
-
-        Log.info("\(method) \(path)", category: "HTTP")
 
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = method
@@ -1250,9 +1334,45 @@ final class CloudClient: ObservableObject {
                 region: appState.region,
                 service: service,
                 accessKeyId: appState.accessKeyId,
-                secretAccessKey: appState.secretAccessKey
+                secretAccessKey: appState.secretAccessKey,
+                sessionToken: appState.sessionToken.isEmpty ? nil : appState.sessionToken,
+                unsignedPayload: unsignedPayload
             )
         }
+
+        return urlRequest
+    }
+
+    private func executeRequest(
+        method: String,
+        path: String,
+        queryParams: [String: String],
+        body: Data?,
+        contentType: String?,
+        baseURLOverride: String? = nil,
+        headers: [String: String] = [:],
+        skipReadOnlyCheck: Bool = false,
+        service: String? = nil,
+        unsignedPayload: Bool = false
+    ) async throws -> HTTPResponse {
+        guard skipReadOnlyCheck || ReadOnlyInterceptor.allowsRequest(method: method, isReadOnly: appState.isReadOnly) else {
+            Log.warn("Blocked \(method) \(path) — read-only mode", category: "HTTP")
+            throw CloudClientError.readOnlyBlocked(method: method)
+        }
+
+        let urlRequest = try buildURLRequest(
+            method: method,
+            path: path,
+            queryParams: queryParams,
+            body: body,
+            contentType: contentType,
+            baseURLOverride: baseURLOverride,
+            headers: headers,
+            service: service,
+            unsignedPayload: unsignedPayload
+        )
+
+        Log.info("\(method) \(path)", category: "HTTP")
 
         let data: Data
         let response: URLResponse
@@ -1279,13 +1399,13 @@ final class CloudClient: ObservableObject {
             throw CloudClientError.httpError(statusCode: httpResponse.statusCode, data: data)
         }
 
-        var headers: [String: String] = [:]
+        var responseHeaders: [String: String] = [:]
         for (key, value) in httpResponse.allHeaderFields {
             if let k = key as? String, let v = value as? String {
-                headers[k.lowercased()] = v
+                responseHeaders[k.lowercased()] = v
             }
         }
 
-        return HTTPResponse(data: data, headers: headers)
+        return HTTPResponse(data: data, headers: responseHeaders)
     }
 }
