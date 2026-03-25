@@ -33,9 +33,10 @@ struct ConfigModuleView: View {
     }
 
     var body: some View {
-        ResizableSplitView(storageKey: "ConfigPaneWidth") {
+        HSplitView {
             leftPane
-        } trailing: {
+                .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+
             Group {
                 if tab == .recorders {
                     if let recorder = activeRecorder {
@@ -54,6 +55,7 @@ struct ConfigModuleView: View {
                     }
                 }
             }
+            .frame(minWidth: 400)
         }
         .toolbar {
             ConfigToolbar(

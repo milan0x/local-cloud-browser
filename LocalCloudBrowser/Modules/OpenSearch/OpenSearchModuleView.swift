@@ -20,7 +20,7 @@ struct OpenSearchModuleView: View {
     }
 
     var body: some View {
-        ResizableSplitView(storageKey: "OpenSearchPaneWidth") {
+        HSplitView {
             OpenSearchDomainListView(
                 service: service,
                 toolbarState: toolbarState,
@@ -28,7 +28,8 @@ struct OpenSearchModuleView: View {
                 activeDomain: $activeDomain,
                 restoreDomainName: restoreDomainName
             )
-        } trailing: {
+            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+
             Group {
                 if let domain = activeDomain {
                     OpenSearchDomainDetailView(
@@ -40,6 +41,7 @@ struct OpenSearchModuleView: View {
                     EmptyDetailView(icon: "magnifyingglass.circle", message: "Select a domain")
                 }
             }
+            .frame(minWidth: 400)
         }
         .toolbar {
             OpenSearchToolbar(

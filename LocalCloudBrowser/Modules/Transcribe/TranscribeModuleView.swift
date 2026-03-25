@@ -20,7 +20,7 @@ struct TranscribeModuleView: View {
     }
 
     var body: some View {
-        ResizableSplitView(storageKey: "TranscribePaneWidth") {
+        HSplitView {
             TranscribeJobListView(
                 service: service,
                 toolbarState: toolbarState,
@@ -28,7 +28,8 @@ struct TranscribeModuleView: View {
                 activeJob: $activeJob,
                 restoreJobName: restoreJobName
             )
-        } trailing: {
+            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+
             Group {
                 if let job = activeJob {
                     TranscribeJobDetailPaneView(
@@ -39,6 +40,7 @@ struct TranscribeModuleView: View {
                     EmptyDetailView(icon: "waveform", message: "Select a transcription job")
                 }
             }
+            .frame(minWidth: 400)
         }
         .toolbar {
             TranscribeToolbar(

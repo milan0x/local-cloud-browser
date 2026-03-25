@@ -20,7 +20,7 @@ struct KMSModuleView: View {
     }
 
     var body: some View {
-        ResizableSplitView(storageKey: "KMSPaneWidth") {
+        HSplitView {
             KMSKeyListView(
                 service: service,
                 toolbarState: toolbarState,
@@ -28,7 +28,8 @@ struct KMSModuleView: View {
                 activeKey: $activeKey,
                 restoreKeyId: restoreKeyId
             )
-        } trailing: {
+            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+
             Group {
                 if let key = activeKey {
                     KMSKeyDetailPaneView(
@@ -40,6 +41,7 @@ struct KMSModuleView: View {
                     EmptyDetailView(icon: "lock.shield", message: "Select a key")
                 }
             }
+            .frame(minWidth: 400)
         }
         .toolbar {
             KMSToolbar(
