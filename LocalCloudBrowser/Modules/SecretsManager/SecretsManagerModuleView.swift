@@ -20,7 +20,7 @@ struct SecretsManagerModuleView: View {
     }
 
     var body: some View {
-        HSplitView {
+        ResizableSplitView(storageKey: "SecretsManagerPaneWidth") {
             SecretsListView(
                 service: service,
                 toolbarState: toolbarState,
@@ -28,8 +28,7 @@ struct SecretsManagerModuleView: View {
                 activeSecret: $activeSecret,
                 restoreSecretName: restoreSecretName
             )
-            .frame(width: 280)
-
+        } trailing: {
             Group {
                 if let secret = activeSecret {
                     SecretValuePaneView(
@@ -41,7 +40,6 @@ struct SecretsManagerModuleView: View {
                     EmptyDetailView(icon: "key", message: "Select a secret")
                 }
             }
-            .frame(minWidth: 400)
         }
         .toolbar {
             SecretsManagerToolbar(

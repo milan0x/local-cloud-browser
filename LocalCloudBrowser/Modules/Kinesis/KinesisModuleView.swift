@@ -35,10 +35,9 @@ struct KinesisModuleView: View {
     }
 
     var body: some View {
-        HSplitView {
+        ResizableSplitView(storageKey: "KinesisPaneWidth") {
             leftPane
-                .frame(width: 280)
-
+        } trailing: {
             Group {
                 if tab == .streams {
                     if let stream = activeStream {
@@ -60,7 +59,6 @@ struct KinesisModuleView: View {
                     }
                 }
             }
-            .frame(minWidth: 400)
         }
         .toolbar {
             KinesisToolbar(

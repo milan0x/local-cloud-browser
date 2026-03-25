@@ -20,7 +20,7 @@ struct SupportModuleView: View {
     }
 
     var body: some View {
-        HSplitView {
+        ResizableSplitView(storageKey: "SupportPaneWidth") {
             SupportCaseListView(
                 service: service,
                 toolbarState: toolbarState,
@@ -28,8 +28,7 @@ struct SupportModuleView: View {
                 activeCase: $activeCase,
                 restoreCaseId: restoreCaseId
             )
-            .frame(width: 280)
-
+        } trailing: {
             Group {
                 if let supportCase = activeCase {
                     SupportCaseDetailView(
@@ -40,7 +39,6 @@ struct SupportModuleView: View {
                     EmptyDetailView(icon: "lifepreserver", message: "Select a case")
                 }
             }
-            .frame(minWidth: 400)
         }
         .toolbar {
             SupportToolbar(

@@ -20,7 +20,7 @@ struct APIGatewayModuleView: View {
     }
 
     var body: some View {
-        HSplitView {
+        ResizableSplitView(storageKey: "APIGatewayPaneWidth") {
             APIGatewayAPIListView(
                 service: service,
                 toolbarState: toolbarState,
@@ -28,8 +28,7 @@ struct APIGatewayModuleView: View {
                 activeAPI: $activeAPI,
                 restoreAPIId: restoreAPIId
             )
-            .frame(width: 280)
-
+        } trailing: {
             Group {
                 if let api = activeAPI {
                     APIGatewayAPIBrowserView(
@@ -41,7 +40,6 @@ struct APIGatewayModuleView: View {
                     EmptyDetailView(icon: "network", message: "Select a REST API")
                 }
             }
-            .frame(minWidth: 400)
         }
         .toolbar {
             APIGatewayToolbar(

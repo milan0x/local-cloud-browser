@@ -20,7 +20,7 @@ struct DynamoDBModuleView: View {
     }
 
     var body: some View {
-        HSplitView {
+        ResizableSplitView(storageKey: "DynamoDBPaneWidth") {
             DynamoDBTableListView(
                 service: service,
                 toolbarState: toolbarState,
@@ -29,8 +29,7 @@ struct DynamoDBModuleView: View {
                 tableDetail: $tableDetail,
                 restoreTableName: restoreTableName
             )
-            .frame(width: 280)
-
+        } trailing: {
             Group {
                 if let table = activeTable, let detail = tableDetail {
                     DynamoDBBrowserView(
@@ -43,7 +42,6 @@ struct DynamoDBModuleView: View {
                     EmptyDetailView(icon: "tablecells", message: "Select a table")
                 }
             }
-            .frame(minWidth: 400)
         }
         .toolbar {
             DynamoDBToolbar(
