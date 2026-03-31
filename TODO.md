@@ -10,7 +10,18 @@
 
 ## Live Monitoring (Menu Bar + Main App)
 
-- [ ] **Event stream** — Real-time feed of what's happening: S3 uploads, SQS messages arriving, Lambda invocations, SNS publishes. One unified timeline. Developers `aws s3 cp` in terminal and instantly see it appear. *Most visual, most "wow", hardest to get elsewhere — top priority for the demo.*
+### Menu Bar Watch Mode
+
+A persistent macOS menu bar item (like Docker Desktop or iStat Menus) that keeps developers aware without switching to the app.
+
+- [ ] **Menu bar icon with activity indicator** — Small icon in the macOS menu bar that rotates/animates when activity is detected. Developers see something happened without clicking anything or bringing the app to focus. Idle state is static; active state spins or pulses briefly on each event.
+- [ ] **Menu bar dropdown — live ticker** — Click the menu bar icon to see a compact, scrolling list of recent events in real-time. One-line entries like: "S3 → `uploads/photo.jpg` uploaded (2.3 MB)", "SQS → 1 message sent to `orders-queue`", "SNS → topic `alerts` published". Events rotate/cycle automatically so the latest is always visible without interaction.
+- [ ] **Menu bar dropdown — activity log** — Below the live ticker, a scrollable historical log grouped by time window ("2:00 – 2:15 PM"). Summary lines like: "3 files uploaded to `uploads/`, 5 messages sent to `orders-queue`". Filter by service type. Answers "what happened while I wasn't looking."
+- [ ] **Watch mode toggle** — Enable/disable watching from both the menu bar dropdown and the main app. When enabled, polls services at an adaptive interval (faster during active periods, slower when idle). When disabled, the menu bar icon stays but goes dormant.
+
+### Main App Monitoring
+
+- [ ] **Event stream panel** — In-app real-time feed of all activity across services. One unified timeline. Developers `aws s3 cp` in terminal and instantly see it appear. *Most visual, most "wow", hardest to get elsewhere — top priority for the demo.*
 - [ ] **Lambda log tail** — Stream CloudWatch Logs for a Lambda function live, like `docker logs -f` but for Lambda. No more switching to CLI to read logs.
 - [ ] **Queue depth badges** — Menu bar shows SQS queue depths with color coding (green/yellow/red). Developers see message buildup without checking.
 
