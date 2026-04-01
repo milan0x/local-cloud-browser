@@ -209,58 +209,18 @@ struct S3ObjectBrowserView: View {
                 }
             }
             // Spacebar → Quick Look
-            .onKeyPress(.space) {
-                guard selectedRowIDs.count == 1,
-                      let id = selectedRowIDs.first,
-                      id != Self.parentRowID,
-                      let item = sortedRowItems.first(where: { $0.id == id }),
-                      !item.isFolder else { return .ignored }
-                requestPreview(key: item.fullKey)
-                return .handled
-            }
-            // Quick Look size limit alert (over user limit, under hard cap)
-            .alert(
-                "File Too Large",
-                isPresented: Binding(
-                    get: { quickLookSizeAlert != nil },
-                    set: { if !$0 { quickLookSizeAlert = nil } }
-                )
-            ) {
-                if let alert = quickLookSizeAlert {
-                    Button("Preview Anyway") { forcePreview(key: alert.key) }
-                    Button("Open Settings") {
-                        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                    }
-                    Button("Cancel", role: .cancel) { quickLookSizeAlert = nil }
-                }
-            } message: {
-                if let alert = quickLookSizeAlert {
-                    Text("This file is \(alert.sizeMB) MB, which exceeds your preview limit of \(appState.previewSizeLimitMB) MB. You can preview it anyway, or adjust the limit in Settings.")
-                }
-            }
-            // Quick Look hard cap alert (over 300 MB)
-            .alert("File Too Large", isPresented: $quickLookHardCapAlert) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("This file exceeds the 300 MB preview limit. Use Download to save it locally.")
-            }
-            // Quick Look download error
-            .alert("Preview Failed", isPresented: Binding(
-                get: { quickLook.downloadError != nil },
-                set: { if !$0 { quickLook.downloadError = nil } }
-            )) {
-                Button("OK", role: .cancel) { quickLook.downloadError = nil }
-            } message: {
-                if let err = quickLook.downloadError {
-                    Text(err)
-                }
-            }
-            // Empty folder download alert
-            .alert("Empty Folder", isPresented: $emptyFolderAlert) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("This folder has no downloadable files.")
-            }
+            .onKeyPress(.space) { handleSpacebarPreview() }
+            .modifier(QuickLookAlertsModifier(
+                quickLookSizeAlert: $quickLookSizeAlert,
+                quickLookHardCapAlert: $quickLookHardCapAlert,
+                quickLookDownloadError: Binding(
+                    get: { quickLook.downloadError },
+                    set: { quickLook.downloadError = $0 }
+                ),
+                emptyFolderAlert: $emptyFolderAlert,
+                previewSizeLimitMB: appState.previewSizeLimitMB,
+                onForcePreview: { key in forcePreview(key: key) }
+            ))
     }
 
     private var mainContent: some View {
@@ -2240,6 +2200,16 @@ struct S3ObjectBrowserView: View {
         }
     }
 
+    private func handleSpacebarPreview() -> KeyPress.Result {
+        guard selectedRowIDs.count == 1,
+              let id = selectedRowIDs.first,
+              id != Self.parentRowID,
+              let item = sortedRowItems.first(where: { $0.id == id }),
+              !item.isFolder else { return .ignored }
+        requestPreview(key: item.fullKey)
+        return .handled
+    }
+
     // MARK: - Quick Look Preview
 
     private func requestPreview(key: String) {
@@ -2257,5 +2227,59 @@ struct S3ObjectBrowserView: View {
 
     private func forcePreview(key: String) {
         Task { await quickLook.previewObject(bucket: bucket.name, key: key, using: client) }
+    }
+}
+
+// MARK: - Quick Look Alerts Modifier
+
+private struct QuickLookAlertsModifier: ViewModifier {
+    @Binding var quickLookSizeAlert: QuickLookSizeAlert?
+    @Binding var quickLookHardCapAlert: Bool
+    @Binding var quickLookDownloadError: String?
+    @Binding var emptyFolderAlert: Bool
+    let previewSizeLimitMB: Int
+    let onForcePreview: (String) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .alert(
+                "File Too Large",
+                isPresented: Binding(
+                    get: { quickLookSizeAlert != nil },
+                    set: { if !$0 { quickLookSizeAlert = nil } }
+                )
+            ) {
+                if let alert = quickLookSizeAlert {
+                    Button("Preview Anyway") { onForcePreview(alert.key) }
+                    Button("Open Settings") {
+                        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                    }
+                    Button("Cancel", role: .cancel) { quickLookSizeAlert = nil }
+                }
+            } message: {
+                if let alert = quickLookSizeAlert {
+                    Text("This file is \(alert.sizeMB) MB, which exceeds your preview limit of \(previewSizeLimitMB) MB. You can preview it anyway, or adjust the limit in Settings.")
+                }
+            }
+            .alert("File Too Large", isPresented: $quickLookHardCapAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("This file exceeds the 300 MB preview limit. Use Download to save it locally.")
+            }
+            .alert("Preview Failed", isPresented: Binding(
+                get: { quickLookDownloadError != nil },
+                set: { if !$0 { quickLookDownloadError = nil } }
+            )) {
+                Button("OK", role: .cancel) { quickLookDownloadError = nil }
+            } message: {
+                if let err = quickLookDownloadError {
+                    Text(err)
+                }
+            }
+            .alert("Empty Folder", isPresented: $emptyFolderAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("This folder has no downloadable files.")
+            }
     }
 }
