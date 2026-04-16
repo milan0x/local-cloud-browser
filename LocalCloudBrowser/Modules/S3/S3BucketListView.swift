@@ -211,6 +211,14 @@ struct S3BucketListView: View {
                                     .disabled(appState.isReadOnly)
                                 }
                             }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    bucketsToDelete = [bucket]
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                                .disabled(appState.isReadOnly)
+                            }
                         }
                     }
                     .focused($isListFocused)

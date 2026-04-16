@@ -28,7 +28,7 @@ struct SSMModuleView: View {
                 activeParameter: $activeParameter,
                 restoreParameterName: restoreParameterName
             )
-            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+            .frame(minWidth: 240, idealWidth: 280, maxWidth: 350)
 
             Group {
                 if let parameter = activeParameter {
@@ -41,7 +41,8 @@ struct SSMModuleView: View {
                     EmptyDetailView(icon: "list.bullet.rectangle", message: "Select a parameter")
                 }
             }
-            .frame(minWidth: 400)
+            .frame(minWidth: 140)
+            .layoutPriority(1)
         }
         .toolbar {
             SSMToolbar(

@@ -28,7 +28,7 @@ struct SecretsManagerModuleView: View {
                 activeSecret: $activeSecret,
                 restoreSecretName: restoreSecretName
             )
-            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+            .frame(minWidth: 240, idealWidth: 280, maxWidth: 350)
 
             Group {
                 if let secret = activeSecret {
@@ -41,7 +41,8 @@ struct SecretsManagerModuleView: View {
                     EmptyDetailView(icon: "key", message: "Select a secret")
                 }
             }
-            .frame(minWidth: 400)
+            .frame(minWidth: 140)
+            .layoutPriority(1)
         }
         .toolbar {
             SecretsManagerToolbar(

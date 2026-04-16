@@ -1,13 +1,30 @@
 import SwiftUI
 import AppKit
 
+class AppDelegate: NSObject, NSApplicationDelegate {
+    weak var transferManager: TransferManager?
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let tm = transferManager, tm.hasActiveTransfers else { return .terminateNow }
+        let alert = NSAlert()
+        alert.messageText = "Uploads in Progress"
+        alert.informativeText = "There are active file transfers. Quitting will cancel them."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Cancel Transfers & Quit")
+        alert.addButton(withTitle: "Don't Quit")
+        return alert.runModal() == .alertFirstButtonReturn ? .terminateNow : .terminateCancel
+    }
+}
+
 @main
 struct LocalCloudBrowserApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var appState: AppState
     @StateObject private var client: CloudClient
     @StateObject private var profileStore: ConnectionProfileStore
     @StateObject private var storeKitManager: StoreKitManager
     @StateObject private var licenseManager: LicenseManager
+    @StateObject private var transferManager = TransferManager()
 
     init() {
         Log.info("Local Cloud Browser starting", category: "App")
@@ -76,8 +93,11 @@ struct LocalCloudBrowserApp: App {
                 .environmentObject(appState.autoRefresh)
                 .environmentObject(licenseManager)
                 .environmentObject(storeKitManager)
+                .environmentObject(transferManager)
+                .frame(minWidth: 880, minHeight: 500)
                 .onAppear {
                     NSApplication.shared.activate(ignoringOtherApps: true)
+                    appDelegate.transferManager = transferManager
                 }
         }
         .defaultSize(width: 1100, height: 700)
@@ -96,6 +116,7 @@ struct LocalCloudBrowserApp: App {
                     .environmentObject(appState.autoRefresh)
                     .environmentObject(licenseManager)
                     .environmentObject(storeKitManager)
+                    .environmentObject(transferManager)
             }
         }
 

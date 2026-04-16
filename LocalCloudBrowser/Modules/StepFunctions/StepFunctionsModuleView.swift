@@ -35,7 +35,7 @@ struct StepFunctionsModuleView: View {
                 activeMachine: $activeMachine,
                 restoreName: restoreName
             )
-            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+            .frame(minWidth: 240, idealWidth: 280, maxWidth: 350)
 
             Group {
                 if let machine = activeMachine {
@@ -44,7 +44,8 @@ struct StepFunctionsModuleView: View {
                     EmptyDetailView(icon: "arrow.triangle.branch", message: "Select a state machine")
                 }
             }
-            .frame(minWidth: 400)
+            .frame(minWidth: 140)
+            .layoutPriority(1)
         }
         .toolbar {
             StepFunctionsToolbar(

@@ -28,7 +28,7 @@ struct TranscribeModuleView: View {
                 activeJob: $activeJob,
                 restoreJobName: restoreJobName
             )
-            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+            .frame(minWidth: 240, idealWidth: 280, maxWidth: 350)
 
             Group {
                 if let job = activeJob {
@@ -40,7 +40,8 @@ struct TranscribeModuleView: View {
                     EmptyDetailView(icon: "waveform", message: "Select a transcription job")
                 }
             }
-            .frame(minWidth: 400)
+            .frame(minWidth: 140)
+            .layoutPriority(1)
         }
         .toolbar {
             TranscribeToolbar(

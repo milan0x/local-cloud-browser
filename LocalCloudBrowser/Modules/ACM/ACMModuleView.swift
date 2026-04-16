@@ -28,7 +28,7 @@ struct ACMModuleView: View {
                 activeCertificate: $activeCertificate,
                 restoreCertArn: restoreCertArn
             )
-            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+            .frame(minWidth: 240, idealWidth: 280, maxWidth: 350)
 
             Group {
                 if let cert = activeCertificate {
@@ -40,7 +40,8 @@ struct ACMModuleView: View {
                     EmptyDetailView(icon: "checkmark.seal", message: "Select a certificate")
                 }
             }
-            .frame(minWidth: 400)
+            .frame(minWidth: 140)
+            .layoutPriority(1)
         }
         .toolbar {
             ACMToolbar(

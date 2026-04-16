@@ -287,6 +287,42 @@ final class S3Service: BaseService {
         }
     }
 
+    /// Uploads a file via StreamingUploader (background-safe signing).
+    /// Uses single PUT for files <= 5 MB, multipart for larger files.
+    func uploadFile(
+        bucket: String,
+        key: String,
+        fileURL: URL,
+        contentType: String,
+        progress: @Sendable @escaping (Int64, Int64) -> Void
+    ) async throws {
+        let context = client.makeSigningContext()
+        let fileSize = try Int64(FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int64 ?? 0)
+        let plan = MultipartUploadPlan.plan(fileSize: fileSize)
+        let uploader = StreamingUploader()
+
+        if plan.isMultipart {
+            try await uploader.uploadMultipart(
+                fileURL: fileURL,
+                signingContext: context,
+                bucket: bucket,
+                key: key,
+                contentType: contentType,
+                plan: plan,
+                progress: { bytes in progress(bytes, fileSize) }
+            )
+        } else {
+            try await uploader.uploadSingleFile(
+                fileURL: fileURL,
+                signingContext: context,
+                bucket: bucket,
+                key: key,
+                contentType: contentType,
+                progress: { bytes in progress(bytes, fileSize) }
+            )
+        }
+    }
+
     func createFolder(bucket: String, prefix: String, name: String) async throws {
         let key = prefix + name + "/"
         _ = try await client.s3Request(

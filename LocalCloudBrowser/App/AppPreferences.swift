@@ -9,6 +9,9 @@ enum AppPreferences {
     static let isReadOnlyKey = "isReadOnly"
     static let doubleClickHidesJsonHelperKey = "doubleClickHidesJsonHelper"
     static let disableJsonHelperPlaceholdersKey = "disableSQSPlaceholders"
+    static let doubleClickActionKey = "doubleClickAction"
+    static let previewCacheEnabledKey = "previewCacheEnabled"
+    static let previewCacheSizeLimitMBKey = "previewCacheSizeLimitMB"
     static let defaultHealthCheckInterval: Double = 2.0
 
     /// Default preview size limit in megabytes.
@@ -22,6 +25,20 @@ enum AppPreferences {
     static var previewTempDirectory: URL {
         URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent(previewTempSubfolder, isDirectory: true)
+    }
+
+    /// Default preview cache size limit in megabytes.
+    static let defaultPreviewCacheSizeLimitMB = 500
+
+    static var previewCacheEnabled: Bool {
+        // Default to true if never set
+        if UserDefaults.standard.object(forKey: previewCacheEnabledKey) == nil { return true }
+        return UserDefaults.standard.bool(forKey: previewCacheEnabledKey)
+    }
+
+    static var previewCacheSizeLimitMB: Int {
+        let stored = UserDefaults.standard.integer(forKey: previewCacheSizeLimitMBKey)
+        return stored > 0 ? stored : defaultPreviewCacheSizeLimitMB
     }
 
     /// Wipe the entire preview temp folder (call on app launch).

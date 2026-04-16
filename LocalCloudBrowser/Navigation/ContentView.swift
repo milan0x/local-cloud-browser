@@ -7,17 +7,21 @@ struct ContentView: View {
     @State private var showFeedback = false
     @State private var showWelcome = false
     @State private var showNewConnection = false
+    @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView()
         } detail: {
             if let route = appState.selectedRoute {
-                detailView(for: route)
+                VStack(spacing: 0) {
+                    detailView(for: route)
+                }
             } else {
                 welcomeView
             }
         }
+        .navigationSplitViewStyle(.balanced)
         .overlay(alignment: .bottomTrailing) {
             licenseBadge
         }
@@ -28,6 +32,9 @@ struct ContentView: View {
             licenseBadgeReady = true
         }
         .toolbar {
+            ToolbarItem(placement: .automatic) {
+                TransferToolbarButton()
+            }
             ToolbarItem(placement: .automatic) {
                 regionBadge
             }

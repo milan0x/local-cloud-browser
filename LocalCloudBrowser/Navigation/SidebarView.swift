@@ -61,6 +61,7 @@ struct SidebarView: View {
                 }
             }
         }
+        .listStyle(.sidebar)
         .focused($isSidebarFocused)
         .onKeyPress(.rightArrow) {
             guard !isTextFieldFirstResponder() else { return .ignored }
@@ -71,7 +72,7 @@ struct SidebarView: View {
         .onChange(of: appState.sidebarFocusTrigger) {
             isSidebarFocused = true
         }
-        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
+        .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 280)
         .navigationTitle("")
         .safeAreaInset(edge: .top) {
             if !appState.isLocalEndpoint {

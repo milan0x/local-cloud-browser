@@ -40,7 +40,7 @@ struct S3ModuleView: View {
                 searchFocusTrigger: listSearchFocusTrigger,
                 paneFocusTrigger: listPaneFocusTrigger
             )
-            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+            .frame(minWidth: 240, idealWidth: 280, maxWidth: 350)
             .onKeyPress(.leftArrow) {
                 guard !isTextFieldFirstResponder() else { return .ignored }
                 appState.sidebarFocusTrigger += 1
@@ -70,7 +70,8 @@ struct S3ModuleView: View {
                     EmptyDetailView(icon: "externaldrive", message: "Select a bucket")
                 }
             }
-            .frame(minWidth: 400)
+            .frame(minWidth: 140)
+            .layoutPriority(1)
             .onKeyPress(.leftArrow) {
                 guard !isTextFieldFirstResponder() else { return .ignored }
                 listPaneFocusTrigger += 1

@@ -12,6 +12,7 @@ struct QuickLookSizeAlert: Identifiable {
 struct S3ObjectBrowserView: View {
     @ObservedObject var service: S3Service
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var transferManager: TransferManager
     @Environment(\.openWindow) private var openWindow
     let bucket: S3Bucket
     var paneID: String = "main"
@@ -210,6 +211,10 @@ struct S3ObjectBrowserView: View {
             }
             // Spacebar → Quick Look
             .onKeyPress(.space) { handleSpacebarPreview() }
+            // Arrow keys + Cmd+[/] → folder navigation
+            .onKeyPress(phases: .down) { press in
+                handleNavigationKeyPress(press)
+            }
             .modifier(QuickLookAlertsModifier(
                 quickLookSizeAlert: $quickLookSizeAlert,
                 quickLookHardCapAlert: $quickLookHardCapAlert,
@@ -450,6 +455,20 @@ struct S3ObjectBrowserView: View {
             VStack(spacing: 0) {
                 if isSearchActive && sortedRowItems.isEmpty {
                     EmptyStateView(icon: "magnifyingglass", message: "No matches for \"\(searchQuery)\"")
+                } else if sortedRowItems.isEmpty || (sortedRowItems.count == 1 && sortedRowItems.first?.id == Self.parentRowID) {
+                    EmptyStateView(icon: "folder", message: "Empty folder")
+                        .contextMenu {
+                            if !appState.isReadOnly {
+                                Button("Create Folder") { showCreateFolder = true }
+                                Divider()
+                                Button("Upload File") { toolbarState.pendingAction = .uploadFile }
+                                Button("Upload Folder") { toolbarState.pendingAction = .uploadFolder }
+                                if let clip = appState.s3Clipboard, !clip.isEmpty {
+                                    Divider()
+                                    Button("Paste \(clip.totalCount) Item\(clip.totalCount == 1 ? "" : "s")") { performPaste() }
+                                }
+                            }
+                        }
                 } else {
                     listView
                 }
@@ -458,6 +477,9 @@ struct S3ObjectBrowserView: View {
             }
             .overlay {
                 dropTargetOverlay
+            }
+            .overlay(alignment: .bottom) {
+                transferPillOverlay
             }
             .onDrop(of: [.fileURL], isTargeted: $isDropTargeted, perform: handleDrop)
         }
@@ -473,6 +495,46 @@ struct S3ObjectBrowserView: View {
                 .background(Color.accentColor.opacity(0.06))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .padding(4)
+        }
+    }
+
+    // MARK: - Transfer Pill
+
+    @ViewBuilder
+    private var transferPillOverlay: some View {
+        if transferManager.hasActiveTransfersForBucket(bucket.name) {
+            let progress = transferManager.progressForBucket(bucket.name)
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.up.circle.fill")
+                    .foregroundStyle(.blue)
+                    .font(.caption)
+                Text(transferManager.summaryText)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .monospacedDigit()
+                Button {
+                    transferManager.cancelForBucket(bucket.name)
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background {
+                Capsule()
+                    .fill(.ultraThinMaterial)
+                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                    .overlay {
+                        Capsule()
+                            .trim(from: 0, to: progress)
+                            .stroke(Color.accentColor, lineWidth: 2)
+                            .animation(.easeInOut(duration: 0.4), value: progress)
+                    }
+            }
+            .padding(.bottom, 12)
         }
     }
 
@@ -569,6 +631,19 @@ struct S3ObjectBrowserView: View {
             }
 
             Spacer()
+
+            // Transfer queue progress
+            if transferManager.hasActiveTransfersForBucket(bucket.name) {
+                HStack(spacing: 6) {
+                    ProgressView(value: transferManager.progressForBucket(bucket.name))
+                        .progressViewStyle(.linear)
+                        .frame(width: 120)
+                    Text("\(Int(transferManager.progressForBucket(bucket.name) * 100))%")
+                        .font(.callout)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             if let progress = folderDownloadProgress {
                 HStack(spacing: 6) {
@@ -1555,6 +1630,13 @@ struct S3ObjectBrowserView: View {
                 availableBuckets = []
             }
         }
+        // Queue drain: refresh object list when all uploads for this bucket complete
+        .onChange(of: transferManager.lastBatchResult) {
+            if case .completed(let batchBucket) = transferManager.lastBatchResult,
+               batchBucket == bucket.name {
+                loadObjects(force: true)
+            }
+        }
     }
 
     private func performMoveToBucket() {
@@ -1631,6 +1713,37 @@ struct S3ObjectBrowserView: View {
 
     private var canGoBack: Bool { historyIndex > 0 }
     private var canGoForward: Bool { historyIndex < navigationHistory.count - 1 }
+
+    private func handleNavigationKeyPress(_ press: KeyPress) -> KeyPress.Result {
+        switch press.key {
+        case .rightArrow where press.modifiers.isEmpty:
+            guard let selected = singleSelectedItem, selected.isFolder, selected.id != Self.parentRowID else { return .ignored }
+            navigateToPrefix(selected.fullKey)
+            return .handled
+        case .leftArrow where press.modifiers.isEmpty:
+            guard !pathComponents.isEmpty else { return .ignored }
+            navigateToParent()
+            return .handled
+        default:
+            if press.characters == "[" && press.modifiers == .command {
+                guard canGoBack else { return .ignored }
+                navigateBack()
+                return .handled
+            }
+            if press.characters == "]" && press.modifiers == .command {
+                guard canGoForward else { return .ignored }
+                navigateForward()
+                return .handled
+            }
+            return .ignored
+        }
+    }
+
+    /// Returns the single selected row item, or nil if zero or multiple rows are selected.
+    private var singleSelectedItem: RowItem? {
+        guard selectedRowIDs.count == 1, let id = selectedRowIDs.first else { return nil }
+        return sortedRowItems.first(where: { $0.id == id })
+    }
 
     private func navigate(to components: [String]) {
         navigationHistory = Array(navigationHistory.prefix(historyIndex + 1))

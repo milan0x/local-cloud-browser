@@ -28,7 +28,7 @@ struct CloudFormationModuleView: View {
                 activeStack: $activeStack,
                 restoreStackName: restoreStackName
             )
-            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+            .frame(minWidth: 240, idealWidth: 280, maxWidth: 350)
 
             Group {
                 if let stack = activeStack {
@@ -41,7 +41,8 @@ struct CloudFormationModuleView: View {
                     EmptyDetailView(icon: "square.stack.3d.down.right", message: "Select a stack")
                 }
             }
-            .frame(minWidth: 400)
+            .frame(minWidth: 140)
+            .layoutPriority(1)
         }
         .toolbar {
             CloudFormationToolbar(

@@ -29,7 +29,7 @@ struct DynamoDBModuleView: View {
                 tableDetail: $tableDetail,
                 restoreTableName: restoreTableName
             )
-            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+            .frame(minWidth: 240, idealWidth: 280, maxWidth: 350)
 
             Group {
                 if let table = activeTable, let detail = tableDetail {
@@ -43,7 +43,8 @@ struct DynamoDBModuleView: View {
                     EmptyDetailView(icon: "tablecells", message: "Select a table")
                 }
             }
-            .frame(minWidth: 400)
+            .frame(minWidth: 140)
+            .layoutPriority(1)
         }
         .toolbar {
             DynamoDBToolbar(
