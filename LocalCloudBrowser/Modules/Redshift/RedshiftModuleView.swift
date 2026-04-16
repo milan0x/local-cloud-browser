@@ -28,7 +28,7 @@ struct RedshiftModuleView: View {
                 activeCluster: $activeCluster,
                 restoreClusterId: restoreClusterId
             )
-            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+            .frame(minWidth: 240, idealWidth: 280, maxWidth: 350)
 
             Group {
                 if let cluster = activeCluster {
@@ -41,7 +41,8 @@ struct RedshiftModuleView: View {
                     EmptyDetailView(icon: "cylinder.split.1x2", message: "Select a cluster")
                 }
             }
-            .frame(minWidth: 400)
+            .frame(minWidth: 140)
+            .layoutPriority(1)
         }
         .toolbar {
             RedshiftToolbar(

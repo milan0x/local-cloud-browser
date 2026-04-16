@@ -58,7 +58,8 @@ struct EC2ModuleView: View {
                     EmptyDetailView(icon: "server.rack", message: "Select a resource")
                 }
             }
-            .frame(minWidth: 400)
+            .frame(minWidth: 140)
+            .layoutPriority(1)
         }
         .toolbar {
             EC2Toolbar(

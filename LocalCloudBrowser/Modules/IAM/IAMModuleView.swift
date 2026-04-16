@@ -45,7 +45,7 @@ struct IAMModuleView: View {
                 restoreEntityType: restoreEntityType,
                 restoreEntityName: restoreEntityName
             )
-            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+            .frame(minWidth: 240, idealWidth: 280, maxWidth: 350)
 
             Group {
                 if let userName = selectedUserName, entityType == .users {
@@ -70,7 +70,8 @@ struct IAMModuleView: View {
                     EmptyDetailView(icon: "person.2", message: "Select an entity")
                 }
             }
-            .frame(minWidth: 400)
+            .frame(minWidth: 140)
+            .layoutPriority(1)
         }
         .toolbar {
             IAMToolbar(

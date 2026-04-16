@@ -28,7 +28,7 @@ struct ResourceGroupsModuleView: View {
                 activeGroup: $activeGroup,
                 restoreGroupName: restoreGroupName
             )
-            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+            .frame(minWidth: 240, idealWidth: 280, maxWidth: 350)
 
             Group {
                 if let group = activeGroup {
@@ -40,7 +40,8 @@ struct ResourceGroupsModuleView: View {
                     EmptyDetailView(icon: "square.3.layers.3d", message: "Select a group")
                 }
             }
-            .frame(minWidth: 400)
+            .frame(minWidth: 140)
+            .layoutPriority(1)
         }
         .toolbar {
             ResourceGroupsToolbar(

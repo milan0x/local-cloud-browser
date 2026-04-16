@@ -28,7 +28,7 @@ struct CloudWatchLogsModuleView: View {
                 activeLogGroup: $activeLogGroup,
                 restoreLogGroupName: restoreLogGroupName
             )
-            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+            .frame(minWidth: 240, idealWidth: 280, maxWidth: 350)
 
             Group {
                 if let logGroup = activeLogGroup {
@@ -41,7 +41,8 @@ struct CloudWatchLogsModuleView: View {
                     EmptyDetailView(icon: "doc.text.magnifyingglass", message: "Select a log group")
                 }
             }
-            .frame(minWidth: 400)
+            .frame(minWidth: 140)
+            .layoutPriority(1)
         }
         .toolbar {
             CloudWatchLogsToolbar(

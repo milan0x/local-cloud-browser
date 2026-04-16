@@ -39,7 +39,7 @@ struct EventBridgeModuleView: View {
     var body: some View {
         HSplitView {
             leftPane
-                .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+                .frame(minWidth: 240, idealWidth: 280, maxWidth: 350)
 
             Group {
                 if tab == .events {
@@ -65,7 +65,8 @@ struct EventBridgeModuleView: View {
                     }
                 }
             }
-            .frame(minWidth: 400)
+            .frame(minWidth: 140)
+            .layoutPriority(1)
         }
         .toolbar {
             EventBridgeToolbar(

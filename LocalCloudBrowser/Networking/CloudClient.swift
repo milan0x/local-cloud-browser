@@ -28,6 +28,18 @@ enum CloudClientError: Error, LocalizedError {
         guard case .httpError(_, let data) = self else { return nil }
         return ServiceError.parse(from: data)
     }
+
+    /// Whether this error is safe to retry (network errors + server-side 5xx).
+    var isRetryable: Bool {
+        switch self {
+        case .networkError:
+            return true
+        case .httpError(let statusCode, _):
+            return [500, 502, 503, 504].contains(statusCode)
+        default:
+            return false
+        }
+    }
 }
 
 struct HTTPResponse {
@@ -61,6 +73,28 @@ final class CloudClient: ObservableObject {
         var s3Components = components
         s3Components.host = appState.s3Domain
         return s3Components.string ?? appState.endpoint
+    }
+
+    /// Creates a Sendable snapshot of current credentials for background uploads.
+    /// Call this on the main thread, then pass the context to StreamingUploader.
+    func makeSigningContext() -> RequestSigningContext {
+        let isVirtualHosted: Bool
+        if case .virtualHosted = s3URLStyle {
+            isVirtualHosted = true
+        } else {
+            isVirtualHosted = false
+        }
+        return RequestSigningContext(
+            endpoint: appState.endpoint,
+            s3BaseURL: s3BaseURL,
+            region: appState.region,
+            accessKeyId: appState.accessKeyId,
+            secretAccessKey: appState.secretAccessKey,
+            sessionToken: appState.sessionToken,
+            needsSigning: appState.needsSigning,
+            isReadOnly: appState.isReadOnly,
+            usesVirtualHostedStyle: isVirtualHosted
+        )
     }
 
     func get(path: String) async throws -> Data {

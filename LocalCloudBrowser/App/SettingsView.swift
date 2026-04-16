@@ -130,13 +130,46 @@ struct SettingsView: View {
 
     // MARK: - S3
 
+    @AppStorage(AppPreferences.doubleClickActionKey) private var doubleClickAction = "preview"
+    @AppStorage(AppPreferences.previewCacheEnabledKey) private var cacheEnabled = true
+    @AppStorage(AppPreferences.previewCacheSizeLimitMBKey) private var cacheSizeLimitMB = 500
+    @State private var currentCacheSizeMB: Int = 0
+
     private var s3Settings: some View {
         Form {
+            Section("Behavior") {
+                Picker("Double-click file action", selection: $doubleClickAction) {
+                    Text("Quick Look Preview").tag("preview")
+                    Text("Show Metadata").tag("metadata")
+                    Text("Download").tag("download")
+                }
+            }
+
             Section("Quick Look") {
                 Stepper("Preview size limit: \(appState.previewSizeLimitMB) MB", value: $appState.previewSizeLimitMB, in: 1...50)
                 Text("Files larger than this will prompt before downloading. Files over 300 MB cannot be previewed.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+
+                Toggle("Cache previewed files", isOn: $cacheEnabled)
+                Text("When enabled, previewed files are cached locally and verified by ETag. Subsequent previews are served from the cache without re-downloading.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+
+                if cacheEnabled {
+                    Stepper("Cache size limit: \(cacheSizeLimitMB) MB", value: $cacheSizeLimitMB, in: 50...1000, step: 50)
+                    HStack {
+                        Text("Currently using \(currentCacheSizeMB) MB")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Clear Cache") {
+                            PreviewCacheIndex.clearAll(directory: AppPreferences.previewTempDirectory)
+                            refreshCacheSize()
+                        }
+                        .controlSize(.small)
+                    }
+                }
             }
 
             Section("Folders") {
@@ -147,5 +180,19 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .onAppear { refreshCacheSize() }
+        .onChange(of: cacheEnabled) {
+            if !cacheEnabled {
+                PreviewCacheIndex.clearAll(directory: AppPreferences.previewTempDirectory)
+                currentCacheSizeMB = 0
+            }
+        }
+    }
+
+    private func refreshCacheSize() {
+        let dir = AppPreferences.previewTempDirectory
+        let entries = PreviewCacheIndex.loadIndex(from: dir)
+        let totalBytes = PreviewCacheIndex.totalSize(of: entries, directory: dir)
+        currentCacheSizeMB = Int(totalBytes / (1024 * 1024))
     }
 }

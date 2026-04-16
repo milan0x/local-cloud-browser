@@ -37,7 +37,7 @@ struct KinesisModuleView: View {
     var body: some View {
         HSplitView {
             leftPane
-                .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+                .frame(minWidth: 240, idealWidth: 280, maxWidth: 350)
 
             Group {
                 if tab == .streams {
@@ -60,7 +60,8 @@ struct KinesisModuleView: View {
                     }
                 }
             }
-            .frame(minWidth: 400)
+            .frame(minWidth: 140)
+            .layoutPriority(1)
         }
         .toolbar {
             KinesisToolbar(

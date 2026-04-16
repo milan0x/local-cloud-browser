@@ -28,7 +28,7 @@ struct APIGatewayModuleView: View {
                 activeAPI: $activeAPI,
                 restoreAPIId: restoreAPIId
             )
-            .frame(minWidth: 250, idealWidth: 280, maxWidth: 450)
+            .frame(minWidth: 240, idealWidth: 280, maxWidth: 350)
 
             Group {
                 if let api = activeAPI {
@@ -41,7 +41,8 @@ struct APIGatewayModuleView: View {
                     EmptyDetailView(icon: "network", message: "Select a REST API")
                 }
             }
-            .frame(minWidth: 400)
+            .frame(minWidth: 140)
+            .layoutPriority(1)
         }
         .toolbar {
             APIGatewayToolbar(
