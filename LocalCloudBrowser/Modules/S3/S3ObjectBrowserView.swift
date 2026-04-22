@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Quartz
 import UniformTypeIdentifiers
 
 /// Alert data for previewing files that exceed the user's size limit.
@@ -73,6 +74,9 @@ struct S3ObjectBrowserView: View {
     // Rename
     @State private var itemToRename: RowItem?
     @State private var renameText = ""
+
+    // Single file download
+    @State private var fileDownloadProgress: (downloaded: Int64, total: Int64?)?
 
     // Folder download
     @State private var folderDownloadProgress: (current: Int, total: Int)?
@@ -149,6 +153,7 @@ struct S3ObjectBrowserView: View {
             .focusedSceneValue(\.s3CopyAction, s3CopyAction)
             .focusedSceneValue(\.s3PasteAction, s3PasteAction)
             .focusedSceneValue(\.s3DeleteAction, s3DeleteAction)
+            .focusedSceneValue(\.s3RefreshAction) { loadObjects(force: true) }
             .task(id: bucket.id) {
                 var restoredPath: [String] = []
                 if !hasRestoredPath,
@@ -178,6 +183,7 @@ struct S3ObjectBrowserView: View {
             .onChange(of: isDeletingFolders) { toolbarState.isDeleting = isDeletingObjects || isDeletingFolders }
             .onChange(of: selectedRowIDs) {
                 toolbarState.hasSelection = !selectedRowIDs.subtracting([Self.parentRowID]).isEmpty
+                followSelectionWithQuickLook()
             }
             // Clear object selection when bucket list is clicked
             .onChange(of: toolbarState.clearSelectionTrigger) {
@@ -264,8 +270,18 @@ struct S3ObjectBrowserView: View {
         .overlay {
             if quickLook.isDownloading {
                 VStack(spacing: 12) {
-                    ProgressView()
-                        .controlSize(.large)
+                    if let progress = quickLook.downloadProgress {
+                        ProgressView(value: progress)
+                            .progressViewStyle(.linear)
+                            .frame(width: 200)
+                        Text("\(Int(progress * 100))%")
+                            .font(.callout)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ProgressView()
+                            .controlSize(.large)
+                    }
                     Text("Downloading for preview...")
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -645,6 +661,26 @@ struct S3ObjectBrowserView: View {
                 }
             }
 
+            if let progress = fileDownloadProgress {
+                HStack(spacing: 6) {
+                    if let total = progress.total, total > 0 {
+                        ProgressView(value: Double(progress.downloaded), total: Double(total))
+                            .progressViewStyle(.linear)
+                            .frame(width: 120)
+                        Text("\(Int(Double(progress.downloaded) / Double(total) * 100))%")
+                            .font(.callout)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ProgressView()
+                            .controlSize(.mini)
+                        Text("Downloading...")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
             if let progress = folderDownloadProgress {
                 HStack(spacing: 6) {
                     ProgressView()
@@ -682,6 +718,9 @@ struct S3ObjectBrowserView: View {
                         .foregroundStyle(.secondary)
                     Text(item.name)
                 }
+                .draggable(S3DragItem(item: item, bucket: bucket.name, service: service)) {
+                    Label(item.name, systemImage: item.icon)
+                }
             }
             .customizationID("name")
             TableColumn("Kind", value: \.kind) { item in
@@ -715,6 +754,10 @@ struct S3ObjectBrowserView: View {
                 .disabled(appState.isReadOnly)
                 Button("Upload File") {
                     uploadFile()
+                }
+                .disabled(appState.isReadOnly)
+                Button("Upload Folder") {
+                    toolbarState.pendingAction = .uploadFolder
                 }
                 .disabled(appState.isReadOnly)
                 Divider()
@@ -888,7 +931,7 @@ struct S3ObjectBrowserView: View {
         }
     }
 
-    private static let parentRowID = ".."
+    fileprivate static let parentRowID = ".."
 
     private var sortedRowItems: [RowItem] {
         let sorted = filteredRowItems.sorted(using: sortOrder)
@@ -1882,10 +1925,17 @@ struct S3ObjectBrowserView: View {
         let response = panel.runModal()
         guard response == .OK, let url = panel.url else { return }
 
+        fileDownloadProgress = (downloaded: 0, total: nil)
         Task {
             do {
-                try await service.downloadObjectToFile(bucket: bucket.name, key: key, destination: url)
+                try await service.downloadObjectToFile(bucket: bucket.name, key: key, destination: url) { downloaded, total in
+                    Task { @MainActor in
+                        fileDownloadProgress = (downloaded: downloaded, total: total)
+                    }
+                }
+                fileDownloadProgress = nil
             } catch {
+                fileDownloadProgress = nil
                 retryAction = { [self] in downloadObject(key: key) }
                 if let clientError = error as? CloudClientError,
                    let parsed = clientError.serviceError {
@@ -2325,6 +2375,15 @@ struct S3ObjectBrowserView: View {
 
     // MARK: - Quick Look Preview
 
+    /// When Quick Look is open and selection changes to a single file, preview it automatically (Finder behavior).
+    private func followSelectionWithQuickLook() {
+        guard let panel = QLPreviewPanel.shared(), panel.isVisible else { return }
+        let real = selectedRowIDs.subtracting([Self.parentRowID])
+        guard real.count == 1, let id = real.first else { return }
+        guard let item = sortedRowItems.first(where: { $0.id == id }), !item.isFolder else { return }
+        requestPreview(key: item.fullKey)
+    }
+
     private func requestPreview(key: String) {
         guard let obj = objects.first(where: { $0.key == key }) else { return }
         let sizeCheck = quickLook.checkSize(obj.size, limitBytes: appState.previewSizeLimitBytes)
@@ -2394,5 +2453,38 @@ private struct QuickLookAlertsModifier: ViewModifier {
             } message: {
                 Text("This folder has no downloadable files.")
             }
+    }
+}
+
+// MARK: - Drag to Finder
+
+/// Transferable wrapper that downloads an S3 object to a temp file on demand (for drag-to-Finder).
+struct S3DragItem: Transferable {
+    let item: S3ObjectBrowserView.RowItem
+    let bucket: String
+    let service: S3Service
+
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(exportedContentType: .data) { dragItem in
+            // Folders and parent row are not draggable — return empty file
+            guard !dragItem.item.isFolder, dragItem.item.id != S3ObjectBrowserView.parentRowID else {
+                let empty = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+                FileManager.default.createFile(atPath: empty.path, contents: nil)
+                return SentTransferredFile(empty)
+            }
+
+            let filename = dragItem.item.name
+            let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("S3Drag-\(UUID().uuidString)")
+            try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+            let destination = tempDir.appendingPathComponent(filename)
+
+            try await dragItem.service.downloadObjectToFile(
+                bucket: dragItem.bucket,
+                key: dragItem.item.fullKey,
+                destination: destination
+            )
+
+            return SentTransferredFile(destination)
+        }
     }
 }

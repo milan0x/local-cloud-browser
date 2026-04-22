@@ -5,8 +5,8 @@ final class S3Service: BaseService {
 
     /// Default part size for multipart uploads: 10 MB
     private static let defaultPartSize = 10 * 1024 * 1024
-    /// Files larger than this threshold use multipart upload: 20 MB
-    private static let multipartThreshold: Int64 = 20 * 1024 * 1024
+    /// Files larger than this threshold use multipart upload: 5 MB
+    private static let multipartThreshold: Int64 = 5 * 1024 * 1024
 
     func listBuckets() async throws -> [S3Bucket] {
         let data = try await client.s3Request(method: "GET", path: "/")
@@ -82,21 +82,65 @@ final class S3Service: BaseService {
     }
 
     /// Downloads an object directly to a file using streaming (no full in-memory buffering).
-    /// Uses URLSession.download with a signed request for production S3 compatibility.
-    func downloadObjectToFile(bucket: String, key: String, destination: URL) async throws {
+    /// Uses URLSession.bytes for streaming download with progress tracking.
+    /// - Parameters:
+    ///   - progress: Optional callback reporting (bytesDownloaded, totalBytes). totalBytes is nil if Content-Length unknown.
+    func downloadObjectToFile(
+        bucket: String,
+        key: String,
+        destination: URL,
+        progress: ((Int64, Int64?) -> Void)? = nil
+    ) async throws {
         let request = try client.buildSignedS3Request(method: "GET", path: "/\(bucket)/\(key)")
-        let (tempURL, response) = try await URLSession.shared.download(for: request)
+        let (bytes, response) = try await client.downloadSession.bytes(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw CloudClientError.invalidURL
         }
 
         if !(200..<300).contains(httpResponse.statusCode) {
-            let errorData = (try? Data(contentsOf: tempURL)) ?? Data()
-            throw CloudClientError.httpError(statusCode: httpResponse.statusCode, data: errorData)
+            throw CloudClientError.httpError(statusCode: httpResponse.statusCode, data: Data())
         }
 
-        // Move from URLSession temp location to destination
+        let totalBytes: Int64? = {
+            if let cl = httpResponse.value(forHTTPHeaderField: "Content-Length"), let n = Int64(cl), n > 0 {
+                return n
+            }
+            return nil
+        }()
+
+        // Stream to temp file, then move to destination
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        FileManager.default.createFile(atPath: tempURL.path, contents: nil)
+        let handle = try FileHandle(forWritingTo: tempURL)
+        defer { try? handle.close() }
+
+        var downloaded: Int64 = 0
+        let chunkSize = 256 * 1024 // 256 KB buffer
+        var buffer = Data()
+        buffer.reserveCapacity(chunkSize)
+
+        for try await byte in bytes {
+            try Task.checkCancellation()
+            buffer.append(byte)
+            if buffer.count >= chunkSize {
+                handle.write(buffer)
+                downloaded += Int64(buffer.count)
+                buffer.removeAll(keepingCapacity: true)
+                progress?(downloaded, totalBytes)
+            }
+        }
+
+        // Flush remaining bytes
+        if !buffer.isEmpty {
+            handle.write(buffer)
+            downloaded += Int64(buffer.count)
+            progress?(downloaded, totalBytes)
+        }
+
+        try handle.close()
+
+        // Move to final destination
         let fm = FileManager.default
         if fm.fileExists(atPath: destination.path) {
             try fm.removeItem(at: destination)

@@ -32,6 +32,7 @@ struct LocalCloudBrowserApp: App {
 
         UserDefaults.standard.register(defaults: [
             AppPreferences.restoreLastSessionKey: true,
+            AppPreferences.autoRefreshIntervalKey: 5,
         ])
 
         let state = AppState()
@@ -134,8 +135,17 @@ struct S3PasteboardCommands: Commands {
     @FocusedValue(\.s3CopyAction) private var s3Copy
     @FocusedValue(\.s3PasteAction) private var s3Paste
     @FocusedValue(\.s3DeleteAction) private var s3Delete
+    @FocusedValue(\.s3RefreshAction) private var s3Refresh
 
     var body: some Commands {
+        CommandGroup(after: .toolbar) {
+            Button("Refresh") {
+                s3Refresh?()
+            }
+            .keyboardShortcut("r", modifiers: .command)
+            .disabled(s3Refresh == nil)
+        }
+
         CommandGroup(replacing: .pasteboard) {
             Button("Cut") {
                 NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil)

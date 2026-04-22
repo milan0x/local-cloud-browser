@@ -40,6 +40,7 @@ final class AppState: ObservableObject {
     @Published var activeConnectionName: String = "My Connection"
     @Published var connectionVersion: Int = 0
     @Published var connectionError: ConnectionError?
+    @Published var credentialExpired = false
     @Published var s3Clipboard: S3Clipboard?
     @Published var editActiveProfileRequest: EditProfileRequest?
 
@@ -110,6 +111,7 @@ final class AppState: ObservableObject {
         connectionStatus = .disconnected
         consecutiveFailures = 0
         connectionError = nil
+        credentialExpired = false
         startHealthCheck()
         runAutoDetection()
         Log.info("Applied profile \"\(profile.name)\" — endpoint: \(profile.endpoint), region: \(profile.region)", category: "App")

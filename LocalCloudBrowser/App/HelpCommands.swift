@@ -66,6 +66,13 @@ struct HelpCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .help) {
+            Button("Keyboard Shortcuts") {
+                showKeyboardShortcuts()
+            }
+            .keyboardShortcut("/", modifiers: .command)
+
+            Divider()
+
             Button("Unlock Unlimited...") {
                 showUpgrade?.wrappedValue = true
             }
@@ -124,6 +131,74 @@ struct HelpCommands: Commands {
         result.addAttribute(.paragraphStyle, value: style, range: NSRange(location: 0, length: result.length))
 
         return result
+    }
+}
+
+// MARK: - Keyboard Shortcuts
+
+private func showKeyboardShortcuts() {
+    let panel = NSPanel(
+        contentRect: NSRect(x: 0, y: 0, width: 360, height: 400),
+        styleMask: [.titled, .closable, .utilityWindow],
+        backing: .buffered,
+        defer: false
+    )
+    panel.title = "Keyboard Shortcuts"
+    panel.isFloatingPanel = true
+    panel.contentView = NSHostingView(rootView: KeyboardShortcutsView { panel.close() })
+    panel.center()
+    panel.makeKeyAndOrderFront(nil)
+}
+
+private struct KeyboardShortcutsView: View {
+    var onClose: () -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                shortcutSection("Navigation", items: [
+                    ("Back", "⌘["),
+                    ("Forward", "⌘]"),
+                    ("Switch Panes", "← →"),
+                    ("Enter Folder", "→ (folder selected)"),
+                    ("Parent Folder", "← (in folder)"),
+                ])
+                shortcutSection("Files", items: [
+                    ("Quick Look", "Space"),
+                    ("Copy Selected", "⌘C"),
+                    ("Paste / Upload", "⌘V"),
+                    ("Delete Selected", "⌘⌫"),
+                    ("Select All", "⌘A"),
+                    ("Refresh", "⌘R"),
+                ])
+                shortcutSection("General", items: [
+                    ("Search", "⌘F"),
+                    ("New Connection", "⌘⇧N"),
+                    ("Settings", "⌘,"),
+                    ("Keyboard Shortcuts", "⌘/"),
+                ])
+            }
+            .padding(20)
+        }
+        .frame(width: 360, height: 400)
+    }
+
+    private func shortcutSection(_ title: String, items: [(String, String)]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.headline)
+                .padding(.bottom, 2)
+            ForEach(items, id: \.0) { item in
+                HStack {
+                    Text(item.0)
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Text(item.1)
+                        .font(.system(.body, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 }
 
