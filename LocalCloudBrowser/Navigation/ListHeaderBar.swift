@@ -72,8 +72,20 @@ struct ListHeaderBar<Trailing: View>: View {
                 guard licenseManager.guardWriteAction(for: appState.selectedRoute) else { return }
                 onCreate()
             })
-            AutoRefreshMenuView(interval: Binding(get: { autoRefresh.interval }, set: { autoRefresh.interval = $0 })) {
-                onRefresh()
+            if !appState.isLocalEndpoint {
+                ProductionAutoRefreshBadge()
+                Button {
+                    onRefresh()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .help("Refresh")
+            } else {
+                AutoRefreshMenuView(interval: Binding(get: { autoRefresh.interval }, set: { autoRefresh.interval = $0 })) {
+                    onRefresh()
+                }
             }
             trailing
         }

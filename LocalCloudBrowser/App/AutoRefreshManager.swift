@@ -18,8 +18,11 @@ final class AutoRefreshManager: ObservableObject {
     @Published private(set) var lastRefreshFailed = false
     /// Incremented each time the countdown reaches 0 — views observe this to trigger refresh.
     @Published private(set) var refreshTrigger = 0
+    /// When true, ticks are paused and the trigger will not fire. Used for live AWS connections
+    /// to prevent auto-refresh from making repeated billable API calls.
+    @Published private(set) var isSuspended: Bool = false
 
-    var isActive: Bool { interval > 0 }
+    var isActive: Bool { interval > 0 && !isSuspended }
 
     private var timerTask: Task<Void, Never>?
 
@@ -73,5 +76,17 @@ final class AutoRefreshManager: ObservableObject {
         countdownRemaining = interval
         lastSuccessfulRefresh = nil
         lastRefreshFailed = false
+    }
+
+    /// Suspends or resumes ticking. When suspended, the countdown is halted and the trigger
+    /// will not fire automatically. Manual refresh calls remain unaffected.
+    func setSuspended(_ value: Bool) {
+        guard isSuspended != value else { return }
+        isSuspended = value
+        if value {
+            countdownRemaining = 0
+        } else {
+            countdownRemaining = interval
+        }
     }
 }
