@@ -70,4 +70,9 @@ struct AWSRegion {
     static func find(_ code: String) -> AWSRegion? {
         allRegions.first { $0.code == code }
     }
+
+    /// Returns the S3 endpoint URL for a given AWS region.
+    static func s3Endpoint(for region: String) -> String {
+        "https://s3.\(region).amazonaws.com"
+    }
 }

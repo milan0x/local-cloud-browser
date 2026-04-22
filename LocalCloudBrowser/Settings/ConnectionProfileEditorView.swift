@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ConnectionProfileEditorView: View {
     @Environment(\.dismiss) private var dismiss
@@ -29,6 +30,7 @@ struct ConnectionProfileEditorView: View {
     @State private var discoveredServices: [DiscoveredService] = []
     @State private var activeTask: Task<Void, Never>?
     @State private var endpointProbeTask: Task<Void, Never>?
+    @State private var awsRegionSync = false
     @FocusState private var focusedField: String?
 
     enum TestResult {
@@ -76,7 +78,23 @@ struct ConnectionProfileEditorView: View {
                         Text("us-east-1")
                             .foregroundStyle(.secondary)
                     } else {
-                        AWSRegionPicker(regionCode: $region)
+                        HStack(spacing: 6) {
+                            AWSRegionPicker(regionCode: $region)
+                            Button {
+                                awsRegionSync.toggle()
+                                if awsRegionSync {
+                                    let r = region.trimmingCharacters(in: .whitespaces)
+                                    let effectiveRegion = r.isEmpty ? "us-east-1" : r
+                                    if r.isEmpty { region = effectiveRegion }
+                                    endpoint = AWSRegion.s3Endpoint(for: effectiveRegion)
+                                }
+                            } label: {
+                                Image(systemName: "link")
+                                    .foregroundStyle(awsRegionSync ? Color.accentColor : Color.secondary)
+                            }
+                            .buttonStyle(.borderless)
+                            .help(awsRegionSync ? "Region synced with AWS endpoint" : "Sync region with AWS endpoint")
+                        }
                     }
                 }
                 TextField("Access Key", text: $accessKeyId, prompt: Text("Access Key ID"))
@@ -194,7 +212,19 @@ struct ConnectionProfileEditorView: View {
             .padding()
         }
         .frame(width: 400, height: existing != nil ? 540 : 480)
+        .onChange(of: region) {
+            if awsRegionSync {
+                let r = region.trimmingCharacters(in: .whitespaces)
+                if !r.isEmpty {
+                    endpoint = AWSRegion.s3Endpoint(for: r)
+                }
+            }
+        }
         .onChange(of: endpoint) {
+            // Turn off region sync if user edits endpoint to non-AWS
+            if awsRegionSync, !endpoint.lowercased().contains("amazonaws.com") {
+                awsRegionSync = false
+            }
             endpointProbeTask?.cancel()
             guard URL(string: endpoint) != nil else { return }
             endpointProbeTask = Task {
@@ -435,6 +465,24 @@ struct ConnectionProfileEditorView: View {
                 .disabled(isScanning)
             }
 
+            Button {
+                applyAWSEndpoint()
+            } label: {
+                Text("Pre-fill for AWS S3 endpoint")
+                    .font(.caption)
+                    .foregroundStyle(Color.accentColor)
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                importCredentialsFromCSV()
+            } label: {
+                Text("Import credentials from CSV")
+                    .font(.caption)
+                    .foregroundStyle(Color.accentColor)
+            }
+            .buttonStyle(.plain)
+
             ForEach(discoveredServices) { service in
                 Button {
                     applyDiscoveredService(service)
@@ -475,6 +523,55 @@ struct ConnectionProfileEditorView: View {
         activeTask = Task {
             discoveredServices = await LocalServiceScanner.scan()
             isScanning = false
+        }
+    }
+
+    private func applyAWSEndpoint() {
+        let r = region.trimmingCharacters(in: .whitespaces)
+        let effectiveRegion = r.isEmpty ? "us-east-1" : r
+        if r.isEmpty { region = effectiveRegion }
+        endpoint = AWSRegion.s3Endpoint(for: effectiveRegion)
+        awsRegionSync = true
+        endpointType = .generic
+        if name.trimmingCharacters(in: .whitespaces).isEmpty {
+            name = "AWS S3"
+        }
+        focusedField = "accessKeyId"
+    }
+
+    private func importCredentialsFromCSV() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.commaSeparatedText, .plainText]
+        panel.allowsMultipleSelection = false
+        panel.message = "Select an AWS credentials CSV file"
+        panel.directoryURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let content = try? String(contentsOf: url, encoding: .utf8) else { return }
+
+        let lines = content.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+
+        guard lines.count >= 2 else { return }
+        let values = lines[1].components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        guard values.count >= 2 else { return }
+
+        if let keyIndex = values.firstIndex(where: { $0.hasPrefix("AKIA") || $0.hasPrefix("ASIA") }) {
+            accessKeyId = values[keyIndex]
+            if keyIndex + 1 < values.count {
+                secretAccessKey = values[keyIndex + 1]
+            }
+            if keyIndex + 2 < values.count, !values[keyIndex + 2].isEmpty {
+                sessionToken = values[keyIndex + 2]
+                showAdvanced = true
+            }
+        } else {
+            accessKeyId = values[0]
+            secretAccessKey = values[1]
+            if values.count >= 3, !values[2].isEmpty {
+                sessionToken = values[2]
+                showAdvanced = true
+            }
         }
     }
 
