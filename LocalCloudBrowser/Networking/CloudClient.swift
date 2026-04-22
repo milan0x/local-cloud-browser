@@ -52,6 +52,11 @@ final class CloudClient: ObservableObject {
     private let session: URLSession
     private let appState: AppState
 
+    /// Exposed for streaming download/upload paths that build their own URLSession calls
+    /// (e.g. S3Service.downloadObjectToFile, S3QuickLookManager) so they use the same
+    /// session as all other CloudClient requests.
+    var downloadSession: URLSession { session }
+
     init(appState: AppState, session: URLSession = .shared) {
         self.appState = appState
         self.session = session
@@ -1408,14 +1413,34 @@ final class CloudClient: ObservableObject {
 
         Log.info("\(method) \(path)", category: "HTTP")
 
-        let data: Data
-        let response: URLResponse
+        let capturedSession = session
+        let result: (Data, URLResponse)
         do {
-            (data, response) = try await session.data(for: urlRequest)
+            result = try await withRetry(
+                operation: "\(method) \(path)"
+            ) { @Sendable in
+                let (d, r) = try await capturedSession.data(for: urlRequest)
+                guard let http = r as? HTTPURLResponse else {
+                    throw CloudClientError.invalidURL
+                }
+                if !(200..<300).contains(http.statusCode) {
+                    throw CloudClientError.httpError(statusCode: http.statusCode, data: d)
+                }
+                return (d, r)
+            }
         } catch {
-            Log.error("\(method) \(path) failed: \(error.localizedDescription)", category: "HTTP")
-            throw CloudClientError.networkError(underlying: error)
+            // Detect expired credentials on non-retryable auth failures
+            if let clientError = error as? CloudClientError,
+               case .httpError(let code, let errData) = clientError,
+               code == 401 || code == 403,
+               let parsed = ServiceError.parse(from: errData),
+               ["ExpiredToken", "ExpiredTokenException", "TokenRefreshRequired"].contains(parsed.code) {
+                appState.credentialExpired = true
+            }
+            throw error
         }
+
+        let (data, response) = result
 
         guard let httpResponse = response as? HTTPURLResponse else {
             Log.error("\(method) \(path) — non-HTTP response", category: "HTTP")
@@ -1423,15 +1448,7 @@ final class CloudClient: ObservableObject {
         }
 
         Log.info("\(method) \(path) -> \(httpResponse.statusCode)", category: "HTTP")
-
-        if (200..<300).contains(httpResponse.statusCode) {
-            appState.notifyConnectionAlive()
-        }
-
-        if !(200..<300).contains(httpResponse.statusCode) {
-            Log.error("\(method) \(path) -> \(httpResponse.statusCode)", category: "HTTP")
-            throw CloudClientError.httpError(statusCode: httpResponse.statusCode, data: data)
-        }
+        appState.notifyConnectionAlive()
 
         var responseHeaders: [String: String] = [:]
         for (key, value) in httpResponse.allHeaderFields {

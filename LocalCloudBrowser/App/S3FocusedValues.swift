@@ -12,6 +12,10 @@ struct S3DeleteActionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
+struct S3RefreshActionKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
 extension FocusedValues {
     var s3CopyAction: (() -> Void)? {
         get { self[S3CopyActionKey.self] }
@@ -26,5 +30,10 @@ extension FocusedValues {
     var s3DeleteAction: (() -> Void)? {
         get { self[S3DeleteActionKey.self] }
         set { self[S3DeleteActionKey.self] = newValue }
+    }
+
+    var s3RefreshAction: (() -> Void)? {
+        get { self[S3RefreshActionKey.self] }
+        set { self[S3RefreshActionKey.self] = newValue }
     }
 }

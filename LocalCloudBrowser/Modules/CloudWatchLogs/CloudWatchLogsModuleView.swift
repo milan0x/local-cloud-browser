@@ -28,7 +28,7 @@ struct CloudWatchLogsModuleView: View {
                 activeLogGroup: $activeLogGroup,
                 restoreLogGroupName: restoreLogGroupName
             )
-            .frame(minWidth: 240, idealWidth: 280, maxWidth: 350)
+            .frame(minWidth: 260, idealWidth: 290, maxWidth: 350)
 
             Group {
                 if let logGroup = activeLogGroup {

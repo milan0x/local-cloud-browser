@@ -227,8 +227,11 @@ struct S3BucketListView: View {
                         toolbarState.resetToRootTrigger += 1
                     })
                     .overlay(alignment: .bottom) {
-                        if loader.errorMessage != nil {
-                            ConnectionLostBanner()
+                        VStack(spacing: 0) {
+                            CredentialExpiredBanner()
+                            if loader.errorMessage != nil {
+                                ConnectionLostBanner()
+                            }
                         }
                     }
                     .contextMenu {

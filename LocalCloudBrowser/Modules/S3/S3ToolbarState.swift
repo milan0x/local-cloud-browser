@@ -81,7 +81,7 @@ struct S3Toolbar: ToolbarContent {
                 Button("Upload File") { state.pendingAction = .uploadFile }
                 Button("Upload Folder") { state.pendingAction = .uploadFolder }
             } label: {
-                Label("Upload", systemImage: "plus")
+                Label("Upload", systemImage: "icloud.and.arrow.up")
                     .toolbarHitTarget()
             }
             .help("Upload")
