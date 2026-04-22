@@ -40,7 +40,7 @@ struct S3ModuleView: View {
                 searchFocusTrigger: listSearchFocusTrigger,
                 paneFocusTrigger: listPaneFocusTrigger
             )
-            .frame(minWidth: 260, idealWidth: 290, maxWidth: 350)
+            .frame(minWidth: 310, idealWidth: 310, maxWidth: 350)
             .onKeyPress(.leftArrow) {
                 guard !isTextFieldFirstResponder() else { return .ignored }
                 appState.sidebarFocusTrigger += 1

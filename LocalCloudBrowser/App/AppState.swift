@@ -27,7 +27,9 @@ final class AppState: ObservableObject {
     @Published var isReadOnly: Bool = UserDefaults.standard.bool(forKey: AppPreferences.isReadOnlyKey) {
         didSet { UserDefaults.standard.set(isReadOnly, forKey: AppPreferences.isReadOnlyKey) }
     }
-    @Published var endpoint: String = "http://localhost:4566"
+    @Published var endpoint: String = "http://localhost:4566" {
+        didSet { updateAutoRefreshSuspension() }
+    }
     @Published var healthPath: String = ConnectionProfile.defaultHealthPath
     @Published var s3Domain: String = ConnectionProfile.defaultS3Domain
     @Published var apiGatewayDomain: String = ConnectionProfile.defaultApiGatewayDomain
@@ -90,6 +92,10 @@ final class AppState: ObservableObject {
             && !secretAccessKey.isEmpty
             && !(accessKeyId == KeychainHelper.defaultAccessKeyId
                  && secretAccessKey == KeychainHelper.defaultSecretAccessKey)
+    }
+
+    private func updateAutoRefreshSuspension() {
+        autoRefresh.setSuspended(!isLocalEndpoint)
     }
 
     func applyProfile(_ profile: ConnectionProfile) {
