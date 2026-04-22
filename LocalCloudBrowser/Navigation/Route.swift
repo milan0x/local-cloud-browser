@@ -130,6 +130,31 @@ enum Route: String, CaseIterable, Identifiable {
         self == .s3
     }
 
+    /// SigV4 service name used by CloudClient for this route. Matches the keys in
+    /// `ServicePermissionRecipe.all` so the permission helper can look up the
+    /// right CLI grant commands. Returns nil for routes that don't have
+    /// production signing wired yet.
+    var serviceKey: String? {
+        switch self {
+        case .s3: "s3"
+        case .iam: "iam"
+        case .sqs: "sqs"
+        case .sns: "sns"
+        case .dynamodb: "dynamodb"
+        case .secretsManager: "secretsmanager"
+        case .ssm: "ssm"
+        case .cloudWatch: "monitoring"
+        case .cloudwatchLogs: "logs"
+        case .eventBridge: "events"
+        case .kms: "kms"
+        case .kinesis: "kinesis"
+        case .stepFunctions: "states"
+        case .acm: "acm"
+        case .sts: "sts"
+        default: nil
+        }
+    }
+
     var systemImage: String {
         switch self {
         case .s3: "externaldrive"

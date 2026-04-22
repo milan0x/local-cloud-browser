@@ -99,6 +99,14 @@ struct LocalCloudBrowserApp: App {
                 .onAppear {
                     NSApplication.shared.activate(ignoringOtherApps: true)
                     appDelegate.transferManager = transferManager
+                    if !appState.isLocalEndpoint {
+                        Task { await client.fetchCallerIdentity() }
+                    }
+                }
+                .onChange(of: appState.connectionVersion) {
+                    if !appState.isLocalEndpoint {
+                        Task { await client.fetchCallerIdentity() }
+                    }
                 }
         }
         .defaultSize(width: 1100, height: 700)

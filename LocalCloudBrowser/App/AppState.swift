@@ -45,6 +45,8 @@ final class AppState: ObservableObject {
     @Published var credentialExpired = false
     @Published var s3Clipboard: S3Clipboard?
     @Published var editActiveProfileRequest: EditProfileRequest?
+    @Published var callerIdentity: CallerIdentity?
+    @Published var permissionDeniedPrompts: [String: PermissionDeniedPrompt] = [:]
 
     struct EditProfileRequest {
         var showAdvanced: Bool = false
@@ -98,6 +100,23 @@ final class AppState: ObservableObject {
         autoRefresh.setSuspended(!isLocalEndpoint)
     }
 
+    /// Surfaces a permission-denied error from a live AWS request.
+    /// Stored per-service so each module can render its own helper inline
+    /// in the empty-state detail pane without interfering with others.
+    func reportAccessDenied(service: String, message: String) {
+        guard !isLocalEndpoint else { return }
+        permissionDeniedPrompts[service] = PermissionDeniedPrompt(
+            serviceKey: service,
+            deniedAction: PermissionDeniedPrompt.extractDeniedAction(from: message),
+            rawMessage: message,
+            isPermissionsBoundary: PermissionDeniedPrompt.detectBoundary(in: message)
+        )
+    }
+
+    func dismissPermissionPrompt(forService service: String) {
+        permissionDeniedPrompts.removeValue(forKey: service)
+    }
+
     func applyProfile(_ profile: ConnectionProfile) {
         endpoint = profile.endpoint
         region = profile.region
@@ -118,6 +137,8 @@ final class AppState: ObservableObject {
         consecutiveFailures = 0
         connectionError = nil
         credentialExpired = false
+        callerIdentity = nil
+        permissionDeniedPrompts.removeAll()
         startHealthCheck()
         runAutoDetection()
         Log.info("Applied profile \"\(profile.name)\" — endpoint: \(profile.endpoint), region: \(profile.region)", category: "App")

@@ -1367,6 +1367,27 @@ final class CloudClient: ObservableObject {
         return f
     }()
 
+    // MARK: - Caller identity
+
+    /// Fetches the current STS caller identity and stores it on AppState.
+    /// Used by the permission-denied helper to pre-fill the user's name in CLI commands.
+    /// Silent on failure — identity is a nice-to-have, never blocks UI.
+    func fetchCallerIdentity() async {
+        do {
+            let data = try await stsRequest(action: "GetCallerIdentity")
+            let xml = try SNSXMLParser.parse(data)
+            let identity = CallerIdentity(
+                account: xml.first("Account") ?? "",
+                arn: xml.first("Arn") ?? "",
+                userId: xml.first("UserId") ?? ""
+            )
+            appState.callerIdentity = identity
+            Log.info("Caller identity: \(identity.arn)", category: "App")
+        } catch {
+            Log.warn("Failed to fetch caller identity: \(error.localizedDescription)", category: "App")
+        }
+    }
+
     // MARK: - Request building
 
     /// Builds a signed URLRequest without executing it.
@@ -1499,9 +1520,14 @@ final class CloudClient: ObservableObject {
             if let clientError = error as? CloudClientError,
                case .httpError(let code, let errData) = clientError,
                code == 401 || code == 403,
-               let parsed = ServiceError.parse(from: errData),
-               ["ExpiredToken", "ExpiredTokenException", "TokenRefreshRequired"].contains(parsed.code) {
-                appState.credentialExpired = true
+               let parsed = ServiceError.parse(from: errData) {
+                if ["ExpiredToken", "ExpiredTokenException", "TokenRefreshRequired"].contains(parsed.code) {
+                    appState.credentialExpired = true
+                }
+                if let service,
+                   ["AccessDenied", "AccessDeniedException", "UnauthorizedOperation"].contains(parsed.code) {
+                    appState.reportAccessDenied(service: service, message: parsed.message)
+                }
             }
             throw error
         }
@@ -1515,6 +1541,11 @@ final class CloudClient: ObservableObject {
 
         Log.info("\(method) \(path) -> \(httpResponse.statusCode)", category: "HTTP")
         appState.notifyConnectionAlive()
+        // Successful request proves permissions work — clear any lingering
+        // permission-denied helper for this service.
+        if let service, appState.permissionDeniedPrompts[service] != nil {
+            appState.dismissPermissionPrompt(forService: service)
+        }
 
         var responseHeaders: [String: String] = [:]
         for (key, value) in httpResponse.allHeaderFields {
