@@ -66,7 +66,7 @@ struct S3BucketPolicyView: View {
             do {
                 policyJSON = try await service.getBucketPolicy(bucket: bucket)
             } catch let err as CloudClientError {
-                if case .httpError(let code, _) = err, code == 404 {
+                if case .httpError(let code, _, _) = err, code == 404 {
                     policyJSON = ""
                 } else {
                     errorMessage = err.localizedDescription
