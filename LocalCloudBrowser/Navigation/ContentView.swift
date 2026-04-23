@@ -2,11 +2,13 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var client: CloudClient
     @EnvironmentObject private var profileStore: ConnectionProfileStore
     @EnvironmentObject private var licenseManager: LicenseManager
     @State private var showFeedback = false
     @State private var showWelcome = false
     @State private var showNewConnection = false
+    @State private var showPermissionBuilder = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
 
     var body: some View {
@@ -36,8 +38,22 @@ struct ContentView: View {
                 TransferToolbarButton()
             }
             ToolbarItem(placement: .automatic) {
+                Button {
+                    showPermissionBuilder = true
+                } label: {
+                    Image(systemName: "key.horizontal")
+                        .toolbarHitTarget()
+                }
+                .help("Manage permissions — build an IAM policy for your AWS user.")
+            }
+            ToolbarItem(placement: .automatic) {
                 regionBadge
             }
+        }
+        .sheet(isPresented: $showPermissionBuilder) {
+            PermissionBuilderSheet()
+                .environmentObject(appState)
+                .environmentObject(client)
         }
         .focusedSceneValue(\.showFeedback, $showFeedback)
         .focusedSceneValue(\.showUpgrade, $licenseManager.showUpgradeSheet)
