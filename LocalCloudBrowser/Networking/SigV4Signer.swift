@@ -56,7 +56,25 @@ enum SigV4Signer {
         // Canonical request
         let method = request.httpMethod ?? "GET"
         let url = request.url!
-        let canonicalURI = uriEncode(url.path.isEmpty ? "/" : url.path, encodeSlash: false)
+        // url.path strips trailing slashes on macOS and decodes percent-
+        // encoded characters — both break SigV4 when the key ends in `/`
+        // or contains characters like ` `, `+`, or non-ASCII. Extract the
+        // exact percent-encoded path from absoluteString, decode it once,
+        // then re-encode with SigV4's RFC 3986 unreserved rules so the
+        // canonical URI matches the wire URL byte-for-byte.
+        let rawPath: String = {
+            let abs = url.absoluteString
+            guard let hostRange = abs.range(of: "//") else { return url.path }
+            let afterScheme = abs[hostRange.upperBound...]
+            guard let pathStart = afterScheme.firstIndex(of: "/") else { return "/" }
+            let pathAndQuery = abs[pathStart...]
+            if let queryStart = pathAndQuery.firstIndex(of: "?") {
+                return String(pathAndQuery[..<queryStart])
+            }
+            return String(pathAndQuery)
+        }()
+        let decodedPath = (rawPath.isEmpty ? "/" : rawPath).removingPercentEncoding ?? rawPath
+        let canonicalURI = uriEncode(decodedPath, encodeSlash: false)
         let canonicalQueryString = canonicalQueryString(from: url)
 
         // Signed headers — sorted lowercase header names

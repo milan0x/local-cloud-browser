@@ -83,8 +83,6 @@ struct S3ObjectBrowserView: View {
     @State private var emptyFolderAlert = false
 
     // Folder upload
-    @State private var folderUploadProgress: (current: Int, total: Int)?
-    @State private var folderUploadTask: Task<Void, Never>?
 
     // Cancellable long-running task (move, delete folders, download zip, drop upload)
     @State private var longRunningTask: Task<Void, Never>?
@@ -151,7 +149,7 @@ struct S3ObjectBrowserView: View {
             || selectedFolderPrefix != nil
             || itemToRename != nil
             || folderDownloadProgress != nil
-            || folderUploadProgress != nil
+            || transferManager.hasActiveTransfersForBucket(bucket.name)
     }
 
     var body: some View {
@@ -250,7 +248,6 @@ struct S3ObjectBrowserView: View {
         }
         .onDisappear {
             longRunningTask?.cancel()
-            folderUploadTask?.cancel()
         }
         .onChange(of: appState.s3Domain) {
             if errorMessage != nil {
@@ -480,7 +477,10 @@ struct S3ObjectBrowserView: View {
                 if isSearchActive && sortedRowItems.isEmpty {
                     EmptyStateView(icon: "magnifyingglass", message: "No matches for \"\(searchQuery)\"")
                 } else if sortedRowItems.isEmpty || (sortedRowItems.count == 1 && sortedRowItems.first?.id == Self.parentRowID) {
-                    EmptyStateView(icon: "folder", message: "Empty folder")
+                    EmptyStateView(
+                        icon: currentPrefix.isEmpty ? "tray" : "folder",
+                        message: currentPrefix.isEmpty ? "Empty bucket" : "Empty folder"
+                    )
                         .contextMenu {
                             if !appState.isReadOnly {
                                 Button("Create Folder") { showCreateFolder = true }
@@ -699,20 +699,6 @@ struct S3ObjectBrowserView: View {
                 }
             }
 
-            if let progress = folderUploadProgress {
-                HStack(spacing: 6) {
-                    ProgressView()
-                        .controlSize(.mini)
-                    Text("Uploading... (\(progress.current)/\(progress.total))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Button { folderUploadTask?.cancel() } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.borderless)
-                }
-            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
@@ -1998,82 +1984,73 @@ struct S3ObjectBrowserView: View {
     }
 
     private func uploadFolderURLs(from folderURLs: [URL]) {
-        guard folderUploadProgress == nil else { return }
-
-        // Enumerate all files from all folders
-        var filesToUpload: [(localURL: URL, s3Key: String)] = []
+        var requests: [UploadRequest] = []
         for folderURL in folderURLs {
             let folderName = folderURL.lastPathComponent
             guard let enumerator = FileManager.default.enumerator(
                 at: folderURL,
-                includingPropertiesForKeys: [.isRegularFileKey],
+                includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey],
                 options: [.skipsHiddenFiles]
             ) else { continue }
 
             for case let fileURL as URL in enumerator {
-                guard let resourceValues = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]),
-                      resourceValues.isRegularFile == true else { continue }
+                let values = try? fileURL.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+                guard values?.isRegularFile == true else { continue }
+                let size = Int64(values?.fileSize ?? 0)
                 let relativePath = fileURL.path.replacingOccurrences(of: folderURL.path + "/", with: "")
                 let s3Key = currentPrefix + folderName + "/" + relativePath
-                filesToUpload.append((localURL: fileURL, s3Key: s3Key))
+                let contentType = UTType(filenameExtension: fileURL.pathExtension)?.preferredMIMEType
+                    ?? "application/octet-stream"
+                requests.append(UploadRequest(
+                    localURL: fileURL,
+                    s3Key: s3Key,
+                    bucket: bucket.name,
+                    size: size,
+                    contentType: contentType
+                ))
             }
         }
 
-        guard !filesToUpload.isEmpty else { return }
+        guard !requests.isEmpty else { return }
 
-        folderUploadProgress = (current: 0, total: filesToUpload.count)
-        folderUploadTask = Task {
-            var failedCount = 0
-            var lastError: ServiceError?
-
-            for (index, file) in filesToUpload.enumerated() {
-                if Task.isCancelled { break }
-                do {
-                    let contentType = UTType(filenameExtension: file.localURL.pathExtension)?.preferredMIMEType
-                        ?? "application/octet-stream"
-                    try await service.uploadObject(bucket: bucket.name, key: file.s3Key, fileURL: file.localURL, contentType: contentType)
-                } catch {
-                    failedCount += 1
-                    if let clientError = error as? CloudClientError,
-                       let parsed = clientError.serviceError {
-                        lastError = parsed
-                    } else {
-                        lastError = ServiceError(code: "UploadError", message: error.localizedDescription)
-                    }
-                }
-                folderUploadProgress = (current: index + 1, total: filesToUpload.count)
-            }
-
-            folderUploadProgress = nil
-            folderUploadTask = nil
-            loadObjects(force: true)
-            if let lastError {
-                serviceError = ServiceError(
-                    code: lastError.code,
-                    message: "\(failedCount) file\(failedCount == 1 ? "" : "s") failed to upload. Last error: \(lastError.message)"
-                )
-            }
+        let uploadService = service
+        transferManager.enqueueUploads(requests) { request, _, progress in
+            try await uploadService.uploadFile(
+                bucket: request.bucket,
+                key: request.s3Key,
+                fileURL: request.localURL,
+                contentType: request.contentType,
+                progress: progress
+            )
         }
     }
 
     @MainActor
     private func uploadFiles(from urls: [URL]) async {
-        do {
-            for url in urls {
-                let key = currentPrefix + url.lastPathComponent
-                let contentType = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
-                    ?? "application/octet-stream"
-                try await service.uploadObject(bucket: bucket.name, key: key, fileURL: url, contentType: contentType)
-            }
-            loadObjects(force: true)
-        } catch {
-            retryAction = { [self] in Task { await uploadFiles(from: urls) } }
-            if let clientError = error as? CloudClientError,
-               let parsed = clientError.serviceError {
-                serviceError = parsed
-            } else {
-                errorMessage = error.localizedDescription
-            }
+        let requests: [UploadRequest] = urls.map { url in
+            let fileSize = (try? Int64(url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0)) ?? 0
+            let contentType = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
+                ?? "application/octet-stream"
+            let key = currentPrefix + url.lastPathComponent
+            return UploadRequest(
+                localURL: url,
+                s3Key: key,
+                bucket: bucket.name,
+                size: fileSize,
+                contentType: contentType
+            )
+        }
+        guard !requests.isEmpty else { return }
+
+        let uploadService = service
+        transferManager.enqueueUploads(requests) { request, _, progress in
+            try await uploadService.uploadFile(
+                bucket: request.bucket,
+                key: request.s3Key,
+                fileURL: request.localURL,
+                contentType: request.contentType,
+                progress: progress
+            )
         }
     }
 

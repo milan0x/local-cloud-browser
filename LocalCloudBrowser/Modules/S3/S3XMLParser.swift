@@ -175,7 +175,11 @@ final class S3ObjectListParser: NSObject, XMLParserDelegate {
 
         if inContents {
             switch elementName {
-            case "Key": objKey = text
+            // Preserve exact key text — including leading/trailing whitespace
+            // and non-ASCII characters — so the string we delete with matches
+            // what S3 actually stores. Trimming here silently breaks delete,
+            // rename, and copy on keys like "  file.txt" or "файл.txt ".
+            case "Key": objKey = currentText
             case "Size": objSize = Int64(text) ?? 0
             case "LastModified": objLastModified = DateFormatters.parseISO8601(text)
             case "ETag": objEtag = text
@@ -191,7 +195,7 @@ final class S3ObjectListParser: NSObject, XMLParserDelegate {
         } else if inCommonPrefixes {
             switch elementName {
             case "Prefix":
-                prefixes.append(S3Prefix(prefix: text))
+                prefixes.append(S3Prefix(prefix: currentText))
             case "CommonPrefixes":
                 inCommonPrefixes = false
             default: break

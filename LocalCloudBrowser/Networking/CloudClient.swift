@@ -1553,8 +1553,20 @@ final class CloudClient: ObservableObject {
     ) throws -> URLRequest {
         let effectiveBase = baseURLOverride ?? baseURL
 
-        guard var components = URLComponents(string: effectiveBase + path) else {
-            Log.error("Invalid URL: \(effectiveBase + path)", category: "HTTP")
+        // Percent-encode each path segment with the same RFC 3986 unreserved
+        // set that SigV4 canonical URI uses. Without this, a key with a
+        // space, trailing whitespace, or non-ASCII character (Cyrillic,
+        // Greek, Arabic) either fails URLComponents parsing outright or ends
+        // up encoded differently than the SigV4 canonical URI — producing
+        // either invalidURL errors or SignatureDoesNotMatch from S3.
+        var s3PathAllowed = CharacterSet.alphanumerics
+        s3PathAllowed.insert(charactersIn: "-._~")
+        let encodedPath = path.components(separatedBy: "/")
+            .map { $0.addingPercentEncoding(withAllowedCharacters: s3PathAllowed) ?? $0 }
+            .joined(separator: "/")
+
+        guard var components = URLComponents(string: effectiveBase + encodedPath) else {
+            Log.error("Invalid URL: \(effectiveBase + encodedPath)", category: "HTTP")
             throw CloudClientError.invalidURL
         }
 
