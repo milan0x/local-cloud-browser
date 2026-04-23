@@ -19,6 +19,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 @main
 struct LocalCloudBrowserApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var appState: AppState
     @StateObject private var client: CloudClient
     @StateObject private var profileStore: ConnectionProfileStore
@@ -106,6 +107,19 @@ struct LocalCloudBrowserApp: App {
                 .onChange(of: appState.connectionVersion) {
                     if !appState.isLocalEndpoint {
                         Task { await client.fetchCallerIdentity() }
+                    }
+                }
+                // Silent refresh whenever the app becomes active — covers cold
+                // launches, reopens from the Dock, and regaining focus after
+                // another app was frontmost. Every list view subscribes via
+                // `.onAutoRefresh`, so only the visible service actually fetches
+                // (no 27-service thundering herd). The ListLoader 2-second
+                // debounce collapses duplicates with `.task` on first launch.
+                .onChange(of: scenePhase) { _, newPhase in
+                    // Skip when the user has suspended auto-refresh (live AWS)
+                    // to avoid surprise billable API calls on every window focus.
+                    if newPhase == .active && !appState.autoRefresh.isSuspended {
+                        appState.autoRefresh.triggerNow()
                     }
                 }
         }

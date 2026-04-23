@@ -84,6 +84,21 @@ struct S3ObjectBrowserView: View {
 
     // Folder upload
 
+    // Memoized row pipeline — recomputed only when objects/prefixes/sort/search/path change.
+    // Accessing a computed property here would re-run the full filter+sort on every
+    // view body evaluation, including every selection change — which tanked selection
+    // responsiveness before this cache was introduced.
+    @State private var sortedRows: [RowItem] = []
+    @State private var totalItemCount: Int = 0
+    @State private var filteredItemCount: Int = 0
+    // ID-indexed lookups so user actions on N selected rows (delete, copy,
+    // context menu) don't do O(N * sortedRows.count) linear scans. Rebuilt
+    // together with sortedRows inside recomputeSortedRows(). On a 200-row
+    // select-all + delete, this turns an 80,000-comparison pause before the
+    // confirm alert into a handful of dictionary reads.
+    @State private var rowsByID: [String: RowItem] = [:]
+    @State private var objectsByKey: [String: S3Object] = [:]
+
     // Cancellable long-running task (move, delete folders, download zip, drop upload)
     @State private var longRunningTask: Task<Void, Never>?
 
@@ -160,6 +175,15 @@ struct S3ObjectBrowserView: View {
             .focusedSceneValue(\.s3DeleteAction, s3DeleteAction)
             .focusedSceneValue(\.s3RefreshAction) { loadObjects(force: true) }
             .task(id: bucket.id) {
+                // Per-file incremental refresh: append each finished upload to
+                // the local list immediately instead of waiting for the whole
+                // batch. Makes uploads feel alive — the user sees new rows
+                // appear as each file completes.
+                let thisBucket = bucket.name
+                transferManager.onFileUploaded = { uploadBucket, key, size in
+                    guard uploadBucket == thisBucket else { return }
+                    appendUploadedObject(key: key, size: size, prefix: currentPrefix)
+                }
                 var restoredPath: [String] = []
                 if !hasRestoredPath,
                    let name = restoreBucketName, name == bucket.name,
@@ -181,7 +205,16 @@ struct S3ObjectBrowserView: View {
             }
             .onChange(of: pathComponents) {
                 LastSessionStore.saveS3Path(pathComponents)
+                recomputeSortedRows()
             }
+            // Memoization triggers — recompute sortedRows only on data changes,
+            // not on every view body evaluation (e.g. selection change).
+            .onChange(of: objects) { recomputeSortedRows() }
+            .onChange(of: prefixes) { recomputeSortedRows() }
+            .onChange(of: sortOrder) { recomputeSortedRows() }
+            .onChange(of: searchQuery) { recomputeSortedRows() }
+            .onChange(of: allPageObjects) { recomputeSortedRows() }
+            .onChange(of: allPagePrefixes) { recomputeSortedRows() }
             // Sync toolbar display state
             .onChange(of: isLoading) { toolbarState.isLoading = isLoading }
             .onChange(of: isDeletingObjects) { toolbarState.isDeleting = isDeletingObjects || isDeletingFolders }
@@ -248,6 +281,7 @@ struct S3ObjectBrowserView: View {
         }
         .onDisappear {
             longRunningTask?.cancel()
+            transferManager.onFileUploaded = nil
         }
         .onChange(of: appState.s3Domain) {
             if errorMessage != nil {
@@ -256,7 +290,7 @@ struct S3ObjectBrowserView: View {
         }
         .onChange(of: paneFocusTrigger) {
             tableFocusTrigger &+= 1
-            let selectable = sortedRowItems.filter { $0.id != Self.parentRowID }
+            let selectable = sortedRows.filter { $0.id != Self.parentRowID }
             if selectable.count == 1, let only = selectable.first {
                 selectedRowIDs = [only.id]
             }
@@ -416,11 +450,12 @@ struct S3ObjectBrowserView: View {
     }
 
     private func deleteSelectedItems() {
-        let allDeletable = allDeletableSelectedItems
-        let folderPrefixes = allDeletable.filter { $0.isFolder }.map(\.fullKey)
-        let fileObjs = allDeletable.filter { !$0.isFolder }.compactMap { item in
-            objects.first { $0.key == item.fullKey }
+        let allDeletable: [RowItem] = selectedRowIDs.compactMap { id in
+            guard id != Self.parentRowID else { return nil }
+            return rowsByID[id]
         }
+        let folderPrefixes = allDeletable.filter { $0.isFolder }.map(\.fullKey)
+        let fileObjs = allDeletable.filter { !$0.isFolder }.compactMap { objectsByKey[$0.fullKey] }
         if folderPrefixes.isEmpty {
             if !fileObjs.isEmpty { objectsToDelete = fileObjs }
         } else {
@@ -474,9 +509,9 @@ struct S3ObjectBrowserView: View {
             S3ConfigHintView(errorMessage: errorMessage, onRetry: { loadObjects() })
         } else {
             VStack(spacing: 0) {
-                if isSearchActive && sortedRowItems.isEmpty {
+                if isSearchActive && sortedRows.isEmpty {
                     EmptyStateView(icon: "magnifyingglass", message: "No matches for \"\(searchQuery)\"")
-                } else if sortedRowItems.isEmpty || (sortedRowItems.count == 1 && sortedRowItems.first?.id == Self.parentRowID) {
+                } else if sortedRows.isEmpty || (sortedRows.count == 1 && sortedRows.first?.id == Self.parentRowID) {
                     EmptyStateView(
                         icon: currentPrefix.isEmpty ? "tray" : "folder",
                         message: currentPrefix.isEmpty ? "Empty bucket" : "Empty folder"
@@ -558,7 +593,7 @@ struct S3ObjectBrowserView: View {
                             .animation(.easeInOut(duration: 0.4), value: progress)
                     }
             }
-            .padding(.bottom, 12)
+            .padding(.bottom, 40)
         }
     }
 
@@ -597,14 +632,12 @@ struct S3ObjectBrowserView: View {
 
     private var statusBarText: String {
         if isSearchActive {
-            let filtered = filteredRowItems.count
-            let total = rowItems.count
             if isLoadingAllPages {
                 return "Searching all pages..."
             }
-            return "\(filtered) of \(total) items"
+            return "\(filteredItemCount) of \(totalItemCount) items"
         }
-        return "\(rowItems.count) items"
+        return "\(totalItemCount) items"
     }
 
     private var selectionCount: Int {
@@ -706,7 +739,7 @@ struct S3ObjectBrowserView: View {
 
     private var listView: some View {
         ObjectBrowserTableView(
-            rows: sortedRowItems,
+            rows: sortedRows,
             selectedRowIDs: $selectedRowIDs,
             sortOrder: $sortOrder,
             isReadOnly: appState.isReadOnly,
@@ -790,7 +823,7 @@ struct S3ObjectBrowserView: View {
             return menu
         }
 
-        let items = ids.compactMap { id in sortedRowItems.first(where: { $0.id == id }) }
+        let items = ids.compactMap { rowsByID[$0] }
 
         if items.count == 1, let item = items.first {
             buildSingleItemMenu(menu, item: item)
@@ -907,7 +940,7 @@ struct S3ObjectBrowserView: View {
             menu.addItem(.separator())
         }
 
-        let movableObjs = fileItems.compactMap { item in objects.first { $0.key == item.fullKey } }
+        let movableObjs = fileItems.compactMap { objectsByKey[$0.fullKey] }
         let movableFolders = folderItems.map(\.fullKey)
         let moveCount = movableObjs.count + movableFolders.count
         append(menu, title: "Move \(moveCount) Items...", enabled: !appState.isReadOnly) {
@@ -920,7 +953,7 @@ struct S3ObjectBrowserView: View {
         menu.addItem(.separator())
         let totalCount = selectedItems.count
         appendDestructive(menu, title: "Delete \(totalCount) Items", enabled: !appState.isReadOnly) {
-            let fileObjs = fileItems.compactMap { item in objects.first { $0.key == item.fullKey } }
+            let fileObjs = fileItems.compactMap { objectsByKey[$0.fullKey] }
             if folderItems.isEmpty {
                 objectsToDelete = fileObjs
             } else {
@@ -1085,23 +1118,85 @@ struct S3ObjectBrowserView: View {
 
     fileprivate static let parentRowID = ".."
 
-    private var sortedRowItems: [RowItem] {
-        let sorted = filteredRowItems.sorted(using: sortOrder)
-        // Suppress parent row during active search
-        guard !pathComponents.isEmpty && !isSearchActive else { return sorted }
-        let parentRow = RowItem(
-            id: Self.parentRowID,
-            name: "..",
-            fullKey: Self.parentRowID,
-            kind: "Parent Folder",
-            size: "--",
-            sizeBytes: -1,
-            lastModified: "--",
-            dateValue: .distantFuture,
-            isFolder: true,
-            icon: "arrow.up.doc"
-        )
-        return [parentRow] + sorted
+    private func recomputeSortedRows() {
+        // Step 1: Build row items from current objects + prefixes.
+        let activePrefixes = allPagePrefixes ?? prefixes
+        let activeObjects = allPageObjects ?? objects
+
+        let folderRows = activePrefixes.map { prefix in
+            RowItem(
+                id: prefix.prefix,
+                name: prefix.displayName,
+                fullKey: prefix.prefix,
+                kind: "Folder",
+                size: "--",
+                sizeBytes: -1,
+                lastModified: "--",
+                dateValue: .distantPast,
+                isFolder: true,
+                icon: S3FileKind.icon(for: prefix.displayName, isFolder: true)
+            )
+        }
+        let objectRows = activeObjects.filter { $0.key != currentPrefix }.map { obj in
+            RowItem(
+                id: obj.key,
+                name: obj.displayName,
+                fullKey: obj.key,
+                kind: S3FileKind.kind(for: obj.displayName),
+                size: obj.formattedSize,
+                sizeBytes: obj.size,
+                lastModified: obj.lastModified.map { Self.dateFormatter.string(from: $0) } ?? "--",
+                dateValue: obj.lastModified ?? .distantPast,
+                isFolder: false,
+                icon: S3FileKind.icon(for: obj.displayName, isFolder: false)
+            )
+        }
+        let allRows = folderRows + objectRows
+        totalItemCount = allRows.count
+
+        // Step 2: Apply search filter.
+        let filtered: [RowItem]
+        if isSearchActive {
+            let query = searchQuery.lowercased()
+            let isExtensionSearch = query.hasPrefix(".")
+            filtered = allRows.filter { item in
+                if isExtensionSearch {
+                    return item.isFolder
+                        ? item.name.lowercased().contains(query)
+                        : item.name.lowercased().hasSuffix(query)
+                }
+                return item.name.lowercased().contains(query)
+            }
+        } else {
+            filtered = allRows
+        }
+        filteredItemCount = filtered.count
+
+        // Step 3: Sort, then prepend parent row when in a subfolder and not searching.
+        let sorted = filtered.sorted(using: sortOrder)
+        let finalRows: [RowItem]
+        if !pathComponents.isEmpty && !isSearchActive {
+            let parentRow = RowItem(
+                id: Self.parentRowID,
+                name: "..",
+                fullKey: Self.parentRowID,
+                kind: "Parent Folder",
+                size: "--",
+                sizeBytes: -1,
+                lastModified: "--",
+                dateValue: .distantFuture,
+                isFolder: true,
+                icon: "arrow.up.doc"
+            )
+            finalRows = [parentRow] + sorted
+        } else {
+            finalRows = sorted
+        }
+        sortedRows = finalRows
+
+        // Step 4: Refresh ID indexes so per-action lookups are O(1).
+        rowsByID = Dictionary(finalRows.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        objectsByKey = Dictionary((allPageObjects ?? objects).map { ($0.key, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     // Per-row action buttons and context-menu "Move to" submenus are now built
@@ -1132,56 +1227,8 @@ struct S3ObjectBrowserView: View {
         var allKeys: [String]
     }
 
-    private var rowItems: [RowItem] {
-        let activePrefixes = allPagePrefixes ?? prefixes
-        let activeObjects = allPageObjects ?? objects
-        let folderRows = activePrefixes.map { prefix in
-            RowItem(
-                id: prefix.prefix,
-                name: prefix.displayName,
-                fullKey: prefix.prefix,
-                kind: "Folder",
-                size: "--",
-                sizeBytes: -1,
-                lastModified: "--",
-                dateValue: .distantPast,
-                isFolder: true,
-                icon: S3FileKind.icon(for: prefix.displayName, isFolder: true)
-            )
-        }
-        let objectRows = activeObjects.filter { $0.key != currentPrefix }.map { obj in
-            RowItem(
-                id: obj.key,
-                name: obj.displayName,
-                fullKey: obj.key,
-                kind: S3FileKind.kind(for: obj.displayName),
-                size: obj.formattedSize,
-                sizeBytes: obj.size,
-                lastModified: obj.lastModified.map { Self.dateFormatter.string(from: $0) } ?? "--",
-                dateValue: obj.lastModified ?? .distantPast,
-                isFolder: false,
-                icon: S3FileKind.icon(for: obj.displayName, isFolder: false)
-            )
-        }
-        return folderRows + objectRows
-    }
-
     private var isSearchActive: Bool {
         !searchQuery.isEmpty
-    }
-
-    private var filteredRowItems: [RowItem] {
-        guard isSearchActive else { return rowItems }
-        let query = searchQuery.lowercased()
-        let isExtensionSearch = query.hasPrefix(".")
-        return rowItems.filter { item in
-            if isExtensionSearch {
-                return item.isFolder
-                    ? item.name.lowercased().contains(query)
-                    : item.name.lowercased().hasSuffix(query)
-            }
-            return item.name.lowercased().contains(query)
-        }
     }
 
     // MARK: - Create Folder Sheet
@@ -1760,7 +1807,7 @@ struct S3ObjectBrowserView: View {
     /// Returns the single selected row item, or nil if zero or multiple rows are selected.
     private var singleSelectedItem: RowItem? {
         guard selectedRowIDs.count == 1, let id = selectedRowIDs.first else { return nil }
-        return sortedRowItems.first(where: { $0.id == id })
+        return rowsByID[id]
     }
 
     private func navigate(to components: [String]) {
@@ -2054,19 +2101,30 @@ struct S3ObjectBrowserView: View {
         }
     }
 
-    private var deletableSelectedObjects: [S3Object] {
-        let deletableIDs = selectedRowIDs.filter { id in
-            guard id != Self.parentRowID else { return false }
-            guard let item = sortedRowItems.first(where: { $0.id == id }) else { return false }
-            return !item.isFolder
-        }
-        return deletableIDs.compactMap { id in objects.first { $0.key == id } }
-    }
+    /// Called on each file upload completion so the user sees rows appear as
+    /// uploads finish, not only after the whole batch completes. Only mutates
+    /// state when the user is still viewing the upload's prefix — switching
+    /// folders mid-batch is a no-op for the out-of-view files.
+    private func appendUploadedObject(key: String, size: Int64, prefix: String) {
+        guard prefix == currentPrefix else { return }
+        guard key.hasPrefix(prefix) else { return }
 
-    private var allDeletableSelectedItems: [RowItem] {
-        selectedRowIDs.compactMap { id in
-            guard id != Self.parentRowID else { return nil }
-            return sortedRowItems.first(where: { $0.id == id })
+        let relativePath = String(key.dropFirst(prefix.count))
+
+        if relativePath.contains("/") {
+            // Folder upload — show the top-level folder prefix, not each file.
+            let folderName = String(relativePath[..<relativePath.firstIndex(of: "/")!])
+            let folderPrefix = prefix + folderName + "/"
+            if !prefixes.contains(where: { $0.prefix == folderPrefix }) {
+                prefixes.append(S3Prefix(prefix: folderPrefix))
+            }
+        } else {
+            // Direct child — show the file itself.
+            guard !key.hasSuffix("/") else { return }
+            if !objects.contains(where: { $0.key == key }) {
+                let obj = S3Object(key: key, size: size, lastModified: Date(), etag: "", storageClass: "STANDARD")
+                objects.append(obj)
+            }
         }
     }
 
@@ -2236,7 +2294,7 @@ struct S3ObjectBrowserView: View {
         let actionableIDs = selectedRowIDs.subtracting([Self.parentRowID])
         guard !actionableIDs.isEmpty else { return nil }
         return {
-            let items = actionableIDs.compactMap { id in sortedRowItems.first(where: { $0.id == id }) }
+            let items = actionableIDs.compactMap { rowsByID[$0] }
             let fileKeys = items.filter { !$0.isFolder }.map(\.fullKey)
             let folderKeys = items.filter { $0.isFolder }.map(\.fullKey)
             copyItemsToClipboard(objectKeys: fileKeys, folderPrefixes: folderKeys)
@@ -2356,7 +2414,7 @@ struct S3ObjectBrowserView: View {
         guard selectedRowIDs.count == 1,
               let id = selectedRowIDs.first,
               id != Self.parentRowID,
-              let item = sortedRowItems.first(where: { $0.id == id }),
+              let item = rowsByID[id],
               !item.isFolder else { return .ignored }
         requestPreview(key: item.fullKey)
         return .handled
@@ -2369,7 +2427,7 @@ struct S3ObjectBrowserView: View {
         guard let panel = QLPreviewPanel.shared(), panel.isVisible else { return }
         let real = selectedRowIDs.subtracting([Self.parentRowID])
         guard real.count == 1, let id = real.first else { return }
-        guard let item = sortedRowItems.first(where: { $0.id == id }), !item.isFolder else { return }
+        guard let item = rowsByID[id], !item.isFolder else { return }
         requestPreview(key: item.fullKey)
     }
 

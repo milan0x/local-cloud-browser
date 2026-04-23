@@ -33,6 +33,15 @@ struct ListHeaderBar<Trailing: View>: View {
         self.trailing = trailing()
     }
 
+    /// Local reload plus a global trigger — the global trigger fans out to
+    /// every view subscribed via `.onAutoRefresh`, so hitting refresh on a
+    /// detail pane (e.g. S3 objects, SQS messages) also reloads the sidebar
+    /// list (e.g. bucket list, queue list) instead of leaving it stale.
+    private func performRefresh() {
+        onRefresh()
+        autoRefresh.triggerNow()
+    }
+
     var body: some View {
         HStack {
             Text(title)
@@ -45,7 +54,7 @@ struct ListHeaderBar<Trailing: View>: View {
                     .lineLimit(1)
             }
             AutoRefreshIndicatorView(manager: autoRefresh) {
-                onRefresh()
+                performRefresh()
             }
             Spacer()
             if isReadOnly {
@@ -75,7 +84,7 @@ struct ListHeaderBar<Trailing: View>: View {
             if !appState.isLocalEndpoint {
                 ProductionAutoRefreshBadge()
                 Button {
-                    onRefresh()
+                    performRefresh()
                 } label: {
                     Image(systemName: "arrow.clockwise")
                         .foregroundStyle(.primary)
@@ -84,7 +93,7 @@ struct ListHeaderBar<Trailing: View>: View {
                 .help("Refresh")
             } else {
                 AutoRefreshMenuView(interval: Binding(get: { autoRefresh.interval }, set: { autoRefresh.interval = $0 })) {
-                    onRefresh()
+                    performRefresh()
                 }
             }
             trailing
