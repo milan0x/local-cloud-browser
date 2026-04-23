@@ -8,10 +8,6 @@ struct ServicePermissionRecipe {
     let readOnly: PolicyGrant?        // Nil when no sensible read-only grant exists
     let fullAccess: PolicyGrant?      // Full service access
 
-    static let administratorAccess = PolicyGrant.managed(
-        arn: "arn:aws:iam::aws:policy/AdministratorAccess"
-    )
-
     static let all: [ServicePermissionRecipe] = [
         ServicePermissionRecipe(
             serviceKey: "s3",

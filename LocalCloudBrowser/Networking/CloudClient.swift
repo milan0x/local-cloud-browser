@@ -1388,6 +1388,100 @@ final class CloudClient: ObservableObject {
         }
     }
 
+    // MARK: - Permission detection
+
+    /// Calls IAM SimulatePrincipalPolicy to check which of the given actions
+    /// the caller is allowed to perform. Returns the set of allowed actions.
+    /// Throws on any error. Caller should handle failure silently —
+    /// detection is a nice-to-have.
+    func simulatePrincipalPolicy(principal: String, actions: [String]) async throws -> Set<String> {
+        guard !actions.isEmpty else { return [] }
+        var params: [String: String] = [
+            "PolicySourceArn": principal,
+        ]
+        for (i, action) in actions.enumerated() {
+            params["ActionNames.member.\(i + 1)"] = action
+        }
+        let data = try await iamRequest(action: "SimulatePrincipalPolicy", params: params)
+        return Self.parseSimulateResponse(data)
+    }
+
+    /// Extracts the set of allowed actions from a SimulatePrincipalPolicy
+    /// XML response body.
+    private static func parseSimulateResponse(_ data: Data) -> Set<String> {
+        SimulatePolicyXMLParser(data: data).parse()
+    }
+
+    /// Finds inline policies attached to the user that contain a `Deny`
+    /// statement matching the given service prefix (e.g., "s3", "sqs").
+    /// Used by the permission helper to surface exact cleanup commands.
+    /// Silent on failure (missing IAM permissions, etc.) — returns [].
+    func findInlineDeniesForService(userName: String, servicePrefix: String) async -> [String] {
+        do {
+            let listData = try await iamRequest(
+                action: "ListUserPolicies",
+                params: ["UserName": userName]
+            )
+            let names = ListUserPoliciesXMLParser(data: listData).parse()
+
+            var denyingNames: [String] = []
+            for name in names {
+                do {
+                    let getData = try await iamRequest(
+                        action: "GetUserPolicy",
+                        params: ["UserName": userName, "PolicyName": name]
+                    )
+                    if Self.policyDocumentDeniesService(getData, prefix: servicePrefix) {
+                        denyingNames.append(name)
+                    }
+                } catch {
+                    continue
+                }
+            }
+            return denyingNames
+        } catch {
+            Log.warn("Inline-deny detection failed: \(error.localizedDescription)", category: "App")
+            return []
+        }
+    }
+
+    /// Returns true if the GetUserPolicy response's policy document contains
+    /// a Deny statement that would block actions matching the service prefix.
+    private static func policyDocumentDeniesService(_ data: Data, prefix: String) -> Bool {
+        guard let policyJSON = GetUserPolicyXMLParser(data: data).parse(),
+              let decoded = policyJSON.removingPercentEncoding?.data(using: .utf8),
+              let root = try? JSONSerialization.jsonObject(with: decoded) as? [String: Any] else {
+            return false
+        }
+
+        let statements: [[String: Any]]
+        if let arr = root["Statement"] as? [[String: Any]] {
+            statements = arr
+        } else if let single = root["Statement"] as? [String: Any] {
+            statements = [single]
+        } else {
+            return false
+        }
+
+        for stmt in statements {
+            guard (stmt["Effect"] as? String) == "Deny" else { continue }
+            let actions: [String]
+            if let arr = stmt["Action"] as? [String] {
+                actions = arr
+            } else if let single = stmt["Action"] as? String {
+                actions = [single]
+            } else {
+                continue
+            }
+            for action in actions {
+                if action == "*" { return true }
+                if action == "\(prefix):*" { return true }
+                if action.hasPrefix("\(prefix):") { return true }
+            }
+        }
+        return false
+    }
+
     // MARK: - Request building
 
     /// Builds a signed URLRequest without executing it.
@@ -1555,5 +1649,134 @@ final class CloudClient: ObservableObject {
         }
 
         return HTTPResponse(data: data, headers: responseHeaders)
+    }
+}
+
+// MARK: - ListUserPolicies XML Parser
+
+private final class ListUserPoliciesXMLParser: NSObject, XMLParserDelegate {
+    private let data: Data
+    private var policyNames: [String] = []
+    private var currentText = ""
+
+    init(data: Data) { self.data = data }
+
+    func parse() -> [String] {
+        let parser = XMLParser(data: data)
+        parser.delegate = self
+        parser.parse()
+        return policyNames
+    }
+
+    func parser(_ parser: XMLParser, didStartElement elementName: String,
+                namespaceURI: String?, qualifiedName: String?,
+                attributes: [String: String] = [:]) {
+        currentText = ""
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        currentText += string
+    }
+
+    func parser(_ parser: XMLParser, didEndElement elementName: String,
+                namespaceURI: String?, qualifiedName: String?) {
+        let trimmed = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if elementName == "member", !trimmed.isEmpty {
+            policyNames.append(trimmed)
+        }
+    }
+}
+
+// MARK: - GetUserPolicy XML Parser
+
+private final class GetUserPolicyXMLParser: NSObject, XMLParserDelegate {
+    private let data: Data
+    private var policyDocument: String?
+    private var inDocument = false
+    private var currentText = ""
+
+    init(data: Data) { self.data = data }
+
+    func parse() -> String? {
+        let parser = XMLParser(data: data)
+        parser.delegate = self
+        parser.parse()
+        return policyDocument
+    }
+
+    func parser(_ parser: XMLParser, didStartElement elementName: String,
+                namespaceURI: String?, qualifiedName: String?,
+                attributes: [String: String] = [:]) {
+        if elementName == "PolicyDocument" {
+            inDocument = true
+            currentText = ""
+        }
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        if inDocument { currentText += string }
+    }
+
+    func parser(_ parser: XMLParser, didEndElement elementName: String,
+                namespaceURI: String?, qualifiedName: String?) {
+        if elementName == "PolicyDocument" {
+            policyDocument = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
+            inDocument = false
+        }
+    }
+}
+
+// MARK: - SimulatePrincipalPolicy XML Parser
+
+private final class SimulatePolicyXMLParser: NSObject, XMLParserDelegate {
+    private let data: Data
+    private var allowedActions: Set<String> = []
+    private var currentAction: String?
+    private var currentDecision: String?
+    private var currentElement: String?
+    private var currentText = ""
+
+    init(data: Data) { self.data = data }
+
+    func parse() -> Set<String> {
+        let parser = XMLParser(data: data)
+        parser.delegate = self
+        parser.parse()
+        return allowedActions
+    }
+
+    func parser(_ parser: XMLParser, didStartElement elementName: String,
+                namespaceURI: String?, qualifiedName: String?,
+                attributes: [String: String] = [:]) {
+        currentElement = elementName
+        currentText = ""
+        if elementName == "member" {
+            currentAction = nil
+            currentDecision = nil
+        }
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        currentText += string
+    }
+
+    func parser(_ parser: XMLParser, didEndElement elementName: String,
+                namespaceURI: String?, qualifiedName: String?) {
+        let trimmed = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch elementName {
+        case "EvalActionName":
+            currentAction = trimmed
+        case "EvalDecision":
+            currentDecision = trimmed
+        case "member":
+            if let action = currentAction, currentDecision == "allowed" {
+                allowedActions.insert(action)
+            }
+            currentAction = nil
+            currentDecision = nil
+        default:
+            break
+        }
+        currentElement = nil
     }
 }

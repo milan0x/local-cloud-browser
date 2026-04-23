@@ -3,12 +3,22 @@ import AppKit
 
 struct PermissionHelperView: View {
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var client: CloudClient
 
     let prompt: PermissionDeniedPrompt
 
-    @State private var showOtherOptions = false
+    @State private var showCustomPermissions = false
     @State private var showRawError = false
     @State private var copiedKey: String?
+
+    @State private var selectedCategories: Set<String> = []
+    @State private var customPolicyName: String = "LCB-Custom"
+
+    @State private var grantedActions: Set<String> = []
+    @State private var detectionSucceeded = false
+
+    @State private var denyingInlinePolicies: [String] = []
+    @State private var showTroubleshoot = false
 
     private var recipe: ServicePermissionRecipe? {
         ServicePermissionRecipe.forService(prompt.serviceKey)
@@ -23,6 +33,15 @@ struct PermissionHelperView: View {
         (appState.callerIdentity?.arn ?? "").contains(":assumed-role/")
     }
 
+    private var categories: [PermissionCategory] {
+        ServiceActionCategories.categories(for: prompt.serviceKey)
+    }
+
+    private var headerText: String {
+        guard let action = prompt.deniedAction else { return "Permission denied" }
+        return DeniedActionKind.classify(action).headerText
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -35,11 +54,15 @@ struct PermissionHelperView: View {
                 } else if username == nil {
                     unknownIdentityCard
                 } else {
-                    recommendedCard
+                    if !denyingInlinePolicies.isEmpty, let user = username {
+                        detectedDeniesCard(user: user)
+                    }
                     if let recipe, recipe.fullAccess != nil {
                         fullAccessCard(recipe: recipe)
                     }
-                    otherOptionsDisclosure
+                    readOnlyCard
+                    customPermissionsDisclosure
+                    troubleshootDisclosure
                 }
 
                 rawErrorDisclosure
@@ -49,6 +72,83 @@ struct PermissionHelperView: View {
             .padding(.vertical, 28)
             .frame(maxWidth: 680, alignment: .leading)
             .frame(maxWidth: .infinity)
+        }
+        .onAppear { preselectDeniedCategory() }
+        .task { await detectPermissions() }
+    }
+
+    private func isGranted(_ category: PermissionCategory) -> Bool {
+        guard detectionSucceeded else { return false }
+        return category.actions.allSatisfy { grantedActions.contains($0) }
+    }
+
+    private var fullAccessGranted: Bool {
+        detectionSucceeded && !categories.isEmpty && categories.allSatisfy { isGranted($0) }
+    }
+
+    private var readOnlyGranted: Bool {
+        guard detectionSucceeded,
+              let readIds = Self.readOnlyCategoryIds[prompt.serviceKey] else { return false }
+        let readCategories = categories.filter { readIds.contains($0.id) }
+        guard !readCategories.isEmpty else { return false }
+        return readCategories.allSatisfy { isGranted($0) }
+    }
+
+    private static let readOnlyCategoryIds: [String: Set<String>] = [
+        "s3": ["list-buckets", "browse-objects", "download"],
+        "iam": ["view-users", "view-roles", "view-policies", "view-groups"],
+        "sqs": ["view", "receive"],
+        "sns": ["view"],
+        "dynamodb": ["view", "read"],
+        "secretsmanager": ["view", "read-values"],
+        "ssm": ["view", "read"],
+        "monitoring": ["view-metrics", "view-alarms"],
+        "logs": ["view", "read"],
+        "events": ["view"],
+        "kms": ["view"],
+        "kinesis": ["view", "read"],
+        "firehose": ["view"],
+        "states": ["view"],
+        "acm": ["view"],
+    ]
+
+    private var grantedBadge: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(Color.green)
+                .font(.caption2)
+            Text("Granted")
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(Color.green)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Capsule().fill(Color.green.opacity(0.12)))
+    }
+
+    private func detectPermissions() async {
+        guard let arn = appState.callerIdentity?.arn else { return }
+        let allActions = Array(Set(categories.flatMap(\.actions)))
+        if !allActions.isEmpty {
+            do {
+                let allowed = try await client.simulatePrincipalPolicy(
+                    principal: arn,
+                    actions: allActions
+                )
+                grantedActions = allowed
+                detectionSucceeded = true
+            } catch {
+                detectionSucceeded = false
+                Log.warn("Permission detection failed: \(error.localizedDescription)", category: "App")
+            }
+        }
+
+        // Also detect inline policies that explicitly deny this service.
+        if let user = username {
+            denyingInlinePolicies = await client.findInlineDeniesForService(
+                userName: user,
+                servicePrefix: prompt.serviceKey
+            )
         }
     }
 
@@ -61,7 +161,7 @@ struct PermissionHelperView: View {
                     .font(.title2)
                     .foregroundStyle(.orange)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Permission denied")
+                    Text(headerText)
                         .font(.title3).bold()
                     if let action = prompt.deniedAction {
                         Text(action)
@@ -74,6 +174,7 @@ struct PermissionHelperView: View {
                     }
                 }
                 Spacer()
+
                 Button("Dismiss") {
                     appState.dismissPermissionPrompt(forService: prompt.serviceKey)
                 }
@@ -103,19 +204,44 @@ struct PermissionHelperView: View {
 
     // MARK: - Cards
 
-    private var recommendedCard: some View {
-        tierCard(accent: .accentColor) {
+    private func fullAccessCard(recipe: ServicePermissionRecipe) -> some View {
+        tierCard {
             HStack(spacing: 8) {
-                Image(systemName: "star.fill")
-                    .foregroundStyle(Color.accentColor)
+                Image(systemName: "key.fill")
+                    .foregroundStyle(.secondary)
                     .font(.caption)
-                Text("Recommended — read-only for \(recipe?.displayName ?? "this service")")
+                Text("Full access for \(recipe.displayName)")
                     .font(.headline)
                 Spacer()
-                badge("Fewest permissions needed", color: .accentColor)
+                if fullAccessGranted { grantedBadge }
             }
 
-            Text("Grants read access across the whole service so browsing views all work.")
+            Text("Read, write, delete, and manage resources — pick this if you want to do everything the app offers.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            if let grant = recipe.fullAccess, let user = username {
+                commandBlock(
+                    command: grant.attachCommand(username: user),
+                    copyKey: "full"
+                )
+            }
+        }
+    }
+
+    private var readOnlyCard: some View {
+        tierCard {
+            HStack(spacing: 8) {
+                Image(systemName: "eye")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                Text("Read-only for \(recipe?.displayName ?? "this service")")
+                    .font(.headline)
+                Spacer()
+                if readOnlyGranted { grantedBadge }
+            }
+
+            Text("Browse and read only — no create, write, update, or delete.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
@@ -132,88 +258,151 @@ struct PermissionHelperView: View {
         }
     }
 
-    private func fullAccessCard(recipe: ServicePermissionRecipe) -> some View {
-        tierCard(accent: nil) {
+    private var customizerCard: some View {
+        tierCard {
             HStack(spacing: 8) {
-                Image(systemName: "pencil.and.outline")
+                Image(systemName: "slider.horizontal.3")
                     .foregroundStyle(.secondary)
                     .font(.caption)
-                Text("Full access for \(recipe.displayName)")
+                Text("Custom permissions")
                     .font(.headline)
                 Spacer()
             }
 
-            Text("Also allows create, update, and delete — pick this if you want to manage resources, not just browse them.")
+            Text("Pick exactly which actions to grant. The command below updates as you toggle.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
-            if let grant = recipe.fullAccess, let user = username {
-                commandBlock(
-                    command: grant.attachCommand(username: user),
-                    copyKey: "full"
-                )
-            }
-        }
-    }
+            let columns = [GridItem(.flexible(), alignment: .leading),
+                           GridItem(.flexible(), alignment: .leading)]
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 6) {
+                ForEach(categories) { category in
+                    HStack(spacing: 6) {
+                        Toggle(isOn: Binding(
+                            get: { selectedCategories.contains(category.id) },
+                            set: { isOn in
+                                if isOn { selectedCategories.insert(category.id) }
+                                else { selectedCategories.remove(category.id) }
+                            }
+                        )) {
+                            Text(category.displayName)
+                                .font(.callout)
+                        }
+                        .toggleStyle(.checkbox)
 
-    private var otherOptionsDisclosure: some View {
-        clickableDisclosure(
-            title: "Other options",
-            isExpanded: $showOtherOptions
-        ) {
-            VStack(alignment: .leading, spacing: 12) {
-                if let action = prompt.deniedAction, let user = username {
-                    minimalCard(action: action, user: user)
+                        if isGranted(category) { grantedBadge }
+                    }
                 }
-                adminCard
             }
-            .padding(.top, 8)
-        }
-    }
-
-    private func minimalCard(action: String, user: String) -> some View {
-        tierCard(accent: nil) {
-            HStack(spacing: 8) {
-                Image(systemName: "scope")
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-                Text("Minimal — only \(action)")
-                    .font(.headline)
-                Spacer()
-            }
-
-            Text("Strictly the one action that failed. You may hit more permission errors on related actions in the same module.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-
-            commandBlock(
-                command: minimalCommand(action: action, user: user),
-                copyKey: "minimal"
-            )
-        }
-    }
-
-    private var adminCard: some View {
-        tierCard(accent: .orange) {
-            HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                    .font(.caption)
-                Text("Full account administrator")
-                    .font(.headline)
-                Spacer()
-            }
-
-            Text("Grants every AWS permission across every service. Convenient, but the blast radius of leaked credentials is the entire account.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+            .padding(.vertical, 4)
 
             if let user = username {
+                let command = CustomPolicyBuilder.putUserPolicyCommand(
+                    username: user,
+                    policyName: customPolicyName,
+                    selected: selectedCategories,
+                    categories: categories
+                )
+                commandBlock(command: command, copyKey: "custom")
+            }
+        }
+    }
+
+    private var troubleshootDisclosure: some View {
+        clickableDisclosure(
+            title: "Still blocked? Troubleshoot restrictions",
+            isExpanded: $showTroubleshoot
+        ) {
+            genericTroubleshootCard
+                .padding(.top, 8)
+        }
+    }
+
+    private func detectedDeniesCard(user: String) -> some View {
+        tierCard(accent: .orange) {
+            HStack(spacing: 8) {
+                Image(systemName: "hand.raised.fill")
+                    .foregroundStyle(.orange)
+                    .font(.caption)
+                Text("Inline policies blocking this service")
+                    .font(.headline)
+                Spacer()
+            }
+
+            Text("These inline policies on `\(user)` contain explicit Deny statements that block access. Explicit Deny in IAM beats every Allow — removing them is the fix.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            ForEach(denyingInlinePolicies, id: \.self) { policyName in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(policyName)
+                        .font(.system(.callout, design: .monospaced))
+                    commandBlock(
+                        command: """
+                        aws iam delete-user-policy \\
+                          --user-name \(user) \\
+                          --policy-name \(policyName)
+                        """,
+                        copyKey: "delete-\(policyName)"
+                    )
+                }
+            }
+        }
+    }
+
+    private var genericTroubleshootCard: some View {
+        tierCard {
+            HStack(spacing: 8) {
+                Image(systemName: "stethoscope")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                Text("Diagnose other restrictions")
+                    .font(.headline)
+                Spacer()
+            }
+
+            Text("Run these to find what else might be blocking access — inline policies you don't recognize, permissions boundaries, or service control policies from your AWS Organization.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            let user = username ?? "YOUR_USER_NAME"
+            commandBlock(
+                command: "aws iam list-user-policies --user-name \(user)",
+                copyKey: "list-policies"
+            )
+            commandBlock(
+                command: "aws iam get-user --user-name \(user)",
+                copyKey: "get-user"
+            )
+            if let action = prompt.deniedAction, let arn = appState.callerIdentity?.arn {
                 commandBlock(
-                    command: ServicePermissionRecipe.administratorAccess.attachCommand(username: user),
-                    copyKey: "admin"
+                    command: """
+                    aws iam simulate-principal-policy \\
+                      --policy-source-arn \(arn) \\
+                      --action-names \(action)
+                    """,
+                    copyKey: "simulate"
                 )
             }
+        }
+    }
+
+    private var customPermissionsDisclosure: some View {
+        clickableDisclosure(
+            title: "Custom permissions",
+            isExpanded: $showCustomPermissions
+        ) {
+            VStack(alignment: .leading, spacing: 12) {
+                if !categories.isEmpty {
+                    customizerCard
+                } else {
+                    Text("No custom categories defined for this service yet.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 4)
+                }
+            }
+            .padding(.top, 8)
         }
     }
 
@@ -248,7 +437,7 @@ struct PermissionHelperView: View {
     }
 
     private var assumedRoleCard: some View {
-        tierCard(accent: nil) {
+        tierCard {
             HStack(spacing: 8) {
                 Image(systemName: "person.2.badge.gearshape")
                     .foregroundStyle(.secondary)
@@ -275,7 +464,7 @@ struct PermissionHelperView: View {
     }
 
     private var unknownIdentityCard: some View {
-        tierCard(accent: nil) {
+        tierCard {
             HStack(spacing: 8) {
                 Image(systemName: "questionmark.circle")
                     .foregroundStyle(.secondary)
@@ -337,7 +526,7 @@ struct PermissionHelperView: View {
     // MARK: - Primitives
 
     private func tierCard<Content: View>(
-        accent: Color?,
+        accent: Color? = nil,
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -356,17 +545,6 @@ struct PermissionHelperView: View {
         )
     }
 
-    private func badge(_ text: String, color: Color) -> some View {
-        Text(text)
-            .font(.caption2.weight(.medium))
-            .foregroundStyle(color)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(
-                Capsule().fill(color.opacity(0.12))
-            )
-    }
-
     private func commandBlock(command: String, copyKey: String) -> some View {
         ZStack(alignment: .topTrailing) {
             Text(command)
@@ -374,7 +552,7 @@ struct PermissionHelperView: View {
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)
-                .padding(.trailing, 44) // leave room for copy button
+                .padding(.trailing, 44)
                 .background(codeBackground)
 
             Button {
@@ -454,24 +632,16 @@ struct PermissionHelperView: View {
         }
     }
 
-    private func minimalCommand(action: String, user: String) -> String {
-        let sanitized = action.replacingOccurrences(of: ":", with: "-")
-            .replacingOccurrences(of: "*", with: "Star")
-        let policyName = "LCB-Minimal-\(sanitized)"
-        let document = """
-            {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"\(action)","Resource":"*"}]}
-            """
-        return """
-            aws iam put-user-policy \\
-              --user-name \(user) \\
-              --policy-name \(policyName) \\
-              --policy-document '\(document)'
-            """
+    /// Pre-checks the category matching the current denied action, if any.
+    private func preselectDeniedCategory() {
+        guard selectedCategories.isEmpty,
+              let action = prompt.deniedAction,
+              let category = ServiceActionCategories.matching(action: action, in: categories) else { return }
+        selectedCategories.insert(category.id)
     }
 
     /// Extracts the IAM user name from an ARN like
     /// `arn:aws:iam::123:user/path/to/alice` → `alice`.
-    /// Returns nil for non-user ARNs (assumed-role, federated-user).
     static func parseUsername(from arn: String) -> String? {
         guard arn.contains(":user/") else { return nil }
         guard let range = arn.range(of: ":user/") else { return nil }
