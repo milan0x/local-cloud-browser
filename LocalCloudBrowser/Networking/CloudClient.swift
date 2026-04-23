@@ -3,7 +3,7 @@ import Foundation
 enum CloudClientError: Error, LocalizedError {
     case invalidURL
     case readOnlyBlocked(method: String)
-    case httpError(statusCode: Int, data: Data)
+    case httpError(statusCode: Int, data: Data, headers: [String: String] = [:])
     case networkError(underlying: Error)
 
     var errorDescription: String? {
@@ -12,7 +12,7 @@ enum CloudClientError: Error, LocalizedError {
             "Invalid URL"
         case .readOnlyBlocked(let method):
             "Blocked \(method) request — read-only mode is enabled"
-        case .httpError(let statusCode, let data):
+        case .httpError(let statusCode, let data, _):
             if let parsed = ServiceError.parse(from: data) {
                 "\(parsed.code): \(parsed.message)"
             } else {
@@ -25,7 +25,7 @@ enum CloudClientError: Error, LocalizedError {
 
     /// Extracts a structured `ServiceError` from the XML body of an HTTP error response.
     var serviceError: ServiceError? {
-        guard case .httpError(_, let data) = self else { return nil }
+        guard case .httpError(_, let data, _) = self else { return nil }
         return ServiceError.parse(from: data)
     }
 
@@ -34,11 +34,34 @@ enum CloudClientError: Error, LocalizedError {
         switch self {
         case .networkError:
             return true
-        case .httpError(let statusCode, _):
+        case .httpError(let statusCode, _, _):
             return [500, 502, 503, 504].contains(statusCode)
         default:
             return false
         }
+    }
+
+    /// Extracts the correct region from a PermanentRedirect or
+    /// AuthorizationHeaderMalformed error. S3 returns the bucket's region
+    /// in the `x-amz-bucket-region` response header for cross-region
+    /// requests, falling back to parsing the error message body.
+    var redirectRegion: String? {
+        guard case .httpError(let code, let data, let headers) = self,
+              (code == 301 || code == 400 || code == 403) else { return nil }
+        if let region = headers["x-amz-bucket-region"], !region.isEmpty {
+            return region
+        }
+        let parsed = ServiceError.parse(from: data)
+        guard parsed?.code == "PermanentRedirect" || parsed?.code == "AuthorizationHeaderMalformed" else {
+            return nil
+        }
+        if let message = parsed?.message,
+           let match = message.range(of: "expecting '"),
+           let end = message[match.upperBound...].range(of: "'") {
+            let region = String(message[match.upperBound..<end.lowerBound])
+            if !region.isEmpty { return region }
+        }
+        return nil
     }
 }
 
@@ -1605,14 +1628,20 @@ final class CloudClient: ObservableObject {
                     throw CloudClientError.invalidURL
                 }
                 if !(200..<300).contains(http.statusCode) {
-                    throw CloudClientError.httpError(statusCode: http.statusCode, data: d)
+                    var errHeaders: [String: String] = [:]
+                    for (key, value) in http.allHeaderFields {
+                        if let k = key as? String, let v = value as? String {
+                            errHeaders[k.lowercased()] = v
+                        }
+                    }
+                    throw CloudClientError.httpError(statusCode: http.statusCode, data: d, headers: errHeaders)
                 }
                 return (d, r)
             }
         } catch {
             // Detect expired credentials on non-retryable auth failures
             if let clientError = error as? CloudClientError,
-               case .httpError(let code, let errData) = clientError,
+               case .httpError(let code, let errData, _) = clientError,
                code == 401 || code == 403,
                let parsed = ServiceError.parse(from: errData) {
                 if ["ExpiredToken", "ExpiredTokenException", "TokenRefreshRequired"].contains(parsed.code) {

@@ -117,6 +117,25 @@ final class AppState: ObservableObject {
         permissionDeniedPrompts.removeValue(forKey: service)
     }
 
+    /// Soft refresh: updates credentials/endpoint/region without bumping
+    /// connectionVersion. Used when auto-detecting that a bucket lives in a
+    /// different region — we swap to the correct region without clearing
+    /// the user's in-progress navigation state.
+    func refreshProfile(_ profile: ConnectionProfile) {
+        endpoint = profile.endpoint
+        accessKeyId = profile.accessKeyId
+        secretAccessKey = profile.secretAccessKey
+        sessionToken = profile.sessionToken
+        region = profile.region
+        endpointType = profile.endpointType
+        s3Domain = profile.s3Domain
+        if profile.endpointType == .minio { region = "us-east-1" }
+        credentialExpired = false
+        consecutiveFailures = 0
+        connectionError = nil
+        Log.info("Refreshed profile \"\(profile.name)\" — region: \(profile.region)", category: "App")
+    }
+
     func applyProfile(_ profile: ConnectionProfile) {
         endpoint = profile.endpoint
         region = profile.region

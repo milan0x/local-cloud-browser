@@ -26,7 +26,7 @@ func withRetry<T: Sendable>(
 
             if let clientError = error as? CloudClientError {
                 switch clientError {
-                case .httpError(let code, _):
+                case .httpError(let code, _, _):
                     statusCode = code
                     isNetworkError = false
                 case .networkError:

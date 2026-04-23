@@ -1889,6 +1889,25 @@ struct S3ObjectBrowserView: View {
                 } else {
                     nextPageToken = nil
                 }
+            } catch let error as CloudClientError {
+                // Auto-redirect: if the bucket lives in a different region,
+                // swap the app's region/endpoint and retry once.
+                if let correctRegion = error.redirectRegion,
+                   correctRegion != appState.region {
+                    Log.info("Bucket requires region \(correctRegion) — auto-switching", category: "S3")
+                    appState.region = correctRegion
+                    appState.endpoint = Self.updateEndpointRegion(appState.endpoint, to: correctRegion)
+                    if !silent {
+                        isLoading = false
+                        lastLoadTime = nil
+                    }
+                    loadObjects(force: true, silent: silent)
+                    return
+                }
+                if !silent {
+                    errorMessage = error.localizedDescription
+                    appState.autoRefresh.reportFailure()
+                }
             } catch {
                 if !silent {
                     errorMessage = error.localizedDescription
@@ -1900,6 +1919,21 @@ struct S3ObjectBrowserView: View {
                 lastLoadTime = Date()
             }
         }
+    }
+
+    /// Swaps the region segment in an AWS S3 endpoint.
+    /// `https://s3.eu-west-1.amazonaws.com` + `"us-east-1"` →
+    /// `https://s3.us-east-1.amazonaws.com`. Non-AWS endpoints pass through.
+    private static func updateEndpointRegion(_ endpoint: String, to newRegion: String) -> String {
+        guard var components = URLComponents(string: endpoint),
+              let host = components.host,
+              host.hasSuffix(".amazonaws.com") else {
+            return endpoint
+        }
+        let parts = host.components(separatedBy: ".")
+        guard parts.count == 4, parts[0] == "s3" else { return endpoint }
+        components.host = "s3.\(newRegion).amazonaws.com"
+        return components.string ?? endpoint
     }
 
     private func loadNextPage() {

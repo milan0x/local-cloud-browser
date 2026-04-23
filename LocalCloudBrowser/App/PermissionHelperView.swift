@@ -75,6 +75,9 @@ struct PermissionHelperView: View {
         }
         .onAppear { preselectDeniedCategory() }
         .task { await detectPermissions() }
+        .onChange(of: appState.callerIdentity?.arn) {
+            Task { await detectPermissions() }
+        }
     }
 
     private func isGranted(_ category: PermissionCategory) -> Bool {
@@ -347,6 +350,15 @@ struct PermissionHelperView: View {
                     )
                 }
             }
+
+            HStack(spacing: 6) {
+                Image(systemName: "clock")
+                    .font(.caption)
+                Text("IAM changes can take 5–10 seconds to propagate. If Retry doesn't work right away, wait a moment and try again.")
+                    .font(.caption)
+            }
+            .foregroundStyle(.secondary)
+            .padding(.top, 2)
         }
     }
 
@@ -518,6 +530,7 @@ struct PermissionHelperView: View {
             }
             .controlSize(.large)
             .buttonStyle(.borderedProminent)
+            .environment(\.controlActiveState, .active)
             .help("Re-send the request that was denied. If permissions now work, this panel dismisses automatically.")
         }
         .padding(.top, 4)
