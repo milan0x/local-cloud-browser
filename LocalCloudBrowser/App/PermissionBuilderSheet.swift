@@ -19,6 +19,9 @@ struct PermissionBuilderSheet: View {
     @State private var isDetecting = false
     @State private var detectionSucceeded = false
 
+    @State private var denyingInlinePolicies: [String] = []
+    @State private var hasPreselected = false
+
     @State private var showCustomPermissions = false
 
     private var categories: [PermissionCategory] {
@@ -99,10 +102,15 @@ struct PermissionBuilderSheet: View {
         }
         .frame(width: 720, height: 720)
         .task { await detectPermissions() }
+        .onChange(of: appState.callerIdentity?.arn) {
+            Task { await detectPermissions() }
+        }
         .onChange(of: selectedServiceKey) {
             selectedCategories.removeAll()
             grantedActions.removeAll()
+            denyingInlinePolicies.removeAll()
             detectionSucceeded = false
+            hasPreselected = false
             Task { await detectPermissions() }
         }
     }
@@ -139,6 +147,9 @@ struct PermissionBuilderSheet: View {
                 }
                 servicePicker
 
+                if !denyingInlinePolicies.isEmpty, let user = username {
+                    detectedDeniesCard(user: user)
+                }
                 if let recipe, recipe.fullAccess != nil {
                     fullAccessCard(recipe: recipe)
                 }
@@ -148,6 +159,47 @@ struct PermissionBuilderSheet: View {
                 }
             }
             .padding(24)
+        }
+    }
+
+    private func detectedDeniesCard(user: String) -> some View {
+        tierCard(accent: .orange) {
+            HStack(spacing: 8) {
+                Image(systemName: "hand.raised.fill")
+                    .foregroundStyle(.orange)
+                    .font(.caption)
+                Text("Inline policies blocking this service")
+                    .font(.headline)
+                Spacer()
+            }
+
+            Text("These inline policies on `\(user)` contain explicit Deny statements that block access. Explicit Deny in IAM beats every Allow — removing them is the fix.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            ForEach(denyingInlinePolicies, id: \.self) { policyName in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(policyName)
+                        .font(.system(.callout, design: .monospaced))
+                    commandBlock(
+                        command: """
+                        aws iam delete-user-policy \\
+                          --user-name \(user) \\
+                          --policy-name \(policyName)
+                        """,
+                        copyKey: "delete-\(policyName)"
+                    )
+                }
+            }
+
+            HStack(spacing: 6) {
+                Image(systemName: "clock")
+                    .font(.caption)
+                Text("IAM changes can take 5–10 seconds to propagate. Re-open this window after running if badges don't update right away.")
+                    .font(.caption)
+            }
+            .foregroundStyle(.secondary)
+            .padding(.top, 2)
         }
     }
 
@@ -333,14 +385,21 @@ struct PermissionBuilderSheet: View {
             }
             .padding(.vertical, 4)
 
-            let user = username ?? "YOUR_USER_NAME"
-            let command = CustomPolicyBuilder.putUserPolicyCommand(
-                username: user,
-                policyName: customPolicyName,
-                selected: selectedCategories,
-                categories: categories
-            )
-            commandBlock(command: command, copyKey: "custom")
+            if selectedCategories.isEmpty {
+                Text("Select at least one category above to generate a command.")
+                    .font(.callout)
+                    .foregroundStyle(.tertiary)
+                    .padding(.vertical, 4)
+            } else {
+                let user = username ?? "YOUR_USER_NAME"
+                let command = CustomPolicyBuilder.putUserPolicyCommand(
+                    username: user,
+                    policyName: customPolicyName,
+                    selected: selectedCategories,
+                    categories: categories
+                )
+                commandBlock(command: command, copyKey: "custom")
+            }
         }
     }
 
@@ -434,20 +493,39 @@ struct PermissionBuilderSheet: View {
 
     private func detectPermissions() async {
         guard let arn = appState.callerIdentity?.arn else { return }
-        let allActions = Array(Set(categories.flatMap(\.actions)))
-        guard !allActions.isEmpty else { return }
         isDetecting = true
         defer { isDetecting = false }
-        do {
-            let allowed = try await client.simulatePrincipalPolicy(
-                principal: arn,
-                actions: allActions
+        let allActions = Array(Set(categories.flatMap(\.actions)))
+        if !allActions.isEmpty {
+            do {
+                let allowed = try await client.simulatePrincipalPolicy(
+                    principal: arn,
+                    actions: allActions
+                )
+                grantedActions = allowed
+                detectionSucceeded = true
+            } catch {
+                detectionSucceeded = false
+                Log.warn("Permission detection failed: \(error.localizedDescription)", category: "App")
+            }
+        }
+
+        // Also detect inline policies that explicitly deny this service.
+        if let user = username {
+            denyingInlinePolicies = await client.findInlineDeniesForService(
+                userName: user,
+                servicePrefix: selectedServiceKey
             )
-            grantedActions = allowed
-            detectionSucceeded = true
-        } catch {
-            detectionSucceeded = false
-            Log.warn("Permission detection failed: \(error.localizedDescription)", category: "App")
+        }
+
+        // First-time detection: pre-check categories already granted so the
+        // checkboxes reflect current state. User can uncheck to narrow or
+        // check more to add.
+        if detectionSucceeded, !hasPreselected {
+            for category in categories where category.actions.allSatisfy({ grantedActions.contains($0) }) {
+                selectedCategories.insert(category.id)
+            }
+            hasPreselected = true
         }
     }
 }
