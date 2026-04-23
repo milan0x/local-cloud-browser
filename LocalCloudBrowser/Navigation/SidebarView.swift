@@ -10,6 +10,8 @@ struct SidebarView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var profileStore: ConnectionProfileStore
     @EnvironmentObject private var licenseManager: LicenseManager
+    @EnvironmentObject private var transferManager: TransferManager
+    @State private var showRegionPicker = false
     @State private var showConnectionManager = false
     @State private var showHealthWarning = false
     @State private var showConnectionError = false
@@ -186,12 +188,35 @@ struct SidebarView: View {
             HStack {
                 connectionIndicator
                 Spacer()
-                readOnlyToggle
+                regionButton
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
         }
         .background(.bar)
+    }
+
+    @ViewBuilder
+    private var regionButton: some View {
+        Button {
+            showRegionPicker = true
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "globe")
+                Text(appState.region)
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(transferManager.hasActiveTransfers)
+        .help(transferManager.hasActiveTransfers
+              ? "Region cannot be changed while transfers are in progress"
+              : "Change region")
+        .popover(isPresented: $showRegionPicker, arrowEdge: .bottom) {
+            RegionPickerView()
+        }
     }
 
     private var connectionLostBubble: some View {
@@ -424,22 +449,4 @@ struct SidebarView: View {
         collapsedCategories = current
     }
 
-    @State private var isHoveringLock = false
-
-    @ViewBuilder
-    private var readOnlyToggle: some View {
-        Button {
-            appState.isReadOnly.toggle()
-        } label: {
-            Image(systemName: appState.isReadOnly ? "lock.fill" : "lock.open")
-                .foregroundStyle(appState.isReadOnly ? .orange : .secondary)
-                .frame(width: 28, height: 28)
-                .contentShape(Rectangle())
-                .background(isHoveringLock ? Color.primary.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
-        }
-        .buttonStyle(.plain)
-        .onHover { isHoveringLock = $0 }
-        .help(appState.isReadOnly ? "Read-only mode (click to enable writes)" : "Write mode (click to enable read-only)")
-        .accessibilityLabel(appState.isReadOnly ? "Read-only mode" : "Write mode")
-    }
 }

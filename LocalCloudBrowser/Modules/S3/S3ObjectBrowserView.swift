@@ -115,6 +115,12 @@ struct S3ObjectBrowserView: View {
     // Pagination
     @State private var currentPage = 1
     @State private var continuationToken: String?
+    /// Region this bucket lives in. Starts nil (use appState default). If a
+    /// PermanentRedirect comes back pointing to a different region, we cache
+    /// it here and pass as regionOverride on subsequent S3 calls for this
+    /// bucket. Intentionally NOT mutating appState.region so other services
+    /// (SQS, IAM, etc.) keep using the user's selected region.
+    @State private var bucketRegion: String?
     @State private var nextPageToken: String?
     @State private var previousTokens: [String?] = []
     @State private var isTruncated = false
@@ -212,6 +218,7 @@ struct S3ObjectBrowserView: View {
                 case .createFolder: showCreateFolder = true
                 case .uploadFile: uploadFile()
                 case .uploadFolder: uploadFolder()
+                case .refresh: loadObjects(force: true)
                 case .deleteSelected: deleteSelectedItems()
                 }
             }
@@ -1869,7 +1876,8 @@ struct S3ObjectBrowserView: View {
                 let result = try await service.listObjects(
                     bucket: bucket.name,
                     prefix: currentPrefix,
-                    continuationToken: continuationToken
+                    continuationToken: continuationToken,
+                    regionOverride: bucketRegion
                 )
                 if objects != result.objects {
                     objects = result.objects
@@ -1891,12 +1899,14 @@ struct S3ObjectBrowserView: View {
                 }
             } catch let error as CloudClientError {
                 // Auto-redirect: if the bucket lives in a different region,
-                // swap the app's region/endpoint and retry once.
+                // remember the region locally and retry with regionOverride.
+                // Crucially, we do NOT mutate appState.region — that would
+                // break other services (SQS, IAM, etc.) still using the
+                // user's selected region.
                 if let correctRegion = error.redirectRegion,
-                   correctRegion != appState.region {
-                    Log.info("Bucket requires region \(correctRegion) — auto-switching", category: "S3")
-                    appState.region = correctRegion
-                    appState.endpoint = Self.updateEndpointRegion(appState.endpoint, to: correctRegion)
+                   correctRegion != (bucketRegion ?? appState.region) {
+                    Log.info("Bucket \(bucket.name) lives in \(correctRegion) — using per-bucket override", category: "S3")
+                    bucketRegion = correctRegion
                     if !silent {
                         isLoading = false
                         lastLoadTime = nil
@@ -1921,20 +1931,6 @@ struct S3ObjectBrowserView: View {
         }
     }
 
-    /// Swaps the region segment in an AWS S3 endpoint.
-    /// `https://s3.eu-west-1.amazonaws.com` + `"us-east-1"` →
-    /// `https://s3.us-east-1.amazonaws.com`. Non-AWS endpoints pass through.
-    private static func updateEndpointRegion(_ endpoint: String, to newRegion: String) -> String {
-        guard var components = URLComponents(string: endpoint),
-              let host = components.host,
-              host.hasSuffix(".amazonaws.com") else {
-            return endpoint
-        }
-        let parts = host.components(separatedBy: ".")
-        guard parts.count == 4, parts[0] == "s3" else { return endpoint }
-        components.host = "s3.\(newRegion).amazonaws.com"
-        return components.string ?? endpoint
-    }
 
     private func loadNextPage() {
         guard isTruncated, let nextPageToken else { return }

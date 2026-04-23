@@ -78,7 +78,7 @@ struct ListHeaderBar<Trailing: View>: View {
                     onRefresh()
                 } label: {
                     Image(systemName: "arrow.clockwise")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.primary)
                 }
                 .buttonStyle(.borderless)
                 .help("Refresh")

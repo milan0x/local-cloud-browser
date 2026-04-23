@@ -10,7 +10,7 @@ struct SQSCreateQueueView: View {
     @State private var serviceError: ServiceError?
     @State private var isCreating = false
     var existingQueueNames: Set<String>
-    var onCreate: ((String) -> Void)? = nil
+    var onCreate: ((String, String) -> Void)? = nil
 
     var body: some View {
         CreateFormScaffold(
@@ -77,9 +77,9 @@ struct SQSCreateQueueView: View {
         serviceError = nil
         Task {
             do {
-                _ = try await service.createQueue(name: effectiveName, isFifo: isFifo)
+                let url = try await service.createQueue(name: effectiveName, isFifo: isFifo)
                 licenseManager.incrementCreateCount(for: .sqs)
-                onCreate?(effectiveName)
+                onCreate?(effectiveName, url)
                 dismiss()
             } catch {
                 serviceError = error.asServiceError

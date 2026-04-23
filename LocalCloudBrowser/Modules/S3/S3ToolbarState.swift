@@ -26,6 +26,7 @@ final class S3ToolbarState: ObservableObject {
         case createFolder
         case uploadFile
         case uploadFolder
+        case refresh
         case deleteSelected
     }
 
@@ -77,15 +78,25 @@ struct S3Toolbar: ToolbarContent {
             .disabled(!hasBucket || isReadOnly)
         }
         ToolbarItem(placement: .primaryAction) {
-            Menu {
-                Button("Upload File") { state.pendingAction = .uploadFile }
-                Button("Upload Folder") { state.pendingAction = .uploadFolder }
-            } label: {
-                Label("Upload", systemImage: "icloud.and.arrow.up")
-                    .toolbarHitTarget()
+            HStack(spacing: 2) {
+                Menu {
+                    Button("Upload File") { state.pendingAction = .uploadFile }
+                    Button("Upload Folder") { state.pendingAction = .uploadFolder }
+                } label: {
+                    Label("Upload", systemImage: "icloud.and.arrow.up")
+                        .toolbarHitTarget()
+                }
+                .help("Upload")
+                .disabled(!hasBucket || isReadOnly)
+
+                Button { state.pendingAction = .refresh } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                        .toolbarHitTarget()
+                }
+                .help("Refresh")
+                .disabled(!hasBucket || state.isLoading)
+                .keyboardShortcut("r", modifiers: .command)
             }
-            .help("Upload")
-            .disabled(!hasBucket || isReadOnly)
         }
         ToolbarItem(placement: .primaryAction) {
             let disabled = !hasBucket || isReadOnly || !state.hasSelection || state.isDeleting

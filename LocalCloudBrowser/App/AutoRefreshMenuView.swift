@@ -39,7 +39,7 @@ struct AutoRefreshMenuView: View {
             }
         } label: {
             Image(systemName: "arrow.clockwise")
-                .foregroundStyle(interval > 0 ? Color.accentColor : .secondary)
+                .foregroundStyle(interval > 0 ? Color.accentColor : .primary)
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
