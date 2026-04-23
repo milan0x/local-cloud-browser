@@ -34,9 +34,9 @@ struct S3ObjectBrowserView: View {
     @State private var isDeletingObjects = false
     @State private var lastLoadTime: Date?
     @State private var sortOrder: [KeyPathComparator<RowItem>] = [KeyPathComparator(\RowItem.dateValue, order: .reverse)]
-    @SceneStorage("S3ObjectColumns") private var columnCustomization: TableColumnCustomization<RowItem>
     @State private var isDropTargeted = false
     @State private var selectedRowIDs: Set<RowItem.ID> = []
+    @State private var tableFocusTrigger: Int = 0
     @State private var serviceError: ServiceError?
     @State private var retryAction: (() -> Void)?
     @State private var showCreateFolder = false
@@ -99,8 +99,9 @@ struct S3ObjectBrowserView: View {
     // Session restore
     @State private var hasRestoredPath = false
 
-    // Table focus
-    @FocusState private var isTableFocused: Bool
+    // (Table focus is managed via `tableFocusTrigger` — AppKit NSTableView cannot
+    // bind to @FocusState, so we bump the trigger and updateNSView makes the
+    // table first responder on the next run loop tick.)
 
     // Search & filter
     @State private var searchQuery = ""
@@ -257,7 +258,7 @@ struct S3ObjectBrowserView: View {
             }
         }
         .onChange(of: paneFocusTrigger) {
-            isTableFocused = true
+            tableFocusTrigger &+= 1
             let selectable = sortedRowItems.filter { $0.id != Self.parentRowID }
             if selectable.count == 1, let only = selectable.first {
                 selectedRowIDs = [only.id]
@@ -718,224 +719,382 @@ struct S3ObjectBrowserView: View {
     }
 
     private var listView: some View {
-        Table(sortedRowItems, selection: $selectedRowIDs, sortOrder: $sortOrder, columnCustomization: $columnCustomization) {
-            TableColumn("Name", value: \.name) { item in
-                HStack(spacing: 6) {
-                    Image(systemName: item.icon)
-                        .foregroundStyle(.secondary)
-                    Text(item.name)
-                }
-                .draggable(S3DragItem(item: item, bucket: bucket.name, service: service)) {
-                    Label(item.name, systemImage: item.icon)
-                }
+        ObjectBrowserTableView(
+            rows: sortedRowItems,
+            selectedRowIDs: $selectedRowIDs,
+            sortOrder: $sortOrder,
+            isReadOnly: appState.isReadOnly,
+            focusTrigger: tableFocusTrigger,
+            onDoubleClick: { item in handleRowActivation(item) },
+            onContextMenu: { ids in buildContextMenu(for: ids) },
+            onSpacebar: { _ in _ = handleSpacebarPreview() },
+            onDelete: { _ in
+                guard !appState.isReadOnly,
+                      !isDeletingObjects,
+                      !isDeletingFolders,
+                      !selectedRowIDs.subtracting([Self.parentRowID]).isEmpty else { return }
+                deleteSelectedItems()
+            },
+            onActionButton: { item, action in handleRowActionButton(item, action) },
+            onDragDownload: { item, url in
+                try await service.downloadObjectToFile(
+                    bucket: bucket.name,
+                    key: item.fullKey,
+                    destination: url
+                )
             }
-            .customizationID("name")
-            TableColumn("Kind", value: \.kind) { item in
-                Text(item.kind)
-                    .foregroundStyle(.secondary)
-            }
-            .width(min: 60, ideal: 90)
-            .customizationID("kind")
-            TableColumn("Size", value: \.sizeBytes) { item in
-                Text(item.size)
-            }
-            .width(min: 60, ideal: 80)
-            .customizationID("size")
-            TableColumn("Date Modified", value: \.dateValue) { item in
-                Text(item.lastModified)
-            }
-            .width(min: 100, ideal: 130)
-            .customizationID("dateModified")
-            TableColumn("Actions") { item in
-                actionsForRow(item)
-            }
-            .width(min: 60, ideal: 80)
-            .customizationID("actions")
+        )
+    }
+
+    private func handleRowActivation(_ item: RowItem) {
+        if item.id == Self.parentRowID {
+            navigateToParent()
+        } else if item.isFolder {
+            clearSearch()
+            navigateToPrefix(item.fullKey)
+        } else {
+            selectedObject = objects.first { $0.key == item.fullKey }
         }
-        .focused($isTableFocused)
-        .contextMenu(forSelectionType: RowItem.ID.self) { ids in
-            if ids.isEmpty {
-                Button("Create Folder") {
-                    showCreateFolder = true
-                }
-                .disabled(appState.isReadOnly)
-                Button("Upload File") {
-                    uploadFile()
-                }
-                .disabled(appState.isReadOnly)
-                Button("Upload Folder") {
-                    toolbarState.pendingAction = .uploadFolder
-                }
-                .disabled(appState.isReadOnly)
-                Divider()
-                Button(pasteLabel) {
-                    requestPaste()
-                }
-                .disabled(appState.isReadOnly || appState.s3Clipboard == nil || isPasting)
-            }
-            let items = ids.compactMap { id in sortedRowItems.first(where: { $0.id == id }) }
-            if items.count == 1, let item = items.first {
-                if item.id == Self.parentRowID {
-                    Button("Go to Parent") { navigateToParent() }
-                } else if item.isFolder {
-                    Button("Open") { navigateToPrefix(item.fullKey) }
-                    Button("Folder Info") { selectedFolderPrefix = item.fullKey }
-                    Button("Open in New Window") {
-                        openWindow(value: S3BrowserTarget(bucket: bucket.name, prefix: item.fullKey))
-                    }
-                    Button("Download as ZIP") {
-                        downloadFolderAsZip(prefix: item.fullKey)
-                    }
-                    .disabled(folderDownloadProgress != nil)
-                    Button("Copy") {
-                        copyItemsToClipboard(folderPrefixes: [item.fullKey])
-                    }
-                    Divider()
-                    Button("Copy Key") { copyToClipboard(item.fullKey) }
-                    Button("Copy S3 URI") { copyToClipboard(s3URI(for: item.fullKey)) }
-                    Button("Copy as AWS JSON") { copyToClipboard(toAWSJSON([item.fullKey])) }
-                    Divider()
-                    Button("Rename") {
-                        let folderName = String(item.fullKey.dropLast()).components(separatedBy: "/").last ?? item.fullKey
-                        renameText = folderName
-                        itemToRename = item
-                    }
-                    .disabled(appState.isReadOnly)
-                    Button("Move...") {
-                        foldersToMove = [item.fullKey]
-                        moveDestination = currentPrefix
-                    }
-                    .disabled(appState.isReadOnly)
-                    folderMoveToMenu(for: [item.fullKey])
-                        .disabled(appState.isReadOnly)
-                    Button("Duplicate") {
-                        duplicateItem(item)
-                    }
-                    .disabled(appState.isReadOnly)
-                    Divider()
-                    Button(pasteHereLabel) {
-                        requestPaste(into: item.fullKey)
-                    }
-                    .disabled(appState.isReadOnly || appState.s3Clipboard == nil || isPasting)
-                    Divider()
-                    Button(role: .destructive) {
-                        requestFolderDeletion(prefixes: [item.fullKey])
-                    } label: {
-                        Label("Delete Folder", systemImage: "trash")
-                    }
-                    .disabled(appState.isReadOnly)
-                } else {
-                    Button("Download") { downloadObject(key: item.fullKey) }
-                    Button("Quick Look") { requestPreview(key: item.fullKey) }
-                    Button("Copy") {
-                        copyItemsToClipboard(objectKeys: [item.fullKey])
-                    }
-                    Button("Copy Key") { copyToClipboard(item.fullKey) }
-                    Button("Copy S3 URI") { copyToClipboard(s3URI(for: item.fullKey)) }
-                    Button("Copy as AWS JSON") { copyToClipboard(toAWSJSON([item.fullKey])) }
-                    Divider()
-                    Button("Metadata") {
-                        selectedObject = objects.first { $0.key == item.fullKey }
-                    }
-                    Button("Rename") {
-                        renameText = item.name
-                        itemToRename = item
-                    }
-                    .disabled(appState.isReadOnly)
-                    Button("Move...") {
-                        if let obj = objects.first(where: { $0.key == item.fullKey }) {
-                            objectsToMove = [obj]
-                            moveDestination = currentPrefix
-                        }
-                    }
-                    .disabled(appState.isReadOnly)
-                    if let obj = objects.first(where: { $0.key == item.fullKey }) {
-                        moveToMenu(for: [obj])
-                            .disabled(appState.isReadOnly)
-                    }
-                    Button("Duplicate") {
-                        duplicateItem(item)
-                    }
-                    .disabled(appState.isReadOnly)
-                    Divider()
-                    Button(role: .destructive) {
-                        objectsToDelete = objects.filter { $0.key == item.fullKey }
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
-                    .disabled(appState.isReadOnly)
-                }
+    }
+
+    private func handleRowActionButton(_ item: RowItem, _ action: ObjectAction) {
+        switch action {
+        case .navigateParent:
+            navigateToParent()
+        case .openFolder:
+            navigateToPrefix(item.fullKey)
+        case .folderInfo:
+            selectedFolderPrefix = item.fullKey
+        case .download:
+            downloadObject(key: item.fullKey)
+        case .preview:
+            requestPreview(key: item.fullKey)
+        case .info:
+            selectedObject = objects.first { $0.key == item.fullKey }
+        case .delete:
+            if item.isFolder {
+                requestFolderDeletion(prefixes: [item.fullKey])
             } else {
-                let selectedItems = items.filter { $0.id != Self.parentRowID }
-                let folderItems = selectedItems.filter { $0.isFolder }
-                let fileItems = selectedItems.filter { !$0.isFolder }
-
-                if !selectedItems.isEmpty {
-                    let copyObjKeys = fileItems.map(\.fullKey)
-                    let copyFolderPrefixes = folderItems.map(\.fullKey)
-                    Button("Copy \(selectedItems.count) \(selectedItems.count == 1 ? "Item" : "Items")") {
-                        copyItemsToClipboard(objectKeys: copyObjKeys, folderPrefixes: copyFolderPrefixes)
-                    }
-                    Divider()
-                }
-
-                if selectedItems.count > 1 {
-                    let keys = selectedItems.map(\.fullKey)
-                    let uris = keys.map { s3URI(for: $0) }
-                    Button("Copy \(keys.count) Paths") { copyToClipboard(keys.joined(separator: "\n")) }
-                    Button("Copy \(keys.count) S3 URIs") { copyToClipboard(uris.joined(separator: "\n")) }
-                    Button("Copy as AWS JSON") { copyToClipboard(toAWSJSON(keys)) }
-                    Divider()
-                }
-
-                if !selectedItems.isEmpty {
-                    let movableObjs = fileItems.compactMap { item in
-                        objects.first { $0.key == item.fullKey }
-                    }
-                    let movableFolders = folderItems.map(\.fullKey)
-                    let moveCount = movableObjs.count + movableFolders.count
-                    Button("Move \(moveCount) Items...") {
-                        objectsToMove = movableObjs
-                        foldersToMove = movableFolders
-                        moveDestination = currentPrefix
-                    }
-                    .disabled(appState.isReadOnly)
-                    mixedMoveToMenu(objects: movableObjs, folders: movableFolders)
-                        .disabled(appState.isReadOnly)
-                }
-
-                if !selectedItems.isEmpty {
-                    Divider()
-                    let totalCount = selectedItems.count
-                    Button(role: .destructive) {
-                        let fileObjs = fileItems.compactMap { item in
-                            objects.first { $0.key == item.fullKey }
-                        }
-                        if folderItems.isEmpty {
-                            objectsToDelete = fileObjs
-                        } else {
-                            standaloneObjectsToDelete = fileObjs
-                            requestFolderDeletion(prefixes: folderItems.map(\.fullKey))
-                        }
-                    } label: {
-                        Label("Delete \(totalCount) Items", systemImage: "trash")
-                    }
-                    .disabled(appState.isReadOnly)
-                }
-            }
-        } primaryAction: { ids in
-            guard ids.count == 1,
-                  let id = ids.first,
-                  let item = sortedRowItems.first(where: { $0.id == id }) else { return }
-            if item.id == Self.parentRowID {
-                navigateToParent()
-            } else if item.isFolder {
-                clearSearch()
-                navigateToPrefix(item.fullKey)
-            } else {
-                selectedObject = objects.first { $0.key == item.fullKey }
+                objectsToDelete = objects.filter { $0.key == item.fullKey }
             }
         }
+    }
+
+    // MARK: - Context Menu (NSMenu)
+
+    private func buildContextMenu(for ids: Set<String>) -> NSMenu? {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+
+        if ids.isEmpty {
+            append(menu, title: "Create Folder", enabled: !appState.isReadOnly) {
+                showCreateFolder = true
+            }
+            append(menu, title: "Upload File", enabled: !appState.isReadOnly) {
+                uploadFile()
+            }
+            append(menu, title: "Upload Folder", enabled: !appState.isReadOnly) {
+                toolbarState.pendingAction = .uploadFolder
+            }
+            menu.addItem(.separator())
+            let pasteEnabled = !appState.isReadOnly && appState.s3Clipboard != nil && !isPasting
+            append(menu, title: pasteLabel, enabled: pasteEnabled) {
+                requestPaste()
+            }
+            return menu
+        }
+
+        let items = ids.compactMap { id in sortedRowItems.first(where: { $0.id == id }) }
+
+        if items.count == 1, let item = items.first {
+            buildSingleItemMenu(menu, item: item)
+        } else {
+            buildMultiSelectionMenu(menu, items: items)
+        }
+
+        return menu.items.isEmpty ? nil : menu
+    }
+
+    private func buildSingleItemMenu(_ menu: NSMenu, item: RowItem) {
+        if item.id == Self.parentRowID {
+            append(menu, title: "Go to Parent") { navigateToParent() }
+            return
+        }
+
+        if item.isFolder {
+            append(menu, title: "Open") { navigateToPrefix(item.fullKey) }
+            append(menu, title: "Folder Info") { selectedFolderPrefix = item.fullKey }
+            append(menu, title: "Open in New Window") {
+                openWindow(value: S3BrowserTarget(bucket: bucket.name, prefix: item.fullKey))
+            }
+            append(menu, title: "Download as ZIP", enabled: folderDownloadProgress == nil) {
+                downloadFolderAsZip(prefix: item.fullKey)
+            }
+            append(menu, title: "Copy") {
+                copyItemsToClipboard(folderPrefixes: [item.fullKey])
+            }
+            menu.addItem(.separator())
+            append(menu, title: "Copy Key") { copyToClipboard(item.fullKey) }
+            append(menu, title: "Copy S3 URI") { copyToClipboard(s3URI(for: item.fullKey)) }
+            append(menu, title: "Copy as AWS JSON") { copyToClipboard(toAWSJSON([item.fullKey])) }
+            menu.addItem(.separator())
+            append(menu, title: "Rename", enabled: !appState.isReadOnly) {
+                let folderName = String(item.fullKey.dropLast()).components(separatedBy: "/").last ?? item.fullKey
+                renameText = folderName
+                itemToRename = item
+            }
+            append(menu, title: "Move...", enabled: !appState.isReadOnly) {
+                foldersToMove = [item.fullKey]
+                moveDestination = currentPrefix
+            }
+            appendFolderMoveToMenu(menu, folders: [item.fullKey])
+            append(menu, title: "Duplicate", enabled: !appState.isReadOnly) {
+                duplicateItem(item)
+            }
+            menu.addItem(.separator())
+            let pasteHereEnabled = !appState.isReadOnly && appState.s3Clipboard != nil && !isPasting
+            append(menu, title: pasteHereLabel, enabled: pasteHereEnabled) {
+                requestPaste(into: item.fullKey)
+            }
+            menu.addItem(.separator())
+            appendDestructive(menu, title: "Delete Folder", enabled: !appState.isReadOnly) {
+                requestFolderDeletion(prefixes: [item.fullKey])
+            }
+            return
+        }
+
+        // Single file
+        append(menu, title: "Download") { downloadObject(key: item.fullKey) }
+        append(menu, title: "Quick Look") { requestPreview(key: item.fullKey) }
+        append(menu, title: "Copy") {
+            copyItemsToClipboard(objectKeys: [item.fullKey])
+        }
+        append(menu, title: "Copy Key") { copyToClipboard(item.fullKey) }
+        append(menu, title: "Copy S3 URI") { copyToClipboard(s3URI(for: item.fullKey)) }
+        append(menu, title: "Copy as AWS JSON") { copyToClipboard(toAWSJSON([item.fullKey])) }
+        menu.addItem(.separator())
+        append(menu, title: "Metadata") {
+            selectedObject = objects.first { $0.key == item.fullKey }
+        }
+        append(menu, title: "Rename", enabled: !appState.isReadOnly) {
+            renameText = item.name
+            itemToRename = item
+        }
+        append(menu, title: "Move...", enabled: !appState.isReadOnly) {
+            if let obj = objects.first(where: { $0.key == item.fullKey }) {
+                objectsToMove = [obj]
+                moveDestination = currentPrefix
+            }
+        }
+        if let obj = objects.first(where: { $0.key == item.fullKey }) {
+            appendObjectMoveToMenu(menu, objects: [obj])
+        }
+        append(menu, title: "Duplicate", enabled: !appState.isReadOnly) {
+            duplicateItem(item)
+        }
+        menu.addItem(.separator())
+        appendDestructive(menu, title: "Delete", enabled: !appState.isReadOnly) {
+            objectsToDelete = objects.filter { $0.key == item.fullKey }
+        }
+    }
+
+    private func buildMultiSelectionMenu(_ menu: NSMenu, items: [RowItem]) {
+        let selectedItems = items.filter { $0.id != Self.parentRowID }
+        guard !selectedItems.isEmpty else { return }
+
+        let folderItems = selectedItems.filter { $0.isFolder }
+        let fileItems = selectedItems.filter { !$0.isFolder }
+
+        let copyObjKeys = fileItems.map(\.fullKey)
+        let copyFolderPrefixes = folderItems.map(\.fullKey)
+        append(menu, title: "Copy \(selectedItems.count) \(selectedItems.count == 1 ? "Item" : "Items")") {
+            copyItemsToClipboard(objectKeys: copyObjKeys, folderPrefixes: copyFolderPrefixes)
+        }
+        menu.addItem(.separator())
+
+        if selectedItems.count > 1 {
+            let keys = selectedItems.map(\.fullKey)
+            let uris = keys.map { s3URI(for: $0) }
+            append(menu, title: "Copy \(keys.count) Paths") { copyToClipboard(keys.joined(separator: "\n")) }
+            append(menu, title: "Copy \(keys.count) S3 URIs") { copyToClipboard(uris.joined(separator: "\n")) }
+            append(menu, title: "Copy as AWS JSON") { copyToClipboard(toAWSJSON(keys)) }
+            menu.addItem(.separator())
+        }
+
+        let movableObjs = fileItems.compactMap { item in objects.first { $0.key == item.fullKey } }
+        let movableFolders = folderItems.map(\.fullKey)
+        let moveCount = movableObjs.count + movableFolders.count
+        append(menu, title: "Move \(moveCount) Items...", enabled: !appState.isReadOnly) {
+            objectsToMove = movableObjs
+            foldersToMove = movableFolders
+            moveDestination = currentPrefix
+        }
+        appendMixedMoveToMenu(menu, objects: movableObjs, folders: movableFolders)
+
+        menu.addItem(.separator())
+        let totalCount = selectedItems.count
+        appendDestructive(menu, title: "Delete \(totalCount) Items", enabled: !appState.isReadOnly) {
+            let fileObjs = fileItems.compactMap { item in objects.first { $0.key == item.fullKey } }
+            if folderItems.isEmpty {
+                objectsToDelete = fileObjs
+            } else {
+                standaloneObjectsToDelete = fileObjs
+                requestFolderDeletion(prefixes: folderItems.map(\.fullKey))
+            }
+        }
+    }
+
+    // MARK: Move-to submenu builders
+
+    private func appendFolderMoveToMenu(_ menu: NSMenu, folders: [String]) {
+        let parent = NSMenuItem(title: "Move to", action: nil, keyEquivalent: "")
+        parent.isEnabled = !appState.isReadOnly
+        let submenu = NSMenu(title: "Move to")
+        submenu.autoenablesItems = false
+
+        let hasParent = !pathComponents.isEmpty
+        let otherFolders = prefixes.filter { p in !folders.contains(p.prefix) }
+
+        if hasParent {
+            append(submenu, title: "..") {
+                let parentPath = Array(pathComponents.dropLast())
+                let dest = parentPath.isEmpty ? "" : parentPath.joined(separator: "/") + "/"
+                foldersToMove = folders
+                moveDestination = dest
+                requestMove()
+            }
+            if !otherFolders.isEmpty { submenu.addItem(.separator()) }
+        }
+        for pfx in otherFolders {
+            append(submenu, title: pfx.displayName) {
+                foldersToMove = folders
+                moveDestination = pfx.prefix
+                requestMove()
+            }
+        }
+        if !hasParent && otherFolders.isEmpty {
+            let placeholder = NSMenuItem(title: "No folders", action: nil, keyEquivalent: "")
+            placeholder.isEnabled = false
+            submenu.addItem(placeholder)
+        }
+        submenu.addItem(.separator())
+        append(submenu, title: "Browse...") {
+            browsePickerItems = []
+            browsePickerFolders = folders
+            showBrowsePicker = true
+        }
+        parent.submenu = submenu
+        menu.addItem(parent)
+    }
+
+    private func appendObjectMoveToMenu(_ menu: NSMenu, objects objs: [S3Object]) {
+        let parent = NSMenuItem(title: "Move to", action: nil, keyEquivalent: "")
+        parent.isEnabled = !appState.isReadOnly
+        let submenu = NSMenu(title: "Move to")
+        submenu.autoenablesItems = false
+
+        let hasParent = !pathComponents.isEmpty
+
+        if hasParent {
+            append(submenu, title: "..") {
+                let parentPath = Array(pathComponents.dropLast())
+                let dest = parentPath.isEmpty ? "" : parentPath.joined(separator: "/") + "/"
+                objectsToMove = objs
+                moveDestination = dest
+                requestMove()
+            }
+            if !prefixes.isEmpty { submenu.addItem(.separator()) }
+        }
+        for pfx in prefixes {
+            append(submenu, title: pfx.displayName) {
+                objectsToMove = objs
+                moveDestination = pfx.prefix
+                requestMove()
+            }
+        }
+        if !hasParent && prefixes.isEmpty {
+            let placeholder = NSMenuItem(title: "No folders", action: nil, keyEquivalent: "")
+            placeholder.isEnabled = false
+            submenu.addItem(placeholder)
+        }
+        submenu.addItem(.separator())
+        append(submenu, title: "Browse...") {
+            browsePickerItems = objs
+            browsePickerFolders = []
+            showBrowsePicker = true
+        }
+        parent.submenu = submenu
+        menu.addItem(parent)
+    }
+
+    private func appendMixedMoveToMenu(_ menu: NSMenu, objects objs: [S3Object], folders: [String]) {
+        let parent = NSMenuItem(title: "Move to", action: nil, keyEquivalent: "")
+        parent.isEnabled = !appState.isReadOnly
+        let submenu = NSMenu(title: "Move to")
+        submenu.autoenablesItems = false
+
+        let hasParent = !pathComponents.isEmpty
+        let otherFolders = prefixes.filter { p in !folders.contains(p.prefix) }
+
+        if hasParent {
+            append(submenu, title: "..") {
+                let parentPath = Array(pathComponents.dropLast())
+                let dest = parentPath.isEmpty ? "" : parentPath.joined(separator: "/") + "/"
+                objectsToMove = objs
+                foldersToMove = folders
+                moveDestination = dest
+                requestMove()
+            }
+            if !otherFolders.isEmpty { submenu.addItem(.separator()) }
+        }
+        for pfx in otherFolders {
+            append(submenu, title: pfx.displayName) {
+                objectsToMove = objs
+                foldersToMove = folders
+                moveDestination = pfx.prefix
+                requestMove()
+            }
+        }
+        if !hasParent && otherFolders.isEmpty {
+            let placeholder = NSMenuItem(title: "No folders", action: nil, keyEquivalent: "")
+            placeholder.isEnabled = false
+            submenu.addItem(placeholder)
+        }
+        submenu.addItem(.separator())
+        append(submenu, title: "Browse...") {
+            browsePickerItems = objs
+            browsePickerFolders = folders
+            showBrowsePicker = true
+        }
+        parent.submenu = submenu
+        menu.addItem(parent)
+    }
+
+    // MARK: NSMenu helpers
+
+    @discardableResult
+    private func append(
+        _ menu: NSMenu,
+        title: String,
+        enabled: Bool = true,
+        action: @escaping () -> Void
+    ) -> NSMenuItem {
+        let item = BlockMenuItem(title: title, handler: action)
+        item.isEnabled = enabled
+        menu.addItem(item)
+        return item
+    }
+
+    private func appendDestructive(
+        _ menu: NSMenu,
+        title: String,
+        enabled: Bool,
+        action: @escaping () -> Void
+    ) {
+        let item = BlockMenuItem(title: title, handler: action)
+        item.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
+        item.isEnabled = enabled
+        menu.addItem(item)
     }
 
     fileprivate static let parentRowID = ".."
@@ -959,186 +1118,9 @@ struct S3ObjectBrowserView: View {
         return [parentRow] + sorted
     }
 
-    @ViewBuilder
-    private func actionsForRow(_ item: RowItem) -> some View {
-        if item.id == Self.parentRowID {
-            Button { navigateToParent() } label: {
-                Image(systemName: "arrow.up")
-            }
-            .buttonStyle(.borderless)
-        } else if item.isFolder {
-            HStack(spacing: 8) {
-                Button { navigateToPrefix(item.fullKey) } label: {
-                    Image(systemName: "arrow.right")
-                }
-                .buttonStyle(.borderless)
-                .help("Open")
-
-                Button { selectedFolderPrefix = item.fullKey } label: {
-                    Image(systemName: "info.circle")
-                }
-                .buttonStyle(.borderless)
-                .help("Folder Info")
-
-                Button(role: .destructive) {
-                    requestFolderDeletion(prefixes: [item.fullKey])
-                } label: {
-                    Image(systemName: "trash")
-                        .foregroundStyle(appState.isReadOnly ? .gray : .red)
-                }
-                .buttonStyle(.borderless)
-                .help("Delete Folder")
-                .disabled(appState.isReadOnly)
-            }
-        } else {
-            HStack(spacing: 8) {
-                Button { downloadObject(key: item.fullKey) } label: {
-                    Image(systemName: "square.and.arrow.down")
-                }
-                .buttonStyle(.borderless)
-                .help("Download")
-
-                Button { requestPreview(key: item.fullKey) } label: {
-                    Image(systemName: "eye")
-                }
-                .buttonStyle(.borderless)
-                .help("Quick Look")
-
-                Button {
-                    selectedObject = objects.first { $0.key == item.fullKey }
-                } label: {
-                    Image(systemName: "info.circle")
-                }
-                .buttonStyle(.borderless)
-                .help("Metadata")
-
-                Button(role: .destructive) {
-                    objectsToDelete = objects.filter { $0.key == item.fullKey }
-                } label: {
-                    Image(systemName: "trash")
-                        .foregroundStyle(appState.isReadOnly ? .gray : .red)
-                }
-                .buttonStyle(.borderless)
-                .help("Delete")
-                .disabled(appState.isReadOnly)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func moveToMenu(for objs: [S3Object]) -> some View {
-        let hasParent = !pathComponents.isEmpty
-        let hasFolders = !prefixes.isEmpty
-        Menu("Move to") {
-            if hasParent {
-                Button("..") {
-                    let parent = Array(pathComponents.dropLast())
-                    let dest = parent.isEmpty ? "" : parent.joined(separator: "/") + "/"
-                    objectsToMove = objs
-                    moveDestination = dest
-                    requestMove()
-                }
-                if hasFolders { Divider() }
-            }
-            if hasFolders {
-                ForEach(prefixes) { prefix in
-                    Button(prefix.displayName) {
-                        objectsToMove = objs
-                        moveDestination = prefix.prefix
-                        requestMove()
-                    }
-                }
-            }
-            if !hasParent && !hasFolders {
-                Button("No folders") {}
-                    .disabled(true)
-            }
-            Divider()
-            Button("Browse...") {
-                browsePickerItems = objs
-                browsePickerFolders = []
-                showBrowsePicker = true
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func folderMoveToMenu(for folders: [String]) -> some View {
-        let hasParent = !pathComponents.isEmpty
-        let otherFolders = prefixes.filter { p in !folders.contains(p.prefix) }
-        let hasFolders = !otherFolders.isEmpty
-        Menu("Move to") {
-            if hasParent {
-                Button("..") {
-                    let parent = Array(pathComponents.dropLast())
-                    let dest = parent.isEmpty ? "" : parent.joined(separator: "/") + "/"
-                    foldersToMove = folders
-                    moveDestination = dest
-                    requestMove()
-                }
-                if hasFolders { Divider() }
-            }
-            if hasFolders {
-                ForEach(otherFolders) { prefix in
-                    Button(prefix.displayName) {
-                        foldersToMove = folders
-                        moveDestination = prefix.prefix
-                        requestMove()
-                    }
-                }
-            }
-            if !hasParent && !hasFolders {
-                Button("No folders") {}
-                    .disabled(true)
-            }
-            Divider()
-            Button("Browse...") {
-                browsePickerItems = []
-                browsePickerFolders = folders
-                showBrowsePicker = true
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func mixedMoveToMenu(objects objs: [S3Object], folders: [String]) -> some View {
-        let hasParent = !pathComponents.isEmpty
-        let otherFolders = prefixes.filter { p in !folders.contains(p.prefix) }
-        let hasFolders = !otherFolders.isEmpty
-        Menu("Move to") {
-            if hasParent {
-                Button("..") {
-                    let parent = Array(pathComponents.dropLast())
-                    let dest = parent.isEmpty ? "" : parent.joined(separator: "/") + "/"
-                    objectsToMove = objs
-                    foldersToMove = folders
-                    moveDestination = dest
-                    requestMove()
-                }
-                if hasFolders { Divider() }
-            }
-            if hasFolders {
-                ForEach(otherFolders) { prefix in
-                    Button(prefix.displayName) {
-                        objectsToMove = objs
-                        foldersToMove = folders
-                        moveDestination = prefix.prefix
-                        requestMove()
-                    }
-                }
-            }
-            if !hasParent && !hasFolders {
-                Button("No folders") {}
-                    .disabled(true)
-            }
-            Divider()
-            Button("Browse...") {
-                browsePickerItems = objs
-                browsePickerFolders = folders
-                showBrowsePicker = true
-            }
-        }
-    }
+    // Per-row action buttons and context-menu "Move to" submenus are now built
+    // in `ObjectBrowserTableView` / `build*ContextMenu*` on this view — see
+    // `handleRowActionButton(_:_:)` and `appendObjectMoveToMenu(_:objects:)`.
 
     // MARK: - Row Model
 
@@ -1836,7 +1818,7 @@ struct S3ObjectBrowserView: View {
 
     private func refocusTable() {
         DispatchQueue.main.async {
-            isTableFocused = true
+            tableFocusTrigger &+= 1
         }
     }
 
@@ -2486,35 +2468,24 @@ private struct QuickLookAlertsModifier: ViewModifier {
     }
 }
 
-// MARK: - Drag to Finder
+// MARK: - Context menu helper
 
-/// Transferable wrapper that downloads an S3 object to a temp file on demand (for drag-to-Finder).
-struct S3DragItem: Transferable {
-    let item: S3ObjectBrowserView.RowItem
-    let bucket: String
-    let service: S3Service
+/// NSMenuItem subclass that wires up a closure-based handler via target/action,
+/// used for the SwiftUI-adjacent context menu in `ObjectBrowserTableView`.
+final class BlockMenuItem: NSMenuItem {
+    private let handler: () -> Void
 
-    static var transferRepresentation: some TransferRepresentation {
-        FileRepresentation(exportedContentType: .data) { dragItem in
-            // Folders and parent row are not draggable — return empty file
-            guard !dragItem.item.isFolder, dragItem.item.id != S3ObjectBrowserView.parentRowID else {
-                let empty = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-                FileManager.default.createFile(atPath: empty.path, contents: nil)
-                return SentTransferredFile(empty)
-            }
+    init(title: String, handler: @escaping () -> Void) {
+        self.handler = handler
+        super.init(title: title, action: #selector(invoke), keyEquivalent: "")
+        self.target = self
+    }
 
-            let filename = dragItem.item.name
-            let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("S3Drag-\(UUID().uuidString)")
-            try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-            let destination = tempDir.appendingPathComponent(filename)
+    required init(coder: NSCoder) {
+        fatalError("BlockMenuItem does not support NSCoder")
+    }
 
-            try await dragItem.service.downloadObjectToFile(
-                bucket: dragItem.bucket,
-                key: dragItem.item.fullKey,
-                destination: destination
-            )
-
-            return SentTransferredFile(destination)
-        }
+    @objc private func invoke() {
+        handler()
     }
 }
