@@ -47,7 +47,7 @@ struct ContentView: View {
                 .help("Manage permissions — build an IAM policy for your AWS user.")
             }
             ToolbarItem(placement: .automatic) {
-                regionBadge
+                readOnlyToggle
             }
         }
         .sheet(isPresented: $showPermissionBuilder) {
@@ -125,48 +125,19 @@ struct ContentView: View {
         }
     }
 
-    private var isGlobalService: Bool {
-        appState.endpointType != .minio
-            && (appState.selectedRoute == .s3 || appState.selectedRoute == .iam || appState.selectedRoute == .route53 || appState.selectedRoute == .sts)
-    }
+    @State private var isHoveringLock = false
 
     @ViewBuilder
-    private var regionBadge: some View {
-        if isGlobalService {
-            Menu { } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "globe")
-                    Text("Global")
-                }
-            }
-            .foregroundStyle(.secondary)
-            .disabled(true)
-            .help("S3 buckets are global, not region-specific")
-        } else {
-            Menu {
-                ForEach(AWSRegion.allRegions, id: \.code) { region in
-                    Button {
-                        appState.region = region.code
-                        if var profile = profileStore.activeProfile {
-                            profile.region = region.code
-                            profileStore.update(profile)
-                        }
-                    } label: {
-                        if region.code == appState.region {
-                            Label("\(region.code) — \(region.displayName)", systemImage: "checkmark")
-                        } else {
-                            Text("\(region.code) — \(region.displayName)")
-                        }
-                    }
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "globe")
-                    Text(appState.region)
-                }
-            }
-            .help("Region: \(appState.region) — Click to change")
+    private var readOnlyToggle: some View {
+        Button {
+            appState.isReadOnly.toggle()
+        } label: {
+            Image(systemName: appState.isReadOnly ? "lock.fill" : "lock.open")
+                .foregroundStyle(appState.isReadOnly ? .orange : .secondary)
+                .toolbarHitTarget()
         }
+        .help(appState.isReadOnly ? "Read-only mode (click to enable writes)" : "Write mode (click to enable read-only)")
+        .accessibilityLabel(appState.isReadOnly ? "Read-only mode" : "Write mode")
     }
 
     @ViewBuilder

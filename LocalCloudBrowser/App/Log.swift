@@ -1,6 +1,9 @@
 import Foundation
+import os
 
 enum Log: Sendable {
+    private static let logger = Logger(subsystem: "com.milan.localcloudbrowser", category: "app")
+
     nonisolated static func info(_ message: String, category: String = "App") {
         emit(level: "INFO", message: message, category: category)
     }
@@ -17,6 +20,9 @@ enum Log: Sendable {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss.SSS"
         let timestamp = formatter.string(from: Date())
-        print("[\(timestamp)] [\(level)] [\(category)] \(message)")
+        let line = "[\(timestamp)] [\(level)] [\(category)] \(message)"
+        print(line)
+        // Also emit via os_log so `log show --predicate 'subsystem == "..."'` can find it.
+        logger.log("\(line, privacy: .public)")
     }
 }

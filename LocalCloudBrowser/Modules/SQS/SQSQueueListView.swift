@@ -17,6 +17,11 @@ struct SQSQueueListView: View {
     @State private var messageCounts: [String: Int] = [:]  // queueUrl -> count
     @State private var showCreateSheet = false
     @State private var pendingSelectName: String?
+    /// Queue names recently deleted locally. SQS DeleteQueue is eventually
+    /// consistent: ListQueues can keep returning the deleted queue for up to
+    /// 60 seconds. We filter these out of every refetch during that window so
+    /// the UI doesn't resurrect them.
+    @State private var recentlyDeletedNames: Set<String> = []
     @State private var queuesToDelete: [SQSQueue] = []
     @State private var queueToPurge: SQSQueue?
     @State private var serviceError: ServiceError?
@@ -30,10 +35,31 @@ struct SQSQueueListView: View {
             queueListContent
         }
         .sheet(isPresented: $showCreateSheet) {
-            SQSCreateQueueView(service: service, existingQueueNames: Set(queues.map(\.queueName))) { name in
+            SQSCreateQueueView(service: service, existingQueueNames: Set(queues.map(\.queueName))) { name, url in
+                // Optimistic insertion: show the new queue immediately so the user
+                // gets instant feedback. SQS is eventually consistent — ListQueues
+                // can take seconds to include the new queue — so the background
+                // reload below handles the official sync.
+                let newQueue = SQSQueue(queueUrl: url)
+                if !loader.items.contains(where: { $0.queueName == newQueue.queueName }) {
+                    loader.items.append(newQueue)
+                    loader.items.sort { $0.queueName.localizedStandardCompare($1.queueName) == .orderedAscending }
+                }
                 pendingSelectName = name
+                selectedQueueIDs = [newQueue.id]
+                activeQueue = newQueue
             }
-            .onDisappear { loadQueues(force: true) }
+            .onDisappear {
+                // SQS eventual consistency: retry a few times so the
+                // listing eventually confirms the newly-created queue.
+                Task {
+                    for attempt in 0..<5 {
+                        loadQueues(force: true, silent: attempt > 0)
+                        try? await Task.sleep(for: .seconds(1))
+                        if pendingSelectName == nil { break }
+                    }
+                }
+            }
         }
         .deleteConfirmation(items: $queuesToDelete, noun: "Queue") { items in
             if items.count == 1, let queue = items.first {
@@ -215,8 +241,13 @@ struct SQSQueueListView: View {
     // MARK: - Data
 
     private func loadQueues(force: Bool = false, silent: Bool = false) {
+        let deletedSnapshot = recentlyDeletedNames
         loader.load(force: force, silent: silent,
-            fetch: { [service] in try await service.listQueues() },
+            fetch: { [service] in
+                let all = try await service.listQueues()
+                guard !deletedSnapshot.isEmpty else { return all }
+                return all.filter { !deletedSnapshot.contains($0.queueName) }
+            },
             sort: { $0.queueName.localizedStandardCompare($1.queueName) == .orderedAscending }
         ) { [self] items in
             if !loader.hasRestoredSession, let savedName = restoreQueueName,
@@ -304,6 +335,24 @@ struct SQSQueueListView: View {
                 licenseManager.decrementCreateCount(for: .sqs, by: deleted.count)
                 selectedQueueIDs.subtract(deleted)
                 if let active = activeQueue, deleted.contains(active.id) { activeQueue = nil }
+
+                // SQS DeleteQueue is eventually consistent: ListQueues can
+                // keep returning the deleted queue for up to 60 seconds.
+                // Optimistically remove from the local list and remember the
+                // names so we can filter them out of any refetches during
+                // that window.
+                let deletedNames = targets
+                    .filter { deleted.contains($0.id) }
+                    .map(\.queueName)
+                recentlyDeletedNames.formUnion(deletedNames)
+                loader.items.removeAll { deletedNames.contains($0.queueName) }
+
+                // Clear the filter after 60s.
+                Task {
+                    try? await Task.sleep(for: .seconds(60))
+                    recentlyDeletedNames.subtract(deletedNames)
+                }
+
                 loadQueues(force: true)
             }
         }

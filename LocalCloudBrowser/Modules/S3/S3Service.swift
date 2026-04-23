@@ -32,7 +32,12 @@ final class S3Service: BaseService {
         _ = try await client.s3Request(method: "DELETE", path: "/\(name)")
     }
 
-    func listObjects(bucket: String, prefix: String = "", continuationToken: String? = nil) async throws -> S3ObjectListResult {
+    func listObjects(
+        bucket: String,
+        prefix: String = "",
+        continuationToken: String? = nil,
+        regionOverride: String? = nil
+    ) async throws -> S3ObjectListResult {
         var params: [String: String] = ["list-type": "2", "delimiter": "/"]
         if !prefix.isEmpty {
             params["prefix"] = prefix
@@ -43,7 +48,8 @@ final class S3Service: BaseService {
         let data = try await client.s3Request(
             method: "GET",
             path: "/\(bucket)",
-            queryParams: params
+            queryParams: params,
+            regionOverride: regionOverride
         )
         return try S3ObjectListParser().parse(data: data)
     }

@@ -18,7 +18,11 @@ private struct DeleteConfirmationModifier<Item: Identifiable, M: View>: ViewModi
                     set: { if !$0 { items = [] } }
                 )
             ) {
-                Button(actionLabel, role: .destructive) { onDelete(items) }
+                Button(actionLabel, role: .destructive) {
+                    let snapshot = items
+                    items = []
+                    onDelete(snapshot)
+                }
                 Button("Cancel", role: .cancel) { items = [] }
             } message: {
                 if items.count == 1 {
@@ -32,7 +36,11 @@ private struct DeleteConfirmationModifier<Item: Identifiable, M: View>: ViewModi
                 DeleteConfirmationSheet(
                     title: title(items.count),
                     actionLabel: actionLabel,
-                    onDelete: { onDelete(items) },
+                    onDelete: {
+                        let snapshot = items
+                        items = []
+                        onDelete(snapshot)
+                    },
                     onCancel: { items = [] }
                 ) {
                     message(items)

@@ -193,22 +193,29 @@ final class CloudClient: ObservableObject {
     }
 
     var s3URLStyle: S3URLStyle {
+        s3URLStyle(regionOverride: nil)
+    }
+
+    func s3URLStyle(regionOverride: String?) -> S3URLStyle {
         if isLocalEndpoint {
             return .pathStyle(baseURL: s3BaseURL)
         }
         if let host = URLComponents(string: appState.endpoint)?.host?.lowercased(),
            host.contains("amazonaws.com") {
-            return .virtualHosted(region: appState.region)
+            return .virtualHosted(region: regionOverride ?? appState.region)
         }
         return .pathStyle(baseURL: appState.endpoint)
     }
 
     /// Resolves the S3 base URL and object path for a given request path.
     /// For virtual-hosted-style, extracts the bucket from the path and moves it to the hostname.
-    /// - Parameter path: Always in format `/bucket/key` or `/` for listBuckets
-    /// - Returns: (baseURL, objectPath) tuple for use with executeRequest
-    private func resolveS3URL(path: String) -> (baseURL: String, objectPath: String) {
-        switch s3URLStyle {
+    /// - Parameters:
+    ///   - path: Always in format `/bucket/key` or `/` for listBuckets.
+    ///   - regionOverride: If provided, overrides `appState.region` for this
+    ///     call — used when auto-detecting that a bucket lives in a different
+    ///     region than the connection's default.
+    private func resolveS3URL(path: String, regionOverride: String? = nil) -> (baseURL: String, objectPath: String) {
+        switch s3URLStyle(regionOverride: regionOverride) {
         case .pathStyle(let baseURL):
             return (baseURL, path)
         case .virtualHosted(let region):
@@ -234,9 +241,10 @@ final class CloudClient: ObservableObject {
         body: Data? = nil,
         contentType: String? = nil,
         headers: [String: String] = [:],
-        unsignedPayload: Bool = false
+        unsignedPayload: Bool = false,
+        regionOverride: String? = nil
     ) async throws -> Data {
-        let (baseURL, objectPath) = resolveS3URL(path: path)
+        let (baseURL, objectPath) = resolveS3URL(path: path, regionOverride: regionOverride)
         let response = try await executeRequest(
             method: method,
             path: objectPath,
@@ -246,7 +254,8 @@ final class CloudClient: ObservableObject {
             baseURLOverride: baseURL,
             headers: headers,
             service: "s3",
-            unsignedPayload: unsignedPayload
+            unsignedPayload: unsignedPayload,
+            signingRegion: regionOverride
         )
         return response.data
     }
@@ -258,9 +267,10 @@ final class CloudClient: ObservableObject {
         body: Data? = nil,
         contentType: String? = nil,
         headers: [String: String] = [:],
-        unsignedPayload: Bool = false
+        unsignedPayload: Bool = false,
+        regionOverride: String? = nil
     ) async throws -> HTTPResponse {
-        let (baseURL, objectPath) = resolveS3URL(path: path)
+        let (baseURL, objectPath) = resolveS3URL(path: path, regionOverride: regionOverride)
         return try await executeRequest(
             method: method,
             path: objectPath,
@@ -270,7 +280,8 @@ final class CloudClient: ObservableObject {
             baseURLOverride: baseURL,
             headers: headers,
             service: "s3",
-            unsignedPayload: unsignedPayload
+            unsignedPayload: unsignedPayload,
+            signingRegion: regionOverride
         )
     }
 

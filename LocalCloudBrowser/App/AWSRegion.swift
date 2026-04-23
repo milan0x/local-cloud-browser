@@ -75,4 +75,19 @@ struct AWSRegion {
     static func s3Endpoint(for region: String) -> String {
         "https://s3.\(region).amazonaws.com"
     }
+
+    /// Swaps the region segment in an AWS S3 endpoint.
+    /// `https://s3.eu-west-1.amazonaws.com` + `"us-east-1"` →
+    /// `https://s3.us-east-1.amazonaws.com`. Non-AWS endpoints pass through.
+    static func updateEndpointRegion(_ endpoint: String, to newRegion: String) -> String {
+        guard var components = URLComponents(string: endpoint),
+              let host = components.host,
+              host.hasSuffix(".amazonaws.com") else {
+            return endpoint
+        }
+        let parts = host.components(separatedBy: ".")
+        guard parts.count == 4, parts[0] == "s3" else { return endpoint }
+        components.host = "s3.\(newRegion).amazonaws.com"
+        return components.string ?? endpoint
+    }
 }
