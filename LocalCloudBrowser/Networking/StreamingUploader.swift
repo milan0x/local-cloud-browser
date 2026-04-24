@@ -101,62 +101,69 @@ final class StreamingUploader: Sendable {
 
         let uploadId = try S3InitiateMultipartUploadParser().parse(data: initiateData)
 
-        // Ensure cleanup on failure/cancellation
-        var completed = false
-        defer {
-            if !completed {
-                Task { [session, signingContext] in
-                    guard let abortReq = try? signingContext.signedS3Request(
-                        method: "DELETE",
-                        path: "/\(bucket)/\(key)",
-                        queryParams: ["uploadId": uploadId]
-                    ) else { return }
-                    _ = try? await session.data(for: abortReq)
-                    Log.info("Aborted multipart upload \(uploadId)", category: "Upload")
-                }
+        // Wrap everything from this point in a do-catch so we can AWAIT the
+        // abort call on any failure path (cancellation, part failure, complete
+        // failure). The previous `defer { Task { ... } }` launched a detached
+        // Task that was not awaited — if the enclosing Task was cancelled or
+        // the process exited, the abort often never ran and the parts would
+        // accumulate in the bucket, costing real money on AWS.
+        do {
+            // Step 2: Upload parts with limited concurrency
+            let accumulator = ByteAccumulator()
+            let cumulativeProgress: @Sendable (Int64) -> Void = { chunkBytes in
+                let total = accumulator.add(chunkBytes)
+                progress(total)
             }
-        }
-
-        // Step 2: Upload parts with limited concurrency
-        let accumulator = ByteAccumulator()
-        let cumulativeProgress: @Sendable (Int64) -> Void = { chunkBytes in
-            let total = accumulator.add(chunkBytes)
-            progress(total)
-        }
-        let maxConcurrency = 4
-        let completedParts = try await uploadParts(
-            fileURL: fileURL,
-            bucket: bucket,
-            key: key,
-            uploadId: uploadId,
-            plan: plan,
-            signingContext: signingContext,
-            maxConcurrency: maxConcurrency,
-            progress: cumulativeProgress
-        )
-
-        // Step 3: Complete multipart upload
-        try Task.checkCancellation()
-        let xmlBody = MultipartUploadPlan.completeMultipartXML(parts: completedParts)
-        let completeRequest = try signingContext.signedS3Request(
-            method: "POST",
-            path: "/\(bucket)/\(key)",
-            queryParams: ["uploadId": uploadId],
-            body: xmlBody,
-            contentType: "application/xml"
-        )
-
-        let (completeData, completeResponse) = try await session.data(for: completeRequest)
-        guard let completeHttp = completeResponse as? HTTPURLResponse,
-              (200..<300).contains(completeHttp.statusCode) else {
-            let sc = (completeResponse as? HTTPURLResponse)?.statusCode ?? 0
-            throw StreamingUploadError.completionFailed(
-                underlying: CloudClientError.httpError(statusCode: sc, data: completeData)
+            let maxConcurrency = 4
+            let completedParts = try await uploadParts(
+                fileURL: fileURL,
+                bucket: bucket,
+                key: key,
+                uploadId: uploadId,
+                plan: plan,
+                signingContext: signingContext,
+                maxConcurrency: maxConcurrency,
+                progress: cumulativeProgress
             )
-        }
 
-        completed = true
-        Log.info("Completed multipart upload \(uploadId) for \(key)", category: "Upload")
+            // Step 3: Complete multipart upload
+            try Task.checkCancellation()
+            let xmlBody = MultipartUploadPlan.completeMultipartXML(parts: completedParts)
+            let completeRequest = try signingContext.signedS3Request(
+                method: "POST",
+                path: "/\(bucket)/\(key)",
+                queryParams: ["uploadId": uploadId],
+                body: xmlBody,
+                contentType: "application/xml"
+            )
+
+            let (completeData, completeResponse) = try await session.data(for: completeRequest)
+            guard let completeHttp = completeResponse as? HTTPURLResponse,
+                  (200..<300).contains(completeHttp.statusCode) else {
+                let sc = (completeResponse as? HTTPURLResponse)?.statusCode ?? 0
+                throw StreamingUploadError.completionFailed(
+                    underlying: CloudClientError.httpError(statusCode: sc, data: completeData)
+                )
+            }
+
+            Log.info("Completed multipart upload \(uploadId) for \(key)", category: "Upload")
+        } catch {
+            // Await the abort so the multipart upload is cleaned up before we
+            // re-throw. Best-effort — if the abort itself fails (e.g. network
+            // already down), we still re-throw the original error. Using
+            // `Task { ... }.value` decouples from any cancellation of the
+            // parent Task so an ongoing cancel doesn't short-circuit the abort.
+            await Task { [session, signingContext] in
+                guard let abortReq = try? signingContext.signedS3Request(
+                    method: "DELETE",
+                    path: "/\(bucket)/\(key)",
+                    queryParams: ["uploadId": uploadId]
+                ) else { return }
+                _ = try? await session.data(for: abortReq)
+                Log.info("Aborted multipart upload \(uploadId) after error: \(error)", category: "Upload")
+            }.value
+            throw error
+        }
     }
 
     // MARK: - Private

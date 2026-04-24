@@ -515,9 +515,25 @@ final class S3Service: BaseService {
         let contentDir = tempBase.appendingPathComponent(folderName)
         try FileManager.default.createDirectory(at: contentDir, withIntermediateDirectories: true)
 
+        let contentRoot = contentDir.standardizedFileURL.path
         for (index, obj) in files.enumerated() {
             let relativePath = String(obj.key.dropFirst(prefix.count))
-            let fileURL = contentDir.appendingPathComponent(relativePath)
+            // Reject any S3 key whose relative path contains `..` segments or
+            // starts with a slash — either would let a crafted bucket escape
+            // contentDir and write to arbitrary filesystem locations when
+            // expanded inside the ZIP.
+            let components = relativePath.split(separator: "/", omittingEmptySubsequences: false)
+            guard !components.contains(where: { $0 == ".." || $0 == "" && components.first == $0 }) else {
+                Log.warn("Skipping unsafe key in folder download: \(obj.key)", category: "S3")
+                continue
+            }
+            let fileURL = contentDir.appendingPathComponent(relativePath).standardizedFileURL
+            // Belt-and-suspenders: after path construction, verify the final
+            // resolved path is still under contentDir.
+            guard fileURL.path.hasPrefix(contentRoot + "/") || fileURL.path == contentRoot else {
+                Log.warn("Skipping key that resolves outside content dir: \(obj.key)", category: "S3")
+                continue
+            }
             let parentDir = fileURL.deletingLastPathComponent()
             if !FileManager.default.fileExists(atPath: parentDir.path) {
                 try FileManager.default.createDirectory(at: parentDir, withIntermediateDirectories: true)

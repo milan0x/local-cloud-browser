@@ -14,6 +14,7 @@ struct S3ObjectBrowserView: View {
     @ObservedObject var service: S3Service
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var transferManager: TransferManager
+    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.openWindow) private var openWindow
     let bucket: S3Bucket
     var paneID: String = "main"
@@ -180,9 +181,13 @@ struct S3ObjectBrowserView: View {
                 // batch. Makes uploads feel alive — the user sees new rows
                 // appear as each file completes.
                 let thisBucket = bucket.name
+                let licenseMgr = licenseManager
                 transferManager.onFileUploaded = { uploadBucket, key, size in
                     guard uploadBucket == thisBucket else { return }
                     appendUploadedObject(key: key, size: size, prefix: currentPrefix)
+                    // Every successful upload counts as a "create" against
+                    // the free-tier per-service quota. No-op for paid.
+                    licenseMgr.incrementCreateCount(for: .s3)
                 }
                 var restoredPath: [String] = []
                 if !hasRestoredPath,
@@ -1962,7 +1967,13 @@ struct S3ObjectBrowserView: View {
 
     private func loadPreviousPage() {
         guard currentPage > 1 else { return }
-        continuationToken = previousTokens.removeLast()
+        // Use popLast() instead of removeLast() — if `previousTokens` were
+        // cleared by resetPagination between the currentPage guard above and
+        // here (e.g. a rapid connection switch races with a Back-page click),
+        // removeLast() would crash on an empty array. popLast() returns nil
+        // and we no-op instead.
+        guard let token = previousTokens.popLast() else { return }
+        continuationToken = token
         currentPage -= 1
         loadObjects(force: true)
     }
@@ -2064,9 +2075,10 @@ struct S3ObjectBrowserView: View {
         }
 
         guard !requests.isEmpty else { return }
+        guard let gated = gatedUploadRequests(requests) else { return }
 
         let uploadService = service
-        transferManager.enqueueUploads(requests) { request, _, progress in
+        transferManager.enqueueUploads(gated) { request, _, progress in
             try await uploadService.uploadFile(
                 bucket: request.bucket,
                 key: request.s3Key,
@@ -2077,9 +2089,30 @@ struct S3ObjectBrowserView: View {
         }
     }
 
+    /// Apply the free-tier per-service quota to a batch of upload requests.
+    /// Returns `nil` when no uploads should proceed (paid users always get
+    /// the original list back). For free users who try to upload more than
+    /// their remaining quota, the list is trimmed to fit and an upgrade
+    /// sheet is shown to explain why.
+    private func gatedUploadRequests(_ requests: [UploadRequest]) -> [UploadRequest]? {
+        if licenseManager.isPaid { return requests }
+        let remaining = licenseManager.remainingCreates(for: .s3)
+        if remaining <= 0 {
+            licenseManager.upgradeContext = "You've reached the free limit of \(LicenseManager.freeCreateLimit) S3 uploads."
+            licenseManager.showUpgradeSheet = true
+            return nil
+        }
+        if requests.count > remaining {
+            licenseManager.upgradeContext = "Free tier allows \(remaining) more upload\(remaining == 1 ? "" : "s") in this service. Upgrade to upload all \(requests.count) files."
+            licenseManager.showUpgradeSheet = true
+            return Array(requests.prefix(remaining))
+        }
+        return requests
+    }
+
     @MainActor
     private func uploadFiles(from urls: [URL]) async {
-        let requests: [UploadRequest] = urls.map { url in
+        let builtRequests: [UploadRequest] = urls.map { url in
             let fileSize = (try? Int64(url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0)) ?? 0
             let contentType = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
                 ?? "application/octet-stream"
@@ -2092,7 +2125,8 @@ struct S3ObjectBrowserView: View {
                 contentType: contentType
             )
         }
-        guard !requests.isEmpty else { return }
+        guard !builtRequests.isEmpty else { return }
+        guard let requests = gatedUploadRequests(builtRequests) else { return }
 
         let uploadService = service
         transferManager.enqueueUploads(requests) { request, _, progress in
