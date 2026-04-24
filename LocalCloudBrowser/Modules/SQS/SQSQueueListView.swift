@@ -27,6 +27,11 @@ struct SQSQueueListView: View {
     @State private var serviceError: ServiceError?
     @State private var queueToShowAttributes: SQSQueue?
     @State private var searchText = ""
+    /// When fetchMessageCounts last ran. SQS GetQueueAttributes is billed
+    /// per-call and fires once per queue, so a 50-queue account was
+    /// generating 51 requests per refresh. Throttle to every 15 seconds
+    /// regardless of refresh cadence; a manual refresh bypasses this.
+    @State private var lastMessageCountsFetch: Date?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -50,13 +55,21 @@ struct SQSQueueListView: View {
                 activeQueue = newQueue
             }
             .onDisappear {
-                // SQS eventual consistency: retry a few times so the
-                // listing eventually confirms the newly-created queue.
+                // SQS eventual consistency: poll a few times so the server
+                // listing eventually includes the newly-created queue. The
+                // optimistic-insert merge in loadQueues() keeps the queue
+                // visible in the UI the whole time regardless; this loop
+                // exists only so pendingSelectName clears when AWS catches
+                // up. Back off (1s → 3s → 7s) and skip message-count
+                // fetching (fetchCounts: false) so each poll is a single
+                // ListQueues instead of 1 + N GetQueueAttributes calls.
                 Task {
-                    for attempt in 0..<5 {
-                        loadQueues(force: true, silent: attempt > 0)
-                        try? await Task.sleep(for: .seconds(1))
+                    let delays: [UInt64] = [1_000_000_000, 3_000_000_000, 7_000_000_000]
+                    for delay in delays {
                         if pendingSelectName == nil { break }
+                        try? await Task.sleep(nanoseconds: delay)
+                        if pendingSelectName == nil { break }
+                        loadQueues(force: true, silent: true, fetchCounts: false)
                     }
                 }
             }
@@ -240,13 +253,31 @@ struct SQSQueueListView: View {
 
     // MARK: - Data
 
-    private func loadQueues(force: Bool = false, silent: Bool = false) {
+    private func loadQueues(force: Bool = false, silent: Bool = false, fetchCounts: Bool = true) {
         let deletedSnapshot = recentlyDeletedNames
+        // Capture the optimistically-inserted queue (if any) so we can
+        // preserve it across a reload. AWS SQS CreateQueue is eventually
+        // consistent: ListQueues can take seconds (up to ~60s) to start
+        // returning the new queue. Without this merge, the first reload
+        // after a create clobbers the local row and the user only sees
+        // the stale list. We also track `serverHasPending` so the retry
+        // loop in .onDisappear can stop as soon as AWS actually returns
+        // the new queue.
+        let pendingName = pendingSelectName
+        let optimistic: SQSQueue? = pendingName.flatMap { name in
+            loader.items.first(where: { $0.queueName == name })
+        }
         loader.load(force: force, silent: silent,
             fetch: { [service] in
-                let all = try await service.listQueues()
-                guard !deletedSnapshot.isEmpty else { return all }
-                return all.filter { !deletedSnapshot.contains($0.queueName) }
+                var all = try await service.listQueues()
+                if !deletedSnapshot.isEmpty {
+                    all = all.filter { !deletedSnapshot.contains($0.queueName) }
+                }
+                if let optimistic,
+                   !all.contains(where: { $0.queueName == optimistic.queueName }) {
+                    all.append(optimistic)
+                }
+                return all
             },
             sort: { $0.queueName.localizedStandardCompare($1.queueName) == .orderedAscending }
         ) { [self] items in
@@ -257,12 +288,29 @@ struct SQSQueueListView: View {
             }
             loader.hasRestoredSession = true
             if let name = pendingSelectName,
-               let queue = items.first(where: { $0.queueName == name }) {
-                selectedQueueIDs = [queue.id]
-                activeQueue = queue
+               items.contains(where: { $0.queueName == name }) {
+                // The queue is in the list — server-confirmed or merged from
+                // optimistic. Either way, the UI is correct, selection is
+                // honored, and the retry loop can stop.
                 pendingSelectName = nil
             }
-            await fetchMessageCounts()
+            // Throttle message-count fetching. Each call fires one
+            // GetQueueAttributes per queue; on real AWS that adds up fast.
+            // User-initiated refreshes (silent == false) always run; the
+            // auto-refresh timer (silent == true) honors a 15s cooldown.
+            // The retry loop after CreateQueue sets fetchCounts: false
+            // because it's only checking whether the new queue appeared,
+            // not collecting counts.
+            if fetchCounts {
+                let now = Date()
+                let isUserInitiated = !silent
+                let cooldownPassed = lastMessageCountsFetch == nil
+                    || now.timeIntervalSince(lastMessageCountsFetch!) > 15
+                if isUserInitiated || cooldownPassed {
+                    lastMessageCountsFetch = now
+                    await fetchMessageCounts()
+                }
+            }
         }
     }
 

@@ -20,6 +20,16 @@ struct SQSCreateQueueView: View {
             onCreate: create
         ) {
             TextField("Queue name", text: $queueName)
+                .onChange(of: queueName) { _, new in
+                    // SQS queue names don't allow whitespace (only
+                    // alphanumerics + `-` `_`). Rather than silently
+                    // disabling the Create button when the user hits
+                    // space, strip the invalid character on input so
+                    // the field stays valid and the user gets the
+                    // feedback immediately.
+                    let stripped = new.filter { !$0.isWhitespace }
+                    if stripped != new { queueName = stripped }
+                }
 
             Toggle("FIFO Queue", isOn: $isFifo)
 
