@@ -169,7 +169,7 @@ struct SidebarView: View {
             Image(systemName: "exclamationmark.triangle.fill")
             Text("Non-local endpoint")
                 .font(.callout)
-                .fontWeight(.medium)
+                .fontWeight(.semibold)
         }
         .foregroundStyle(.white)
         .accessibilityElement(children: .combine)
@@ -177,7 +177,7 @@ struct SidebarView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
-        .background(Color.orange.opacity(0.7), in: RoundedRectangle(cornerRadius: 6))
+        .background(Color.orange, in: RoundedRectangle(cornerRadius: 6))
         .padding(.horizontal, 8)
         .padding(.bottom, 4)
     }
