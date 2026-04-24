@@ -283,7 +283,7 @@
 				CODE_SIGN_ENTITLEMENTS = LocalCloudBrowser/LocalCloudBrowser.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 20;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = MQXW376WC6;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -299,7 +299,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = milan.LocalCloudBrowser;
 				PRODUCT_NAME = "Local Cloud Browser GUI";
 				REGISTER_APP_GROUPS = YES;
@@ -319,7 +319,7 @@
 				CODE_SIGN_ENTITLEMENTS = LocalCloudBrowser/LocalCloudBrowser.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 20;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = MQXW376WC6;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -335,7 +335,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = milan.LocalCloudBrowser;
 				PRODUCT_NAME = "Local Cloud Browser GUI";
 				REGISTER_APP_GROUPS = YES;

@@ -509,6 +509,11 @@ struct S3ObjectBrowserView: View {
             S3ConfigHintView(errorMessage: errorMessage, onRetry: { loadObjects() })
         } else {
             VStack(spacing: 0) {
+                UploadQueueBanner(
+                    transferManager: transferManager,
+                    bucketName: bucket.name,
+                    onRefresh: { loadObjects(force: true, silent: true) }
+                )
                 if isSearchActive && sortedRows.isEmpty {
                     EmptyStateView(icon: "magnifyingglass", message: "No matches for \"\(searchQuery)\"")
                 } else if sortedRows.isEmpty || (sortedRows.count == 1 && sortedRows.first?.id == Self.parentRowID) {
@@ -689,18 +694,8 @@ struct S3ObjectBrowserView: View {
 
             Spacer()
 
-            // Transfer queue progress
-            if transferManager.hasActiveTransfersForBucket(bucket.name) {
-                HStack(spacing: 6) {
-                    ProgressView(value: transferManager.progressForBucket(bucket.name))
-                        .progressViewStyle(.linear)
-                        .frame(width: 120)
-                    Text("\(Int(transferManager.progressForBucket(bucket.name) * 100))%")
-                        .font(.callout)
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                }
-            }
+            // Transfer queue progress — clickable, opens per-bucket detail popover
+            StatusBarTransferIndicator(transferManager: transferManager)
 
             if let progress = fileDownloadProgress {
                 HStack(spacing: 6) {
@@ -1695,11 +1690,21 @@ struct S3ObjectBrowserView: View {
                 availableBuckets = []
             }
         }
-        // Queue drain: refresh object list when all uploads for this bucket complete
+        // Queue drain: reconcile the object list after the batch ends — whether
+        // it completed, was cancelled, or failed. The optimistic per-file append
+        // from `onFileUploaded` is usually right, but a silent reload confirms
+        // what S3 actually has: partial single-PUTs that errored out aren't
+        // there, aborted multipart uploads aren't there, and any objects
+        // someone else created during the batch now show up.
         .onChange(of: transferManager.lastBatchResult) {
-            if case .completed(let batchBucket) = transferManager.lastBatchResult,
-               batchBucket == bucket.name {
-                loadObjects(force: true)
+            guard let result = transferManager.lastBatchResult else { return }
+            let affectedBucket: String
+            switch result {
+            case .completed(let b), .cancelled(let b), .failed(let b, _, _):
+                affectedBucket = b
+            }
+            if affectedBucket == bucket.name {
+                loadObjects(force: true, silent: true)
             }
         }
     }
@@ -2522,5 +2527,201 @@ final class BlockMenuItem: NSMenuItem {
 
     @objc private func invoke() {
         handler()
+    }
+}
+
+// MARK: - Transfer Status (isolated so table re-renders don't refresh on every progress tick)
+
+/// Clickable progress indicator in the status bar. Opens a popover with
+/// per-bucket breakdown of all active transfers.
+private struct StatusBarTransferIndicator: View {
+    @ObservedObject var transferManager: TransferManager
+    var onNavigateToBucket: ((String) -> Void)?
+    @State private var showDetail = false
+
+    var body: some View {
+        if transferManager.hasActiveTransfers || transferManager.isProcessingQueue {
+            Button {
+                showDetail.toggle()
+            } label: {
+                HStack(spacing: 6) {
+                    let totalBuckets = transferManager.totalBucketCount
+                    if totalBuckets > 1 {
+                        Text("\(transferManager.completedBucketCount + 1) of \(totalBuckets)")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    ProgressView(value: transferManager.overallProgress)
+                        .progressViewStyle(.linear)
+                        .frame(width: 120)
+
+                    let pct = Int(transferManager.overallProgress * 100)
+                    Text("\(pct)%")
+                        .font(.callout)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+
+                    Image(systemName: "info.circle")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+            .help("Transfer details")
+            .popover(isPresented: $showDetail, arrowEdge: .top) {
+                TransferDetailPopover(transferManager: transferManager) { bucket in
+                    showDetail = false
+                    onNavigateToBucket?(bucket)
+                    transferManager.navigateToBucket = bucket
+                }
+            }
+        }
+    }
+}
+
+/// Per-bucket transfer breakdown. Shown in a popover from the status-bar
+/// indicator. Each row is clickable to jump to that bucket and has its own
+/// cancel button; a Cancel All footer cancels everything.
+private struct TransferDetailPopover: View {
+    @ObservedObject var transferManager: TransferManager
+    var onNavigateToBucket: ((String) -> Void)?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Active Transfers")
+                .font(.headline)
+                .padding(.horizontal, 12)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
+
+            Divider()
+
+            let buckets = transferManager.activeBucketNames
+            if buckets.isEmpty {
+                Text("No active transfers")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(12)
+            } else {
+                ForEach(buckets, id: \.self) { bucket in
+                    HStack(spacing: 8) {
+                        Button {
+                            onNavigateToBucket?(bucket)
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "externaldrive")
+                                    .foregroundStyle(.secondary)
+                                    .font(.caption)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(bucket)
+                                        .font(.callout)
+                                        .fontWeight(.medium)
+                                        .foregroundStyle(.primary)
+                                    let completed = transferManager.completedCountForBucket(bucket)
+                                    let total = transferManager.totalFileCountForBucket(bucket)
+                                    let pct = Int(transferManager.progressForBucket(bucket) * 100)
+                                    Text("\(completed) of \(total) — \(pct)%")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .monospacedDigit()
+                                }
+                                Spacer()
+                                ProgressView(value: transferManager.progressForBucket(bucket))
+                                    .progressViewStyle(.linear)
+                                    .frame(width: 60)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { hovering in
+                            if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                        }
+                        Button {
+                            transferManager.cancelForBucket(bucket)
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                                .font(.caption)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Cancel uploads to \(bucket)")
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                }
+            }
+
+            Divider()
+
+            HStack {
+                Spacer()
+                Button("Cancel All") {
+                    transferManager.cancelAll()
+                }
+                .controlSize(.small)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+        }
+        .frame(width: 300)
+    }
+}
+
+/// Thin banner above the object list summarizing the current transfer state
+/// for THIS bucket. Different copy when the bucket's transfers are active vs.
+/// queued behind other buckets.
+private struct UploadQueueBanner: View {
+    @ObservedObject var transferManager: TransferManager
+    let bucketName: String
+    var onRefresh: () -> Void
+
+    var body: some View {
+        if transferManager.hasActiveTransfersForBucket(bucketName) {
+            let info = transferManager.queuePositionForBucket(bucketName)
+            let total = transferManager.totalFileCountForBucket(bucketName)
+            let completed = transferManager.completedCountForBucket(bucketName)
+            let pct = Int(transferManager.progressForBucket(bucketName) * 100)
+
+            HStack(spacing: 8) {
+                if info.isActive {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Uploading \(completed) of \(total) files — \(pct)%")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                } else if info.filesAhead > 0 {
+                    Image(systemName: "clock")
+                        .foregroundStyle(.secondary)
+                        .font(.callout)
+                    let bucketText = info.bucketsAhead == 1 ? "1 bucket" : "\(info.bucketsAhead) buckets"
+                    Text("Upload queued — \(bucketText), \(info.filesAhead) files ahead")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Upload starting — \(total) files")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button {
+                    onRefresh()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Refresh file list")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.quaternary.opacity(0.5))
+        }
     }
 }

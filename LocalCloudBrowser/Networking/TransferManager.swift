@@ -274,7 +274,15 @@ final class TransferManager: ObservableObject {
                 let size = request.size
                 let bucket = request.bucket
 
-                Task { [weak self] in
+                // Store the upload Task on the item so `cancel(id:)`,
+                // `cancelForBucket(_:)`, and `cancelAll()` can actually
+                // cancel it. Previously this Task was fire-and-forget: the
+                // reference was discarded, item.task stayed nil, and every
+                // cancel path silently no-op'd — the pill's X, the popover
+                // Cancel-All button, and the per-row X all just updated
+                // state to .cancelled while the upload kept running
+                // until the underlying URLSession task finished on its own.
+                let uploadTask = Task { [weak self] in
                     do {
                         try Task.checkCancellation()
                         try await uploadHandler(request, itemID) { [weak self] bytesSent, totalBytes in
@@ -288,11 +296,18 @@ final class TransferManager: ObservableObject {
                         }
                     } catch is CancellationError {
                         await MainActor.run { [weak self] in self?.cancel(id: itemID) }
+                    } catch let urlError as URLError where urlError.code == .cancelled {
+                        // URLSession.data/upload throws URLError(.cancelled)
+                        // (not CancellationError) when the enclosing Task is
+                        // cancelled — route it to the cancelled state, not
+                        // the failed state, so the UI stays clean.
+                        await MainActor.run { [weak self] in self?.cancel(id: itemID) }
                     } catch {
                         await MainActor.run { [weak self] in self?.fail(id: itemID, message: error.localizedDescription) }
                     }
                     slotContinuation.yield()
                 }
+                item.task = uploadTask
             }
 
             if Task.isCancelled {
