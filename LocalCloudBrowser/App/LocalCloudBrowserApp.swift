@@ -108,6 +108,13 @@ struct LocalCloudBrowserApp: App {
                     if !appState.isLocalEndpoint {
                         Task { await client.fetchCallerIdentity() }
                     }
+                    // Credentials or endpoint just changed — any in-flight
+                    // uploads are signed with stale credentials pointing at
+                    // the wrong endpoint. Cancel them before they fail with
+                    // 403 or hit the new endpoint with the old auth.
+                    if transferManager.hasActiveTransfers {
+                        transferManager.cancelAll()
+                    }
                 }
                 // Silent refresh whenever the app becomes active — covers cold
                 // launches, reopens from the Dock, and regaining focus after

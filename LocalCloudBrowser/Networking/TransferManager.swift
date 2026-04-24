@@ -291,8 +291,18 @@ final class TransferManager: ObservableObject {
                             }
                         }
                         await MainActor.run { [weak self] in
-                            self?.complete(id: itemID)
-                            self?.onFileUploaded?(bucket, key, size)
+                            guard let self else { return }
+                            // Check the item state BEFORE committing the
+                            // completion. If cancel(id:) fired while the
+                            // network was draining the last bytes, the item
+                            // is already .cancelled — don't flip it back to
+                            // .completed and don't fire onFileUploaded, or
+                            // the file list shows a row the user thinks
+                            // they cancelled.
+                            guard let item = self.items.first(where: { $0.id == itemID }),
+                                  item.state == .active else { return }
+                            self.complete(id: itemID)
+                            self.onFileUploaded?(bucket, key, size)
                         }
                     } catch is CancellationError {
                         await MainActor.run { [weak self] in self?.cancel(id: itemID) }
@@ -359,18 +369,25 @@ final class TransferManager: ObservableObject {
         if item.totalBytes > 0 {
             item.bytesTransferred = item.totalBytes
         }
+        // Release the Task reference so captured credentials, file handles,
+        // and upload handler closures can be deallocated. Without this, every
+        // completed TransferItem held a live Task until items was cleared,
+        // growing unbounded over the app session.
+        item.task = nil
         objectWillChange.send()
     }
 
     func fail(id: UUID, message: String) {
         guard let item = items.first(where: { $0.id == id }) else { return }
         item.state = .failed(message)
+        item.task = nil
         objectWillChange.send()
     }
 
     func cancel(id: UUID) {
         guard let item = items.first(where: { $0.id == id }) else { return }
         item.task?.cancel()
+        item.task = nil
         item.state = .cancelled
         objectWillChange.send()
     }
@@ -380,6 +397,7 @@ final class TransferManager: ObservableObject {
         queueTask?.cancel()
         for item in items where item.state == .active || item.state == .queued {
             item.task?.cancel()
+            item.task = nil
             item.state = .cancelled
         }
         objectWillChange.send()
@@ -389,6 +407,7 @@ final class TransferManager: ObservableObject {
         pendingQueue.removeAll { $0.bucket == name }
         for item in items where item.s3Bucket == name && (item.state == .active || item.state == .queued) {
             item.task?.cancel()
+            item.task = nil
             item.state = .cancelled
         }
         objectWillChange.send()

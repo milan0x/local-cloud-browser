@@ -46,7 +46,7 @@ struct TransferPopoverView: View {
     private var transferList: some View {
         List {
             ForEach(visibleItems) { item in
-                TransferRowView(item: item)
+                TransferRowView(item: item, transferManager: transferManager)
             }
             if hiddenCount > 0 {
                 Text("and \(hiddenCount) more queued")
@@ -84,6 +84,7 @@ struct TransferPopoverView: View {
 
 struct TransferRowView: View {
     @ObservedObject var item: TransferItem
+    let transferManager: TransferManager
 
     private static let byteFormatter: ByteCountFormatter = {
         let f = ByteCountFormatter()
@@ -161,8 +162,11 @@ struct TransferRowView: View {
     private var trailingView: some View {
         if item.state == .active || item.state == .queued {
             Button {
-                item.task?.cancel()
-                item.state = .cancelled
+                // Route through the manager so all invariants (objectWillChange,
+                // task nil-out, pending-queue filter if queued) are honored —
+                // previously this bypassed the manager by flipping state +
+                // task.cancel() inline, which missed the cleanup paths.
+                transferManager.cancel(id: item.id)
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .foregroundStyle(.secondary)
