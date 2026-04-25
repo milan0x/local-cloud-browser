@@ -15,7 +15,7 @@ struct RequestSigningContext: Sendable {
     let usesVirtualHostedStyle: Bool
 
     /// Rewrites path-style `/bucket/key` to virtual-hosted-style for AWS.
-    private func resolveURL(for path: String) -> (base: String, path: String) {
+    nonisolated private func resolveURL(for path: String) -> (base: String, path: String) {
         guard usesVirtualHostedStyle else { return (s3BaseURL, path) }
         let trimmed = path.hasPrefix("/") ? String(path.dropFirst()) : path
         let parts = trimmed.split(separator: "/", maxSplits: 1)
@@ -26,7 +26,7 @@ struct RequestSigningContext: Sendable {
         return (components.string ?? s3BaseURL, remainingPath)
     }
 
-    func signedS3Request(
+    nonisolated func signedS3Request(
         method: String,
         path: String,
         queryParams: [String: String] = [:],

@@ -3,11 +3,16 @@ import Foundation
 // MARK: - Byte Accumulator
 
 /// Thread-safe accumulator for tracking cumulative bytes across concurrent uploads.
+/// `nonisolated` on `add` so the @Sendable progress callback in
+/// uploadMultipart can call it without an actor-isolation violation —
+/// the NSLock makes it safe.
 private final class ByteAccumulator: @unchecked Sendable {
     private let lock = NSLock()
-    private var total: Int64 = 0
+    // `nonisolated(unsafe)` because mutation is guarded by NSLock — the
+    // class is `@unchecked Sendable` for the same reason.
+    nonisolated(unsafe) private var total: Int64 = 0
 
-    func add(_ bytes: Int64) -> Int64 {
+    nonisolated func add(_ bytes: Int64) -> Int64 {
         lock.lock()
         defer { lock.unlock() }
         total += bytes

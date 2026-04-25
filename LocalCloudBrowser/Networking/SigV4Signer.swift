@@ -3,7 +3,7 @@ import CommonCrypto
 import CryptoKit
 
 enum SigV4Signer {
-    static func sign(
+    nonisolated static func sign(
         request: inout URLRequest,
         body: Data?,
         region: String,
@@ -127,7 +127,7 @@ enum SigV4Signer {
 
     // MARK: - Crypto helpers
 
-    static func sha256(_ data: Data) -> Data {
+    nonisolated static func sha256(_ data: Data) -> Data {
         var hash = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
         data.withUnsafeBytes { buffer in
             _ = CC_SHA256(buffer.baseAddress, CC_LONG(data.count), &hash)
@@ -135,7 +135,7 @@ enum SigV4Signer {
         return Data(hash)
     }
 
-    static func hmacSHA256(key: Data, data: Data) -> Data {
+    nonisolated static func hmacSHA256(key: Data, data: Data) -> Data {
         var hash = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
         key.withUnsafeBytes { keyBuffer in
             data.withUnsafeBytes { dataBuffer in
@@ -150,11 +150,11 @@ enum SigV4Signer {
         return Data(hash)
     }
 
-    static func hexEncode(_ data: Data) -> String {
+    nonisolated static func hexEncode(_ data: Data) -> String {
         data.map { String(format: "%02x", $0) }.joined()
     }
 
-    static func uriEncode(_ input: String, encodeSlash: Bool) -> String {
+    nonisolated static func uriEncode(_ input: String, encodeSlash: Bool) -> String {
         var allowed = CharacterSet.alphanumerics
         allowed.insert(charactersIn: "-._~")
         if !encodeSlash {
@@ -165,7 +165,7 @@ enum SigV4Signer {
 
     // MARK: - Internal helpers
 
-    static func deriveSigningKey(
+    nonisolated static func deriveSigningKey(
         secretAccessKey: String,
         date: String,
         region: String,
@@ -180,12 +180,12 @@ enum SigV4Signer {
     }
 
     /// Computes base64-encoded MD5 hash for Content-MD5 header.
-    static func md5Base64(_ data: Data) -> String {
+    nonisolated static func md5Base64(_ data: Data) -> String {
         let digest = Insecure.MD5.hash(data: data)
         return Data(digest).base64EncodedString()
     }
 
-    static func canonicalQueryString(from url: URL) -> String {
+    nonisolated static func canonicalQueryString(from url: URL) -> String {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               let queryItems = components.queryItems, !queryItems.isEmpty else {
             return ""

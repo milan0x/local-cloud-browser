@@ -27,8 +27,8 @@ struct RetryPolicy: Sendable {
         self.jitterFactor = jitterFactor
     }
 
-    static let defaultPolicy = RetryPolicy()
-    static let noRetry = RetryPolicy(maxRetries: 0)
+    nonisolated static let defaultPolicy = RetryPolicy()
+    nonisolated static let noRetry = RetryPolicy(maxRetries: 0)
 
     /// Computes the delay for a given attempt using exponential backoff with jitter.
     /// Attempt numbering starts at 0 (first retry).

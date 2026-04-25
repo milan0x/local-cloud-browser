@@ -2,7 +2,10 @@ import Foundation
 import os
 
 enum Log: Sendable {
-    private static let logger = Logger(subsystem: "com.milan.localcloudbrowser", category: "app")
+    // os.Logger is thread-safe internally (it's a thin wrapper over OSLog).
+    // Marking nonisolated lets the nonisolated `emit(...)` static call into it
+    // without a Swift 6 actor-isolation error.
+    nonisolated private static let logger = Logger(subsystem: "com.milan.localcloudbrowser", category: "app")
 
     nonisolated static func info(_ message: String, category: String = "App") {
         emit(level: "INFO", message: message, category: category)

@@ -94,7 +94,7 @@ final class CloudClient: ObservableObject {
     var s3BaseURL: String {
         guard !appState.s3Domain.isEmpty,
               let components = URLComponents(string: appState.endpoint),
-              let host = components.host?.lowercased() else {
+              components.host != nil else {
             return appState.endpoint
         }
         guard isLocalEndpoint else { return appState.endpoint }

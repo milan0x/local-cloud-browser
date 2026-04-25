@@ -3,10 +3,13 @@ import CryptoKit
 
 final class S3Service: BaseService {
 
-    /// Default part size for multipart uploads: 10 MB
-    private static let defaultPartSize = 10 * 1024 * 1024
+    /// Default part size for multipart uploads: 10 MB.
+    /// `nonisolated` so the default-parameter expression at the call site
+    /// (which may be nonisolated) doesn't hit the @MainActor-isolated
+    /// access warning. Pure constant, no race risk.
+    nonisolated static let defaultPartSize = 10 * 1024 * 1024
     /// Files larger than this threshold use multipart upload: 5 MB
-    private static let multipartThreshold: Int64 = 5 * 1024 * 1024
+    nonisolated static let multipartThreshold: Int64 = 5 * 1024 * 1024
 
     func listBuckets() async throws -> [S3Bucket] {
         let data = try await client.s3Request(method: "GET", path: "/")

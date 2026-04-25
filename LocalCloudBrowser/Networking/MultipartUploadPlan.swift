@@ -18,7 +18,7 @@ struct CompletedPart: Sendable {
     let partNumber: Int
     let etag: String
 
-    init(partNumber: Int, etag: String) {
+    nonisolated init(partNumber: Int, etag: String) {
         self.partNumber = partNumber
         self.etag = etag
     }
