@@ -18,6 +18,7 @@ struct DynamoDBTableListView: View {
     @State private var searchText = ""
     @State private var pendingSelectName: String?
     @StateObject private var loader = PaginatedListLoader<DynamoDBTable>()
+    @StateObject private var recentDeletes = RecentDeletionTracker<String>()
     private var tables: [DynamoDBTable] { loader.items }
 
     var body: some View {
@@ -236,8 +237,13 @@ struct DynamoDBTableListView: View {
     // MARK: - Data
 
     private func loadTables(force: Bool = false, silent: Bool = false) {
+        let recents = recentDeletes
         loader.load(force: force, silent: silent,
-            fetch: { [service] token in try await service.listTablesPage(token: token) },
+            fetch: { [service] token in
+                let (items, next) = try await service.listTablesPage(token: token)
+                let filtered = await recents.filter(items, by: \.tableName)
+                return (filtered, next)
+            },
             sort: { $0.tableName.localizedStandardCompare($1.tableName) == .orderedAscending }
         ) { [self] items in
             if !loader.hasRestoredSession, let savedName = restoreTableName,
@@ -269,6 +275,15 @@ struct DynamoDBTableListView: View {
                     activeTable = nil
                     tableDetail = nil
                 }
+                // Eventual-consistency: DynamoDB ListTables can keep
+                // returning a deleted table for several seconds. Track
+                // the deleted names + remove from the visible list, so
+                // the next reload doesn't resurrect them.
+                let deletedNames = targets
+                    .filter { deleted.contains($0.id) }
+                    .map(\.tableName)
+                recentDeletes.markDeleted(deletedNames)
+                loader.items.removeAll { recentDeletes.contains($0.tableName) }
                 loadTables(force: true)
             }
         }

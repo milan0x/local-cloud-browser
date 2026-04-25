@@ -95,7 +95,6 @@ struct S3Toolbar: ToolbarContent {
                 }
                 .help("Refresh")
                 .disabled(!hasBucket || state.isLoading)
-                .keyboardShortcut("r", modifiers: .command)
             }
         }
         ToolbarItem(placement: .primaryAction) {

@@ -37,6 +37,21 @@ struct ContentView: View {
             ToolbarItem(placement: .automatic) {
                 TransferToolbarButton()
             }
+            // Global Refresh — broadcasts via appState.autoRefresh, every
+            // visible service list view picks it up through its
+            // `.onAutoRefresh` subscription. Single source of truth so we
+            // don't need to wire a Refresh action through 25 separate
+            // service toolbars.
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    appState.autoRefresh.triggerNow()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .toolbarHitTarget()
+                }
+                .help("Refresh")
+                .keyboardShortcut("r", modifiers: .command)
+            }
             ToolbarItem(placement: .automatic) {
                 Button {
                     showPermissionBuilder = true
