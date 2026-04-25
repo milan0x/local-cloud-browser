@@ -42,6 +42,32 @@ enum StreamingUploadError: Error, LocalizedError {
     }
 }
 
+// MARK: - Upload Progress Delegate
+
+/// URLSession delegate that forwards body-send progress to a closure.
+/// Used to get smooth, byte-by-byte progress updates during S3 uploads —
+/// without it, `URLSession.upload(for:fromFile:)` only "reports" progress
+/// once the whole upload finishes, giving the user a sudden 0% → 100% jump.
+final class UploadProgressDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    private let onSent: @Sendable (Int64) -> Void
+
+    init(onSent: @escaping @Sendable (Int64) -> Void) {
+        self.onSent = onSent
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didSendBodyData bytesSent: Int64,
+        totalBytesSent: Int64,
+        totalBytesExpectedToSend: Int64
+    ) {
+        // `bytesSent` is the delta for THIS callback (not cumulative). Caller
+        // accumulates if it needs cumulative bytes.
+        onSent(bytesSent)
+    }
+}
+
 // MARK: - Streaming Uploader
 
 final class StreamingUploader: Sendable {
@@ -71,11 +97,22 @@ final class StreamingUploader: Sendable {
         )
         request.setValue("\(fileSize)", forHTTPHeaderField: "Content-Length")
 
-        let (_, response) = try await session.upload(for: request, fromFile: fileURL)
+        // Delegate captures `didSendBodyData` so progress ticks smoothly as
+        // bytes go on the wire — without this, single-PUT files jumped
+        // from 0% straight to 100%. Delegate emits deltas; we accumulate
+        // here to give the caller cumulative-bytes-sent for this file.
+        let counter = ByteAccumulator()
+        let delegate = UploadProgressDelegate { delta in
+            let cumulative = counter.add(delta)
+            progress(cumulative)
+        }
+        let (_, response) = try await session.upload(for: request, fromFile: fileURL, delegate: delegate)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
             throw CloudClientError.httpError(statusCode: statusCode, data: Data())
         }
+        // Final clamp to 100% in case the last delegate callback came in
+        // marginally before the response — guarantees the UI lands on done.
         progress(fileSize)
     }
 
@@ -220,7 +257,12 @@ final class StreamingUploader: Sendable {
                         extraHeaders: ["Content-MD5": md5Header]
                     )
 
-                    let (_, response) = try await session.data(for: request)
+                    // Delegate streams per-byte deltas as the chunk uploads.
+                    // The outer accumulator (in uploadMultipart) sums them
+                    // across concurrent parts. Without this, multipart progress
+                    // only ticked once per part (every ~10 MB).
+                    let delegate = UploadProgressDelegate(onSent: progress)
+                    let (_, response) = try await session.upload(for: request, from: chunkData, delegate: delegate)
                     guard let http = response as? HTTPURLResponse,
                           (200..<300).contains(http.statusCode) else {
                         let sc = (response as? HTTPURLResponse)?.statusCode ?? 0
@@ -234,7 +276,9 @@ final class StreamingUploader: Sendable {
                         throw StreamingUploadError.missingETag(partNumber: part.partNumber)
                     }
 
-                    progress(Int64(chunkData.count))
+                    // (No final progress(chunkData.count) — the delegate
+                    // already streamed the per-byte deltas. Adding a final
+                    // bump would double-count and overshoot 100%.)
                     return CompletedPart(partNumber: part.partNumber, etag: etag)
                 }
             }
