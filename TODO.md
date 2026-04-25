@@ -7,6 +7,7 @@
 - [ ] Polish CloudWatch empty state copy — "Use Put Metric Data to create test data" sounds developer-facing (`CloudWatchMetricListView.swift:84`)
 - [ ] Replace `print()` with `os.log` in `Log.swift:20` — shows in Xcode console during demos
 - [ ] Update DESIGN.md title from "LocalStack Navigator" to "Local Cloud Browser"
+- [ ] Toolbar transfer icon: when item count hits ~10K the alignment overflows the toolbar slot. Format counts compactly — `9999` stays as-is, `10000+` becomes `10K`, `10100` becomes `10.1K`, etc. Use `NumberFormatter` with `.compact` style or a small custom formatter so the badge stays narrow.
 
 ## Live Monitoring (Menu Bar + Main App)
 
