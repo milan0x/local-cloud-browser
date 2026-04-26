@@ -304,7 +304,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1;
 				PRODUCT_BUNDLE_IDENTIFIER = milan.LocalCloudBrowser;
 				PRODUCT_NAME = "Local Cloud Browser GUI";
 				REGISTER_APP_GROUPS = YES;
@@ -341,7 +341,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1;
 				PRODUCT_BUNDLE_IDENTIFIER = milan.LocalCloudBrowser;
 				PRODUCT_NAME = "Local Cloud Browser GUI";
 				REGISTER_APP_GROUPS = YES;

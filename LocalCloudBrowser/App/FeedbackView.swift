@@ -3,97 +3,76 @@ import AppKit
 
 struct FeedbackView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var feedbackText = ""
 
-    enum Category: String, CaseIterable {
-        case bug = "Bug Report"
-        case feature = "Feature Request"
-        case general = "General Feedback"
-    }
-
-    @State private var category: Category = .general
-    @State private var message = ""
+    private let appVersion: String = {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "v\(version) (\(build))"
+    }()
 
     private var macOSVersion: String {
-        let v = ProcessInfo.processInfo.operatingSystemVersion
-        return "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)"
+        ProcessInfo.processInfo.operatingSystemVersionString
     }
-
-    private var appVersion: String { AppInfo.version }
-
-    private var formattedFeedback: String {
-        """
-        [\(category.rawValue)]
-
-        \(message)
-
-        ---
-        App: Local Cloud Browser \(appVersion)
-        macOS: \(macOSVersion)
-        """
-    }
-
-    private static let feedbackEmail = AppInfo.contactEmail
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Send Feedback")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Picker("Category", selection: $category) {
-                ForEach(Category.allCases, id: \.self) { cat in
-                    Text(cat.rawValue).tag(cat)
-                }
+        VStack(spacing: 0) {
+            VStack(spacing: 4) {
+                Text("Local Cloud Browser Feedback")
+                    .font(.headline)
+                Text("Your feedback will be sent via your email client.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .pickerStyle(.segmented)
+            .padding(.top, 16)
+            .padding(.bottom, 12)
 
-            TextEditor(text: $message)
-                .font(.body)
-                .frame(minHeight: 120)
-                .border(Color.secondary.opacity(0.3))
+            Divider()
 
-            GroupBox("System Info") {
-                VStack(alignment: .leading, spacing: 4) {
-                    LabeledContent("App", value: "Local Cloud Browser \(appVersion)")
-                    LabeledContent("macOS", value: macOSVersion)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(4)
+            VStack(alignment: .leading, spacing: 8) {
+                TextEditor(text: $feedbackText)
+                    .font(.body)
+                    .frame(minHeight: 140)
+                    .scrollContentBackground(.hidden)
+                    .padding(8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(.quaternary)
+                    )
+
+                Text("Local Cloud Browser \(appVersion) · macOS \(macOSVersion)")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
+            .padding(16)
+
+            Divider()
 
             HStack {
-                Spacer()
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
-
-                Button("Copy to Clipboard") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(formattedFeedback, forType: .string)
-                    dismiss()
-                }
-
-                Button("Compose Email...") {
-                    openMailto()
-                    dismiss()
-                }
-                .keyboardShortcut(.defaultAction)
+                Spacer()
+                Button("Send with Email") { sendFeedback() }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(feedbackText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
+            .padding(16)
         }
-        .padding(20)
-        .frame(width: 480)
+        .frame(width: 420)
     }
 
-    private func openMailto() {
-        let subject = "[\(category.rawValue)] Local Cloud Browser Feedback"
-        var components = URLComponents()
-        components.scheme = "mailto"
-        components.path = Self.feedbackEmail
-        components.queryItems = [
-            URLQueryItem(name: "subject", value: subject),
-            URLQueryItem(name: "body", value: formattedFeedback),
-        ]
-        if let url = components.url {
+    private func sendFeedback() {
+        let subject = "Local Cloud Browser Feedback"
+        // Message FIRST so the email client's cursor lands above the
+        // version footer when the user wants to add more after the
+        // composer opens. The footer is short and unobtrusive at the
+        // tail end where it doesn't get in the way of the conversation.
+        let body = feedbackText + "\n\n---\nLocal Cloud Browser \(appVersion) · macOS \(macOSVersion)"
+        let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? subject
+        let encodedBody = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? body
+        if let url = URL(string: "mailto:\(AppInfo.contactEmail)?subject=\(encodedSubject)&body=\(encodedBody)") {
             NSWorkspace.shared.open(url)
         }
+        dismiss()
     }
 }
