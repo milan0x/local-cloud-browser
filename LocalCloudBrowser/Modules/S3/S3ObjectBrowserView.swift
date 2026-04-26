@@ -27,7 +27,12 @@ struct S3ObjectBrowserView: View {
     @State private var objects: [S3Object] = []
     @State private var prefixes: [S3Prefix] = []
     @State private var pathComponents: [String] = []
-    @State private var isLoading = false
+    // Default true so the very first render — which happens BEFORE
+    // `.task` fires `loadObjects()` — shows a loading spinner instead
+    // of briefly flashing "Empty folder" / a stale list. The first
+    // non-silent load sets it back to true while running, then false
+    // on completion.
+    @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var selectedObject: S3Object?
     @State private var showPolicyEditor = false
@@ -862,10 +867,9 @@ struct S3ObjectBrowserView: View {
                 renameText = folderName
                 itemToRename = item
             }
-            append(menu, title: "Move...", enabled: !appState.isReadOnly) {
-                foldersToMove = [item.fullKey]
-                moveDestination = currentPrefix
-            }
+            // 'Move to' submenu (siblings + 'Browse...') replaces the
+            // standalone 'Move...' modal item — one entry point for all
+            // move targets, matches Bucketeer.
             appendFolderMoveToMenu(menu, folders: [item.fullKey])
             append(menu, title: "Duplicate", enabled: !appState.isReadOnly) {
                 duplicateItem(item)
@@ -899,12 +903,8 @@ struct S3ObjectBrowserView: View {
             renameText = item.name
             itemToRename = item
         }
-        append(menu, title: "Move...", enabled: !appState.isReadOnly) {
-            if let obj = objects.first(where: { $0.key == item.fullKey }) {
-                objectsToMove = [obj]
-                moveDestination = currentPrefix
-            }
-        }
+        // 'Move to' submenu (siblings + 'Browse...') replaces the
+        // standalone 'Move...' modal item.
         if let obj = objects.first(where: { $0.key == item.fullKey }) {
             appendObjectMoveToMenu(menu, objects: [obj])
         }
@@ -942,12 +942,8 @@ struct S3ObjectBrowserView: View {
 
         let movableObjs = fileItems.compactMap { objectsByKey[$0.fullKey] }
         let movableFolders = folderItems.map(\.fullKey)
-        let moveCount = movableObjs.count + movableFolders.count
-        append(menu, title: "Move \(moveCount) Items...", enabled: !appState.isReadOnly) {
-            objectsToMove = movableObjs
-            foldersToMove = movableFolders
-            moveDestination = currentPrefix
-        }
+        // 'Move N Items to' submenu replaces the standalone modal; same
+        // unified pattern as single-item context menus.
         appendMixedMoveToMenu(menu, objects: movableObjs, folders: movableFolders)
 
         menu.addItem(.separator())
