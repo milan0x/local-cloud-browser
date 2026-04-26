@@ -27,12 +27,7 @@ struct S3ObjectBrowserView: View {
     @State private var objects: [S3Object] = []
     @State private var prefixes: [S3Prefix] = []
     @State private var pathComponents: [String] = []
-    // Default true so the very first render — which happens BEFORE
-    // `.task` fires `loadObjects()` — shows a loading spinner instead
-    // of briefly flashing "Empty folder" / a stale list. The first
-    // non-silent load sets it back to true while running, then false
-    // on completion.
-    @State private var isLoading = true
+    @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var selectedObject: S3Object?
     @State private var showPolicyEditor = false
