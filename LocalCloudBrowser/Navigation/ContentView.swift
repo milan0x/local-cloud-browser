@@ -5,11 +5,23 @@ struct ContentView: View {
     @EnvironmentObject private var client: CloudClient
     @EnvironmentObject private var profileStore: ConnectionProfileStore
     @EnvironmentObject private var licenseManager: LicenseManager
+    @EnvironmentObject private var storeKitManager: StoreKitManager
     @State private var showFeedback = false
     @State private var showWelcome = false
     @State private var showNewConnection = false
     @State private var showPermissionBuilder = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
+    /// Result of a Help → Restore Purchase invocation. Set by the
+    /// FocusedValue closure published below; an .alert presents the
+    /// outcome so the user gets explicit feedback regardless of whether
+    /// a previous purchase was found.
+    @State private var restoreOutcome: RestoreOutcome?
+
+    private enum RestoreOutcome: Identifiable {
+        case success
+        case nothingToRestore
+        var id: Int { self == .success ? 0 : 1 }
+    }
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -75,6 +87,34 @@ struct ContentView: View {
         .focusedSceneValue(\.profileStore, profileStore)
         .focusedSceneValue(\.appState, appState)
         .focusedSceneValue(\.showNewConnection) { showNewConnection = true }
+        .focusedSceneValue(\.restorePurchase) {
+            // Help → Restore Purchase. Calls into StoreKitManager directly
+            // (previously this just opened the upgrade sheet). On success
+            // the LicenseManager flips to .paid via onPurchaseChange and
+            // the user gets a "purchase restored" confirmation. On failure
+            // we tell them no previous purchase was found instead of
+            // dropping them into the marketing/upgrade view.
+            Task {
+                let restored = await storeKitManager.restorePurchases()
+                restoreOutcome = restored ? .success : .nothingToRestore
+            }
+        }
+        .alert(item: $restoreOutcome) { outcome in
+            switch outcome {
+            case .success:
+                return Alert(
+                    title: Text("Purchase Restored"),
+                    message: Text("Your Local Cloud Browser Unlimited purchase is now active on this device."),
+                    dismissButton: .default(Text("OK"))
+                )
+            case .nothingToRestore:
+                return Alert(
+                    title: Text("No Previous Purchase"),
+                    message: Text("No previous purchase was found for this Apple ID."),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
+        }
         .sheet(isPresented: $showFeedback) {
             FeedbackView()
         }

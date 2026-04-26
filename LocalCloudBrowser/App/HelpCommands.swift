@@ -23,6 +23,10 @@ struct ShowNewConnectionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
+struct RestorePurchaseKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
 extension FocusedValues {
     var showFeedback: Binding<Bool>? {
         get { self[ShowFeedbackKey.self] }
@@ -48,6 +52,11 @@ extension FocusedValues {
         get { self[ShowNewConnectionKey.self] }
         set { self[ShowNewConnectionKey.self] = newValue }
     }
+
+    var restorePurchase: (() -> Void)? {
+        get { self[RestorePurchaseKey.self] }
+        set { self[RestorePurchaseKey.self] = newValue }
+    }
 }
 
 // MARK: - App constants
@@ -63,6 +72,7 @@ enum AppInfo {
 struct HelpCommands: Commands {
     @FocusedValue(\.showFeedback) private var showFeedback
     @FocusedValue(\.showUpgrade) private var showUpgrade
+    @FocusedValue(\.restorePurchase) private var restorePurchase
 
     var body: some Commands {
         CommandGroup(replacing: .help) {
@@ -77,8 +87,13 @@ struct HelpCommands: Commands {
                 showUpgrade?.wrappedValue = true
             }
 
+            // Calls restorePurchases() directly via the FocusedValue
+            // closure published by ContentView. Previously this just
+            // opened the upgrade sheet, forcing the user to click
+            // "Restore Purchase" twice (menu → sheet) to actually
+            // run the restore.
             Button("Restore Purchase...") {
-                showUpgrade?.wrappedValue = true
+                restorePurchase?()
             }
 
             Divider()
