@@ -19,8 +19,6 @@ struct S3ObjectBrowserView: View {
     let bucket: S3Bucket
     var paneID: String = "main"
     @ObservedObject var toolbarState: S3ToolbarState
-    var restoreBucketName: String?
-    var restorePath: [String]?
     var searchFocusTrigger: Int = 0
     var paneFocusTrigger: Int = 0
 
@@ -110,9 +108,6 @@ struct S3ObjectBrowserView: View {
     @State private var collisionItems: [String] = []
     @State private var collisionAction: (() -> Void)?
 
-    // Session restore
-    @State private var hasRestoredPath = false
-
     // (Table focus is managed via `tableFocusTrigger` — AppKit NSTableView cannot
     // bind to @FocusState, so we bump the trigger and updateNSView makes the
     // table first responder on the next run loop tick.)
@@ -189,15 +184,8 @@ struct S3ObjectBrowserView: View {
                     // the free-tier per-service quota. No-op for paid.
                     licenseMgr.incrementCreateCount(for: .s3)
                 }
-                var restoredPath: [String] = []
-                if !hasRestoredPath,
-                   let name = restoreBucketName, name == bucket.name,
-                   let path = restorePath, !path.isEmpty {
-                    restoredPath = path
-                }
-                hasRestoredPath = true
-                pathComponents = restoredPath
-                navigationHistory = [restoredPath]
+                pathComponents = []
+                navigationHistory = [[]]
                 historyIndex = 0
                 selectedRowIDs = []
                 clearSearch()
@@ -209,7 +197,6 @@ struct S3ObjectBrowserView: View {
                 loadObjects(force: true, silent: true)
             }
             .onChange(of: pathComponents) {
-                LastSessionStore.saveS3Path(pathComponents)
                 recomputeSortedRows()
             }
             // Memoization triggers — recompute sortedRows only on data changes,

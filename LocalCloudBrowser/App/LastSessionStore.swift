@@ -83,19 +83,10 @@ enum LastSessionStore {
 
     static func saveS3Bucket(_ name: String?) {
         var state = load() ?? LastSessionState()
-        // Bucket selection always invalidates the saved path: a path is only
-        // meaningful within its bucket. Reset atomically so the persisted
-        // pair never holds a new bucket alongside a stale path.
-        if state.s3BucketName != name {
-            state.s3Path = []
-        }
         state.s3BucketName = name
-        save(state)
-    }
-
-    static func saveS3Path(_ components: [String]) {
-        var state = load() ?? LastSessionState()
-        state.s3Path = components
+        // Path is no longer persisted across launches — clear any value left
+        // over from previous app versions so old corrupt state can't resurface.
+        state.s3Path = nil
         save(state)
     }
 

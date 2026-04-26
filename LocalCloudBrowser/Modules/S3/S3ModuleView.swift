@@ -16,16 +16,17 @@ struct S3ModuleView: View {
     @State private var detailPaneFocusTrigger = 0
 
     // Session restore: captured once when the view is created (route switch or launch).
-    // Passed to children so they can restore without reading stale data from LastSessionStore.
+    // Only the bucket selection is restored across launches — the in-bucket path
+    // is not, so users always land at bucket root after a relaunch. Saved paths
+    // can become stale (folder deleted via CLI, MinIO restarted, etc.); root is
+    // always valid.
     @State private var restoreBucketName: String?
-    @State private var restorePath: [String]?
 
     init() {
         // Placeholder — real client injected via onAppear
         _service = StateObject(wrappedValue: S3Service())
         if let saved = LastSessionStore.load() {
             _restoreBucketName = State(initialValue: saved.s3BucketName)
-            _restorePath = State(initialValue: saved.s3Path)
         }
     }
 
@@ -61,8 +62,6 @@ struct S3ModuleView: View {
                         bucket: bucket,
                         paneID: "main",
                         toolbarState: toolbarState,
-                        restoreBucketName: restoreBucketName,
-                        restorePath: restorePath,
                         searchFocusTrigger: detailSearchFocusTrigger,
                         paneFocusTrigger: detailPaneFocusTrigger
                     )
