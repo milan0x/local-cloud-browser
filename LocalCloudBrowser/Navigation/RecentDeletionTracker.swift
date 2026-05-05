@@ -35,6 +35,13 @@ final class RecentDeletionTracker<ID: Hashable>: ObservableObject {
 
     private var clearTasks: [ID: Task<Void, Never>] = [:]
 
+    // Explicit deinit works around a Swift 6.3.1 SIL EarlyPerfInliner crash
+    // on the implicit deinit of this generic class (Release/Archive only).
+    // Also cancels pending sleep tasks so they don't fire after teardown.
+    deinit {
+        for task in clearTasks.values { task.cancel() }
+    }
+
     /// Mark a set of IDs as recently deleted. They'll be auto-cleared
     /// after `ttl` seconds. Calling this for an already-tracked ID
     /// resets the timer, which is the desired behaviour.

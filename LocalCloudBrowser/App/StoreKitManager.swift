@@ -8,6 +8,7 @@ final class StoreKitManager: ObservableObject {
     @Published private(set) var product: Product?
     @Published private(set) var isPurchased = false
     @Published private(set) var isLoading = false
+    @Published private(set) var isProductLoading = true
 
     private var transactionListener: Task<Void, Never>?
 
@@ -45,6 +46,7 @@ final class StoreKitManager: ObservableObject {
     // MARK: - Product
 
     func loadProduct() async {
+        defer { isProductLoading = false }
         do {
             let products = try await Product.products(for: [Self.productID])
             product = products.first

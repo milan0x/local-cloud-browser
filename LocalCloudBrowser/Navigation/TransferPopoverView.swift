@@ -62,7 +62,14 @@ struct TransferPopoverView: View {
         HStack {
             if transferManager.hasActiveTransfers {
                 Button("Cancel All") {
-                    transferManager.cancelAll()
+                    // Defer to next runloop tick. Mutating items synchronously
+                    // here changes every visible row from ProgressView to Text,
+                    // which triggers SwiftUI List's variable-row-height
+                    // re-layout while the click handler is still on the stack.
+                    // That race crashes inside AppKit's NSTableRowData with a
+                    // null lookupUpdateData. Deferring lets the click unwind
+                    // and the popover settle before we mutate state.
+                    Task { @MainActor in transferManager.cancelAll() }
                 }
                 .controlSize(.small)
             }
@@ -162,11 +169,12 @@ struct TransferRowView: View {
     private var trailingView: some View {
         if item.state == .active || item.state == .queued {
             Button {
-                // Route through the manager so all invariants (objectWillChange,
-                // task nil-out, pending-queue filter if queued) are honored —
-                // previously this bypassed the manager by flipping state +
-                // task.cancel() inline, which missed the cleanup paths.
-                transferManager.cancel(id: item.id)
+                // Defer: cancelling synchronously swaps this row's content
+                // (ProgressView → Text) and removes this very button while
+                // the click handler is still on the stack — crashes
+                // SwiftUI List's variable-height diff. Next-tick is safe.
+                let id = item.id
+                Task { @MainActor in transferManager.cancel(id: id) }
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .foregroundStyle(.secondary)

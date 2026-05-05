@@ -71,8 +71,15 @@ struct UpgradeView: View {
 
             // MARK: - Price
             VStack(spacing: 4) {
-                if let product = storeKitManager.product {
+                if storeKitManager.isProductLoading {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                } else if let product = storeKitManager.product {
                     Text("\(product.displayPrice) — one-time purchase")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Price unavailable")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -99,8 +106,8 @@ struct UpgradeView: View {
                         .background(Color.blue, in: RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)
-                .disabled(storeKitManager.isLoading)
-                .opacity(storeKitManager.isLoading ? 0.5 : 1)
+                .disabled(storeKitManager.isLoading || storeKitManager.product == nil)
+                .opacity(storeKitManager.isLoading || storeKitManager.product == nil ? 0.5 : 1)
                 .accessibilityLabel("Purchase")
 
                 Button {

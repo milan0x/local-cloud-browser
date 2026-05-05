@@ -569,7 +569,9 @@ struct S3ObjectBrowserView: View {
                     .fontWeight(.medium)
                     .monospacedDigit()
                 Button {
-                    transferManager.cancelForBucket(bucket.name)
+                    // Defer — see TransferPopoverView for crash details.
+                    let bucketName = bucket.name
+                    Task { @MainActor in transferManager.cancelForBucket(bucketName) }
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
@@ -2650,7 +2652,7 @@ private struct TransferDetailPopover: View {
                             if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
                         }
                         Button {
-                            transferManager.cancelForBucket(bucket)
+                            Task { @MainActor in transferManager.cancelForBucket(bucket) }
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundStyle(.secondary)
@@ -2669,7 +2671,7 @@ private struct TransferDetailPopover: View {
             HStack {
                 Spacer()
                 Button("Cancel All") {
-                    transferManager.cancelAll()
+                    Task { @MainActor in transferManager.cancelAll() }
                 }
                 .controlSize(.small)
             }

@@ -9,6 +9,7 @@ struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var licenseManager: LicenseManager
     @EnvironmentObject private var storeKitManager: StoreKitManager
+    @State private var showUpgrade = false
 
     var body: some View {
         TabView {
@@ -107,13 +108,13 @@ struct SettingsView: View {
             if !licenseManager.isPaid {
                 Section {
                     Button("Unlock Unlimited") {
-                        licenseManager.showUpgradeSheet = true
+                        showUpgrade = true
                     }
                     Button("Restore Purchase") {
                         Task {
                             let restored = await storeKitManager.restorePurchases()
                             if !restored {
-                                licenseManager.showUpgradeSheet = true
+                                showUpgrade = true
                             }
                         }
                     }
@@ -126,6 +127,9 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .sheet(isPresented: $showUpgrade) {
+            UpgradeView()
+        }
     }
 
     // MARK: - S3
