@@ -21,6 +21,8 @@ Or from the command line:
 xcodebuild -project "Local Cloud Browser.xcodeproj" -scheme LocalCloudBrowser -configuration Debug build
 ```
 
+![Local Cloud Browser](app-ss.png)
+
 ## Status
 
 Free, open source, no upsell. The whole thing was previously gated behind a paid "Unlimited" tier — that's gone. Everything works out of the box.
