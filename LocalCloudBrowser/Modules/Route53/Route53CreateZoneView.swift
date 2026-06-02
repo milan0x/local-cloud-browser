@@ -2,7 +2,6 @@ import SwiftUI
 
 struct Route53CreateZoneView: View {
     @ObservedObject var service: Route53Service
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var zoneName = ""
     @State private var comment = ""
@@ -37,7 +36,6 @@ struct Route53CreateZoneView: View {
                     name: zoneName.trimmingCharacters(in: .whitespaces),
                     comment: comment.trimmingCharacters(in: .whitespaces)
                 )
-                licenseManager.incrementCreateCount(for: .route53)
                 onCreate?(zoneName.trimmingCharacters(in: .whitespaces))
                 dismiss()
             } catch {

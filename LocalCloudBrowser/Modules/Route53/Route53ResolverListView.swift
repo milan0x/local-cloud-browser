@@ -5,7 +5,6 @@ struct Route53ResolverListView: View {
     @ObservedObject var service: Route53ResolverService
     @ObservedObject var toolbarState: Route53ToolbarState
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedEndpointIDs: Set<ResolverEndpoint.ID>
     @Binding var activeEndpoint: ResolverEndpoint?
     var restoreEndpointId: String?
@@ -335,7 +334,6 @@ struct Route53ResolverListView: View {
             }
             if let lastError { serviceError = lastError }
             if !deletedIDs.isEmpty {
-                licenseManager.decrementCreateCount(for: .route53, by: deletedIDs.count)
                 selectedEndpointIDs.subtract(deletedIDs)
                 if let active = activeEndpoint, deletedIDs.contains(active.id) {
                     activeEndpoint = nil
@@ -351,7 +349,6 @@ struct Route53ResolverListView: View {
                 try await service.deleteResolverRule(id: rule.id)
             }
             if !deletedRuleIDs.isEmpty {
-                licenseManager.decrementCreateCount(for: .route53, by: deletedRuleIDs.count)
             }
             if let lastError { serviceError = lastError }
             loadData(force: true)

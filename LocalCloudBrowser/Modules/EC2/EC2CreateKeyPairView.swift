@@ -3,7 +3,6 @@ import AppKit
 
 struct EC2CreateKeyPairView: View {
     @ObservedObject var service: EC2Service
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     var existingNames: Set<String>
     var onCreate: ((String) -> Void)? = nil
@@ -147,7 +146,6 @@ struct EC2CreateKeyPairView: View {
             do {
                 let result = try await service.createKeyPair(keyName: trimmedName)
                 createdKeyPair = result
-                licenseManager.incrementCreateCount(for: .ec2)
                 onCreate?(trimmedName)
             } catch {
                 serviceError = error.asServiceError

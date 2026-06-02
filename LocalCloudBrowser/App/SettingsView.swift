@@ -7,9 +7,6 @@ struct SettingsView: View {
     @AppStorage(AppPreferences.disableJsonHelperPlaceholdersKey) private var disablePlaceholders = false
     @EnvironmentObject private var autoRefresh: AutoRefreshManager
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
-    @EnvironmentObject private var storeKitManager: StoreKitManager
-    @State private var showUpgrade = false
 
     var body: some View {
         TabView {
@@ -21,11 +18,6 @@ struct SettingsView: View {
             s3Settings
                 .tabItem {
                     Label("S3", systemImage: "externaldrive")
-                }
-
-            licenseSettings
-                .tabItem {
-                    Label("License", systemImage: "checkmark.seal")
                 }
         }
         .frame(width: 500, height: 420)
@@ -84,52 +76,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-    }
-
-    // MARK: - License
-
-    private var licenseSettings: some View {
-        Form {
-            Section("Status") {
-                HStack {
-                    Text("License")
-                    Spacer()
-                    switch licenseManager.state {
-                    case .free:
-                        Text("Free")
-                            .foregroundStyle(.orange)
-                    case .paid:
-                        Text("Unlimited")
-                            .foregroundStyle(.green)
-                    }
-                }
-            }
-
-            if !licenseManager.isPaid {
-                Section {
-                    Button("Unlock Unlimited") {
-                        showUpgrade = true
-                    }
-                    Button("Restore Purchase") {
-                        Task {
-                            let restored = await storeKitManager.restorePurchases()
-                            if !restored {
-                                showUpgrade = true
-                            }
-                        }
-                    }
-                }
-            } else {
-                Section {
-                    Text("Thank you for supporting Local Cloud Browser.")
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .formStyle(.grouped)
-        .sheet(isPresented: $showUpgrade) {
-            UpgradeView()
-        }
     }
 
     // MARK: - S3

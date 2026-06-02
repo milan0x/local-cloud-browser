@@ -4,7 +4,6 @@ import AppKit
 struct SNSTopicListView: View {
     @ObservedObject var service: SNSService
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedTopicIDs: Set<SNSTopic.ID>
     @Binding var activeTopic: SNSTopic?
     var restoreTopicArn: String?
@@ -326,7 +325,6 @@ struct SNSTopicListView: View {
             }
             if let error { serviceError = error }
             if !deleted.isEmpty {
-                licenseManager.decrementCreateCount(for: .sns, by: deleted.count)
                 selectedTopicIDs.subtract(deleted)
                 if let active = activeTopic, deleted.contains(active.id) { activeTopic = nil }
                 loadTopics(force: true)

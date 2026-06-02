@@ -395,6 +395,7 @@ final class CloudClient: ObservableObject {
         }
         var allParams = params
         allParams["Action"] = action
+        allParams["Version"] = "2010-12-01"
         let bodyString = allParams
             .sorted { $0.key < $1.key }
             .map {
@@ -404,17 +405,25 @@ final class CloudClient: ObservableObject {
             }
             .joined(separator: "&")
         let body = bodyString.data(using: .utf8)
-        let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/ses/aws4_request"
-        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let callerRegion = effectiveRegion(region)
+        let plan = awsEndpoint(
+            service: "ses",
+            region: region,
+            hostnameOverride: appState.needsSigning ? "https://email.\(callerRegion).amazonaws.com" : nil
+        )
+        var headers: [String: String] = [:]
+        if let auth = plan.authHeader { headers["Authorization"] = auth }
         let response = try await executeRequest(
             method: "POST",
             path: "/",
             queryParams: [:],
             body: body,
             contentType: "application/x-www-form-urlencoded",
-            headers: ["Authorization": auth],
-            skipReadOnlyCheck: true
+            baseURLOverride: plan.baseURL,
+            headers: headers,
+            skipReadOnlyCheck: true,
+            service: plan.signingService,
+            signingRegion: plan.signingRegion
         )
         return response.data
     }
@@ -715,17 +724,20 @@ final class CloudClient: ObservableObject {
             }
             .joined(separator: "&")
         let body = bodyString.data(using: .utf8)
-        let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/cloudformation/aws4_request"
-        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let plan = awsEndpoint(service: "cloudformation", region: region)
+        var headers: [String: String] = [:]
+        if let auth = plan.authHeader { headers["Authorization"] = auth }
         let response = try await executeRequest(
             method: "POST",
             path: "/",
             queryParams: [:],
             body: body,
             contentType: "application/x-www-form-urlencoded",
-            headers: ["Authorization": auth],
-            skipReadOnlyCheck: true
+            baseURLOverride: plan.baseURL,
+            headers: headers,
+            skipReadOnlyCheck: true,
+            service: plan.signingService,
+            signingRegion: plan.signingRegion
         )
         return response.data
     }
@@ -750,21 +762,20 @@ final class CloudClient: ObservableObject {
             Log.warn("Blocked APIGateway \(action) — read-only mode", category: "HTTP")
             throw CloudClientError.readOnlyBlocked(method: "APIGateway:\(action)")
         }
-        let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/apigateway/aws4_request"
-        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
-        var headers = ["Authorization": auth]
-        if body != nil {
-            headers["Content-Type"] = "application/json"
-        }
+        let plan = awsEndpoint(service: "apigateway", region: region)
+        var headers: [String: String] = [:]
+        if let auth = plan.authHeader { headers["Authorization"] = auth }
         return try await executeRequest(
             method: method,
             path: "/restapis" + path,
             queryParams: [:],
             body: body,
             contentType: body != nil ? "application/json" : nil,
+            baseURLOverride: plan.baseURL,
             headers: headers,
-            skipReadOnlyCheck: true
+            skipReadOnlyCheck: true,
+            service: plan.signingService,
+            signingRegion: plan.signingRegion
         )
     }
 
@@ -941,20 +952,20 @@ final class CloudClient: ObservableObject {
             throw CloudClientError.readOnlyBlocked(method: "Route53Resolver:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
-        let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/route53resolver/aws4_request"
-        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let plan = awsEndpoint(service: "route53resolver", region: region)
+        var headers: [String: String] = ["X-Amz-Target": "Route53Resolver.\(action)"]
+        if let auth = plan.authHeader { headers["Authorization"] = auth }
         let response = try await executeRequest(
             method: "POST",
             path: "/",
             queryParams: [:],
             body: body,
             contentType: "application/x-amz-json-1.1",
-            headers: [
-                "X-Amz-Target": "Route53Resolver.\(action)",
-                "Authorization": auth,
-            ],
-            skipReadOnlyCheck: true
+            baseURLOverride: plan.baseURL,
+            headers: headers,
+            skipReadOnlyCheck: true,
+            service: plan.signingService,
+            signingRegion: plan.signingRegion
         )
         return response.data
     }
@@ -973,16 +984,25 @@ final class CloudClient: ObservableObject {
             Log.warn("Blocked Route53 \(method) \(path) — read-only mode", category: "HTTP")
             throw CloudClientError.readOnlyBlocked(method: "Route53:\(method)")
         }
-        let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/route53/aws4_request"
-        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let plan = awsEndpoint(
+            service: "route53",
+            region: region,
+            hostnameOverride: "https://route53.amazonaws.com",
+            signingRegionOverride: "us-east-1"
+        )
+        var headers: [String: String] = [:]
+        if let auth = plan.authHeader { headers["Authorization"] = auth }
         let response = try await executeRequest(
             method: method,
             path: "/2013-04-01" + path,
             queryParams: [:],
             body: body,
             contentType: body != nil ? "application/xml" : nil,
-            headers: ["Authorization": auth]
+            baseURLOverride: plan.baseURL,
+            headers: headers,
+            skipReadOnlyCheck: true,
+            service: plan.signingService,
+            signingRegion: plan.signingRegion
         )
         return response.data
     }
@@ -1011,17 +1031,20 @@ final class CloudClient: ObservableObject {
             }
             .joined(separator: "&")
         let body = bodyString.data(using: .utf8)
-        let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/redshift/aws4_request"
-        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let plan = awsEndpoint(service: "redshift", region: region)
+        var headers: [String: String] = [:]
+        if let auth = plan.authHeader { headers["Authorization"] = auth }
         let response = try await executeRequest(
             method: "POST",
             path: "/",
             queryParams: [:],
             body: body,
             contentType: "application/x-www-form-urlencoded",
-            headers: ["Authorization": auth],
-            skipReadOnlyCheck: true
+            baseURLOverride: plan.baseURL,
+            headers: headers,
+            skipReadOnlyCheck: true,
+            service: plan.signingService,
+            signingRegion: plan.signingRegion
         )
         return response.data
     }
@@ -1044,21 +1067,25 @@ final class CloudClient: ObservableObject {
             Log.warn("Blocked OpenSearch \(action) — read-only mode", category: "HTTP")
             throw CloudClientError.readOnlyBlocked(method: "OpenSearch:\(action)")
         }
-        let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/es/aws4_request"
-        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
-        var headers = ["Authorization": auth]
-        if body != nil {
-            headers["Content-Type"] = "application/json"
-        }
+        let callerRegion = effectiveRegion(region)
+        let plan = awsEndpoint(
+            service: "es",
+            region: region,
+            hostnameOverride: appState.needsSigning ? "https://opensearch.\(callerRegion).amazonaws.com" : nil
+        )
+        var headers: [String: String] = [:]
+        if let auth = plan.authHeader { headers["Authorization"] = auth }
         return try await executeRequest(
             method: method,
             path: "/2021-01-01" + path,
             queryParams: [:],
             body: body,
             contentType: body != nil ? "application/json" : nil,
+            baseURLOverride: plan.baseURL,
             headers: headers,
-            skipReadOnlyCheck: true
+            skipReadOnlyCheck: true,
+            service: plan.signingService,
+            signingRegion: plan.signingRegion
         )
     }
 
@@ -1087,17 +1114,20 @@ final class CloudClient: ObservableObject {
             }
             .joined(separator: "&")
         let body = bodyString.data(using: .utf8)
-        let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/ec2/aws4_request"
-        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let plan = awsEndpoint(service: "ec2", region: region)
+        var headers: [String: String] = [:]
+        if let auth = plan.authHeader { headers["Authorization"] = auth }
         let response = try await executeRequest(
             method: "POST",
             path: "/",
             queryParams: [:],
             body: body,
             contentType: "application/x-www-form-urlencoded",
-            headers: ["Authorization": auth],
-            skipReadOnlyCheck: true
+            baseURLOverride: plan.baseURL,
+            headers: headers,
+            skipReadOnlyCheck: true,
+            service: plan.signingService,
+            signingRegion: plan.signingRegion
         )
         return response.data
     }
@@ -1194,21 +1224,20 @@ final class CloudClient: ObservableObject {
             Log.warn("Blocked Lambda \(action) — read-only mode", category: "HTTP")
             throw CloudClientError.readOnlyBlocked(method: "Lambda:\(action)")
         }
-        let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/lambda/aws4_request"
-        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
-        var headers = ["Authorization": auth]
-        if body != nil {
-            headers["Content-Type"] = "application/json"
-        }
+        let plan = awsEndpoint(service: "lambda", region: region)
+        var headers: [String: String] = [:]
+        if let auth = plan.authHeader { headers["Authorization"] = auth }
         return try await executeRequest(
             method: method,
             path: "/2015-03-31" + path,
             queryParams: [:],
             body: body,
             contentType: body != nil ? "application/json" : nil,
+            baseURLOverride: plan.baseURL,
             headers: headers,
-            skipReadOnlyCheck: true
+            skipReadOnlyCheck: true,
+            service: plan.signingService,
+            signingRegion: plan.signingRegion
         )
     }
 
@@ -1230,21 +1259,20 @@ final class CloudClient: ObservableObject {
             Log.warn("Blocked ResourceGroups \(action) — read-only mode", category: "HTTP")
             throw CloudClientError.readOnlyBlocked(method: "ResourceGroups:\(action)")
         }
-        let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/resource-groups/aws4_request"
-        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
-        var headers = ["Authorization": auth]
-        if body != nil {
-            headers["Content-Type"] = "application/json"
-        }
+        let plan = awsEndpoint(service: "resource-groups", region: region)
+        var headers: [String: String] = [:]
+        if let auth = plan.authHeader { headers["Authorization"] = auth }
         let response = try await executeRequest(
             method: method,
             path: path,
             queryParams: [:],
             body: body,
             contentType: body != nil ? "application/json" : nil,
+            baseURLOverride: plan.baseURL,
             headers: headers,
-            skipReadOnlyCheck: true
+            skipReadOnlyCheck: true,
+            service: plan.signingService,
+            signingRegion: plan.signingRegion
         )
         return response.data
     }
@@ -1263,20 +1291,20 @@ final class CloudClient: ObservableObject {
             throw CloudClientError.readOnlyBlocked(method: "Config:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
-        let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/config/aws4_request"
-        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let plan = awsEndpoint(service: "config", region: region)
+        var headers: [String: String] = ["X-Amz-Target": "StarlingDoveService.\(action)"]
+        if let auth = plan.authHeader { headers["Authorization"] = auth }
         let response = try await executeRequest(
             method: "POST",
             path: "/",
             queryParams: [:],
             body: body,
             contentType: "application/x-amz-json-1.1",
-            headers: [
-                "X-Amz-Target": "StarlingDoveService.\(action)",
-                "Authorization": auth,
-            ],
-            skipReadOnlyCheck: true
+            baseURLOverride: plan.baseURL,
+            headers: headers,
+            skipReadOnlyCheck: true,
+            service: plan.signingService,
+            signingRegion: plan.signingRegion
         )
         return response.data
     }
@@ -1294,20 +1322,24 @@ final class CloudClient: ObservableObject {
             throw CloudClientError.readOnlyBlocked(method: "Support:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
-        let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/us-east-1/support/aws4_request"
-        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let plan = awsEndpoint(
+            service: "support",
+            hostnameOverride: "https://support.us-east-1.amazonaws.com",
+            signingRegionOverride: "us-east-1"
+        )
+        var headers: [String: String] = ["X-Amz-Target": "AWSSupport_20130415.\(action)"]
+        if let auth = plan.authHeader { headers["Authorization"] = auth }
         let response = try await executeRequest(
             method: "POST",
             path: "/",
             queryParams: [:],
             body: body,
             contentType: "application/x-amz-json-1.1",
-            headers: [
-                "X-Amz-Target": "AWSSupport_20130415.\(action)",
-                "Authorization": auth,
-            ],
-            skipReadOnlyCheck: true
+            baseURLOverride: plan.baseURL,
+            headers: headers,
+            skipReadOnlyCheck: true,
+            service: plan.signingService,
+            signingRegion: plan.signingRegion
         )
         return response.data
     }
@@ -1325,20 +1357,20 @@ final class CloudClient: ObservableObject {
             throw CloudClientError.readOnlyBlocked(method: "Transcribe:\(action)")
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
-        let dateStr = Self.iso8601DateOnly.string(from: Date())
-        let credential = "nav/\(dateStr)/\(effectiveRegion(region))/transcribe/aws4_request"
-        let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
+        let plan = awsEndpoint(service: "transcribe", region: region)
+        var headers: [String: String] = ["X-Amz-Target": "Transcribe.\(action)"]
+        if let auth = plan.authHeader { headers["Authorization"] = auth }
         let response = try await executeRequest(
             method: "POST",
             path: "/",
             queryParams: [:],
             body: body,
             contentType: "application/x-amz-json-1.1",
-            headers: [
-                "X-Amz-Target": "Transcribe.\(action)",
-                "Authorization": auth,
-            ],
-            skipReadOnlyCheck: true
+            baseURLOverride: plan.baseURL,
+            headers: headers,
+            skipReadOnlyCheck: true,
+            service: plan.signingService,
+            signingRegion: plan.signingRegion
         )
         return response.data
     }
@@ -1383,7 +1415,7 @@ final class CloudClient: ObservableObject {
         } else {
             let dateStr = Self.iso8601DateOnly.string(from: Date())
             let credentialRegion = signingRegionOverride ?? callerRegion
-            let credential = "nav/\(dateStr)/\(credentialRegion)/\(service)/aws4_request"
+            let credential = "lcb/\(dateStr)/\(credentialRegion)/\(service)/aws4_request"
             let auth = "AWS4-HMAC-SHA256 Credential=\(credential), SignedHeaders=host, Signature=unsigned"
             return AWSEndpointPlan(
                 baseURL: nil,

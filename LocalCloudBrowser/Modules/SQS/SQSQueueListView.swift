@@ -4,7 +4,6 @@ import AppKit
 struct SQSQueueListView: View {
     @ObservedObject var service: SQSService
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedQueueIDs: Set<SQSQueue.ID>
     @Binding var activeQueue: SQSQueue?
     var restoreQueueName: String?
@@ -380,7 +379,6 @@ struct SQSQueueListView: View {
             }
             if let error { serviceError = error }
             if !deleted.isEmpty {
-                licenseManager.decrementCreateCount(for: .sqs, by: deleted.count)
                 selectedQueueIDs.subtract(deleted)
                 if let active = activeQueue, deleted.contains(active.id) { activeQueue = nil }
 

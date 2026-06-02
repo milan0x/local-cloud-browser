@@ -2,7 +2,6 @@ import SwiftUI
 
 struct DynamoDBCreateTableView: View {
     @ObservedObject var service: DynamoDBService
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var tableName = ""
     @State private var partitionKeyName = ""
@@ -138,7 +137,6 @@ struct DynamoDBCreateTableView: View {
                     streamEnabled: enableStreams,
                     streamViewType: enableStreams ? streamViewType : nil
                 )
-                licenseManager.incrementCreateCount(for: .dynamodb)
                 onCreate?(trimmedTableName)
                 dismiss()
             } catch {

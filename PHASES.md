@@ -1,4 +1,4 @@
-# LocalStack Navigator — Implementation Phases (Free-Tier Remaining Services)
+# Local Cloud Browser — Implementation Phases (Free-Tier Remaining Services)
 
 > 7 services remain from the LocalStack Community (free) tier.
 > Each phase = one service module, ordered by implementation value.

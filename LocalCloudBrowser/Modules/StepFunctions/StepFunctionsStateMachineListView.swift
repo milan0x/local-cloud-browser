@@ -5,7 +5,6 @@ struct StepFunctionsStateMachineListView: View {
     @ObservedObject var service: StepFunctionsService
     @ObservedObject var toolbarState: StepFunctionsToolbarState
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedIDs: Set<StateMachineSummary.ID>
     @Binding var activeMachine: StateMachineSummary?
     var restoreName: String?
@@ -262,7 +261,6 @@ struct StepFunctionsStateMachineListView: View {
             }
             if let error { serviceError = error }
             if !deleted.isEmpty {
-                licenseManager.decrementCreateCount(for: .stepFunctions, by: deleted.count)
                 selectedIDs.subtract(deleted)
                 if let active = activeMachine, deleted.contains(active.id) {
                     activeMachine = nil

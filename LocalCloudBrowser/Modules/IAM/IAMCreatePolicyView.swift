@@ -2,7 +2,6 @@ import SwiftUI
 
 struct IAMCreatePolicyView: View {
     @ObservedObject var service: IAMService
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var policyName = ""
     @State private var description = ""
@@ -98,7 +97,6 @@ struct IAMCreatePolicyView: View {
                     policyDocument: policyDocument,
                     description: description.isEmpty ? nil : description
                 )
-                licenseManager.incrementCreateCount(for: .iam)
                 onCreate?(trimmedName)
                 dismiss()
             } catch {

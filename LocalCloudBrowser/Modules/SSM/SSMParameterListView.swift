@@ -5,7 +5,6 @@ struct SSMParameterListView: View {
     @ObservedObject var service: SSMService
     @ObservedObject var toolbarState: SSMToolbarState
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedParameterIDs: Set<SSMParameter.ID>
     @Binding var activeParameter: SSMParameter?
     var restoreParameterName: String?
@@ -277,7 +276,6 @@ struct SSMParameterListView: View {
             }
             if let error { serviceError = error }
             if !deleted.isEmpty {
-                licenseManager.decrementCreateCount(for: .ssm, by: deleted.count)
                 selectedParameterIDs.subtract(deleted)
                 if let active = activeParameter, deleted.contains(active.id) {
                     activeParameter = nil

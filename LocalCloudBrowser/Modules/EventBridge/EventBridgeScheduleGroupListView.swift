@@ -5,7 +5,6 @@ struct EventBridgeScheduleGroupListView: View {
     @ObservedObject var service: EventBridgeSchedulerService
     @ObservedObject var toolbarState: EventBridgeToolbarState
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedGroupIDs: Set<SchedulerScheduleGroup.ID>
     @Binding var activeGroup: SchedulerScheduleGroup?
     var restoreGroupName: String?
@@ -190,7 +189,6 @@ struct EventBridgeScheduleGroupListView: View {
             }
             if let lastError { serviceError = lastError }
             if !deletedIDs.isEmpty {
-                licenseManager.decrementCreateCount(for: .eventBridge, by: deletedIDs.count)
                 selectedGroupIDs.subtract(deletedIDs)
                 if let active = activeGroup, deletedIDs.contains(active.id) {
                     activeGroup = nil

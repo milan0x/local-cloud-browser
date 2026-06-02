@@ -3,7 +3,6 @@ import SwiftUI
 struct S3CreateBucketView: View {
     @ObservedObject var service: S3Service
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var bucketName = ""
     @State private var region = ""
@@ -65,7 +64,6 @@ struct S3CreateBucketView: View {
             do {
                 let regionValue = region.trimmingCharacters(in: .whitespaces)
                 try await service.createBucket(name: name, region: regionValue.isEmpty ? nil : regionValue)
-                licenseManager.incrementCreateCount(for: .s3)
                 onCreate?(name)
                 dismiss()
             } catch {

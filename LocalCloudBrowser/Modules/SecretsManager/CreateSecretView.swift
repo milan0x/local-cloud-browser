@@ -2,7 +2,6 @@ import SwiftUI
 
 struct CreateSecretView: View {
     @ObservedObject var service: SecretsManagerService
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var secretName = ""
     @State private var secretDescription = ""
@@ -86,7 +85,6 @@ struct CreateSecretView: View {
                         secretString: secretValue,
                         description: desc.isEmpty ? nil : desc
                     )
-                    licenseManager.incrementCreateCount(for: .secretsManager)
                     onCreate?(name)
                 }
                 dismiss()

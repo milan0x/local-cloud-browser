@@ -2,7 +2,6 @@ import SwiftUI
 
 struct Route53ResolverCreateEndpointView: View {
     @ObservedObject var service: Route53ResolverService
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var direction = "INBOUND"
@@ -57,7 +56,6 @@ struct Route53ResolverCreateEndpointView: View {
                     securityGroupIds: [securityGroupId.trimmingCharacters(in: .whitespaces)],
                     ipAddresses: [(subnetId: subnetId.trimmingCharacters(in: .whitespaces), ip: trimmedIp.isEmpty ? nil : trimmedIp)]
                 )
-                licenseManager.incrementCreateCount(for: .route53)
                 onCreate?(name.trimmingCharacters(in: .whitespaces))
                 dismiss()
             } catch {

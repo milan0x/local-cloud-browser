@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ConfigCreateDeliveryChannelView: View {
     @ObservedObject var service: ConfigService
-    @EnvironmentObject private var licenseManager: LicenseManager
     var onCreate: ((String) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
@@ -54,7 +53,6 @@ struct ConfigCreateDeliveryChannelView: View {
                     snsTopicARN: snsTopicARN.trimmingCharacters(in: .whitespaces),
                     frequency: deliveryFrequency
                 )
-                licenseManager.incrementCreateCount(for: .config)
                 onCreate?(channelName)
                 dismiss()
             } catch {

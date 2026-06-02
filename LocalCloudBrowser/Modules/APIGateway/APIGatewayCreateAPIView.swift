@@ -2,7 +2,6 @@ import SwiftUI
 
 struct APIGatewayCreateAPIView: View {
     @ObservedObject var service: APIGatewayService
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var description = ""
@@ -67,7 +66,6 @@ struct APIGatewayCreateAPIView: View {
                     description: description.trimmingCharacters(in: .whitespaces),
                     endpointType: endpointType
                 )
-                licenseManager.incrementCreateCount(for: .apiGateway)
                 onCreate?(trimmedName)
                 dismiss()
             } catch {

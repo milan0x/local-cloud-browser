@@ -5,7 +5,6 @@ struct APIGatewayAPIListView: View {
     @ObservedObject var service: APIGatewayService
     @ObservedObject var toolbarState: APIGatewayToolbarState
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedAPIIDs: Set<RestApi.ID>
     @Binding var activeAPI: RestApi?
     var restoreAPIId: String?
@@ -234,7 +233,6 @@ struct APIGatewayAPIListView: View {
                 }
             }
             if !deletedIDs.isEmpty {
-                licenseManager.decrementCreateCount(for: .apiGateway, by: deletedIDs.count)
                 selectedAPIIDs.subtract(deletedIDs)
                 if let active = activeAPI, deletedIDs.contains(active.id) {
                     activeAPI = nil

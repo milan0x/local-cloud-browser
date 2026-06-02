@@ -20,6 +20,7 @@ struct SESToolbar: ToolbarContent {
     @ObservedObject var state: SESToolbarState
     let isReadOnly: Bool
     let hasIdentity: Bool
+    let isLocalEndpoint: Bool
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
@@ -38,13 +39,15 @@ struct SESToolbar: ToolbarContent {
             .help("Send Email")
             .disabled(isReadOnly || !hasIdentity)
         }
-        ToolbarItem(placement: .primaryAction) {
-            Button { state.pendingAction = .clearSentEmails } label: {
-                Label("Clear", systemImage: "trash.circle")
-                    .toolbarHitTarget()
+        if isLocalEndpoint {
+            ToolbarItem(placement: .primaryAction) {
+                Button { state.pendingAction = .clearSentEmails } label: {
+                    Label("Clear", systemImage: "trash.circle")
+                        .toolbarHitTarget()
+                }
+                .help("Clear Sent Emails")
+                .disabled(isReadOnly)
             }
-            .help("Clear Sent Emails")
-            .disabled(isReadOnly)
         }
         ToolbarItem(placement: .primaryAction) {
             let disabled = !hasIdentity || isReadOnly

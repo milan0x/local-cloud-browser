@@ -5,7 +5,6 @@ struct ResourceGroupsListView: View {
     @ObservedObject var service: ResourceGroupsService
     @ObservedObject var toolbarState: ResourceGroupsToolbarState
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedGroupIDs: Set<ResourceGroupSummary.ID>
     @Binding var activeGroup: ResourceGroupSummary?
     var restoreGroupName: String?
@@ -252,7 +251,6 @@ struct ResourceGroupsListView: View {
             }
             if let error { serviceError = error }
             if !deleted.isEmpty {
-                licenseManager.decrementCreateCount(for: .resourceGroups, by: deleted.count)
                 selectedGroupIDs.subtract(deleted)
                 if let active = activeGroup, deleted.contains(active.id) {
                     activeGroup = nil

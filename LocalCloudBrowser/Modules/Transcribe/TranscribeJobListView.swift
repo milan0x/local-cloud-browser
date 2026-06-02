@@ -5,7 +5,6 @@ struct TranscribeJobListView: View {
     @ObservedObject var service: TranscribeService
     @ObservedObject var toolbarState: TranscribeToolbarState
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedJobIDs: Set<TranscriptionJob.ID>
     @Binding var activeJob: TranscriptionJob?
     var restoreJobName: String?
@@ -225,7 +224,6 @@ struct TranscribeJobListView: View {
             }
             if let error { serviceError = error }
             if !deleted.isEmpty {
-                licenseManager.decrementCreateCount(for: .transcribe, by: deleted.count)
                 selectedJobIDs.subtract(deleted)
                 if let active = activeJob, deleted.contains(active.id) {
                     activeJob = nil

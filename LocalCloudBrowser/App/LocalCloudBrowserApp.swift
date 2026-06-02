@@ -23,8 +23,6 @@ struct LocalCloudBrowserApp: App {
     @StateObject private var appState: AppState
     @StateObject private var client: CloudClient
     @StateObject private var profileStore: ConnectionProfileStore
-    @StateObject private var storeKitManager: StoreKitManager
-    @StateObject private var licenseManager: LicenseManager
     @StateObject private var transferManager = TransferManager()
 
     init() {
@@ -71,19 +69,24 @@ struct LocalCloudBrowserApp: App {
         } else {
             LastSessionStore.clearSubResources()
         }
-        let storeKit = StoreKitManager()
-        let license = LicenseManager(storeKit: storeKit)
-        license.appState = state
-        license.refreshState()
-        storeKit.onPurchaseChange = { [weak license] in
-            license?.refreshState()
-        }
+        Self.purgeLegacyLicenseDefaults()
 
         _appState = StateObject(wrappedValue: state)
         _client = StateObject(wrappedValue: CloudClient(appState: state))
         _profileStore = StateObject(wrappedValue: store)
-        _storeKitManager = StateObject(wrappedValue: storeKit)
-        _licenseManager = StateObject(wrappedValue: license)
+    }
+
+    /// One-time cleanup of UserDefaults keys left behind by the old paid
+    /// licensing system. Removes per-service create counters and the
+    /// cached StoreKit purchase flag so they don't linger forever on
+    /// existing installs.
+    private static func purgeLegacyLicenseDefaults() {
+        let defaults = UserDefaults.standard
+        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix("freeCreates_") {
+            defaults.removeObject(forKey: key)
+        }
+        defaults.removeObject(forKey: "storeKit.cachedIsPurchased")
+        defaults.removeObject(forKey: "trialStartDate")
     }
 
     var body: some Scene {
@@ -93,8 +96,6 @@ struct LocalCloudBrowserApp: App {
                 .environmentObject(client)
                 .environmentObject(profileStore)
                 .environmentObject(appState.autoRefresh)
-                .environmentObject(licenseManager)
-                .environmentObject(storeKitManager)
                 .environmentObject(transferManager)
                 .frame(minWidth: 880, minHeight: 500)
                 .onAppear {
@@ -144,8 +145,6 @@ struct LocalCloudBrowserApp: App {
                     .environmentObject(appState)
                     .environmentObject(client)
                     .environmentObject(appState.autoRefresh)
-                    .environmentObject(licenseManager)
-                    .environmentObject(storeKitManager)
                     .environmentObject(transferManager)
             }
         }
@@ -154,8 +153,6 @@ struct LocalCloudBrowserApp: App {
             SettingsView()
                 .environmentObject(appState)
                 .environmentObject(appState.autoRefresh)
-                .environmentObject(licenseManager)
-                .environmentObject(storeKitManager)
         }
     }
 }

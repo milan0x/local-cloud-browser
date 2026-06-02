@@ -3,7 +3,6 @@ import SwiftUI
 struct SQSCreateQueueView: View {
     @ObservedObject var service: SQSService
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var queueName = ""
     @State private var isFifo = false
@@ -88,7 +87,6 @@ struct SQSCreateQueueView: View {
         Task {
             do {
                 let url = try await service.createQueue(name: effectiveName, isFifo: isFifo)
-                licenseManager.incrementCreateCount(for: .sqs)
                 onCreate?(effectiveName, url)
                 dismiss()
             } catch {

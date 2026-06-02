@@ -14,7 +14,6 @@ struct S3ObjectBrowserView: View {
     @ObservedObject var service: S3Service
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var transferManager: TransferManager
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.openWindow) private var openWindow
     let bucket: S3Bucket
     var paneID: String = "main"
@@ -176,13 +175,9 @@ struct S3ObjectBrowserView: View {
                 // batch. Makes uploads feel alive — the user sees new rows
                 // appear as each file completes.
                 let thisBucket = bucket.name
-                let licenseMgr = licenseManager
                 transferManager.onFileUploaded = { uploadBucket, key, size in
                     guard uploadBucket == thisBucket else { return }
                     appendUploadedObject(key: key, size: size, prefix: currentPrefix)
-                    // Every successful upload counts as a "create" against
-                    // the free-tier per-service quota. No-op for paid.
-                    licenseMgr.incrementCreateCount(for: .s3)
                 }
                 pathComponents = []
                 navigationHistory = [[]]
@@ -2055,10 +2050,9 @@ struct S3ObjectBrowserView: View {
         }
 
         guard !requests.isEmpty else { return }
-        guard let gated = gatedUploadRequests(requests) else { return }
 
         let uploadService = service
-        transferManager.enqueueUploads(gated) { request, _, progress in
+        transferManager.enqueueUploads(requests) { request, _, progress in
             try await uploadService.uploadFile(
                 bucket: request.bucket,
                 key: request.s3Key,
@@ -2067,27 +2061,6 @@ struct S3ObjectBrowserView: View {
                 progress: progress
             )
         }
-    }
-
-    /// Apply the free-tier per-service quota to a batch of upload requests.
-    /// Returns `nil` when no uploads should proceed (paid users always get
-    /// the original list back). For free users who try to upload more than
-    /// their remaining quota, the list is trimmed to fit and an upgrade
-    /// sheet is shown to explain why.
-    private func gatedUploadRequests(_ requests: [UploadRequest]) -> [UploadRequest]? {
-        if licenseManager.isPaid { return requests }
-        let remaining = licenseManager.remainingCreates(for: .s3)
-        if remaining <= 0 {
-            licenseManager.upgradeContext = "You've reached the free limit of \(LicenseManager.freeCreateLimit) S3 uploads."
-            licenseManager.showUpgradeSheet = true
-            return nil
-        }
-        if requests.count > remaining {
-            licenseManager.upgradeContext = "Free tier allows \(remaining) more upload\(remaining == 1 ? "" : "s") in this service. Upgrade to upload all \(requests.count) files."
-            licenseManager.showUpgradeSheet = true
-            return Array(requests.prefix(remaining))
-        }
-        return requests
     }
 
     @MainActor
@@ -2106,10 +2079,9 @@ struct S3ObjectBrowserView: View {
             )
         }
         guard !builtRequests.isEmpty else { return }
-        guard let requests = gatedUploadRequests(builtRequests) else { return }
 
         let uploadService = service
-        transferManager.enqueueUploads(requests) { request, _, progress in
+        transferManager.enqueueUploads(builtRequests) { request, _, progress in
             try await uploadService.uploadFile(
                 bucket: request.bucket,
                 key: request.s3Key,

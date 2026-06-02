@@ -5,7 +5,6 @@ struct IAMEntityListView: View {
     @ObservedObject var service: IAMService
     @ObservedObject var toolbarState: IAMToolbarState
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var entityType: IAMEntityType
     @Binding var selectedUserName: String?
     @Binding var selectedRoleName: String?
@@ -740,7 +739,6 @@ struct IAMEntityListView: View {
                 }
             }
             if !deletedIDs.isEmpty {
-                licenseManager.decrementCreateCount(for: .iam, by: deletedIDs.count)
                 selectedUserIDs.subtract(deletedIDs)
                 if let name = selectedUserName, deletedIDs.contains(name) {
                     selectedUserName = nil
@@ -763,7 +761,6 @@ struct IAMEntityListView: View {
                 }
             }
             if !deletedIDs.isEmpty {
-                licenseManager.decrementCreateCount(for: .iam, by: deletedIDs.count)
                 selectedRoleIDs.subtract(deletedIDs)
                 if let name = selectedRoleName, deletedIDs.contains(name) {
                     selectedRoleName = nil
@@ -786,7 +783,6 @@ struct IAMEntityListView: View {
                 }
             }
             if !deletedIDs.isEmpty {
-                licenseManager.decrementCreateCount(for: .iam, by: deletedIDs.count)
                 selectedPolicyIDs.subtract(deletedIDs)
                 if let arn = selectedPolicyArn, deletedIDs.contains(arn) {
                     selectedPolicyArn = nil

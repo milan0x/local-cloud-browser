@@ -5,7 +5,6 @@ struct KinesisFirehoseListView: View {
     @ObservedObject var service: KinesisFirehoseService
     @ObservedObject var toolbarState: KinesisToolbarState
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedStreamIDs: Set<FirehoseDeliveryStreamSummary.ID>
     @Binding var activeStream: FirehoseDeliveryStreamSummary?
     var restoreDeliveryStreamName: String?
@@ -283,7 +282,6 @@ struct KinesisFirehoseListView: View {
             }
             if let error { serviceError = error }
             if !deleted.isEmpty {
-                licenseManager.decrementCreateCount(for: .kinesis, by: deleted.count)
                 selectedStreamIDs.subtract(deleted)
                 if let active = activeStream, deleted.contains(active.id) { activeStream = nil }
                 loadStreams(force: true)

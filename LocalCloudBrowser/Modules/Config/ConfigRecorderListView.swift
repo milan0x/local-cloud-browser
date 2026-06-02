@@ -5,7 +5,6 @@ struct ConfigRecorderListView: View {
     @ObservedObject var service: ConfigService
     @ObservedObject var toolbarState: ConfigToolbarState
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedRecorderIDs: Set<ConfigurationRecorder.ID>
     @Binding var activeRecorder: ConfigurationRecorder?
     var restoreRecorderName: String?
@@ -211,7 +210,6 @@ struct ConfigRecorderListView: View {
                 }
             }
             if !deletedIDs.isEmpty {
-                licenseManager.decrementCreateCount(for: .config, by: deletedIDs.count)
                 selectedRecorderIDs.subtract(deletedIDs)
                 if let active = activeRecorder, deletedIDs.contains(active.id) {
                     activeRecorder = nil

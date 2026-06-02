@@ -28,21 +28,24 @@ struct SESModuleView: View {
                 activeIdentity: $activeIdentity,
                 restoreIdentityName: restoreIdentityName
             )
-            .frame(minWidth: 310, idealWidth: 310, maxWidth: 350)
+            .frame(minWidth: 310, idealWidth: appState.isLocalEndpoint ? 310 : .infinity, maxWidth: appState.isLocalEndpoint ? 350 : .infinity)
 
-            SESSentEmailBrowserView(
-                service: service,
-                toolbarState: toolbarState,
-                selectedIdentity: activeIdentity
-            )
-            .frame(minWidth: 140)
-            .layoutPriority(1)
+            if appState.isLocalEndpoint {
+                SESSentEmailBrowserView(
+                    service: service,
+                    toolbarState: toolbarState,
+                    selectedIdentity: activeIdentity
+                )
+                .frame(minWidth: 140)
+                .layoutPriority(1)
+            }
         }
         .toolbar {
             SESToolbar(
                 state: toolbarState,
                 isReadOnly: appState.isReadOnly,
-                hasIdentity: activeIdentity != nil
+                hasIdentity: activeIdentity != nil,
+                isLocalEndpoint: appState.isLocalEndpoint
             )
         }
         .onChange(of: activeIdentity) {

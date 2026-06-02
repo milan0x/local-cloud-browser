@@ -6,7 +6,6 @@ struct OpenSearchDomainDetailView: View {
     let domain: OpenSearchDomain
     @ObservedObject var toolbarState: OpenSearchToolbarState
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
 
     @State private var serviceError: ServiceError?
     @State private var domainsToDelete: [OpenSearchDomain] = []
@@ -354,7 +353,6 @@ struct OpenSearchDomainDetailView: View {
         Task {
             do {
                 try await service.deleteDomain(name: target.domainName)
-                licenseManager.decrementCreateCount(for: .opensearch)
             } catch {
                 serviceError = error.asServiceError
             }

@@ -9,7 +9,6 @@ import SwiftUI
 struct SidebarView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var profileStore: ConnectionProfileStore
-    @EnvironmentObject private var licenseManager: LicenseManager
     @EnvironmentObject private var transferManager: TransferManager
     @State private var showRegionPicker = false
     @State private var showConnectionManager = false

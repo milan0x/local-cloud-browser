@@ -3,7 +3,6 @@ import UniformTypeIdentifiers
 
 struct LambdaCreateFunctionView: View {
     @ObservedObject var service: LambdaService
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
     @State private var functionName = ""
     @State private var runtime = "python3.12"
@@ -274,7 +273,6 @@ struct LambdaCreateFunctionView: View {
                     )
                 }
                 if !isEditing {
-                    licenseManager.incrementCreateCount(for: .lambda)
                     onCreate?(name)
                 }
                 dismiss()

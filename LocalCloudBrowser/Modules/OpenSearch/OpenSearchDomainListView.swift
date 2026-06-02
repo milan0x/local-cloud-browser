@@ -5,7 +5,6 @@ struct OpenSearchDomainListView: View {
     @ObservedObject var service: OpenSearchService
     @ObservedObject var toolbarState: OpenSearchToolbarState
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedDomainIDs: Set<OpenSearchDomain.ID>
     @Binding var activeDomain: OpenSearchDomain?
     var restoreDomainName: String?
@@ -216,7 +215,6 @@ struct OpenSearchDomainListView: View {
             }
             if let error { serviceError = error }
             if !deleted.isEmpty {
-                licenseManager.decrementCreateCount(for: .opensearch, by: deleted.count)
                 selectedDomainIDs.subtract(deleted)
                 if let active = activeDomain, deleted.contains(active.id) {
                     activeDomain = nil

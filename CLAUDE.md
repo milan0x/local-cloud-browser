@@ -6,12 +6,12 @@ Native macOS SwiftUI application for managing AWS-compatible endpoints. Provides
 ## Tech Stack
 - **Language:** Swift 6.0
 - **UI:** SwiftUI, macOS 14+
-- **Package Manager:** Swift Package Manager (Package.swift)
+- **Build:** Xcode project (`Local Cloud Browser.xcodeproj`) using PBXFileSystemSynchronizedRootGroup — files auto-discovered, no manual target membership
 - **Architecture:** Module-based with enum-driven routing
 
 ## Project Structure
 ```
-Sources/LocalCloudBrowser/
+LocalCloudBrowser/
 ├── App/           — Entry point and global state
 ├── Navigation/    — Sidebar, content shell, route enum
 ├── Modules/       — Service modules (protocol + per-service views)
@@ -37,20 +37,19 @@ Sources/LocalCloudBrowser/
 
 ## Build & Run
 ```bash
-swift build        # Build from CLI
-swift run          # Run from CLI (or open Package.swift in Xcode and Cmd+R)
-swift test         # Run unit tests
+xcodebuild -project "Local Cloud Browser.xcodeproj" -scheme LocalCloudBrowser -configuration Debug build
+# or open in Xcode and ⌘R
 ```
 
 ## Build & Test Rules
 
 ### After Every Code Change
-- Run `swift build` after modifying any file under `Sources/`. The project compiles in ~2 seconds — always rebuild so the binary stays current.
+- Run the xcodebuild command above after modifying any file under `LocalCloudBrowser/`. Always rebuild so the binary stays current.
 - If the build fails, fix compilation errors before moving on.
+- SourceKit LSP diagnostics are noise — verify with actual `xcodebuild`.
 
 ### After Completing a Task
-- Run `swift test` and ensure all tests pass.
-- If tests fail, fix the code to make them pass. Do NOT modify or delete tests to make them pass unless the test itself is wrong.
+- A test scheme is not yet wired into the Xcode project (tests live under `Tests/` but cannot be run via `xcodebuild test` until a test target is added). Skip the run-tests step until the scheme is fixed.
 - Do NOT write new tests unless explicitly asked to.
 
 ### What Is Testable (Unit Tests Only)

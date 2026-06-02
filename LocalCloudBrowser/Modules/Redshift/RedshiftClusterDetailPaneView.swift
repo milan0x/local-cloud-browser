@@ -6,7 +6,6 @@ struct RedshiftClusterDetailPaneView: View {
     let cluster: RedshiftCluster
     @ObservedObject var toolbarState: RedshiftToolbarState
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
 
     @State private var serviceError: ServiceError?
     @State private var clustersToDelete: [RedshiftCluster] = []
@@ -185,7 +184,6 @@ struct RedshiftClusterDetailPaneView: View {
         Task {
             do {
                 try await service.deleteCluster(id: target.clusterIdentifier)
-                licenseManager.decrementCreateCount(for: .redshift)
             } catch {
                 serviceError = error.asServiceError
             }

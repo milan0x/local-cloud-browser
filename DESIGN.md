@@ -1,4 +1,4 @@
-# LocalStack Navigator — Design Document
+# Local Cloud Browser — Design Document
 
 ## Vision
 A native macOS application that provides a graphical interface for managing LocalStack AWS environments. The app prioritizes safety (preventing accidental operations on real AWS), discoverability, and a native macOS experience.

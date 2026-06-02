@@ -7,10 +7,6 @@ struct ShowFeedbackKey: FocusedValueKey {
     typealias Value = Binding<Bool>
 }
 
-struct ShowUpgradeKey: FocusedValueKey {
-    typealias Value = Binding<Bool>
-}
-
 struct ProfileStoreKey: FocusedValueKey {
     typealias Value = ConnectionProfileStore
 }
@@ -23,19 +19,10 @@ struct ShowNewConnectionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
-struct RestorePurchaseKey: FocusedValueKey {
-    typealias Value = () -> Void
-}
-
 extension FocusedValues {
     var showFeedback: Binding<Bool>? {
         get { self[ShowFeedbackKey.self] }
         set { self[ShowFeedbackKey.self] = newValue }
-    }
-
-    var showUpgrade: Binding<Bool>? {
-        get { self[ShowUpgradeKey.self] }
-        set { self[ShowUpgradeKey.self] = newValue }
     }
 
     var profileStore: ConnectionProfileStore? {
@@ -52,11 +39,6 @@ extension FocusedValues {
         get { self[ShowNewConnectionKey.self] }
         set { self[ShowNewConnectionKey.self] = newValue }
     }
-
-    var restorePurchase: (() -> Void)? {
-        get { self[RestorePurchaseKey.self] }
-        set { self[RestorePurchaseKey.self] = newValue }
-    }
 }
 
 // MARK: - App constants
@@ -71,8 +53,6 @@ enum AppInfo {
 
 struct HelpCommands: Commands {
     @FocusedValue(\.showFeedback) private var showFeedback
-    @FocusedValue(\.showUpgrade) private var showUpgrade
-    @FocusedValue(\.restorePurchase) private var restorePurchase
 
     var body: some Commands {
         CommandGroup(replacing: .help) {
@@ -80,21 +60,6 @@ struct HelpCommands: Commands {
                 showKeyboardShortcuts()
             }
             .keyboardShortcut("/", modifiers: .command)
-
-            Divider()
-
-            Button("Unlock Unlimited...") {
-                showUpgrade?.wrappedValue = true
-            }
-
-            // Calls restorePurchases() directly via the FocusedValue
-            // closure published by ContentView. Previously this just
-            // opened the upgrade sheet, forcing the user to click
-            // "Restore Purchase" twice (menu → sheet) to actually
-            // run the restore.
-            Button("Restore Purchase...") {
-                restorePurchase?()
-            }
 
             Divider()
 

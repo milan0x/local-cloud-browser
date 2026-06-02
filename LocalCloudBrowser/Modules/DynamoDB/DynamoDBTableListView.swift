@@ -5,7 +5,6 @@ struct DynamoDBTableListView: View {
     @ObservedObject var service: DynamoDBService
     @ObservedObject var toolbarState: DynamoDBToolbarState
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedTableIDs: Set<DynamoDBTable.ID>
     @Binding var activeTable: DynamoDBTable?
     @Binding var tableDetail: DynamoDBTableDetail?
@@ -269,7 +268,6 @@ struct DynamoDBTableListView: View {
             }
             if let error { serviceError = error }
             if !deleted.isEmpty {
-                licenseManager.decrementCreateCount(for: .dynamodb, by: deleted.count)
                 selectedTableIDs.subtract(deleted)
                 if let active = activeTable, deleted.contains(active.id) {
                     activeTable = nil

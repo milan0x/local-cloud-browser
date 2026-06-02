@@ -5,7 +5,6 @@ struct SecretsListView: View {
     @ObservedObject var service: SecretsManagerService
     @ObservedObject var toolbarState: SecretsManagerToolbarState
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Binding var selectedSecretIDs: Set<Secret.ID>
     @Binding var activeSecret: Secret?
     var restoreSecretName: String?
@@ -213,7 +212,6 @@ struct SecretsListView: View {
             }
             if let error { serviceError = error }
             if !deleted.isEmpty {
-                licenseManager.decrementCreateCount(for: .secretsManager, by: deleted.count)
                 selectedSecretIDs.subtract(deleted)
                 if let active = activeSecret, deleted.contains(active.id) {
                     activeSecret = nil

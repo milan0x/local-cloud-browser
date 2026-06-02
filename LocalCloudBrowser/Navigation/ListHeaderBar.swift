@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ListHeaderBar<Trailing: View>: View {
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var licenseManager: LicenseManager
 
     let title: String
     let subtitle: String?
@@ -63,24 +62,7 @@ struct ListHeaderBar<Trailing: View>: View {
                     .foregroundStyle(.secondary)
                     .help("Read-only mode is active. Disable it in the toolbar to make changes.")
             }
-            if !licenseManager.isPaid, !isReadOnly, let route = appState.selectedRoute {
-                let remaining = licenseManager.remainingCreates(for: route)
-                Text("\(remaining)/\(LicenseManager.freeCreateLimit)")
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundStyle(remaining > 0 ? Color.secondary : Color.red)
-                    .help(remaining > 0
-                          ? "\(remaining) free creates remaining"
-                          : "Click to sync with actual resource count")
-                    .onTapGesture {
-                        if licenseManager.syncCreateCount(for: route, actualCount: itemCount) {
-                            Log.info("Synced free slots for \(route.displayName): actual=\(itemCount)", category: "License")
-                        }
-                    }
-            }
-            ListHeaderButton("plus", isDisabled: isReadOnly, help: isReadOnly ? "Read-only mode is active" : "", action: {
-                guard licenseManager.guardWriteAction(for: appState.selectedRoute) else { return }
-                onCreate()
-            })
+            ListHeaderButton("plus", isDisabled: isReadOnly, help: isReadOnly ? "Read-only mode is active" : "", action: onCreate)
             if !appState.isLocalEndpoint {
                 ProductionAutoRefreshBadge()
                 Button {

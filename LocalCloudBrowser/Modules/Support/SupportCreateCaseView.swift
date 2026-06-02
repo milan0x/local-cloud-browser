@@ -2,7 +2,6 @@ import SwiftUI
 
 struct SupportCreateCaseView: View {
     @ObservedObject var service: SupportService
-    @EnvironmentObject private var licenseManager: LicenseManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var subject = ""
@@ -110,7 +109,6 @@ struct SupportCreateCaseView: View {
                     categoryCode: trimmedCategory,
                     communicationBody: trimmedBody
                 )
-                licenseManager.incrementCreateCount(for: .support)
                 onCreate?(trimmedSubject)
                 dismiss()
             } catch {
