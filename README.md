@@ -1,6 +1,6 @@
 # Local Cloud Browser
 
-A native macOS app for AWS-compatible endpoints, built in SwiftUI. Vibe-coded, local-first — read-only toggle on by default, endpoints get a quick safety check, and SigV4 signing is wired in so pointing at real AWS works for everyday browsing.
+A native macOS app for AWS-compatible endpoints, built in SwiftUI. Vibe-coded, local-first, and SigV4 signing is wired in so pointing at real AWS works for everyday browsing.
 
 ## What's in it
 
