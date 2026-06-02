@@ -25,9 +25,13 @@ xcodebuild -project "Local Cloud Browser.xcodeproj" -scheme LocalCloudBrowser -c
 
 ## Status
 
-Free, open source, no upsell. The whole thing was previously gated behind a paid "Unlimited" tier — that's gone. Everything works out of the box.
+Free, source-available, no upsell. The whole thing was previously gated behind a paid "Unlimited" tier — that's gone. Everything works out of the box.
 
 Production-ish use against real AWS works, but I'd treat it as a dev/debug companion, not a control plane. The read-only toggle exists for a reason.
+
+## License
+
+[PolyForm Noncommercial 1.0.0](LICENSE). Use it, fork it, modify it, share it — all fine for any noncommercial purpose (personal, research, education, public-benefit, etc.). What's not allowed is redistributing it (modified or not) as part of a commercial product or service. If you want a commercial license, open an issue.
 
 ## Contributing
 
