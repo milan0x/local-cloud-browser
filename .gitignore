@@ -1,8 +1,11 @@
-#15 -- [x] Fix: removed `.draggable`/`.dropDestination` from table cells (was stealing click/select gestures)
 # Xcode
 xcuserdata/
 *.xcscmblueprint
 *.xccheckout
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
 
 # Build
 .build/
@@ -10,14 +13,17 @@ DerivedData/
 build/
 
 # Swift Package Manager
-.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
-.swiftpm/xcode/xcuserdata/
+.swiftpm/
 Package.resolved
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*~
 
 # macOS
 .DS_Store
-*.swp
-*~
 
 # Environment
 .env
