@@ -1,13 +1,11 @@
 import SwiftUI
 
 struct SupportHeartButton: View {
+    let onTap: () -> Void
     @State private var isHovering = false
-    @State private var showDonation = false
 
     var body: some View {
-        Button {
-            showDonation = true
-        } label: {
+        Button(action: onTap) {
             HStack(spacing: 6) {
                 if isHovering {
                     Text("Support development")
@@ -37,8 +35,5 @@ struct SupportHeartButton: View {
             }
         }
         .padding(16)
-        .sheet(isPresented: $showDonation) {
-            DonationView()
-        }
     }
 }

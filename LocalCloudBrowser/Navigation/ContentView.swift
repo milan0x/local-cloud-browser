@@ -8,6 +8,7 @@ struct ContentView: View {
     @State private var showWelcome = false
     @State private var showNewConnection = false
     @State private var showPermissionBuilder = false
+    @State private var showDonation = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
 
     var body: some View {
@@ -24,7 +25,9 @@ struct ContentView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .overlay(alignment: .bottomTrailing) {
-            SupportHeartButton()
+            SupportHeartButton {
+                showDonation = true
+            }
         }
         .toolbar {
             ToolbarItem(placement: .automatic) {
@@ -67,11 +70,15 @@ struct ContentView: View {
         .focusedSceneValue(\.profileStore, profileStore)
         .focusedSceneValue(\.appState, appState)
         .focusedSceneValue(\.showNewConnection) { showNewConnection = true }
+        .focusedSceneValue(\.showDonation, $showDonation)
         .sheet(isPresented: $showFeedback) {
             FeedbackView()
         }
         .sheet(isPresented: $showWelcome) {
             WelcomeView()
+        }
+        .sheet(isPresented: $showDonation) {
+            DonationView()
         }
         .sheet(isPresented: $showNewConnection) {
             ConnectionProfileEditorView(

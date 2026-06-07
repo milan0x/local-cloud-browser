@@ -135,6 +135,7 @@ struct LocalCloudBrowserApp: App {
         .commands {
             FileCommands()
             ConnectionCommands()
+            DonationCommands()
             S3PasteboardCommands()
             HelpCommands()
         }

@@ -19,6 +19,10 @@ struct ShowNewConnectionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
+struct ShowDonationKey: FocusedValueKey {
+    typealias Value = Binding<Bool>
+}
+
 extension FocusedValues {
     var showFeedback: Binding<Bool>? {
         get { self[ShowFeedbackKey.self] }
@@ -38,6 +42,11 @@ extension FocusedValues {
     var showNewConnection: (() -> Void)? {
         get { self[ShowNewConnectionKey.self] }
         set { self[ShowNewConnectionKey.self] = newValue }
+    }
+
+    var showDonation: Binding<Bool>? {
+        get { self[ShowDonationKey.self] }
+        set { self[ShowDonationKey.self] = newValue }
     }
 }
 
@@ -193,6 +202,21 @@ struct FileCommands: Commands {
                 showNewConnection?()
             }
             .keyboardShortcut("n", modifiers: [.command, .shift])
+        }
+    }
+}
+
+// MARK: - Donation menu commands
+
+struct DonationCommands: Commands {
+    @FocusedValue(\.showDonation) private var showDonation
+
+    var body: some Commands {
+        CommandMenu("Donation") {
+            Button("Support Development...") {
+                showDonation?.wrappedValue = true
+            }
+            .disabled(showDonation == nil)
         }
     }
 }

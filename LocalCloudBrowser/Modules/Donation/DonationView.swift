@@ -27,12 +27,12 @@ struct DonationView: View {
                     .keyboardShortcut(.cancelAction)
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 20)
-                .padding(.bottom, 16)
+                .padding(.top, 14)
+                .padding(.bottom, 10)
 
                 Divider()
 
-                VStack(spacing: 12) {
+                VStack(spacing: 10) {
                     ForEach(DonationAddress.all) { entry in
                         DonationRow(entry: entry) {
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
@@ -42,10 +42,10 @@ struct DonationView: View {
                     }
                     Divider()
                         .padding(.horizontal, 20)
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 2)
                     BackupRow()
                 }
-                .padding(.vertical, 16)
+                .padding(.vertical, 12)
             }
 
             if let entry = enlargedEntry {
@@ -57,7 +57,7 @@ struct DonationView: View {
                 .transition(.opacity)
             }
         }
-        .frame(width: 560, height: 640)
+        .frame(width: 560, height: 596)
     }
 }
 
