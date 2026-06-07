@@ -12,21 +12,24 @@ Native macOS SwiftUI application for managing AWS-compatible endpoints. Provides
 ## Project Structure
 ```
 LocalCloudBrowser/
-├── App/           — Entry point and global state
+├── App/           — Entry point, global state, command menus
 ├── Navigation/    — Sidebar, content shell, route enum
-├── Modules/       — Service modules (protocol + per-service views)
+├── Modules/       — Service modules (protocol + per-service views) + Donation panel
 ├── Safety/        — Endpoint validation, read-only interceptor
-├── Networking/    — HTTP client for AWS-compatible endpoints
+├── Networking/    — HTTP client + SigV4 signing
 └── Settings/      — Connection configuration model
 ```
 
 ## Key Files
 - `App/AppState.swift` — Global ObservableObject; holds connection state, endpoint, read-only flag, selected route
+- `App/HelpCommands.swift` — All `Commands` for the menu bar (File, Connection, Donation, Help) + FocusedValueKeys
 - `Navigation/Route.swift` — Enum of all navigable services
-- `Navigation/ContentView.swift` — Main NavigationSplitView shell
+- `Navigation/ContentView.swift` — Main NavigationSplitView shell; owns the donation sheet binding and the floating heart overlay
 - `Modules/ServiceModule.swift` — Protocol all service modules conform to
+- `Modules/Donation/` — Donation panel: addresses, runtime QR generator, modal view, bottom-trailing heart button
 - `Safety/SafetyGuard.swift` — Validates endpoints are local
 - `Networking/CloudClient.swift` — Async HTTP client with read-only guard
+- `Networking/SigV4Signer.swift` — AWS SigV4 request signing (used for non-local endpoints)
 
 ## Conventions
 - All UI state flows through `AppState` via `@EnvironmentObject`
@@ -40,6 +43,22 @@ LocalCloudBrowser/
 xcodebuild -project "Local Cloud Browser.xcodeproj" -scheme LocalCloudBrowser -configuration Debug build
 # or open in Xcode and ⌘R
 ```
+
+## Distribution
+
+Shipped outside the App Store as a signed + notarized DMG. App Store is **not** the target — no IAP, no per-feature paywalls; the app is free with full features.
+
+- **Signing identity:** `Developer ID Application: Milan Karakaya (MQXW376WC6)` (in login keychain)
+- **Notarization profile:** `notarytool` (`xcrun notarytool` keychain profile in login keychain)
+- **Release flow:**
+  1. Archive in Xcode → Organizer → Distribute App → Direct Distribution (produces a notarized + stapled `.app`)
+  2. Stage `.app` + Applications symlink into a folder, then `hdiutil create -volname "Local Cloud Browser" -srcfolder <stage> -format UDZO <name>.dmg`
+  3. `codesign --sign "Developer ID Application: Milan Karakaya (MQXW376WC6)" --options runtime --timestamp <dmg>`
+  4. `xcrun notarytool submit <dmg> --keychain-profile notarytool --wait`
+  5. `xcrun stapler staple <dmg>`
+  6. `spctl --assess --type open --context context:primary-signature -v <dmg>` should print `accepted, source=Notarized Developer ID`
+  7. `gh release upload release <dmg> --clobber --repo milan0x/local-cloud-browser`
+- Both the `.app` and the `.dmg` are notarized and stapled, so download → mount → open → run is warning-free even offline.
 
 ## Build & Test Rules
 
