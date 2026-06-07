@@ -27,3 +27,7 @@ Package.resolved
 
 # Environment
 .env
+
+
+# Claude Code local config
+.claude/
