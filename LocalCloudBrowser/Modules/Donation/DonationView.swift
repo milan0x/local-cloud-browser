@@ -57,7 +57,7 @@ struct DonationView: View {
                 .transition(.opacity)
             }
         }
-        .frame(width: 560, height: 760)
+        .frame(width: 560, height: 640)
     }
 }
 
