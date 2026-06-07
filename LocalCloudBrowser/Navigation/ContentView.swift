@@ -23,6 +23,9 @@ struct ContentView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
+        .overlay(alignment: .bottomTrailing) {
+            SupportHeartButton()
+        }
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 TransferToolbarButton()
