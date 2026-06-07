@@ -31,3 +31,6 @@ Package.resolved
 
 # Claude Code local config
 .claude/
+
+# Internal planning notes
+.planning/
