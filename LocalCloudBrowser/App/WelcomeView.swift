@@ -25,28 +25,23 @@ struct WelcomeView: View {
             Spacer().frame(height: 24)
 
             VStack(alignment: .leading, spacing: 12) {
-                Text("What's included for free")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.bottom, 2)
-
                 featureRow(
                     icon: "eye",
                     color: .blue,
-                    title: "Browse & Explore",
-                    subtitle: "View all your resources across 28 AWS services"
+                    title: "Browse Your Services",
+                    subtitle: "S3, SQS, DynamoDB, and 25 more — on LocalStack, MinIO, or AWS"
+                )
+                featureRow(
+                    icon: "lock.fill",
+                    color: .orange,
+                    title: "Safe by Default",
+                    subtitle: "Read-only mode blocks writes until you unlock it from the toolbar"
                 )
                 featureRow(
                     icon: "paperplane",
                     color: .green,
-                    title: "Send & Upload",
-                    subtitle: "Push messages, upload files, and interact with your resources"
-                )
-                featureRow(
-                    icon: "plus.circle",
-                    color: .orange,
-                    title: "Create Resources",
-                    subtitle: "Create up to 5 resources per service"
+                    title: "Create & Interact",
+                    subtitle: "Send messages, upload files, and create resources"
                 )
             }
             .padding(.horizontal, 32)
@@ -57,13 +52,12 @@ struct WelcomeView: View {
                 dismiss()
             } label: {
                 Text("Get Started")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .font(.system(size: 13, weight: .semibold))
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(Color.blue, in: RoundedRectangle(cornerRadius: 8))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .keyboardShortcut(.defaultAction)
             .padding(.horizontal, 32)
             .padding(.bottom, 24)
         }

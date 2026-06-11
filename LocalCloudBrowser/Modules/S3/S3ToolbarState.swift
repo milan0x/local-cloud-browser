@@ -77,25 +77,19 @@ struct S3Toolbar: ToolbarContent {
             .help("Create Folder")
             .disabled(!hasBucket || isReadOnly)
         }
+        // (No Refresh button here — the global toolbar refresh in ContentView
+        // already fans out to the S3 views via `.onAutoRefresh`, and two
+        // identical refresh icons in one toolbar read as a bug.)
         ToolbarItem(placement: .primaryAction) {
-            HStack(spacing: 2) {
-                Menu {
-                    Button("Upload File") { state.pendingAction = .uploadFile }
-                    Button("Upload Folder") { state.pendingAction = .uploadFolder }
-                } label: {
-                    Label("Upload", systemImage: "icloud.and.arrow.up")
-                        .toolbarHitTarget()
-                }
-                .help("Upload")
-                .disabled(!hasBucket || isReadOnly)
-
-                Button { state.pendingAction = .refresh } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                        .toolbarHitTarget()
-                }
-                .help("Refresh")
-                .disabled(!hasBucket || state.isLoading)
+            Menu {
+                Button("Upload File") { state.pendingAction = .uploadFile }
+                Button("Upload Folder") { state.pendingAction = .uploadFolder }
+            } label: {
+                Label("Upload", systemImage: "icloud.and.arrow.up")
+                    .toolbarHitTarget()
             }
+            .help("Upload")
+            .disabled(!hasBucket || isReadOnly)
         }
         ToolbarItem(placement: .primaryAction) {
             let disabled = !hasBucket || isReadOnly || !state.hasSelection || state.isDeleting

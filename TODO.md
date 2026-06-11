@@ -28,11 +28,12 @@ delete, S3 navigation race — were fixed on 2026-06-11.)
 
 ## UX / design improvements
 
-- [ ] **Welcome sheet still shows paid-era copy** (`WelcomeView.swift`) — "What's included for free… Create up to 5 resources per service". Rewrite to three honest rows; use it to teach the read-only lock. Also: hand-rolled blue pill → `.borderedProminent`.
-- [ ] **Retire floating heart + one-item "Donation" menu** — move "Donate…" to the app menu + Help menu; optional quiet link on the welcome pane. Keep the DonationView sheet. Rename "Support development" (collides with the AWS Support module).
-- [ ] **Invert safety signaling** — writes-enabled on a non-local endpoint should be the loud state (red open lock / "Writes enabled" badge), read-only the calm one.
+- [x] ~~Welcome sheet paid-era copy~~ — rewritten 2026-06-11 (honest feature rows, teaches the read-only lock, native `.borderedProminent` button).
+- [x] ~~Invert safety signaling~~ — done 2026-06-11 (writes-enabled on a remote endpoint = red open lock + "Writes enabled" badge in list headers; read-only is calm).
+- [x] ~~Small wins~~ — done 2026-06-11: "GUI" dropped from window title + welcome pane; Connection menu uses native checkmarks (Toggle) + ⌘1–⌘9 profile switching; dimmed sidebar rows explain themselves via `.help`; duplicate S3 toolbar refresh removed. **Decision: the IAM permission-builder key stays visible on local endpoints** — LocalStack (Pro) enforces IAM locally, so hiding it would punish exactly the users testing permissions; a floating "Show" button would be more chrome than it saves.
+- [x] ~~About panel hardcoded version~~ — `AppInfo.version` now reads `CFBundleShortVersionString` from the bundle (2026-06-11).
+- [x] ~~Floating heart~~ — kept per owner decision, with right-click → "Hide Forever" (persisted in `hideSupportHeart`); donations remain in the Donation menu (2026-06-11). Optional later: also add "Donate…" to the app menu and rename "Support development" (collides with the AWS Support module).
 - [ ] **Empty states have no next action** — add optional `action` to shared `EmptyStateView`, thread through `ListLoadingContent` → all 28 services get a "Create X" button in one change (hide when read-only).
-- [ ] **Small wins**: drop "GUI" from window title (`LocalCloudBrowserApp.swift:93`, `ContentView.swift:185`); native menu checkmarks (Picker) + ⌘1–⌘9 profile switching in Connection menu; `.help("Not supported by MinIO")` on dimmed sidebar rows; hide IAM permission-builder toolbar key on local endpoints; drop duplicate S3 toolbar refresh.
 - [ ] Reconsider per-row Actions column in S3 table (web-console pattern; at minimum drop the per-row trash). Judgment call.
 - [ ] Transcribe is categorized under "Management & Governance" in `Route.swift:79` — it's an ML service.
 

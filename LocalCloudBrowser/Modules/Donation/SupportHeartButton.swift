@@ -2,6 +2,9 @@ import SwiftUI
 
 struct SupportHeartButton: View {
     let onTap: () -> Void
+    /// Right-click → "Hide Forever". Donations stay reachable from the
+    /// Donation menu, so this is a one-way dismissal by design.
+    let onHideForever: () -> Void
     @State private var isHovering = false
 
     var body: some View {
@@ -29,6 +32,12 @@ struct SupportHeartButton: View {
         .buttonStyle(.plain)
         .help("Support development")
         .accessibilityLabel("Support development")
+        .contextMenu {
+            Button("Hide Forever") {
+                onHideForever()
+            }
+            Text("Donations stay available in the Donation menu.")
+        }
         .onHover { hovering in
             withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
                 isHovering = hovering

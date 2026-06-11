@@ -53,7 +53,9 @@ extension FocusedValues {
 // MARK: - App constants
 
 enum AppInfo {
-    static let version = "1.0.0"
+    /// Always read from the bundle so the About panel can never go stale
+    /// against the version set in the project file.
+    static let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
     static let contactEmail = "mlnapps@icloud.com"
     static let privacyPolicyURL = URL(string: "https://milan0x00.github.io/LocalCloudBrowser/privacy")!
 }
@@ -230,17 +232,25 @@ struct ConnectionCommands: Commands {
     var body: some Commands {
         CommandMenu("Connection") {
             if let profileStore, let appState {
-                ForEach(profileStore.profiles) { profile in
-                    Button {
-                        profileStore.setActive(id: profile.id)
-                        appState.applyProfile(profile)
-                    } label: {
-                        if profile.id == profileStore.activeProfileId {
-                            Text("\u{2713} \(profile.name)")
-                        } else {
-                            Text("    \(profile.name)")
+                // Toggle renders a real menu checkmark (instead of a literal
+                // "✓ " prefix that misaligns and reads badly in VoiceOver).
+                // ⌘1–⌘9 switch between the first nine profiles.
+                ForEach(Array(profileStore.profiles.enumerated()), id: \.element.id) { index, profile in
+                    Toggle(isOn: Binding(
+                        get: { profile.id == profileStore.activeProfileId },
+                        set: { _ in
+                            guard profile.id != profileStore.activeProfileId else { return }
+                            profileStore.setActive(id: profile.id)
+                            appState.applyProfile(profile)
                         }
+                    )) {
+                        Text(profile.name)
                     }
+                    .keyboardShortcut(
+                        index < 9
+                            ? KeyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
+                            : nil
+                    )
                 }
             }
         }

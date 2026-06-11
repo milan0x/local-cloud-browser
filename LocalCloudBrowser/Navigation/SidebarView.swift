@@ -34,11 +34,17 @@ struct SidebarView: View {
                     ForEach(group.routes) { route in
                         let unsupported = appState.endpointType == .minio && !route.supportedByMinIO
                         if unsupported || !hasConnection {
+                            // No .tag → not selectable. Hit testing stays on
+                            // so the .help tooltip can explain *why* the row
+                            // is dimmed instead of looking broken.
                             HStack {
                                 Label(route.displayName, systemImage: route.systemImage)
                             }
                             .opacity(0.4)
-                            .allowsHitTesting(false)
+                            .selectionDisabled()
+                            .help(unsupported
+                                ? "\(route.displayName) is not supported by MinIO"
+                                : "Add a connection to browse \(route.displayName)")
                         } else {
                             HStack {
                                 Label(route.displayName, systemImage: route.systemImage)

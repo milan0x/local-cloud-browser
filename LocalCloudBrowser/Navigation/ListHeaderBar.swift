@@ -61,6 +61,13 @@ struct ListHeaderBar<Trailing: View>: View {
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.secondary)
                     .help("Read-only mode is active. Disable it in the toolbar to make changes.")
+            } else if !appState.isLocalEndpoint {
+                // Writes against a remote endpoint are the dangerous state —
+                // give it the ambient warning read-only used to have.
+                Label("Writes enabled", systemImage: "lock.open")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.red)
+                    .help("Write mode is active on a remote endpoint. Click the lock in the toolbar to re-enable read-only mode.")
             }
             ListHeaderButton("plus", isDisabled: isReadOnly, help: isReadOnly ? "Read-only mode is active" : "", action: onCreate)
             if !appState.isLocalEndpoint {

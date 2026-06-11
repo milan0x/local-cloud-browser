@@ -9,6 +9,7 @@ struct ContentView: View {
     @State private var showNewConnection = false
     @State private var showPermissionBuilder = false
     @State private var showDonation = false
+    @AppStorage("hideSupportHeart") private var hideSupportHeart = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
 
     var body: some View {
@@ -25,8 +26,11 @@ struct ContentView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .overlay(alignment: .bottomTrailing) {
-            SupportHeartButton {
-                showDonation = true
+            if !hideSupportHeart {
+                SupportHeartButton(
+                    onTap: { showDonation = true },
+                    onHideForever: { hideSupportHeart = true }
+                )
             }
         }
         .toolbar {
@@ -102,18 +106,24 @@ struct ContentView: View {
         }
     }
 
-    @State private var isHoveringLock = false
-
+    /// The *dangerous* state gets the loud color: writes enabled against a
+    /// non-local endpoint is red. Read-only — the safe default — stays calm,
+    /// and writes against localhost are routine, so both render secondary.
     @ViewBuilder
     private var readOnlyToggle: some View {
+        let writesOnRemote = !appState.isReadOnly && !appState.isLocalEndpoint
         Button {
             appState.isReadOnly.toggle()
         } label: {
             Image(systemName: appState.isReadOnly ? "lock.fill" : "lock.open")
-                .foregroundStyle(appState.isReadOnly ? .orange : .secondary)
+                .foregroundStyle(writesOnRemote ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                 .toolbarHitTarget()
         }
-        .help(appState.isReadOnly ? "Read-only mode (click to enable writes)" : "Write mode (click to enable read-only)")
+        .help(appState.isReadOnly
+            ? "Read-only mode (click to enable writes)"
+            : writesOnRemote
+                ? "Writes are enabled on a remote endpoint (click to enable read-only)"
+                : "Write mode (click to enable read-only)")
         .accessibilityLabel(appState.isReadOnly ? "Read-only mode" : "Write mode")
     }
 
@@ -182,7 +192,7 @@ struct ContentView: View {
             Image(systemName: "cloud")
                 .font(.system(size: 64))
                 .foregroundStyle(.secondary)
-            Text("Local Cloud Browser GUI")
+            Text("Local Cloud Browser")
                 .font(.largeTitle)
                 .fontWeight(.semibold)
             if profileStore.profiles.isEmpty {
