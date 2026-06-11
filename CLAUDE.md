@@ -50,15 +50,17 @@ Shipped outside the App Store as a signed + notarized DMG. App Store is **not** 
 
 - **Signing identity:** `Developer ID Application: Milan Karakaya (MQXW376WC6)` (in login keychain)
 - **Notarization profile:** `notarytool` (`xcrun notarytool` keychain profile in login keychain)
-- **Release flow:**
-  1. Archive in Xcode → Organizer → Distribute App → Direct Distribution (produces a notarized + stapled `.app`)
-  2. Stage `.app` + Applications symlink into a folder, then `hdiutil create -volname "Local Cloud Browser" -srcfolder <stage> -format UDZO <name>.dmg`
-  3. `codesign --sign "Developer ID Application: Milan Karakaya (MQXW376WC6)" --options runtime --timestamp <dmg>`
-  4. `xcrun notarytool submit <dmg> --keychain-profile notarytool --wait`
-  5. `xcrun stapler staple <dmg>`
-  6. `spctl --assess --type open --context context:primary-signature -v <dmg>` should print `accepted, source=Notarized Developer ID`
-  7. `gh release upload release <dmg> --clobber --repo milan0x/local-cloud-browser`
+- **Release flow** (fully CLI — no Xcode GUI needed; commit + push first so the tag matches the binary):
+  1. `xcodebuild archive -project "Local Cloud Browser.xcodeproj" -scheme LocalCloudBrowser -configuration Release -archivePath <dir>/LCB.xcarchive`
+  2. `xcodebuild -exportArchive -archivePath <dir>/LCB.xcarchive -exportOptionsPlist <plist> -exportPath <dir>/export` with plist keys `method=developer-id`, `teamID=MQXW376WC6`, `signingStyle=automatic`, `destination=export`
+  3. Notarize + staple the app: `ditto -c -k --keepParent <app> app.zip` → `xcrun notarytool submit app.zip --keychain-profile notarytool --wait` → `xcrun stapler staple <app>`
+  4. Stage `.app` + Applications symlink into a folder, then `hdiutil create -volname "Local Cloud Browser" -srcfolder <stage> -format UDZO LocalCloudBrowser-<version>.dmg`
+  5. `codesign --sign "Developer ID Application: Milan Karakaya (MQXW376WC6)" --options runtime --timestamp <dmg>`
+  6. `xcrun notarytool submit <dmg> --keychain-profile notarytool --wait` → `xcrun stapler staple <dmg>`
+  7. `spctl --assess --type open --context context:primary-signature -v <dmg>` should print `accepted, source=Notarized Developer ID`
+  8. `gh release create v<version> <dmg> --target "$(git rev-parse HEAD)" --title "v<version>" --latest --notes "..."` — one release per version, tagged at the exact commit the binary was built from, so the auto-generated Source code archives match the DMG. (README links to `/releases/latest`, which follows automatically.)
 - Both the `.app` and the `.dmg` are notarized and stapled, so download → mount → open → run is warning-free even offline.
+- Version lives in the project file (`MARKETING_VERSION` / `CURRENT_PROJECT_VERSION`); the About panel reads it from the bundle at runtime.
 
 ## Build & Test Rules
 
