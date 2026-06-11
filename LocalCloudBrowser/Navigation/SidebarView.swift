@@ -129,10 +129,13 @@ struct SidebarView: View {
                 },
                 onDelete: sheet.profile.map { profile in
                     {
+                        // Capture before delete — the store reassigns
+                        // activeProfileId during delete, so the old nil check
+                        // never fired and AppState kept the deleted endpoint.
+                        let wasActive = profile.id == profileStore.activeProfileId
                         profileStore.delete(id: profile.id)
-                        if profileStore.activeProfileId == nil, let first = profileStore.profiles.first {
-                            profileStore.setActive(id: first.id)
-                            appState.applyProfile(first)
+                        if wasActive, let newActive = profileStore.activeProfile {
+                            appState.applyProfile(newActive)
                         }
                     }
                 }

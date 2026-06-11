@@ -82,15 +82,7 @@ struct ConnectionManagerView: View {
                     }
                 },
                 onDelete: {
-                    profileStore.delete(id: profile.id)
-                    if profileStore.profiles.isEmpty {
-                        appState.selectedRoute = nil
-                        appState.activeConnectionName = "No Connection"
-                        appState.connectionStatus = .disconnected
-                    } else if profileStore.activeProfileId == nil, let first = profileStore.profiles.first {
-                        profileStore.setActive(id: first.id)
-                        appState.applyProfile(first)
-                    }
+                    deleteProfile(profile)
                 }
             )
         }
@@ -156,14 +148,17 @@ struct ConnectionManagerView: View {
     }
 
     private func deleteProfile(_ profile: ConnectionProfile) {
+        // Capture before delete — the store reassigns activeProfileId to the
+        // next profile during delete, so checking for nil afterwards never
+        // fires and AppState would keep the deleted endpoint/credentials.
+        let wasActive = profile.id == profileStore.activeProfileId
         profileStore.delete(id: profile.id)
         if profileStore.profiles.isEmpty {
             appState.selectedRoute = nil
             appState.activeConnectionName = "No Connection"
             appState.connectionStatus = .disconnected
-        } else if profileStore.activeProfileId == nil, let first = profileStore.profiles.first {
-            profileStore.setActive(id: first.id)
-            appState.applyProfile(first)
+        } else if wasActive, let newActive = profileStore.activeProfile {
+            appState.applyProfile(newActive)
         }
     }
 }

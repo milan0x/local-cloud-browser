@@ -1405,7 +1405,15 @@ final class CloudClient: ObservableObject {
     ) -> AWSEndpointPlan {
         let callerRegion = effectiveRegion(region)
         if appState.needsSigning {
-            let hostname = hostnameOverride ?? "https://\(service).\(callerRegion).amazonaws.com"
+            // Only reroute to the regional AWS hostname when the configured
+            // endpoint actually targets AWS. A non-AWS endpoint with custom
+            // credentials (remote MinIO, R2 gateway, LocalStack behind auth)
+            // must receive the signed request itself — rerouting on credential
+            // shape alone would silently send requests, and the access key ID,
+            // to production AWS.
+            let hostname = endpointTargetsAWS
+                ? (hostnameOverride ?? "https://\(service).\(callerRegion).amazonaws.com")
+                : nil
             return AWSEndpointPlan(
                 baseURL: hostname,
                 authHeader: nil,
@@ -1424,6 +1432,16 @@ final class CloudClient: ObservableObject {
                 signingRegion: nil
             )
         }
+    }
+
+    /// True when the configured endpoint host is a real AWS hostname.
+    /// Uses a strict suffix match — `contains` would let a host like
+    /// `amazonaws.com.evil.com` qualify for AWS routing.
+    private var endpointTargetsAWS: Bool {
+        guard let host = URLComponents(string: appState.endpoint)?.host?.lowercased() else {
+            return false
+        }
+        return host == "amazonaws.com" || host.hasSuffix(".amazonaws.com")
     }
 
     private static let iso8601DateOnly: DateFormatter = {
@@ -1603,7 +1621,18 @@ final class CloudClient: ObservableObject {
         }
 
         if !queryParams.isEmpty {
-            components.queryItems = queryParams.map { URLQueryItem(name: $0.key, value: $0.value) }
+            // Encode query items with the same RFC 3986 set the SigV4 canonical
+            // query uses. URLComponents.queryItems leaves '+' literal on the
+            // wire — S3 decodes that as a space while the signer canonicalizes
+            // it as %2B, so continuation tokens (base64, frequently contain
+            // '+') break pagination with SignatureDoesNotMatch and '+'-named
+            // prefixes list the wrong folder.
+            components.percentEncodedQueryItems = queryParams.map {
+                URLQueryItem(
+                    name: SigV4Signer.uriEncode($0.key, encodeSlash: true),
+                    value: SigV4Signer.uriEncode($0.value, encodeSlash: true)
+                )
+            }
         }
 
         guard let url = components.url else {

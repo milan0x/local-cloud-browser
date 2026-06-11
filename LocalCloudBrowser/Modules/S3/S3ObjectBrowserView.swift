@@ -100,6 +100,12 @@ struct S3ObjectBrowserView: View {
     // Cancellable long-running task (move, delete folders, download zip, drop upload)
     @State private var longRunningTask: Task<Void, Never>?
 
+    // In-flight listing request. Forced loads (navigation) supersede it, and
+    // each request carries a generation so a stale response can never render
+    // under a newer breadcrumb.
+    @State private var listingTask: Task<Void, Never>?
+    @State private var listingGeneration = 0
+
     // Copy/paste
     @State private var isPasting = false
 
@@ -268,6 +274,7 @@ struct S3ObjectBrowserView: View {
         }
         .onDisappear {
             longRunningTask?.cancel()
+            listingTask?.cancel()
             transferManager.onFileUploaded = nil
         }
         .onChange(of: appState.s3Domain) {
@@ -1861,7 +1868,15 @@ struct S3ObjectBrowserView: View {
     }
 
     private func loadObjects(force: Bool = false, silent: Bool = false) {
-        guard !isLoading else { return }
+        if force {
+            // Supersede any in-flight listing. The old `guard !isLoading`
+            // applied even to forced loads, so navigating while a slow
+            // listing was running silently dropped the new load and the
+            // stale response rendered under the new breadcrumb.
+            listingTask?.cancel()
+        } else if isLoading {
+            return
+        }
         if !force, let lastLoadTime, Date().timeIntervalSince(lastLoadTime) < 2.0 {
             return
         }
@@ -1871,14 +1886,19 @@ struct S3ObjectBrowserView: View {
             objects = []
             prefixes = []
         }
-        Task {
+        listingGeneration += 1
+        let generation = listingGeneration
+        let requestPrefix = currentPrefix
+        listingTask = Task {
             do {
                 let result = try await service.listObjects(
                     bucket: bucket.name,
-                    prefix: currentPrefix,
+                    prefix: requestPrefix,
                     continuationToken: continuationToken,
                     regionOverride: bucketRegion
                 )
+                // A newer load owns the view state now — drop this response.
+                guard generation == listingGeneration, requestPrefix == currentPrefix else { return }
                 if objects != result.objects {
                     objects = result.objects
                 }
@@ -1898,32 +1918,40 @@ struct S3ObjectBrowserView: View {
                     nextPageToken = nil
                 }
             } catch let error as CloudClientError {
-                // Auto-redirect: if the bucket lives in a different region,
-                // remember the region locally and retry with regionOverride.
-                // Crucially, we do NOT mutate appState.region — that would
-                // break other services (SQS, IAM, etc.) still using the
-                // user's selected region.
-                if let correctRegion = error.redirectRegion,
-                   correctRegion != (bucketRegion ?? appState.region) {
-                    Log.info("Bucket \(bucket.name) lives in \(correctRegion) — using per-bucket override", category: "S3")
-                    bucketRegion = correctRegion
-                    if !silent {
-                        isLoading = false
-                        lastLoadTime = nil
+                // Superseded — a newer load owns the view state, including
+                // isLoading. Cancelled-but-current (view disappearing) still
+                // falls through so the trailing cleanup resets isLoading.
+                guard generation == listingGeneration else { return }
+                if !Task.isCancelled {
+                    // Auto-redirect: if the bucket lives in a different region,
+                    // remember the region locally and retry with regionOverride.
+                    // Crucially, we do NOT mutate appState.region — that would
+                    // break other services (SQS, IAM, etc.) still using the
+                    // user's selected region.
+                    if let correctRegion = error.redirectRegion,
+                       correctRegion != (bucketRegion ?? appState.region) {
+                        Log.info("Bucket \(bucket.name) lives in \(correctRegion) — using per-bucket override", category: "S3")
+                        bucketRegion = correctRegion
+                        if !silent {
+                            isLoading = false
+                            lastLoadTime = nil
+                        }
+                        loadObjects(force: true, silent: silent)
+                        return
                     }
-                    loadObjects(force: true, silent: silent)
-                    return
-                }
-                if !silent {
-                    errorMessage = error.localizedDescription
-                    appState.autoRefresh.reportFailure()
+                    if !silent {
+                        errorMessage = error.localizedDescription
+                        appState.autoRefresh.reportFailure()
+                    }
                 }
             } catch {
-                if !silent {
+                guard generation == listingGeneration else { return }
+                if !Task.isCancelled, !silent {
                     errorMessage = error.localizedDescription
                     appState.autoRefresh.reportFailure()
                 }
             }
+            guard generation == listingGeneration else { return }
             if !silent {
                 isLoading = false
                 lastLoadTime = Date()

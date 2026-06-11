@@ -463,16 +463,20 @@ struct SQSMessageBrowserView: View {
         Task {
             do {
                 let received = try await service.receiveMessages(queueUrl: queue.queueUrl)
-                // Deduplicate by messageId, keeping latest receipt handle
-                var byId: [String: SQSMessage] = [:]
-                for msg in messages { byId[msg.messageId] = msg }
-                for msg in received { byId[msg.messageId] = msg }
-                // Only update the array if the set of message IDs changed
-                // (receiptHandle changes every receive, so full equality always fails)
-                let freshIDs = Set(byId.keys)
+                // Merge fresh receipt handles into the existing rows, keeping
+                // stable order and appending genuinely new messages. SQS only
+                // honors DeleteMessage with the *most recent* receipt handle
+                // of a re-received message, so handles must be refreshed even
+                // when the ID set is unchanged — the old ID-set-only guard
+                // kept stale handles and deletes could silently fail (the row
+                // disappeared but the message stayed in the queue).
+                var freshById: [String: SQSMessage] = [:]
+                for msg in received { freshById[msg.messageId] = msg }
                 let currentIDs = Set(messages.map(\.messageId))
-                if freshIDs != currentIDs {
-                    messages = Array(byId.values)
+                var merged = messages.map { freshById[$0.messageId] ?? $0 }
+                merged.append(contentsOf: received.filter { !currentIDs.contains($0.messageId) })
+                if merged != messages {
+                    messages = merged
                 }
             } catch {
                 if !silent {
@@ -495,7 +499,11 @@ struct SQSMessageBrowserView: View {
             for msg in targets {
                 guard !Task.isCancelled else { break }
                 do {
-                    try await service.deleteMessage(queueUrl: queue.queueUrl, receiptHandle: msg.receiptHandle)
+                    // `targets` may have been captured before a refresh —
+                    // always delete with the newest receipt handle we hold.
+                    let handle = messages.first(where: { $0.messageId == msg.messageId })?.receiptHandle
+                        ?? msg.receiptHandle
+                    try await service.deleteMessage(queueUrl: queue.queueUrl, receiptHandle: handle)
                     deletedIDs.insert(msg.id)
                 } catch {
                     if !Task.isCancelled { serviceError = error.asServiceError }

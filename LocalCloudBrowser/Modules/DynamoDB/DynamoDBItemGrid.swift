@@ -22,6 +22,10 @@ final class EditableTextField: NSTextField {
     var isInlineEditable: Bool = true
     var isDraftCell: Bool = false
     var normalAttributedString: NSAttributedString?
+    /// The attribute's raw value without the type badge. The displayed
+    /// attributedStringValue prepends "S "/"N "/"BOOL " — editing must operate
+    /// on the bare value or a partial edit commits the badge into the data.
+    var bareValue: String?
 
     /// Recolor text for selection state
     func updateForSelection(_ isSelected: Bool) {
@@ -52,6 +56,9 @@ final class EditableTextField: NSTextField {
     }
 
     func beginEditing() {
+        if let bareValue {
+            stringValue = bareValue
+        }
         originalValue = stringValue
         isEditable = true
         isSelectable = true
@@ -63,6 +70,7 @@ final class EditableTextField: NSTextField {
     }
 
     func endEditing(revert: Bool) {
+        let unchanged = stringValue == originalValue
         if revert {
             stringValue = originalValue
         }
@@ -71,6 +79,12 @@ final class EditableTextField: NSTextField {
         isBezeled = false
         drawsBackground = false
         backgroundColor = .clear
+        // When nothing was committed, restore the badge-decorated display —
+        // the field editor showed the bare value, and leaving it would drop
+        // the type badge until the next table reload.
+        if revert || unchanged, let normal = normalAttributedString {
+            attributedStringValue = normal
+        }
         window?.makeFirstResponder(superview?.superview) // return focus to table
     }
 }
@@ -408,6 +422,7 @@ struct DynamoDBItemGrid: NSViewRepresentable {
                 textField.isKeyColumn = false
                 textField.isInlineEditable = true
                 textField.isEnabled = true
+                textField.bareValue = nil
                 textField.placeholderString = columnName
 
                 if let draftVal = draftValues[columnName], !draftVal.isEmpty {
@@ -439,6 +454,7 @@ struct DynamoDBItemGrid: NSViewRepresentable {
 
                 if let value {
                     textField.isInlineEditable = value.isInlineEditable && !isKey
+                    textField.bareValue = value.displayString
                     let attrStr = attributedString(for: value, isKey: isKey)
                     textField.normalAttributedString = attrStr
                     textField.attributedStringValue = attrStr
@@ -446,6 +462,7 @@ struct DynamoDBItemGrid: NSViewRepresentable {
                     textField.isEnabled = !isReadOnly
                 } else {
                     textField.isInlineEditable = false
+                    textField.bareValue = nil
                     let attrStr = NSAttributedString(
                         string: "\u{2014}",
                         attributes: [

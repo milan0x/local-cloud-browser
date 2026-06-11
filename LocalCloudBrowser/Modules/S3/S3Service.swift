@@ -629,7 +629,13 @@ final class S3Service: BaseService {
     }
 
     func getBucketPolicy(bucket: String) async throws -> String {
-        let data = try await client.s3Request(method: "GET", path: "/\(bucket)?policy")
+        // The subresource must go through queryParams — embedded in `path`
+        // the '?' gets percent-encoded into the bucket/key path.
+        let data = try await client.s3Request(
+            method: "GET",
+            path: "/\(bucket)",
+            queryParams: ["policy": ""]
+        )
         return String(data: data, encoding: .utf8) ?? "{}"
     }
 
@@ -637,7 +643,8 @@ final class S3Service: BaseService {
         guard let body = json.data(using: .utf8) else { return }
         _ = try await client.s3Request(
             method: "PUT",
-            path: "/\(bucket)?policy",
+            path: "/\(bucket)",
+            queryParams: ["policy": ""],
             body: body,
             contentType: "application/json"
         )

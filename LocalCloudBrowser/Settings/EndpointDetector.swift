@@ -44,7 +44,14 @@ enum EndpointDetector {
         let (detectedType, typeHealthPath) = await probeEndpointType(endpoint: endpoint)
 
         var result = DetectedSettings()
-        result.endpointType = detectedType
+        // Only report a *positive* identification. `.generic` just means the
+        // probes didn't match — reporting it would downgrade an existing
+        // .localstack/.minio profile to .generic on a transient probe
+        // failure, and persist it (flipping needsSigning on for profiles
+        // with custom credentials without the user touching anything).
+        if detectedType != .generic {
+            result.endpointType = detectedType
+        }
 
         // Step 2: Set health path from type probe if needed
         if currentHealthPath.trimmingCharacters(in: .whitespaces).isEmpty {

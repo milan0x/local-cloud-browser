@@ -35,6 +35,13 @@ struct RequestSigningContext: Sendable {
         payloadHash: String? = nil,
         extraHeaders: [String: String] = [:]
     ) throws -> URLRequest {
+        // Enforce read-only here, not just in the view layer — this is the
+        // only chokepoint for the streaming upload path, which bypasses
+        // CloudClient.executeRequest and its ReadOnlyInterceptor check.
+        guard ReadOnlyInterceptor.allowsRequest(method: method, isReadOnly: isReadOnly) else {
+            throw CloudClientError.readOnlyBlocked(method: method)
+        }
+
         let (effectiveBase, effectivePath) = resolveURL(for: path)
 
         // Encode each path segment with the same charset SigV4 uses (RFC 3986 unreserved + '/')
@@ -48,7 +55,15 @@ struct RequestSigningContext: Sendable {
             throw URLError(.badURL)
         }
         if !queryParams.isEmpty {
-            components.queryItems = queryParams.map { URLQueryItem(name: $0.key, value: $0.value) }
+            // Same RFC 3986 encoding the SigV4 canonical query uses — a
+            // literal '+' on the wire is decoded as a space by S3 but signed
+            // as %2B, breaking the signature (see buildURLRequest).
+            components.percentEncodedQueryItems = queryParams.map {
+                URLQueryItem(
+                    name: SigV4Signer.uriEncode($0.key, encodeSlash: true),
+                    value: SigV4Signer.uriEncode($0.value, encodeSlash: true)
+                )
+            }
         }
         guard let url = components.url else {
             throw URLError(.badURL)
