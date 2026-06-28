@@ -23,6 +23,7 @@ Or from the command line:
 xcodebuild -project "Local Cloud Browser.xcodeproj" -scheme LocalCloudBrowser -configuration Debug build
 ```
 
+![Local Cloud Browser](app-ss2.png)
 ![Local Cloud Browser](app-ss.png)
 
 ## Status
