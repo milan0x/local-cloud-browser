@@ -26,7 +26,7 @@ struct SQSQueue: Identifiable, Hashable {
     func sendMessageCLI(endpointUrl: String, region: String) -> String {
         var lines = [
             "aws sqs send-message \\",
-            "  --queue-url \(queueUrl) \\",
+            "  --queue-url '\(queueUrl.shellEscaped())' \\",
             "  --message-body '<message body>' \\"
         ]
         if isFifo {
@@ -40,7 +40,7 @@ struct SQSQueue: Identifiable, Hashable {
     func receiveMessageCLI(endpointUrl: String, region: String) -> String {
         [
             "aws sqs receive-message \\",
-            "  --queue-url \(queueUrl) \\",
+            "  --queue-url '\(queueUrl.shellEscaped())' \\",
             "  --max-number-of-messages 1 \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'"
@@ -50,7 +50,7 @@ struct SQSQueue: Identifiable, Hashable {
     func getAttributesCLI(endpointUrl: String, region: String) -> String {
         [
             "aws sqs get-queue-attributes \\",
-            "  --queue-url \(queueUrl) \\",
+            "  --queue-url '\(queueUrl.shellEscaped())' \\",
             "  --attribute-names All \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'"
@@ -186,7 +186,7 @@ struct SQSMessage: Identifiable, Hashable {
     func toAWSCLI(queueUrl: String, endpointUrl: String, region: String) -> String {
         var lines = [
             "aws sqs send-message \\",
-            "  --queue-url \(queueUrl) \\",
+            "  --queue-url '\(queueUrl.shellEscaped())' \\",
             "  --message-body '\(body.shellEscaped())' \\"
         ]
         if let groupId = messageGroupId {

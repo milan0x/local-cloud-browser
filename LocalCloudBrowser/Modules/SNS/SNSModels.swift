@@ -16,7 +16,7 @@ struct SNSTopic: Identifiable, Hashable {
     func publishCLI(endpointUrl: String, region: String) -> String {
         var lines = [
             "aws sns publish \\",
-            "  --topic-arn \(topicArn) \\",
+            "  --topic-arn '\(topicArn.shellEscaped())' \\",
             "  --message '<message body>' \\"
         ]
         if isFifo {
@@ -30,7 +30,7 @@ struct SNSTopic: Identifiable, Hashable {
     func listSubscriptionsCLI(endpointUrl: String, region: String) -> String {
         [
             "aws sns list-subscriptions-by-topic \\",
-            "  --topic-arn \(topicArn) \\",
+            "  --topic-arn '\(topicArn.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'"
         ].joined(separator: "\n")
@@ -39,7 +39,7 @@ struct SNSTopic: Identifiable, Hashable {
     func getAttributesCLI(endpointUrl: String, region: String) -> String {
         [
             "aws sns get-topic-attributes \\",
-            "  --topic-arn \(topicArn) \\",
+            "  --topic-arn '\(topicArn.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'"
         ].joined(separator: "\n")
@@ -69,7 +69,7 @@ struct SNSSubscription: Identifiable, Hashable {
     func getAttributesCLI(endpointUrl: String, region: String) -> String {
         [
             "aws sns get-subscription-attributes \\",
-            "  --subscription-arn \(subscriptionArn) \\",
+            "  --subscription-arn '\(subscriptionArn.shellEscaped())' \\",
             "  --endpoint-url '\(endpointUrl)' \\",
             "  --region '\(region)'"
         ].joined(separator: "\n")

