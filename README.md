@@ -13,7 +13,13 @@ A native macOS app for AWS-compatible endpoints, built in SwiftUI. Vibe-coded, l
 
 ## Run it
 
-Grab a signed, Apple-notarized build from [Releases](https://github.com/milan0x/local-cloud-browser/releases/latest), or build it yourself.
+Grab a signed, Apple-notarized build from [Releases](https://github.com/milan0x/local-cloud-browser/releases/latest), or install with Homebrew:
+
+```bash
+brew install milan0x/tap/local-cloud-browser
+```
+
+Or build it yourself.
 
 To build: open `Local Cloud Browser.xcodeproj` in Xcode and hit ⌘R. macOS 14+, Swift 6.
 
