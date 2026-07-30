@@ -34,3 +34,9 @@ Package.resolved
 
 # Internal planning notes
 .planning/
+
+# Private roadmap / unshipped plans (local only)
+PLANS.md
+
+# Installed agent skills (local tooling)
+.agents/
