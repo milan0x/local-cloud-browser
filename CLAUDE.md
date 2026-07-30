@@ -61,6 +61,7 @@ Shipped outside the App Store as a signed + notarized DMG. App Store is **not** 
   8. `gh release create v<version> <dmg> --target "$(git rev-parse HEAD)" --title "v<version>" --latest --notes "..."` — one release per version, tagged at the exact commit the binary was built from, so the auto-generated Source code archives match the DMG. (README links to `/releases/latest`, which follows automatically.)
   9. (optional) `gh workflow run bump.yml -R milan0x/homebrew-tap` — bumps the Homebrew cask immediately; the tap's scheduled workflow picks up new releases within 6 hours on its own either way.
 - **Homebrew:** cask `local-cloud-browser` lives in `milan0x/homebrew-tap` (local checkout: `~/dev/homebrew-tap`). Its `bump.yml` workflow polls the latest GitHub release every 6h and updates version + sha256 automatically — no manual edits needed.
+- **Release naming (MUST — Homebrew depends on it):** tag exactly `v<version>`, DMG asset exactly `LocalCloudBrowser-<version>.dmg`, and the app bundle inside the DMG exactly `Local Cloud Browser GUI.app`. The tap's bump workflow and cask build the download URL and app path from these; any deviation silently breaks `brew install`.
 - Both the `.app` and the `.dmg` are notarized and stapled, so download → mount → open → run is warning-free even offline.
 - Version lives in the project file (`MARKETING_VERSION` / `CURRENT_PROJECT_VERSION`); the About panel reads it from the bundle at runtime.
 
